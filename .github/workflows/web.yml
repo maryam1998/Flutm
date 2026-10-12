@@ -27,6 +27,14 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
+
+      - name: Generate web folder if missing
+        run: |
+          if [ ! -d web ]; then
+            flutter create --platforms=web --org app.maghz --project-name maghz /tmp/scaffold
+            cp -r /tmp/scaffold/web .
+          fi
 
       - name: Install dependencies
         run: flutter pub get
