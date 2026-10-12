@@ -7,7 +7,7 @@ import '../models/constants.dart';
 import '../models/map_models.dart';
 import 'camera.dart';
 import 'draw_utils.dart';
-import 'geometry.dart';
+import 'geometry.dart' as geo;
 import 'hit_registry.dart';
 import 'map_ops.dart';
 import 'user_state.dart';
@@ -337,7 +337,7 @@ class MapPainter extends CustomPainter {
 
   // ---------- تنه و شاخه‌ها ----------
   void _branches(Canvas canvas, MapHost h, Color tc, {required bool trunkOnly}) {
-    final cp = trunkControlPoints(h, state.me);
+    final cp = geo.trunkControlPoints(h, state.me);
     final col = hexColor(h.color, hexColor(h.isRing ? kRingColor : kPalette[0]));
     if (h.isRing) {
       _taperedBezier(canvas, cp, col, 3.2, 1.6, 0.6);
@@ -360,11 +360,11 @@ class MapPainter extends CustomPainter {
     ..strokeCap = cap
     ..strokeJoin = StrokeJoin.round;
 
-  Path _pathOf(Cubic k) => Path()
+  Path _pathOf(geo.Cubic k) => Path()
     ..moveTo(k.p0.dx, k.p0.dy)
     ..cubicTo(k.p1.dx, k.p1.dy, k.p2.dx, k.p2.dy, k.p3.dx, k.p3.dy);
 
-  void _trunk(Canvas c, Cubic cp, Color col, String style) {
+  void _trunk(Canvas c, geo.Cubic cp, Color col, String style) {
     switch (style) {
       case 'solid':
         c.drawPath(_pathOf(cp), _stroke(col, 3, 0.9));
@@ -381,7 +381,9 @@ class MapPainter extends CustomPainter {
           final n = Offset(-d.dy / len * 2.6, d.dx / len * 2.6);
           for (final k in [1.0, -1.0]) {
             final o = n * k;
-            c.drawPath(_pathOf(Cubic(cp.p0 + o, cp.p1 + o, cp.p2 + o, cp.p3 + o)), _stroke(col, 1.6, 0.9));
+            c.drawPath(
+                _pathOf(geo.Cubic(cp.p0 + o, cp.p1 + o, cp.p2 + o, cp.p3 + o)),
+                _stroke(col, 1.6, 0.9));
           }
         }
       case 'glow':
@@ -394,7 +396,7 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  void _taperedBezier(Canvas c, Cubic cp, Color col, double w0, double w1, double op) {
+  void _taperedBezier(Canvas c, geo.Cubic cp, Color col, double w0, double w1, double op) {
     const seg = 7;
     final p = _stroke(col, w0, op);
     for (var s = 0; s < seg; s++) {
@@ -404,7 +406,7 @@ class MapPainter extends CustomPainter {
   }
 
   void _taperedPoly(Canvas c, List<Offset> pts, Color col, double w0, double w1, double op) {
-    final cum = polyCum(pts);
+    final cum = geo.polyCum(pts);
     final tot = cum.last == 0 ? 1.0 : cum.last;
     final p = _stroke(col, w0, op);
     for (var i = 1; i < pts.length; i++) {
@@ -417,8 +419,8 @@ class MapPainter extends CustomPainter {
   void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt, double originDir, ActionNode a, int side, double scale, Color tc) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
     final color = (a.color != null && a.color!.isNotEmpty) ? hexColor(a.color, hostColor) : hostColor;
-    final geom = computeTwigGeom(h, a, originPt, originDir, side, scale);
-    applyBranchStyle(geom, effBranchStyle(h, a), side);
+    final geom = geo.computeTwigGeom(h, a, originPt, originDir, side, scale);
+    geo.applyBranchStyle(geom, geo.effBranchStyle(h, a), side);
     final end = geom.end;
     _pts.add(end);
     hits.geom[a.id] = ActionGeomEntry(h.id, geom.originPt, end, scale);
@@ -427,7 +429,7 @@ class MapPainter extends CustomPainter {
 
     final baseW = math.max(1.0, (1.9 + weight * 1.05) * scale);
     final tipW = math.max(0.7, baseW * 0.38);
-    final cub = Cubic(geom.originPt, geom.c1, geom.c2, end);
+    final cub = geo.Cubic(geom.originPt, geom.c1, geom.c2, end);
     if (geom.poly != null) {
       _taperedPoly(canvas, geom.poly!, color, baseW, tipW, 0.92);
     } else {
@@ -442,7 +444,7 @@ class MapPainter extends CustomPainter {
         Offset co;
         double cd;
         if (geom.poly != null) {
-          final q = polyPointAt(geom.poly!, tt);
+          final q = geo.polyPointAt(geom.poly!, tt);
           co = q.pt;
           cd = q.angle;
         } else {
