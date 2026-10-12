@@ -145,6 +145,12 @@ class _Row {
   final String hit;
 }
 
+class _Trophy {
+  _Trophy(this.node, this.parentText);
+  final ActionNode node;
+  final String parentText;
+}
+
 class GoalsSheet extends StatefulWidget {
   const GoalsSheet({
     super.key,
@@ -171,6 +177,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
   final _daysOpen = <String>{};
   final _statsOpen = <String>{};
   String? _addingFor;
+  List<String> _currentVisibleOrder = [];
 
   @override
   void dispose() {
@@ -217,8 +224,24 @@ class _GoalsSheetState extends State<GoalsSheet> {
       }
     }
 
-    // مرتب‌سازی: lastActivity نزولی
-    rows.sort((a, b) => b.h.lastActivity.compareTo(a.h.lastActivity));
+    // مرتب‌سازی بر اساس goalOrder (اگه ذخیره شده باشه)، وگرنه lastActivity نزولی
+    final savedOrder =
+        (s.extra['goalOrder'] as List?)?.whereType<String>().toList() ??
+            const <String>[];
+    final orderMap = <String, int>{
+      for (var i = 0; i < savedOrder.length; i++) savedOrder[i]: i,
+    };
+    rows.sort((a, b) {
+      final pa = orderMap[a.h.id];
+      final pb = orderMap[b.h.id];
+      if (pa != null && pb != null) return pa.compareTo(pb);
+      if (pa != null) return -1;
+      if (pb != null) return 1;
+      return b.h.lastActivity.compareTo(a.h.lastActivity);
+    });
+
+    // ترتیب نمایش‌داده‌شده (بعد از مرتب‌سازی) برای onReorder
+    _currentVisibleOrder = rows.map((r) => r.h.id).toList();
 
     final freeRings =
         s.goals.isEmpty ? 0 : s.rings.where((r) => ringIsOrphan(s, r)).length;
@@ -301,9 +324,23 @@ class _GoalsSheetState extends State<GoalsSheet> {
               style: const TextStyle(color: Colors.white54, height: 1.8),
             ),
           )
+        else if (isReachedTab)
+          for (final r in rows) _reachedCard(store, r.h as Goal)
+        else if (_q.isEmpty && rows.length > 1 && rows.every((r) => r.h is Goal))
+          // حالت قابل‌کشیدن (فقط اهداف، نه حلقه‌ها؛ در حالت جستجو غیرفعال)
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: rows.length,
+            onReorder: _onReorderGoals,
+            itemBuilder: (ctx, i) => KeyedSubtree(
+              key: ValueKey(rows[i].h.id),
+              child: _hostCard(store, rows[i], reorderIndex: i),
+            ),
+          )
         else
-          for (final r in rows)
-            isReachedTab ? _reachedCard(store, r.h as Goal) : _hostCard(store, r),
+          for (final r in rows) _hostCard(store, r),
 
         if (freeRings > 0)
           Padding(
@@ -345,7 +382,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             style: const TextStyle(fontSize: 10.5, color: Colors.white70)),
       );
 
-  Widget _hostCard(MapStore store, _Row r) {
+  Widget _hostCard(MapStore store, _Row r, {int? reorderIndex}) {
     final h = r.h;
     final color = _hostColor(h);
     final isOpen =
@@ -374,6 +411,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
               padding: const EdgeInsets.all(10),
               child: Row(
                 children: [
+                  if (reorderIndex != null)
+                    ReorderableDragStartListener(
+                      index: reorderIndex,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2),
+                        child: Icon(Icons.drag_indicator,
+                            size: 20, color: Colors.white38),
+                      ),
+                    ),
                   _Avatar(host: h, color: color),
                   const SizedBox(width: 10),
                   Expanded(
@@ -560,6 +606,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             ),
           for (final a in h.actions)
             ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
+          ..._trophiesSection(store, h, hostColor),
 
           const SizedBox(height: 6),
 
@@ -678,8 +725,16 @@ class _GoalsSheetState extends State<GoalsSheet> {
     PeriodInfo pi,
     Color hostColor,
     int depth,
-    String parentName,
-  ) {
+    String parentName, {
+    int? reorderIndex,
+  }) {
+    // شاخه‌ی دستاوردشده پنهان است؛ زیرشاخه‌هاش در همان سطح نشان داده می‌شن
+    if (n.extra['achieved'] == true) {
+      return [
+        for (final c in n.children)
+          ..._nodeTiles(store, h, c, pi, hostColor, depth, parentName),
+      ];
+    }
     final color = hexColor(n.color, hostColor);
     final todayDone = truthy(n.logs[pi.todayJK]);
     final daysOpen = _daysOpen.contains(n.id);
@@ -730,6 +785,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
           const SizedBox(height: 4),
           Row(
             children: [
+              if (reorderIndex != null)
+                ReorderableDragStartListener(
+                  index: reorderIndex,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 2),
+                    child: Icon(Icons.drag_indicator,
+                        size: 18, color: Colors.white38),
+                  ),
+                ),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => store.toggleLog(h, n, pi.todayJK),
@@ -790,6 +854,16 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 ),
                 color: nodeDaySecs(n, pi.todayJK) > 0 ? color : null,
               ),
+              _iconBtn(
+                n.extra['achieved'] == true
+                    ? Icons.emoji_events
+                    : Icons.emoji_events_outlined,
+                'دستاورد',
+                () => _toggleAchieved(store, h, n),
+                color: n.extra['achieved'] == true
+                    ? const Color(0xFFF4C542)
+                    : null,
+              ),
               _iconBtn(Icons.close, 'حذف', () => _confirmDelete(store, h, n)),
             ],
           ),
@@ -837,9 +911,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
           padding: const EdgeInsets.only(bottom: 8),
           child: _addRow(store, h, n, 'نام زیرشاخه'),
         ),
-      for (final c in n.children)
-        ..._nodeTiles(store, h, c, pi, hostColor, depth + 1,
-            n.text.isEmpty ? 'بدون نام' : n.text),
+      ..._childrenList(store, h, n, pi, hostColor, depth),
     ];
 
     return [
@@ -979,6 +1051,170 @@ class _GoalsSheetState extends State<GoalsSheet> {
       ),
     );
     if (ok == true) store.removeActionNode(h, n);
+  }
+
+  void _onReorderGoals(int oldIdx, int newIdx) {
+    if (newIdx > oldIdx) newIdx--;
+    final moved = _currentVisibleOrder.removeAt(oldIdx);
+    _currentVisibleOrder.insert(newIdx, moved);
+
+    final store = context.read<MapStore>();
+    store.state.extra['goalOrder'] = List<String>.from(_currentVisibleOrder);
+    store.changed();
+    setState(() {});
+  }
+
+  List<Widget> _childrenList(
+    MapStore store,
+    MapHost h,
+    ActionNode n,
+    PeriodInfo pi,
+    Color hostColor,
+    int depth,
+  ) {
+    final kids = n.children;
+    if (kids.isEmpty) return const [];
+
+    if (kids.length == 1) {
+      return _nodeTiles(
+        store, h, kids[0], pi, hostColor, depth + 1,
+        n.text.isEmpty ? 'بدون نام' : n.text,
+      );
+    }
+
+    return [
+      ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: kids.length,
+        onReorder: (oldIdx, newIdx) {
+          setState(() {
+            if (newIdx > oldIdx) newIdx--;
+            final item = kids.removeAt(oldIdx);
+            kids.insert(newIdx, item);
+            store.changed();
+          });
+        },
+        itemBuilder: (ctx, i) => KeyedSubtree(
+          key: ValueKey(kids[i].id),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _nodeTiles(
+              store, h, kids[i], pi, hostColor, depth + 1,
+              n.text.isEmpty ? 'بدون نام' : n.text,
+              reorderIndex: i,
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  void _toggleAchieved(MapStore store, MapHost h, ActionNode n) {
+    if (n.extra['achieved'] == true) {
+      n.extra.remove('achieved');
+      n.extra.remove('achievedAt');
+    } else {
+      n.extra['achieved'] = true;
+      n.extra['achievedAt'] = DateTime.now().millisecondsSinceEpoch;
+      // شاخه‌ی دستاوردشده از درخت پنهان می‌شه، پس اگه در حال افزودن زیرشاخه بودیم، لغو کن
+      _addingFor = null;
+    }
+    store.changed();
+  }
+
+  // ---------- دستاوردها ----------
+
+  List<_Trophy> _collectAchieved(List<ActionNode> list, [String parent = '']) {
+    final out = <_Trophy>[];
+    for (final n in list) {
+      if (n.extra['achieved'] == true) out.add(_Trophy(n, parent));
+      out.addAll(_collectAchieved(n.children, n.text));
+    }
+    return out;
+  }
+
+  List<Widget> _trophiesSection(MapStore store, MapHost h, Color hostColor) {
+    final trophies = _collectAchieved(h.actions);
+    if (trophies.isEmpty) return const [];
+
+    return [
+      const Divider(height: 24),
+      Row(
+        children: [
+          const Icon(Icons.emoji_events,
+              size: 18, color: Color(0xFFF4C542)),
+          const SizedBox(width: 6),
+          Text(
+            'دستاوردها (${toFa(trophies.length)})',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final t in trophies) _trophyChip(store, t),
+        ],
+      ),
+    ];
+  }
+
+  Widget _trophyChip(MapStore store, _Trophy t) {
+    var when = '';
+    final at = t.node.extra['achievedAt'];
+    if (at is num) {
+      final d = DateTime.fromMillisecondsSinceEpoch(at.toInt());
+      final j = toJalaali(d.year, d.month, d.day);
+      when = ' · ${toFa(j.jy)}/${toFa(j.jm)}/${toFa(j.jd)}';
+    }
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4C542).withAlpha(30),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF4C542).withAlpha(120)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🏆', style: TextStyle(fontSize: 14)),
+          const SizedBox(width: 5),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                t.node.text.isEmpty ? 'بدون نام' : t.node.text,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              if (when.isNotEmpty)
+                Text(
+                  when.replaceFirst(' · ', ''),
+                  style: const TextStyle(
+                      fontSize: 10, color: Colors.white60),
+                ),
+            ],
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: () {
+              t.node.extra.remove('achieved');
+              t.node.extra.remove('achievedAt');
+              store.changed();
+            },
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.undo, size: 14, color: Colors.white54),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   double _sumDay(MapHost h, String jk) {
