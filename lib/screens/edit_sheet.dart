@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../theme/app_theme.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
@@ -47,10 +49,10 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
     useSafeArea: true,
     showDragHandle: true,
     backgroundColor: const Color(0xFF14172F),
-    builder: (ctx) => Padding(
+    builder: (ctx) => darkSheet(Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
       child: EditSheet(store: store, initial: target),
-    ),
+    )),
   );
 }
 

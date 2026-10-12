@@ -13,7 +13,9 @@ import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import 'edit_sheet.dart';
+import '../theme/app_theme.dart';
 import 'time_sheet.dart';
+import 'weekly_sheet.dart';
 
 /// فهرست اهداف — معادل «اهداف من» نسخه‌ی وب
 Future<void> showGoalsSheet(
@@ -27,7 +29,7 @@ Future<void> showGoalsSheet(
     useSafeArea: true,
     showDragHandle: true,
     backgroundColor: const Color(0xFF14172F),
-    builder: (ctx) => DraggableScrollableSheet(
+    builder: (ctx) => darkSheet(DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.85,
       minChildSize: 0.4,
@@ -38,7 +40,7 @@ Future<void> showGoalsSheet(
         onShowOnMap: onShowOnMap,
         onAddGoal: onAddGoal,
       ),
-    ),
+    )),
   );
 }
 
@@ -259,6 +261,14 @@ class _GoalsSheetState extends State<GoalsSheet> {
             const SizedBox(width: 8),
             Text(countText,
                 style: const TextStyle(fontSize: 12, color: Colors.white54)),
+            IconButton(
+              icon: const Icon(Icons.insights, size: 20),
+              tooltip: 'نگاه هفته',
+              onPressed: () => showWeeklySheet(context, store.state),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+              visualDensity: VisualDensity.compact,
+            ),
             const Spacer(),
             FilledButton.tonalIcon(
               onPressed: () {
@@ -530,6 +540,44 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   Text(when,
                       style:
                           const TextStyle(fontSize: 11, color: Colors.white54)),
+                if (g.feeling.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('💗 ',
+                            style: TextStyle(fontSize: 11)),
+                        Expanded(
+                          child: Text(
+                            g.feeling,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                                fontStyle: FontStyle.italic,
+                                height: 1.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 28),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => _editFeeling(store, g),
+                      icon: const Text('💗', style: TextStyle(fontSize: 12)),
+                      label: const Text('حس خودت را بنویس',
+                          style: TextStyle(fontSize: 11.5)),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1200,50 +1248,226 @@ class _GoalsSheetState extends State<GoalsSheet> {
       final j = toJalaali(d.year, d.month, d.day);
       when = ' · ${toFa(j.jy)}/${toFa(j.jm)}/${toFa(j.jd)}';
     }
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4C542).withAlpha(30),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF4C542).withAlpha(120)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🏆', style: TextStyle(fontSize: 14)),
-          const SizedBox(width: 5),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                t.node.text.isEmpty ? 'بدون نام' : t.node.text,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              if (when.isNotEmpty)
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => _showTrophyDetail(store, t),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4C542).withAlpha(30),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFF4C542).withAlpha(120)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🏆', style: TextStyle(fontSize: 14)),
+            const SizedBox(width: 5),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
-                  when.replaceFirst(' · ', ''),
+                  t.node.text.isEmpty ? 'بدون نام' : t.node.text,
                   style: const TextStyle(
-                      fontSize: 10, color: Colors.white60),
+                      fontSize: 12, fontWeight: FontWeight.w600),
                 ),
-            ],
-          ),
-          const SizedBox(width: 4),
-          InkWell(
-            onTap: () {
-              t.node.extra.remove('achieved');
-              t.node.extra.remove('achievedAt');
-              store.changed();
-            },
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: Icon(Icons.undo, size: 14, color: Colors.white54),
+                if (when.isNotEmpty)
+                  Text(
+                    when.replaceFirst(' · ', ''),
+                    style: const TextStyle(
+                        fontSize: 10, color: Colors.white60),
+                  ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            const Icon(Icons.info_outline, size: 14, color: Colors.white54),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _showTrophyDetail(MapStore store, _Trophy t) async {
+    final n = t.node;
+    final color = hexColor(n.color, const Color(0xFFF4C542));
+    final days = n.logs.entries
+        .where((e) => truthy(e.value))
+        .map((e) => e.key)
+        .toList()
+      ..sort();
+    final dayCount = days.length;
+    final childCount = countActions(n.children);
+    final totalSeconds = nodePeriodSecs(n, days.toSet());
+    var when = '';
+    final at = n.extra['achievedAt'];
+    if (at is num) {
+      final d = DateTime.fromMillisecondsSinceEpoch(at.toInt());
+      final j = toJalaali(d.year, d.month, d.day);
+      when = '${toFa(j.jy)}/${toFa(j.jm)}/${toFa(j.jd)}';
+    }
+
+    final undo = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => darkSheet(AlertDialog(
+        backgroundColor: const Color(0xFF1A1E3A),
+        title: Row(
+          children: [
+            const Text('🏆', style: TextStyle(fontSize: 24)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                n.text.isEmpty ? 'بدون نام' : n.text,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (t.parentText.isNotEmpty)
+              _detailRow('زیرِ', t.parentText),
+            if (when.isNotEmpty) _detailRow('رسیدی در', when),
+            _detailRow('روزهای انجام‌شده', toFa(dayCount)),
+            if (childCount > 0)
+              _detailRow('زیرشاخه‌ها', toFa(childCount)),
+            if (totalSeconds > 0)
+              _detailRow('مجموع زمان', fmtDur(totalSeconds)),
+            if (days.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              const Text('آخرین روزها:',
+                  style: TextStyle(fontSize: 11, color: Colors.white54)),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  for (final d in days.reversed.take(10))
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withAlpha(40),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(d,
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              color: color,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('بستن'),
+          ),
+          TextButton.icon(
+            style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFF0708A)),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.undo, size: 16),
+            label: const Text('برگرداندن به درخت'),
+          ),
+        ],
+      )),
+    );
+
+    if (undo == true) {
+      n.extra.remove('achieved');
+      n.extra.remove('achievedAt');
+      store.changed();
+      setState(() {});
+    }
+  }
+
+  Widget _detailRow(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Text('$label: ',
+                style: const TextStyle(fontSize: 12.5, color: Colors.white54)),
+            Expanded(
+              child: Text(value,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+
+  Future<void> _editFeeling(MapStore store, Goal g) async {
+    final c = TextEditingController(text: g.feeling);
+    final res = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: const Color(0xFF14172F),
+      builder: (ctx) => darkSheet(Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 0,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Row(
+              children: [
+                Text('💗 ', style: TextStyle(fontSize: 18)),
+                Text('حالا که به این هدف رسیدی، چه حسی داری؟',
+                    style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: c,
+              autofocus: true,
+              maxLines: 5,
+              minLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'همین‌جا بنویسش...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('لغو'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, c.text.trim()),
+                    child: const Text('ذخیره'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      )),
+    );
+    c.dispose();
+    if (res != null) {
+      g.feeling = res;
+      store.changed();
+      setState(() {});
+    }
   }
 
   double _sumDay(MapHost h, String jk) {

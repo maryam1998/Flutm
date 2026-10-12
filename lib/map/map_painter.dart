@@ -7,6 +7,7 @@ import '../models/constants.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/goal_ops.dart';
+import '../theme/app_theme.dart' show kLightInk;
 import 'camera.dart';
 import 'draw_utils.dart';
 import 'geometry.dart' as geo;
@@ -27,6 +28,7 @@ class MapPainter extends CustomPainter {
     required this.images,
     required this.boundsBox,
     required this.hits,
+    this.isDark = true,
   }) : super(repaint: Listenable.merge([cam, time, images]));
 
   final MapState state;
@@ -35,6 +37,7 @@ class MapPainter extends CustomPainter {
   final NodeImageCache images;
   final MapBoundsBox boundsBox;
   final HitRegistry hits;
+  final bool isDark;
   final List<Offset> _pts = [];
 
   double get _t => time.value;
@@ -45,9 +48,11 @@ class MapPainter extends CustomPainter {
   // ---------- رنگ و اندازه‌ی متن ----------
   Color get _textColor {
     final c = state.textColor.toLowerCase().trim();
-    if (c.isEmpty) return Colors.white;
+    final auto = isDark ? Colors.white : kLightInk;
     if (c == '#000000' || c == '#000') return Colors.black;
-    return hexColor(c, Colors.white);
+    // رنگ پیش‌فرض: روی زمینه‌ی تیره سفید، روی زمینه‌ی روشن قهوه‌ای تیره
+    if (c.isEmpty || c == '#eef0fa' || c == '#ffffff' || c == '#fff') return auto;
+    return hexColor(c, auto);
   }
 
   double _fs() => math.max(14, state.fontSize);
@@ -116,6 +121,7 @@ class MapPainter extends CustomPainter {
   // ---------- paint ----------
   @override
   void paint(Canvas canvas, Size size) {
+    textCache.setOutline(isDark ? const Color(0xFF0A0C18) : const Color(0xFFF5EFE0));
     _pts.clear();
     hits.clear();
     canvas.save();

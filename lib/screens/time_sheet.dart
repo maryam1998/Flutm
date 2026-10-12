@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../theme/app_theme.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
@@ -24,13 +26,13 @@ Future<void> showTimeSheet(
     useSafeArea: true,
     showDragHandle: true,
     backgroundColor: const Color(0xFF14172F),
-    builder: (_) => _TimeSheet(
+    builder: (_) => darkSheet(_TimeSheet(
       store: store,
       host: host,
       node: node,
       jk: jk,
       dayLabel: dayLabel,
-    ),
+    )),
   );
 }
 

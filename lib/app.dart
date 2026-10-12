@@ -5,12 +5,15 @@ import 'package:provider/provider.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
 import 'state/map_store.dart';
+import 'state/theme_store.dart';
+import 'theme/app_theme.dart';
 
 class MaghzApp extends StatelessWidget {
   const MaghzApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.watch<ThemeStore>();
     return MaterialApp(
       title: 'مغز',
       debugShowCheckedModeBanner: false,
@@ -21,13 +24,9 @@ class MaghzApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        fontFamily: 'Vazirmatn',
-        scaffoldBackgroundColor: const Color(0xFF0B0D1E),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5EC8F0), brightness: Brightness.dark),
-        useMaterial3: true,
-      ),
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: theme.mode,
       home: const Shell(),
     );
   }

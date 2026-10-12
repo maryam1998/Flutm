@@ -10,6 +10,7 @@ import '../state/map_store.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
+import '../theme/app_theme.dart';
 import 'settings_sheet.dart';
 
 class MapTab extends StatefulWidget {
@@ -63,18 +64,22 @@ class _MapTabState extends State<MapTab> {
     final store = context.watch<MapStore>();
     final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
     final anyOpen = store.anyOpen;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg1 = isDark ? kDarkBg : kLightBg;
+    final bg2 = isDark ? kDarkBg2 : kLightBg2;
+    final ink = isDark ? Colors.white : kLightInk;
 
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,          // ← این خط حیاتی
         children: [
           // پس‌زمینه
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
-                colors: [Color(0xFF0B0D1E), Color(0xFF151933)],
+                colors: [bg1, bg2],
               ),
             ),
           ),
@@ -101,7 +106,7 @@ class _MapTabState extends State<MapTab> {
                   child: Text(
                     'هنوز هدفی نیست.\nبا دکمه‌ی + یه هدف بساز، یا از منوی بالا «ورودی بکاپ» رو بزن.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withAlpha(140), height: 1.8),
+                    style: TextStyle(color: ink.withAlpha(150), height: 1.8),
                   ),
                 ),
               ),
@@ -118,7 +123,7 @@ class _MapTabState extends State<MapTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      icon: Icon(Icons.more_vert, color: ink),
                       onSelected: (v) =>
                           v == 'in' ? _import(context, store) : _export(context, store),
                       itemBuilder: (_) => const [
@@ -127,7 +132,7 @@ class _MapTabState extends State<MapTab> {
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.settings, color: Colors.white),
+                      icon: Icon(Icons.settings, color: ink),
                       tooltip: 'تنظیمات نقشه',
                       onPressed: () => showSettingsSheet(context),
                     ),
@@ -150,10 +155,10 @@ class _MapTabState extends State<MapTab> {
                       builder: (_, __) => Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                            color: Colors.black38,
+                            color: isDark ? Colors.black38 : Colors.white70,
                             borderRadius: BorderRadius.circular(10)),
                         child: Text('${(cam.scale * 100).round()}٪',
-                            style: const TextStyle(fontSize: 12, color: Colors.white)),
+                            style: TextStyle(fontSize: 12, color: ink)),
                       ),
                     ),
                   ],

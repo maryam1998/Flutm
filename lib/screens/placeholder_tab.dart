@@ -8,7 +8,7 @@ class PlaceholderTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: Center(child: Text(note, style: const TextStyle(color: Colors.white54))),
+      body: Center(child: Text(note, style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(140)))),
     );
   }
 }

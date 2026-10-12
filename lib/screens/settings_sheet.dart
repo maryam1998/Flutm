@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
 import '../state/map_store.dart';
+import '../state/theme_store.dart';
+import '../theme/app_theme.dart';
 
 Future<void> showSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -12,7 +14,7 @@ Future<void> showSettingsSheet(BuildContext context) {
     useSafeArea: true,
     showDragHandle: true,
     backgroundColor: const Color(0xFF14172F),
-    builder: (_) => const _SettingsSheet(),
+    builder: (_) => darkSheet(const _SettingsSheet()),
   );
 }
 
@@ -106,6 +108,30 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 ],
               ),
               const SizedBox(height: 14),
+
+              // ---------- تم ----------
+              Consumer<ThemeStore>(
+                builder: (_, theme, __) => SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: Icon(
+                    theme.isDark ? Icons.dark_mode : Icons.light_mode,
+                  ),
+                  title: const Text('تم تاریک',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    theme.isDark
+                        ? 'پس‌زمینه‌ی تیره با متن روشن'
+                        : 'پس‌زمینه‌ی روشن (مثل نسخه‌ی وب)',
+                    style: const TextStyle(fontSize: 11.5),
+                  ),
+                  value: theme.isDark,
+                  onChanged: (v) => theme.setDark(v),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+              const Divider(),
+              const SizedBox(height: 10),
 
               // ---------- رنگ متن ----------
               const _Label('رنگ نوشته‌های نقشه'),

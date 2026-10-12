@@ -99,6 +99,7 @@ class _MapCanvasState extends State<MapCanvas> with SingleTickerProviderStateMix
               images: _images,
               boundsBox: widget.boundsBox,
               hits: _hits,
+              isDark: Theme.of(context).brightness == Brightness.dark,
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 Color withOp(Color c, double o) => c.withAlpha((o.clamp(0.0, 1.0) * 255).round());
 
@@ -11,13 +12,20 @@ enum LabelAlign { center, left, right }
 class TextCache {
   final _m = <String, TextPainter>{};
 
+  /// رنگ دور متن؛ توی تم روشن کرمی و توی تم تاریک تیره‌ست
+  Color outlineColor = const Color(0xFF0A0C18);
+  void setOutline(Color c) {
+    if (c == outlineColor) return;
+    outlineColor = c;
+    _m.clear();
+  }
+
   TextPainter get(String text, double size, Color color, FontWeight w, {double? strokeW}) {
     final key = '$text|${size.toStringAsFixed(1)}|${color.hashCode}|${w.index}|${strokeW ?? 0}';
     final hit = _m[key];
     if (hit != null) return hit;
     if (_m.length > 500) _m.clear();
-    final style = TextStyle(
-      fontFamily: 'Vazirmatn',
+    final style = GoogleFonts.vazirmatn().copyWith(
       fontFamilyFallback: const ['Segoe UI', 'Tahoma', 'Noto Sans', 'Noto Color Emoji', 'Segoe UI Emoji', 'Apple Color Emoji'],
       fontSize: size,
       fontWeight: w,
@@ -28,7 +36,7 @@ class TextCache {
             ..style = PaintingStyle.stroke
             ..strokeWidth = strokeW
             ..strokeJoin = StrokeJoin.round
-            ..color = const Color(0xFF0A0C18)),
+            ..color = outlineColor),
     );
     final tp = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.rtl)..layout();
     return _m[key] = tp;
