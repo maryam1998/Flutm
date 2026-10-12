@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'beliefs_tab.dart';
 import 'gratitude_tab.dart';
-import 'placeholder_tab.dart';
+import 'home_tab.dart';
+import 'store_tab.dart';
 
 /// تب «تمرین» با ۴ زیرتب. ساختارش مثل نسخه‌ی وب:
 ///   [خانه] [بازی فراوانی] [شکرگذاری] [باورها]
@@ -25,19 +26,13 @@ class _PracticeTabState extends State<PracticeTab> {
       body: IndexedStack(
         index: _sub,
         children: const [
-          // 0 = خانه (هنوز ساخته نشده)
-          PlaceholderTab(
-            title: 'خانه',
-            note: 'بانک فراوانی + مسیر ۲۸ روزه — مرحله‌ی بعد می‌سازیم',
-          ),
-          // 1 = بازی فراوانی (هنوز ساخته نشده)
-          PlaceholderTab(
-            title: 'بازی فراوانی',
-            note: 'فروشگاه، سبد خرید، درگاه پرداخت — مرحله‌ی بعد می‌سازیم',
-          ),
-          // 2 = شکرگذاری (ساخته شده)
+          // 0 = خانه
+          HomeTab(),
+          // 1 = بازی فراوانی
+          StoreTab(),
+          // 2 = شکرگذاری
           GratitudeTab(),
-          // 3 = باورها (ساخته شده)
+          // 3 = باورها
           BeliefsTab(),
         ],
       ),
