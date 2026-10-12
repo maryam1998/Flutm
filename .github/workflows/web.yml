@@ -1,8 +1,12 @@
 name: Deploy Web to GitHub Pages
+
 on:
+  workflow_dispatch:
   push:
     branches: [main]
-  workflow_dispatch:
+    paths-ignore:
+      - '**.md'
+      - '**.zip'
 
 permissions:
   contents: read
@@ -16,6 +20,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -40,7 +45,7 @@ jobs:
         run: flutter pub get
 
       - name: Build web
-        run: flutter build web --release --base-href /Flutm/
+        run: flutter build web --release --base-href /Flutm/ --web-renderer canvaskit
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
