@@ -8,6 +8,7 @@ import 'screens/placeholder_tab.dart';
 import 'screens/practice_tab.dart';
 import 'state/theme_store.dart';
 import 'widgets/background_layer.dart';
+import 'widgets/emotion_widget_layer.dart';
 import 'widgets/motivation_bar.dart';
 
 class MaghzApp extends StatelessWidget {
@@ -29,6 +30,13 @@ class MaghzApp extends StatelessWidget {
       theme: _light,
       darkTheme: _dark,
       themeMode: theme.mode,
+      builder: (context, child) => Stack(
+        textDirection: TextDirection.rtl,
+        children: [
+          child ?? const SizedBox.shrink(),
+          const EmotionWidgetLayer(),
+        ],
+      ),
       home: const Shell(),
     );
   }
