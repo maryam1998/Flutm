@@ -13,6 +13,7 @@ import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import 'edit_sheet.dart';
+import 'time_sheet.dart';
 
 /// فهرست اهداف — معادل «اهداف من» نسخه‌ی وب
 Future<void> showGoalsSheet(
@@ -630,6 +631,26 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 ],
               ),
             ),
+          if (statsOpen)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '⏱ مجموع امروز: ${fmtDur(_sumDay(h, pi.todayJK))}',
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Colors.white70),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '📊 مجموع دوره: ${fmtDur(_sumPeriod(h, pi))}',
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
 
           // جمع کردن
           Align(
@@ -756,9 +777,47 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 }),
                 color: daysOpen ? color : null,
               ),
+              _iconBtn(
+                timerRunning(n) ? Icons.timer : Icons.timer_outlined,
+                'زمان',
+                () => showTimeSheet(
+                  context,
+                  store: store,
+                  host: h,
+                  node: n,
+                  jk: pi.todayJK,
+                  dayLabel: 'امروز',
+                ),
+                color: nodeDaySecs(n, pi.todayJK) > 0 ? color : null,
+              ),
               _iconBtn(Icons.close, 'حذف', () => _confirmDelete(store, h, n)),
             ],
           ),
+          if (nodeDaySecs(n, pi.todayJK) > 0 || timerRunning(n))
+            Padding(
+              padding: const EdgeInsets.only(top: 6, right: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule,
+                      size: 13, color: Colors.white.withAlpha(140)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'امروز: ${fmtDur(nodeDaySecs(n, pi.todayJK))}',
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.white.withAlpha(180)),
+                  ),
+                  if (timerRunning(n)) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.fiber_manual_record,
+                        size: 10, color: Color(0xFFE5484D)),
+                    const SizedBox(width: 4),
+                    const Text('در حال ضبط',
+                        style: TextStyle(
+                            fontSize: 11, color: Color(0xFFE5484D))),
+                  ],
+                ],
+              ),
+            ),
           if (daysOpen) _daysGrid(store, h, n, pi, color),
         ],
       ),
@@ -920,6 +979,36 @@ class _GoalsSheetState extends State<GoalsSheet> {
       ),
     );
     if (ok == true) store.removeActionNode(h, n);
+  }
+
+  double _sumDay(MapHost h, String jk) {
+    double t = 0;
+    void walk(List<ActionNode> list) {
+      for (final n in list) {
+        t += nodeDaySecs(n, jk);
+        walk(n.children);
+      }
+    }
+
+    walk(h.actions);
+    return t;
+  }
+
+  double _sumPeriod(MapHost h, PeriodInfo pi) {
+    final keys = <String>{};
+    for (var d = 0; d < pi.total; d++) {
+      keys.add(jKey(DateTime(pi.start.year, pi.start.month, pi.start.day + d)));
+    }
+    double t = 0;
+    void walk(List<ActionNode> list) {
+      for (final n in list) {
+        t += nodePeriodSecs(n, keys);
+        walk(n.children);
+      }
+    }
+
+    walk(h.actions);
+    return t;
   }
 
   Future<int?> _askDays(String title, int def) async {

@@ -65,6 +65,9 @@ class ActionNode {
   List<ActionNode> children;
   List<ImageItem> images;
   Map<String, dynamic> logs, entries;
+  Map<String, dynamic> time; // jk → seconds (int)
+  Map<String, dynamic> ranges; // jk → [{s, e}]
+  int? timerStart;
   bool isRoutine, detached;
   double? originX, originY, dir, len, bend1, bend2;
   Map<String, dynamic> extra;
@@ -73,6 +76,7 @@ class ActionNode {
     String? id, this.text = '', this.style = '', this.color, this.weight = 5,
     this.labelDX = 0, this.labelDY = 0, this.labelSize, List<ActionNode>? children,
     List<ImageItem>? images, Map<String, dynamic>? logs, Map<String, dynamic>? entries,
+    Map<String, dynamic>? time, Map<String, dynamic>? ranges, this.timerStart,
     this.isRoutine = false, this.detached = false, this.originX, this.originY,
     this.dir, this.len, this.bend1, this.bend2, Map<String, dynamic>? extra,
   })  : id = id ?? uid(),
@@ -80,11 +84,13 @@ class ActionNode {
         images = images ?? [],
         logs = logs ?? {},
         entries = entries ?? {},
+        time = time ?? {},
+        ranges = ranges ?? {},
         extra = extra ?? {};
 
   static const _known = {
     'id', 'text', 'style', 'color', 'weight', 'labelDX', 'labelDY', 'labelSize', 'children',
-    'images', 'logs', 'entries', 'isRoutine', 'detached', 'originX', 'originY', 'dir', 'len', 'bend1', 'bend2',
+    'images', 'logs', 'entries', 'time', 'ranges', 'timerStart', 'isRoutine', 'detached', 'originX', 'originY', 'dir', 'len', 'bend1', 'bend2',
   };
 
   factory ActionNode.fromJson(dynamic raw) {
@@ -103,6 +109,9 @@ class ActionNode {
       images: _images(j['images']),
       logs: _m(j['logs']),
       entries: _m(j['entries']),
+      time: _m(j['time']),
+      ranges: _m(j['ranges']),
+      timerStart: j['timerStart'] is num ? (j['timerStart'] as num).toInt() : null,
       isRoutine: _b(j['isRoutine'], false),
       detached: _b(j['detached'], false),
       originX: _dn(j['originX']),
@@ -122,6 +131,8 @@ class ActionNode {
         'children': children.map((c) => c.toJson()).toList(),
         'images': images.map((i) => i.toJson()).toList(),
         'logs': logs, 'entries': entries, 'isRoutine': isRoutine, 'detached': detached,
+        'time': time, 'ranges': ranges,
+        if (timerStart != null) 'timerStart': timerStart,
         if (originX != null) 'originX': originX,
         if (originY != null) 'originY': originY,
         if (dir != null) 'dir': dir,

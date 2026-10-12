@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../map/draw_utils.dart' show toFa;
 import '../map/map_ops.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
@@ -137,4 +138,151 @@ extension GoalListOps on MapStore {
     p['startDate'] = localKey(DateTime.now());
     changed();
   }
+}
+
+// ======================== زمان ========================
+
+String fmtDur(num sec) {
+  final s = sec.round();
+  final h = s ~/ 3600;
+  final m = (s % 3600) ~/ 60;
+  if (h == 0 && m == 0) return s > 0 ? '${toFa(s)} ثانیه' : '${toFa(0)} دقیقه';
+  final parts = <String>[];
+  if (h > 0) parts.add('${toFa(h)} ساعت');
+  if (m > 0) parts.add('${toFa(m)} دقیقه');
+  return parts.join(' و ');
+}
+
+String fmtClock(num sec) {
+  final s = sec.floor();
+  final h = s ~/ 3600;
+  final m = (s % 3600) ~/ 60;
+  final x = s % 60;
+  String p(int v) => v.toString().padLeft(2, '0');
+  if (h > 0) return toFa('${p(h)}:${p(m)}:${p(x)}');
+  return toFa('${p(m)}:${p(x)}');
+}
+
+String fmtHM(int min) {
+  final m = ((min % 1440) + 1440) % 1440;
+  final h = m ~/ 60;
+  final mm = m % 60;
+  return toFa('${h.toString().padLeft(2, '0')}:${mm.toString().padLeft(2, '0')}');
+}
+
+double nodeDaySecs(ActionNode n, String jk) =>
+    (n.time[jk] as num?)?.toDouble() ?? 0;
+
+double nodePeriodSecs(ActionNode n, Set<String> keys) {
+  var t = 0.0;
+  for (final e in n.time.entries) {
+    if (keys.contains(e.key)) t += (e.value as num?)?.toDouble() ?? 0;
+  }
+  return t;
+}
+
+List<Map<String, dynamic>> nodeEntries(ActionNode n, String jk) {
+  final v = n.entries[jk];
+  if (v is! List) return const [];
+  return v.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+}
+
+bool timerRunning(ActionNode n) => (n.timerStart ?? 0) > 0;
+
+void startTimer(ActionNode n) {
+  n.timerStart = DateTime.now().millisecondsSinceEpoch;
+}
+
+/// صفر برمی‌گردونه اگه تایمر فعال نبود
+int stopTimer(ActionNode n) {
+  if (!timerRunning(n)) return 0;
+  final start = DateTime.fromMillisecondsSinceEpoch(n.timerStart!);
+  final elapsed =
+      (DateTime.now().difference(start).inMilliseconds / 1000).floor();
+  n.timerStart = null;
+  if (elapsed > 0) {
+    final jk = jKey(start);
+    n.time[jk] = ((n.time[jk] as num?)?.toInt() ?? 0) + elapsed;
+    final list = (n.entries[jk] is List)
+        ? (n.entries[jk] as List)
+        : (n.entries[jk] = <dynamic>[]);
+    list.add({
+      'kind': 'dur',
+      'mins': (elapsed / 60).round(),
+      'at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+  return elapsed;
+}
+
+void addDuration(ActionNode n, String jk, int mins, {String? note}) {
+  if (mins <= 0) return;
+  final secs = mins * 60;
+  n.time[jk] = ((n.time[jk] as num?)?.toInt() ?? 0) + secs;
+  final list = (n.entries[jk] is List)
+      ? (n.entries[jk] as List)
+      : (n.entries[jk] = <dynamic>[]);
+  final e = <String, dynamic>{
+    'kind': 'dur',
+    'mins': mins,
+    'at': DateTime.now().millisecondsSinceEpoch,
+  };
+  if (note != null && note.isNotEmpty) e['note'] = note;
+  list.add(e);
+}
+
+void addRange(ActionNode n, String jk, int startMin, int endMin,
+    {String? note}) {
+  var e = endMin;
+  if (e <= startMin) e += 1440;
+  final mins = e - startMin;
+  if (mins <= 0) return;
+  n.time[jk] = ((n.time[jk] as num?)?.toInt() ?? 0) + mins * 60;
+  final list = (n.entries[jk] is List)
+      ? (n.entries[jk] as List)
+      : (n.entries[jk] = <dynamic>[]);
+  final entry = <String, dynamic>{
+    'kind': 'range',
+    's': startMin % 1440,
+    'e': e % 1440,
+    'mins': mins,
+    'at': DateTime.now().millisecondsSinceEpoch,
+  };
+  if (note != null && note.isNotEmpty) entry['note'] = note;
+  list.add(entry);
+  final rl = (n.ranges[jk] is List)
+      ? (n.ranges[jk] as List)
+      : (n.ranges[jk] = <dynamic>[]);
+  rl.add({'s': startMin % 1440, 'e': e % 1440});
+}
+
+void deleteEntry(ActionNode n, String jk, int idx) {
+  final raw = n.entries[jk];
+  if (raw is! List || idx < 0 || idx >= raw.length) return;
+  final entry = raw[idx];
+  raw.removeAt(idx);
+  if (raw.isEmpty) n.entries.remove(jk);
+  final mins =
+      entry is Map ? ((entry['mins'] as num?)?.toInt() ?? 0) : 0;
+  final cur = (n.time[jk] as num?)?.toInt() ?? 0;
+  final nv = cur - mins * 60;
+  if (nv > 0) {
+    n.time[jk] = nv;
+  } else {
+    n.time.remove(jk);
+  }
+  if (entry is Map && entry['kind'] == 'range') {
+    final rl = n.ranges[jk];
+    if (rl is List) {
+      rl.removeWhere((r) =>
+          r is Map && r['s'] == entry['s'] && r['e'] == entry['e']);
+      if (rl.isEmpty) n.ranges.remove(jk);
+    }
+  }
+}
+
+void clearDayTime(ActionNode n, String jk) {
+  n.time.remove(jk);
+  n.ranges.remove(jk);
+  n.entries.remove(jk);
 }
