@@ -42,6 +42,16 @@ class CameraController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// نقطه‌ی p (مختصات نقشه) رو وسط صفحه میاره؛ زوم خیلی کم رو به حداقل ۶۰٪ می‌رسونه
+  void centerOn(Offset p, {double? minScale}) {
+    if (view.isEmpty) return;
+    final s = math.max(scale, minScale ?? 0.6).clamp(0.05, 4.0).toDouble();
+    scale = s;
+    x = view.width / 2 - p.dx * s;
+    y = view.height / 2 - p.dy * s;
+    notifyListeners();
+  }
+
   void fitRect(Rect r) {
     if (view.isEmpty) return;
     const pad = 60.0;

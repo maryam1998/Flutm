@@ -7,8 +7,9 @@ import '../services/storage.dart';
 import '../state/map_store.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
+import 'goals_sheet.dart';
 
-/// مرحله ۳: نقشه + لمس و درگ گره‌ها/شاخه‌ها + افزودن هدف/نشانه/شاخه + پنل ویرایش
+/// مرحله ۳: نقشه + لمس و درگ + افزودن + پنل ویرایش. مرحله ۴: فهرست اهداف و تیک روزانه
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
   @override
@@ -45,6 +46,14 @@ class _MapTabState extends State<MapTab> {
   void _fit() {
     final r = bounds.rect;
     if (r != null) cam.fitRect(r);
+  }
+
+  void _openGoals() {
+    showGoalsSheet(
+      context,
+      onShowOnMap: (h) => cam.centerOn(Offset(h.x, h.y)),
+      onAddGoal: () => showAddGoalDialog(context),
+    );
   }
 
   @override
@@ -138,6 +147,13 @@ class _MapTabState extends State<MapTab> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                FloatingActionButton.small(
+                  heroTag: 'goals',
+                  tooltip: 'فهرست اهداف',
+                  onPressed: _openGoals,
+                  child: const Icon(Icons.format_list_bulleted),
+                ),
+                const SizedBox(height: 10),
                 FloatingActionButton.small(
                   heroTag: 'resize',
                   tooltip: 'حالت تغییر اندازه',
