@@ -1,17 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/camera.dart';
 import '../map/map_canvas.dart';
+import '../map/map_ops.dart';
 import '../services/storage.dart';
+import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
-import '../theme/app_theme.dart';
 import 'settings_sheet.dart';
+import 'time_sheet.dart';
 
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
@@ -65,26 +65,13 @@ class _MapTabState extends State<MapTab> {
     final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
     final anyOpen = store.anyOpen;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg1 = isDark ? kDarkBg : kLightBg;
-    final bg2 = isDark ? kDarkBg2 : kLightBg2;
-    final ink = isDark ? Colors.white : kLightInk;
+    final ink = isDark ? Colors.white : const Color(0xFF2A2218);
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Stack(
-        fit: StackFit.expand,          // ← این خط حیاتی
+        fit: StackFit.expand,
         children: [
-          // پس‌زمینه
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: [bg1, bg2],
-              ),
-            ),
-          ),
-
-          // بوم نقشه
           MapCanvas(
             cam: cam,
             boundsBox: bounds,
@@ -94,9 +81,23 @@ class _MapTabState extends State<MapTab> {
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),
             onEditAction: (hostId, actionId) =>
                 showEditSheet(context, ActionTarget(hostId, actionId)),
+            onTimeBranch: (hostId, actionId) {
+              final h = store.state.findHost(hostId);
+              if (h is! MapHost) return;
+              final f = findActionNode(h.actions, actionId);
+              if (f == null) return;
+              final pi = periodInfo(h, store);
+              showTimeSheet(
+                context,
+                store: store,
+                host: h,
+                node: f.node,
+                jk: pi.todayJK,
+                dayLabel: 'امروز',
+              );
+            },
           ),
 
-          // پیام حالت خالی
           if (empty)
             IgnorePointer(
               child: Align(
@@ -104,61 +105,76 @@ class _MapTabState extends State<MapTab> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Text(
-                    'هنوز هدفی نیست.\nبا دکمه‌ی + یه هدف بساز، یا از منوی بالا «ورودی بکاپ» رو بزن.',
+                    'هنوز هدفی نیست.\nبا دکمه‌ی + پایین یه هدف بساز.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: ink.withAlpha(150), height: 1.8),
+                    style: TextStyle(
+                      color: ink.withValues(alpha: 0.55),
+                      height: 1.8,
+                    ),
                   ),
                 ),
               ),
             ),
 
-          // نوار بالا (منوی سه‌نقطه + درصد زوم)
+          // نوار بالا
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: ink),
-                      onSelected: (v) =>
-                          v == 'in' ? _import(context, store) : _export(context, store),
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
-                        PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
-                      ],
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.settings, color: ink),
-                      tooltip: 'تنظیمات نقشه',
-                      onPressed: () => showSettingsSheet(context),
+                    _roundBtn(
+                      Icons.more_vert,
+                      ink,
+                      () => _showTopMenu(store),
                     ),
                     const Spacer(),
                     if (_resizeMode)
                       Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF5EC8F0).withAlpha(60),
+                          color: const Color(0xFF5EC8F0)
+                              .withValues(alpha: 0.24),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF5EC8F0)),
+                          border: Border.all(
+                              color: const Color(0xFF5EC8F0)),
                         ),
-                        child: const Text('تغییر اندازه با دو انگشت',
-                            style: TextStyle(fontSize: 12, color: Colors.white)),
+                        child: Text('تغییر اندازه',
+                            style: TextStyle(fontSize: 11, color: ink)),
                       ),
-                    const SizedBox(width: 8),
-                    ListenableBuilder(
-                      listenable: cam,
-                      builder: (_, __) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                            color: isDark ? Colors.black38 : Colors.white70,
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Text('${(cam.scale * 100).round()}٪',
-                            style: TextStyle(fontSize: 12, color: ink)),
+                    _roundBtn(
+                      Icons.open_in_full,
+                      _resizeMode ? const Color(0xFF5EC8F0) : ink,
+                      () => setState(() => _resizeMode = !_resizeMode),
+                    ),
+                    const SizedBox(width: 6),
+                    _roundBtn(
+                      Icons.settings,
+                      ink,
+                      () => showSettingsSheet(context),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.black38
+                            : Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: ListenableBuilder(
+                        listenable: cam,
+                        builder: (_, __) => Text(
+                          '${(cam.scale * 100).round()}٪',
+                          style: TextStyle(fontSize: 12, color: ink),
+                        ),
                       ),
                     ),
                   ],
@@ -167,7 +183,7 @@ class _MapTabState extends State<MapTab> {
             ),
           ),
 
-          // نشانگر ذخیره (پایین وسط)
+          // نشانگر ذخیره
           Positioned(
             bottom: 90,
             left: 0,
@@ -186,80 +202,126 @@ class _MapTabState extends State<MapTab> {
             ),
           ),
 
-          // دکمه‌های ابزار (چپ پایین)
+          // نوار ابزار افقی
           Positioned(
-            left: 16,
-            bottom: 16,
+            left: 8,
+            right: 8,
+            bottom: 8,
             child: SafeArea(
               top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: 'goals',
-                    tooltip: 'فهرست اهداف',
-                    onPressed: _openGoals,
-                    child: const Icon(Icons.format_list_bulleted),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1A1E3A) : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.10)
+                        : const Color(0xFFE0D5C0),
                   ),
-                  const SizedBox(height: 10),
-                  FloatingActionButton.small(
-                    heroTag: 'resize',
-                    tooltip: 'حالت تغییر اندازه',
-                    backgroundColor: _resizeMode ? const Color(0xFF5EC8F0) : null,
-                    foregroundColor: _resizeMode ? Colors.black : null,
-                    onPressed: () => setState(() => _resizeMode = !_resizeMode),
-                    child: const Icon(Icons.open_in_full),
-                  ),
-                  if (store.hasCollapsible) ...[
-                    const SizedBox(height: 10),
-                    FloatingActionButton.small(
-                      heroTag: 'collapse',
-                      tooltip: anyOpen ? 'جمع همه' : 'باز همه',
-                      onPressed: () => store.collapseAll(anyOpen),
-                      child: Icon(anyOpen ? Icons.unfold_less : Icons.unfold_more),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
                   ],
-                  const SizedBox(height: 10),
-                  FloatingActionButton.small(
-                    heroTag: 'fit',
-                    tooltip: 'نمایش همه',
-                    onPressed: _fit,
-                    child: const Icon(Icons.fit_screen),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // افزودن (راست پایین)
-          Positioned(
-            right: 16,
-            bottom: 16,
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FloatingActionButton.small(
-                    heroTag: 'addRing',
-                    tooltip: 'نشانه‌ی نزدیکی جدید',
-                    onPressed: store.addRing,
-                    child: const Icon(Icons.stars_outlined),
-                  ),
-                  const SizedBox(height: 10),
-                  FloatingActionButton(
-                    heroTag: 'addGoal',
-                    tooltip: 'هدف جدید',
-                    onPressed: () => showAddGoalDialog(context),
-                    child: const Icon(Icons.add),
-                  ),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    _toolBtn(Icons.format_list_bulleted, 'اهداف', ink,
+                        _openGoals),
+                    _toolBtn(Icons.fit_screen, 'نمایش همه', ink, _fit),
+                    _toolBtn(
+                        Icons.stars_outlined, 'نشانه', ink, store.addRing),
+                    if (store.hasCollapsible)
+                      _toolBtn(
+                        anyOpen ? Icons.unfold_less : Icons.unfold_more,
+                        anyOpen ? 'جمع همه' : 'باز همه',
+                        ink,
+                        () => store.collapseAll(anyOpen),
+                      ),
+                    _toolBtn(
+                      Icons.add,
+                      'هدف جدید',
+                      Colors.white,
+                      () => showAddGoalDialog(context),
+                      primary: true,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _roundBtn(IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.06),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(icon, size: 20, color: color),
+        ),
+      ),
+    );
+  }
+
+  Widget _toolBtn(IconData icon, String label, Color color, VoidCallback onTap,
+      {bool primary = false}) {
+    final bg = primary ? const Color(0xFFC9972B) : Colors.transparent;
+    final fg = primary ? Colors.white : color;
+    return Expanded(
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20, color: fg),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTopMenu(MapStore store) {
+    showMenu<String>(
+      context: context,
+      items: const [
+        PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
+        PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
+      ],
+    ).then((v) {
+      if (v == 'in') _import(context, store);
+      if (v == 'out') _export(context, store);
+    });
   }
 
   Future<void> _import(BuildContext context, MapStore store) async {
@@ -270,7 +332,8 @@ class _MapTabState extends State<MapTab> {
       await store.importJson(raw);
       msg.showSnackBar(const SnackBar(content: Text('بکاپ وارد شد')));
     } catch (e) {
-      msg.showSnackBar(SnackBar(content: Text('ورود بکاپ ناموفق بود: $e')));
+      msg.showSnackBar(
+          SnackBar(content: Text('ورود بکاپ ناموفق بود: $e')));
     }
   }
 
@@ -297,20 +360,17 @@ class _SaveIndicatorState extends State<_SaveIndicator>
     vsync: this,
     duration: const Duration(milliseconds: 220),
   );
-  Timer? _hide;
-
   @override
   void initState() {
     super.initState();
     _c.forward();
-    _hide = Timer(const Duration(milliseconds: 1400), () {
+    Future.delayed(const Duration(milliseconds: 1400), () {
       if (mounted) _c.reverse();
     });
   }
 
   @override
   void dispose() {
-    _hide?.cancel();
     _c.dispose();
     super.dispose();
   }
@@ -320,11 +380,10 @@ class _SaveIndicatorState extends State<_SaveIndicator>
     return FadeTransition(
       opacity: _c,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.black.withAlpha(150),
+          color: Colors.black.withValues(alpha: 0.78),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withAlpha(40)),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,

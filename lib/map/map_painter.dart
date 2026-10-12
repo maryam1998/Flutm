@@ -583,6 +583,61 @@ class MapPainter extends CustomPainter {
     canvas.restore();
   }
 
+  void _trophyBadge(Canvas canvas, Offset center, double scale) {
+    final r = 16.0 * math.max(0.8, scale);
+    final pos = center.translate(0, -r * 0.9);
+
+    // هاله‌ی طلایی درخشان
+    final glowPaint = Paint()
+      ..color = const Color(0xFFF4C542).withAlpha(80)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawCircle(pos, r * 1.4, glowPaint);
+
+    // دایره‌ی پس‌زمینه
+    canvas.drawCircle(
+      pos,
+      r,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0xFFFFE38A), Color(0xFFC9972B)],
+        ).createShader(Rect.fromCircle(center: pos, radius: r)),
+    );
+
+    // حلقه‌ی بیرونی
+    canvas.drawCircle(
+      pos,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..color = const Color(0xFFFFFFFF).withAlpha(200),
+    );
+
+    // ایموجی جام
+    _drawEmoji(
+      canvas,
+      pos.translate(0, 0.5),
+      0,
+      r * 1.15,
+      const Color(0xFF3A2600),
+      '🏆',
+    );
+
+    // شعاع‌های تزئینی
+    final rayPaint = Paint()
+      ..color = const Color(0xFFF4C542).withAlpha(120)
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 8; i++) {
+      final a = (i / 8) * math.pi * 2 + _t * 0.4;
+      final p1 = pos + Offset(math.cos(a) * (r + 3), math.sin(a) * (r + 3));
+      final p2 = pos +
+          Offset(math.cos(a) * (r + 6 + math.sin(_t * 2 + i) * 1.2),
+              math.sin(a) * (r + 6 + math.sin(_t * 2 + i) * 1.2));
+      canvas.drawLine(p1, p2, rayPaint);
+    }
+  }
+
   /// شاخه‌های دستاوردشده از درخت پنهان‌اند؛ زیرشاخه‌هاشان یک سطح بالا می‌آیند
   List<ActionNode> _visibleActs(List<ActionNode> list) {
     final out = <ActionNode>[];
@@ -703,6 +758,11 @@ class MapPainter extends CustomPainter {
       }
     } else {
       canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale), Paint()..color = color);
+    }
+
+    // بج دستاورد (جام طلایی با هاله)
+    if (a.extra['achieved'] == true) {
+      _trophyBadge(canvas, end, scale);
     }
 
     if (isRoutine) {
