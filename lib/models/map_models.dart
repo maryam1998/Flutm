@@ -14,6 +14,18 @@ Map<String, dynamic> _rest(Map<String, dynamic> j, Set<String> known) =>
     {for (final e in j.entries) if (!known.contains(e.key)) e.key: e.value};
 double _clampScale(double v) => v.clamp(kIconScaleMin, kIconScaleMax).toDouble();
 
+/// هدف یا حلقه: چیزی که تنه و شاخه داره
+abstract interface class MapHost {
+  String get id;
+  double get x;
+  double get y;
+  double get radius;
+  String? get color;
+  List<ActionNode> get actions;
+  String get branchStyle;
+  bool get isRing;
+}
+
 /// تصویر روی گره. src معمولاً data: URI است.
 class ImageItem {
   String src;
@@ -50,15 +62,15 @@ class ActionNode {
   List<ImageItem> images;
   Map<String, dynamic> logs, entries;
   bool isRoutine, detached;
-  double originX, originY, dir, len, bend1, bend2;
+  double? originX, originY, dir, len, bend1, bend2;
   Map<String, dynamic> extra;
 
   ActionNode({
     String? id, this.text = '', this.style = '', this.color, this.weight = 5,
     this.labelDX = 0, this.labelDY = 0, this.labelSize, List<ActionNode>? children,
     List<ImageItem>? images, Map<String, dynamic>? logs, Map<String, dynamic>? entries,
-    this.isRoutine = false, this.detached = false, this.originX = 0, this.originY = 0,
-    this.dir = 0, this.len = 30, this.bend1 = 0, this.bend2 = 0, Map<String, dynamic>? extra,
+    this.isRoutine = false, this.detached = false, this.originX, this.originY,
+    this.dir, this.len, this.bend1, this.bend2, Map<String, dynamic>? extra,
   })  : id = id ?? uid(),
         children = children ?? [],
         images = images ?? [],
@@ -89,12 +101,12 @@ class ActionNode {
       entries: _m(j['entries']),
       isRoutine: _b(j['isRoutine'], false),
       detached: _b(j['detached'], false),
-      originX: _d(j['originX'], 0),
-      originY: _d(j['originY'], 0),
-      dir: _d(j['dir'], 0),
-      len: _d(j['len'], 30),
-      bend1: _d(j['bend1'], 0),
-      bend2: _d(j['bend2'], 0),
+      originX: _dn(j['originX']),
+      originY: _dn(j['originY']),
+      dir: _dn(j['dir']),
+      len: _dn(j['len']),
+      bend1: _dn(j['bend1']),
+      bend2: _dn(j['bend2']),
       extra: _rest(j, _known),
     );
   }
@@ -106,7 +118,12 @@ class ActionNode {
         'children': children.map((c) => c.toJson()).toList(),
         'images': images.map((i) => i.toJson()).toList(),
         'logs': logs, 'entries': entries, 'isRoutine': isRoutine, 'detached': detached,
-        'originX': originX, 'originY': originY, 'dir': dir, 'len': len, 'bend1': bend1, 'bend2': bend2,
+        if (originX != null) 'originX': originX,
+        if (originY != null) 'originY': originY,
+        if (dir != null) 'dir': dir,
+        if (len != null) 'len': len,
+        if (bend1 != null) 'bend1': bend1,
+        if (bend2 != null) 'bend2': bend2,
       };
 }
 
@@ -114,21 +131,33 @@ int countActions(List<ActionNode> list) =>
     list.fold(0, (n, a) => n + 1 + countActions(a.children));
 
 /// هدف
-class Goal {
-  String id, name, icon, freq, branchStyle, trunkStyle, feeling;
+class Goal implements MapHost {
+  @override
+  String id;
+  String name, icon, freq, trunkStyle, feeling;
+  @override
+  String branchStyle;
+  @override
   String? color;
-  double radius, iconScale, feelingOffsetX, feelingOffsetY, feelingScale, labelDX, labelDY;
+  @override
+  double x, y;
+  @override
+  double radius;
+  @override
+  bool get isRing => false;
+  double iconScale, feelingOffsetX, feelingOffsetY, feelingScale, labelDX, labelDY;
   double? labelSize;
   bool reached, collapsed;
   int? createdAt;
   int lastActivity;
   List<ImageItem> images;
+  @override
   List<ActionNode> actions;
   Map<String, dynamic> logs, extra;
 
   Goal({
     String? id, this.name = '', this.icon = '🎯', this.freq = 'alpha', this.branchStyle = 'organic',
-    this.trunkStyle = '', this.feeling = '', this.color, this.radius = 20, this.iconScale = 1,
+    this.trunkStyle = '', this.feeling = '', this.color, this.x = 0, this.y = 0, this.radius = 20, this.iconScale = 1,
     this.feelingOffsetX = 0, this.feelingOffsetY = 0, this.feelingScale = 1, this.labelDX = 0,
     this.labelDY = 0, this.labelSize, this.reached = false, this.collapsed = false, this.createdAt,
     int? lastActivity, List<ImageItem>? images, List<ActionNode>? actions,
@@ -141,7 +170,7 @@ class Goal {
         extra = extra ?? {};
 
   static const _known = {
-    'id', 'name', 'icon', 'freq', 'branchStyle', 'trunkStyle', 'feeling', 'color', 'radius', 'iconScale',
+    'id', 'name', 'icon', 'freq', 'branchStyle', 'trunkStyle', 'feeling', 'color', 'x', 'y', 'radius', 'iconScale',
     'feelingOffsetX', 'feelingOffsetY', 'feelingScale', 'labelDX', 'labelDY', 'labelSize', 'reached',
     'collapsed', 'createdAt', 'lastActivity', 'images', 'actions', 'logs',
   };
@@ -166,6 +195,8 @@ class Goal {
       trunkStyle: (trunk.isEmpty || kTrunkStyles.containsKey(trunk)) ? trunk : '',
       feeling: _s(j['feeling'], ''),
       color: j['color'] is String ? j['color'] as String : null,
+      x: _d(j['x'], 0),
+      y: _d(j['y'], 0),
       radius: radius,
       iconScale: _clampScale(_d(j['iconScale'], 1)),
       feelingOffsetX: _d(j['feelingOffsetX'], 0),
@@ -188,7 +219,7 @@ class Goal {
   Map<String, dynamic> toJson() => {
         ...extra,
         'id': id, 'name': name, 'icon': icon, 'freq': freq, 'branchStyle': branchStyle,
-        'trunkStyle': trunkStyle, 'feeling': feeling, 'color': color, 'radius': radius,
+        'trunkStyle': trunkStyle, 'feeling': feeling, 'color': color, 'x': x, 'y': y, 'radius': radius,
         'iconScale': iconScale, 'feelingOffsetX': feelingOffsetX, 'feelingOffsetY': feelingOffsetY,
         'feelingScale': feelingScale, 'labelDX': labelDX, 'labelDY': labelDY, 'labelSize': labelSize,
         'reached': reached, 'collapsed': collapsed, 'createdAt': createdAt, 'lastActivity': lastActivity,
@@ -199,13 +230,24 @@ class Goal {
 }
 
 /// حلقه (نزدیک شدن به هدف)
-class Ring {
-  String id, label, color, note, icon, branchStyle, goalId;
-  double x, y, radius, iconScale, labelDX, labelDY;
+class Ring implements MapHost {
+  @override
+  String id;
+  String label, note, icon, goalId;
+  @override
+  String color;
+  @override
+  String branchStyle;
+  @override
+  double x, y, radius;
+  @override
+  bool get isRing => true;
+  double iconScale, labelDX, labelDY;
   double? labelSize;
   bool collapsed;
   int lastActivity;
   List<ImageItem> images;
+  @override
   List<ActionNode> actions;
   Map<String, dynamic> logs, extra;
 

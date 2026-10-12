@@ -1,68 +1,111 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/map_models.dart';
+import '../map/camera.dart';
+import '../map/map_canvas.dart';
 import '../services/storage.dart';
 import '../state/map_store.dart';
 
-/// مرحله ۱: فقط خلاصه‌ی داده + بکاپ. بوم نقشه در مرحله ۲ اضافه میشه.
-class MapTab extends StatelessWidget {
+/// مرحله ۲: رسم نقشه + pan/zoom. لمس گره‌ها و ویرایش در مرحله ۳.
+class MapTab extends StatefulWidget {
   const MapTab({super.key});
+  @override
+  State<MapTab> createState() => _MapTabState();
+}
+
+class _MapTabState extends State<MapTab> {
+  final cam = CameraController();
+  final bounds = MapBoundsBox();
+
+  @override
+  void dispose() {
+    cam.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<MapStore>();
-    final s = store.state;
-    final branches = s.goals.fold<int>(0, (n, g) => n + countActions(g.actions)) +
-        s.rings.fold<int>(0, (n, r) => n + countActions(r.actions));
-    final images = s.me.images.length +
-        s.goals.fold<int>(0, (n, g) => n + g.images.length) +
-        s.rings.fold<int>(0, (n, r) => n + r.images.length);
-
+    final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
     return Scaffold(
-      appBar: AppBar(title: const Text('نقشه')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Stack(
         children: [
-          Card(
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [Color(0xFF0B0D1E), Color(0xFF151933)],
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(child: MapCanvas(cam: cam, boundsBox: bounds)),
+          if (empty)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Align(
+                  alignment: const Alignment(0, 0.35),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      'هنوز هدفی نیست.\nاز منوی بالا «ورودی بکاپ» رو بزن تا نقشه‌ی قبلی‌ت بیاد.\n(افزودن هدف جدید در مرحله‌ی بعد اضافه میشه)',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white.withAlpha(140), height: 1.8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+              padding: const EdgeInsets.all(12),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('داده‌ی نقشه', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  _row('اهداف', s.goals.length),
-                  _row('حلقه‌ها', s.rings.length),
-                  _row('شاخه‌ها و زیرشاخه‌ها', branches),
-                  _row('تصاویر گره‌ها', images),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (v) => v == 'in' ? _import(context, store) : _export(context, store),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
+                      PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
+                    ],
+                  ),
+                  const Spacer(),
+                  ListenableBuilder(
+                    listenable: cam,
+                    builder: (_, __) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(10)),
+                      child: Text('${(cam.scale * 100).round()}٪', style: const TextStyle(fontSize: 12)),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () => _import(context, store),
-            icon: const Icon(Icons.file_open),
-            label: const Text('ورودی بکاپ (JSON)'),
+          Positioned(
+            left: 16,
+            bottom: 16,
+            child: Column(
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'fit',
+                  tooltip: 'نمایش همه',
+                  onPressed: () {
+                    final r = bounds.rect;
+                    if (r != null) cam.fitRect(r);
+                  },
+                  child: const Icon(Icons.fit_screen),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => _export(context, store),
-            icon: const Icon(Icons.save_alt),
-            label: const Text('خروجی بکاپ'),
-          ),
-          const SizedBox(height: 16),
-          const Text('بوم نقشه در مرحله‌ی بعد اضافه میشه.', style: TextStyle(color: Colors.white54)),
         ],
       ),
     );
   }
-
-  Widget _row(String label, int n) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(children: [Expanded(child: Text(label)), Text('$n')]),
-      );
 
   Future<void> _import(BuildContext context, MapStore store) async {
     final msg = ScaffoldMessenger.of(context);
