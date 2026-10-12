@@ -78,10 +78,6 @@ final ThemeData darkTheme = ThemeData(
   ),
 );
 
-/// پنل‌های پایین‌روی اپ پس‌زمینه‌ی تیره‌ی ثابت دارن و متن‌هاشون برای زمینه‌ی تیره نوشته شده؛
-/// این wrapper باعث می‌شه توی تم روشن هم متن‌ها روشن بمونن و خوانا باشن.
-Widget darkSheet(Widget child) => Theme(data: darkTheme, child: child);
-
 /// تم روشنِ کرم/طلایی مخصوص صفحه‌ی اهداف و دیالوگ‌های داخل آن
 final ThemeData goalsLightTheme = () {
   final base = ThemeData(
