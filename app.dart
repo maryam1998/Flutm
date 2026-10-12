@@ -3,10 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import 'screens/beliefs_tab.dart';
-import 'screens/gratitude_tab.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
+import 'screens/practice_tab.dart';
 import 'state/theme_store.dart';
 import 'widgets/background_layer.dart';
 import 'widgets/motivation_bar.dart';
@@ -142,8 +141,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   PlaceholderTab(
                       title: 'شناخت', note: 'بعد از تب نقشه منتقل میشه'),
                   MapTab(),
-                  GratitudeTab(),
-                  BeliefsTab(),
+                  PracticeTab(),
                 ],
               ),
             ),
@@ -158,17 +156,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 selectedIcon: Icon(Icons.psychology),
                 label: 'شناخت'),
             NavigationDestination(
-                icon: Icon(Icons.hub_outlined),
-                selectedIcon: Icon(Icons.hub),
-                label: 'نقشه'),
-            NavigationDestination(
-                icon: Icon(Icons.favorite_border),
-                selectedIcon: Icon(Icons.favorite),
-                label: 'شکرگذاری'),
+                icon: Icon(Icons.explore_outlined),
+                selectedIcon: Icon(Icons.explore),
+                label: 'هدف‌گذاری'),
             NavigationDestination(
                 icon: Icon(Icons.auto_awesome_outlined),
                 selectedIcon: Icon(Icons.auto_awesome),
-                label: 'باورها'),
+                label: 'تمرین'),
           ],
         ),
       ),
