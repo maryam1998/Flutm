@@ -14,8 +14,7 @@ import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import 'edit_sheet.dart';
 
-/// فهرست اهداف (مثل «اهداف من» نسخه‌ی وب): جست‌وجو، تب در جریان/محقق‌شده،
-/// باز شدن هر هدف با درخت شاخه‌ها، تیک امروز و روزهای دوره.
+/// فهرست اهداف — معادل «اهداف من» نسخه‌ی وب
 Future<void> showGoalsSheet(
   BuildContext context, {
   required void Function(MapHost host) onShowOnMap,
@@ -29,7 +28,7 @@ Future<void> showGoalsSheet(
     backgroundColor: const Color(0xFF14172F),
     builder: (ctx) => DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.82,
+      initialChildSize: 0.85,
       minChildSize: 0.4,
       maxChildSize: 0.95,
       builder: (_, controller) => GoalsSheet(
@@ -42,7 +41,8 @@ Future<void> showGoalsSheet(
   );
 }
 
-String _norm(String t) => t.toLowerCase().replaceAll('ي', 'ی').replaceAll('ك', 'ک');
+String _norm(String t) =>
+    t.toLowerCase().replaceAll('ي', 'ی').replaceAll('ك', 'ک');
 
 String? _findInActions(List<ActionNode> list, String q) {
   for (final a in list) {
@@ -55,7 +55,9 @@ String? _findInActions(List<ActionNode> list, String q) {
 
 String _ago(int ts) {
   if (ts <= 0) return '';
-  final d = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts)).inDays;
+  final d = DateTime.now()
+      .difference(DateTime.fromMillisecondsSinceEpoch(ts))
+      .inDays;
   if (d <= 0) return 'امروز';
   if (d == 1) return 'دیروز';
   return '${toFa(d)} روز پیش';
@@ -74,6 +76,7 @@ int? _parseDays(String s) {
   return n;
 }
 
+// ---------- کش تصاویر data: URI ----------
 final _imgCache = <int, Uint8List>{};
 Uint8List? _decodeSrc(String src) {
   if (!src.startsWith('data:')) return null;
@@ -89,21 +92,31 @@ Uint8List? _decodeSrc(String src) {
   }
 }
 
+// ---------- آواتار هدف/حلقه ----------
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.host, required this.color, this.size = 36});
+  const _Avatar({required this.host, required this.color, this.size = 40});
   final MapHost host;
   final Color color;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final images = host is Goal ? (host as Goal).images : (host as Ring).images;
-    final icon = host is Goal ? (host as Goal).icon : (host as Ring).icon;
+    final images =
+        host is Goal ? (host as Goal).images : (host as Ring).images;
+    final icon =
+        host is Goal ? (host as Goal).icon : (host as Ring).icon;
     final bytes = images.isNotEmpty ? _decodeSrc(images.first.src) : null;
     if (bytes != null) {
       return ClipOval(
-        child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover, cacheWidth: 120, gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => _fallback(icon)),
+        child: Image.memory(
+          bytes,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          cacheWidth: 120,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => _fallback(icon),
+        ),
       );
     }
     return _fallback(icon);
@@ -113,9 +126,22 @@ class _Avatar extends StatelessWidget {
         width: size,
         height: size,
         alignment: Alignment.center,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color.withAlpha(60), border: Border.all(color: color.withAlpha(150))),
-        child: Text(icon.trim().isEmpty ? '•' : icon, style: TextStyle(fontSize: size * 0.5)),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withAlpha(60),
+          border: Border.all(color: color.withAlpha(150)),
+        ),
+        child: Text(
+          icon.trim().isEmpty ? '•' : icon,
+          style: TextStyle(fontSize: size * 0.5),
+        ),
       );
+}
+
+class _Row {
+  _Row(this.h, this.hit);
+  final MapHost h;
+  final String hit;
 }
 
 class GoalsSheet extends StatefulWidget {
@@ -135,14 +161,8 @@ class GoalsSheet extends StatefulWidget {
   State<GoalsSheet> createState() => _GoalsSheetState();
 }
 
-class _Row {
-  _Row(this.h, this.hit);
-  final MapHost h;
-  final String hit;
-}
-
 class _GoalsSheetState extends State<GoalsSheet> {
-  int _tab = 0;
+  int _tab = 0; // 0=در جریان, 1=محقق‌شده
   String _q = '';
   final _search = TextEditingController();
   final _addCtl = TextEditingController();
@@ -150,7 +170,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
   final _daysOpen = <String>{};
   final _statsOpen = <String>{};
   String? _addingFor;
-  List<String>? _order;
 
   @override
   void dispose() {
@@ -165,7 +184,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
     return l.isEmpty ? 'نزدیک شدن به هدف' : l;
   }
 
-  Color _hostColor(MapHost h) => hexColor(h.color, hexColor(h.isRing ? kRingColor : kPalette[0]));
+  Color _hostColor(MapHost h) =>
+      hexColor(h.color, hexColor(h.isRing ? kRingColor : kPalette[0]));
+
+  // ------------------------------------------------------------------ build
 
   @override
   Widget build(BuildContext context) {
@@ -174,57 +196,45 @@ class _GoalsSheetState extends State<GoalsSheet> {
     final active = s.goals.where((g) => !g.reached).toList();
     final reached = s.goals.where((g) => g.reached).toList();
     final isReachedTab = _tab == 1;
+
     final List<MapHost> pool = isReachedTab
         ? reached
-        : <MapHost>[...active, if (s.goals.isEmpty) ...s.rings.where((r) => ringIsOrphan(s, r))];
+        : <MapHost>[
+            ...active,
+            if (s.goals.isEmpty) ...s.rings.where((r) => ringIsOrphan(s, r)),
+          ];
 
+    // فیلتر
     final rows = <_Row>[];
     for (final h in pool) {
       if (_q.isEmpty) {
         rows.add(_Row(h, ''));
       } else {
-        final hit = _norm(_name(h)).contains(_q) ? '' : _findInActions(h.actions, _q);
+        final hit =
+            _norm(_name(h)).contains(_q) ? '' : _findInActions(h.actions, _q);
         if (hit != null) rows.add(_Row(h, hit));
       }
     }
-    final order = _order;
-    if (order != null) {
-      int ix(String id) {
-        final i = order.indexOf(id);
-        return i < 0 ? 1000000000 : i;
-      }
 
-      rows.sort((a, b) => ix(a.h.id).compareTo(ix(b.h.id)));
-    } else {
-      final go = s.extra['goalOrder'];
-      final manual = (!isReachedTab && go is List && go.isNotEmpty)
-          ? {for (var i = 0; i < go.length; i++) go[i].toString(): i}
-          : null;
-      rows.sort((a, b) {
-        if (manual != null) {
-          final pa = manual[a.h.id] ?? -1, pb = manual[b.h.id] ?? -1;
-          if (pa < 0 && pb < 0) return b.h.lastActivity.compareTo(a.h.lastActivity);
-          if (pa < 0) return -1;
-          if (pb < 0) return 1;
-          return pa.compareTo(pb);
-        }
-        return b.h.lastActivity.compareTo(a.h.lastActivity);
-      });
-      _order = rows.map((r) => r.h.id).toList();
-    }
+    // مرتب‌سازی: lastActivity نزولی
+    rows.sort((a, b) => b.h.lastActivity.compareTo(a.h.lastActivity));
 
-    final freeRings = s.goals.isEmpty ? 0 : s.rings.where((r) => ringIsOrphan(s, r)).length;
-    final countText = pool.isEmpty ? '' : '${toFa(pool.length)} هدف';
+    final freeRings =
+        s.goals.isEmpty ? 0 : s.rings.where((r) => ringIsOrphan(s, r)).length;
+    final countText = pool.isEmpty ? '' : '${toFa(pool.length)} مورد';
 
     return ListView(
       controller: widget.controller,
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 28),
       children: [
+        // هدر
         Row(
           children: [
-            const Text('اهداف من', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text('اهداف من',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const SizedBox(width: 8),
-            Text(countText, style: const TextStyle(fontSize: 12, color: Colors.white54)),
+            Text(countText,
+                style: const TextStyle(fontSize: 12, color: Colors.white54)),
             const Spacer(),
             FilledButton.tonalIcon(
               onPressed: () {
@@ -237,41 +247,46 @@ class _GoalsSheetState extends State<GoalsSheet> {
           ],
         ),
         const SizedBox(height: 10),
+
+        // تب‌ها
         Wrap(
           spacing: 8,
           children: [
             ChoiceChip(
               label: const Text('اهداف در جریان'),
               selected: _tab == 0,
-              onSelected: (_) => setState(() {
-                _tab = 0;
-                _order = null;
-              }),
+              onSelected: (_) => setState(() => _tab = 0),
             ),
             ChoiceChip(
-              label: Text('اهداف محقق‌شده${reached.isEmpty ? '' : ' (${toFa(reached.length)})'}'),
+              label: Text(
+                'اهداف محقق‌شده${reached.isEmpty ? '' : ' (${toFa(reached.length)})'}',
+              ),
               selected: _tab == 1,
-              onSelected: (_) => setState(() {
-                _tab = 1;
-                _order = null;
-              }),
+              onSelected: (_) => setState(() => _tab = 1),
             ),
           ],
         ),
         const SizedBox(height: 10),
+
+        // جست‌وجو
         TextField(
           controller: _search,
           onChanged: (v) => setState(() => _q = _norm(v.trim())),
           decoration: InputDecoration(
-            hintText: 'جست‌وجو...',
+            hintText: 'جست‌وجو در نام هدف و متن شاخه‌ها...',
             prefixIcon: const Icon(Icons.search),
             isDense: true,
             filled: true,
             fillColor: Colors.white.withAlpha(14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
         const SizedBox(height: 12),
+
+        // لیست
         if (rows.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
@@ -279,19 +294,21 @@ class _GoalsSheetState extends State<GoalsSheet> {
               _q.isNotEmpty
                   ? 'موردی پیدا نشد.'
                   : isReachedTab
-                      ? 'هنوز هدفی به مرحله‌ی «محقق‌شده» نرسیده.\nوقتی به یک هدف رسیدی، با دکمه‌ی ✓ کنار آن به این فهرست منتقلش کن.'
-                      : 'هنوز هدفی نداری. با «هدف جدید» شروع کن.',
+                      ? 'هنوز هدفی محقق نشده.\nوقتی به هدفی رسیدی، با دکمه‌ی ✓ به این فهرست منتقلش کن.'
+                      : 'هنوز هدفی نداری.\nبا «هدف جدید» شروع کن.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white54, height: 1.8),
             ),
           )
         else
-          for (final r in rows) isReachedTab ? _reachedCard(store, r.h as Goal) : _hostCard(store, r),
+          for (final r in rows)
+            isReachedTab ? _reachedCard(store, r.h as Goal) : _hostCard(store, r),
+
         if (freeRings > 0)
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
-              '${toFa(freeRings)} نشانه‌ی آزاد روی نقشه هست؛ آن را روی مسیر یک هدف ببر تا خودکار زیرمجموعه‌اش شود.',
+              '${toFa(freeRings)} نشانه‌ی آزاد روی نقشه هست؛ روی مسیر یک هدف ببرش تا خودکار زیرمجموعه‌اش شود.',
               style: const TextStyle(fontSize: 11.5, color: Colors.white54, height: 1.7),
             ),
           ),
@@ -299,7 +316,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
   }
 
-  // ---------- کارت هدف ----------
+  // ------------------------------------------------------------------ کارت هدف
 
   BoxDecoration _cardDeco(Color c) => BoxDecoration(
         color: Colors.white.withAlpha(12),
@@ -307,7 +324,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
         border: Border.all(color: c.withAlpha(90)),
       );
 
-  Widget _iconBtn(IconData i, String tip, VoidCallback onTap, {Color? color}) => IconButton(
+  Widget _iconBtn(IconData i, String tip, VoidCallback onTap, {Color? color}) =>
+      IconButton(
         icon: Icon(i, size: 20, color: color),
         tooltip: tip,
         onPressed: onTap,
@@ -316,13 +334,27 @@ class _GoalsSheetState extends State<GoalsSheet> {
         visualDensity: VisualDensity.compact,
       );
 
+  Widget _tag(String t) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(20),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(t,
+            style: const TextStyle(fontSize: 10.5, color: Colors.white70)),
+      );
+
   Widget _hostCard(MapStore store, _Row r) {
     final h = r.h;
     final color = _hostColor(h);
-    final isOpen = _open.contains(h.id) || (_q.isNotEmpty && r.hit.isNotEmpty);
+    final isOpen =
+        _open.contains(h.id) || (_q.isNotEmpty && r.hit.isNotEmpty);
     final power = math.min(100.0, sumWeight(h.actions) * 3);
-    final stale = h.lastActivity > 0 && DateTime.now().millisecondsSinceEpoch - h.lastActivity > 30 * 86400000;
-    final linked = h is Ring ? store.state.goals.where((g) => g.id == h.goalId).toList() : <Goal>[];
+    final stale = h.lastActivity > 0 &&
+        DateTime.now().millisecondsSinceEpoch - h.lastActivity >
+            30 * 86400000;
+    final linked =
+        h is Ring ? store.state.goals.where((g) => g.id == h.goalId).toList() : <Goal>[];
     final ago = _ago(h.lastActivity);
 
     return Container(
@@ -351,15 +383,23 @@ class _GoalsSheetState extends State<GoalsSheet> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           spacing: 6,
                           children: [
-                            Text(_name(h), style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text(_name(h),
+                                style: const TextStyle(fontWeight: FontWeight.w700)),
                             if (h.isRing)
-                              _tag('نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
+                              _tag(
+                                  'نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
                             if (stale) _tag('کم‌فعالیت'),
                           ],
                         ),
-                        if (ago.isNotEmpty) Text(ago, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                        if (ago.isNotEmpty)
+                          Text(ago,
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.white54)),
                         if (r.hit.isNotEmpty)
-                          Text('↳ ${r.hit}', style: TextStyle(fontSize: 12, color: color), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text('↳ ${r.hit}',
+                              style: TextStyle(fontSize: 12, color: color),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 6),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4),
@@ -373,18 +413,27 @@ class _GoalsSheetState extends State<GoalsSheet> {
                       ],
                     ),
                   ),
-                  _iconBtn(isOpen ? Icons.expand_less : Icons.expand_more, 'باز یا بسته کردن', () => setState(() {
-                        if (!_open.remove(h.id)) _open.add(h.id);
-                        _addingFor = null;
-                      })),
-                  if (h is Goal) _iconBtn(Icons.check_circle_outline, 'به این هدف رسیدم', () => _reach(store, h)),
+                  _iconBtn(
+                    isOpen ? Icons.expand_less : Icons.expand_more,
+                    'باز یا بسته کردن',
+                    () => setState(() {
+                      if (!_open.remove(h.id)) _open.add(h.id);
+                      _addingFor = null;
+                    }),
+                  ),
+                  if (h is Goal)
+                    _iconBtn(Icons.check_circle_outline, 'به این هدف رسیدم',
+                        () => _reach(store, h)),
                   _iconBtn(Icons.my_location, 'نمایش روی نقشه', () {
                     Navigator.pop(context);
                     widget.onShowOnMap(h);
                   }),
                   _iconBtn(Icons.edit_outlined, 'ویرایش', () {
                     Navigator.pop(context);
-                    showEditSheet(widget.parentContext, h is Goal ? GoalTarget(h.id) : RingTarget(h.id));
+                    showEditSheet(
+                      widget.parentContext,
+                      h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
+                    );
                   }),
                 ],
               ),
@@ -396,18 +445,14 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
   }
 
-  Widget _tag(String t) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-        decoration: BoxDecoration(color: Colors.white.withAlpha(20), borderRadius: BorderRadius.circular(8)),
-        child: Text(t, style: const TextStyle(fontSize: 10.5, color: Colors.white70)),
-      );
-
   void _reach(MapStore store, Goal g) {
     _open.remove(g.id);
     store.reachGoal(g);
-    setState(() => _order = null);
-    ScaffoldMessenger.of(widget.parentContext).showSnackBar(const SnackBar(content: Text('🏆 هدف محقق شد!')));
+    ScaffoldMessenger.of(widget.parentContext)
+        .showSnackBar(const SnackBar(content: Text('🏆 هدف محقق شد!')));
   }
+
+  // ------------------------------------------------------------------ کارت محقق‌شده
 
   Widget _reachedCard(MapStore store, Goal g) {
     final color = _hostColor(g);
@@ -434,15 +479,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   Text(g.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                   _tag('محقق شد ✓'),
                 ]),
-                if (when.isNotEmpty) Text(when, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                if (when.isNotEmpty)
+                  Text(when,
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.white54)),
               ],
             ),
           ),
           TextButton(
-            onPressed: () {
-              store.unreachGoal(g);
-              setState(() => _order = null);
-            },
+            onPressed: () => store.unreachGoal(g),
             child: const Text('بازگرداندن'),
           ),
           _iconBtn(Icons.my_location, 'نمایش روی نقشه', () {
@@ -458,7 +503,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
   }
 
-  // ---------- بدنه‌ی هدف: درخت شاخه‌ها + تیک روزانه ----------
+  // ------------------------------------------------------------------ بدنه‌ی هدف باز‌شده
 
   Widget _body(MapStore store, MapHost h, Color hostColor) {
     final pi = periodInfo(h, store);
@@ -473,20 +518,30 @@ class _GoalsSheetState extends State<GoalsSheet> {
         children: [
           const Divider(height: 1),
           const SizedBox(height: 8),
+
+          // بنر پایان دوره
           if (pi.finished)
             Container(
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.amber.withAlpha(30), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                color: Colors.amber.withAlpha(30),
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('دوره‌ی ${periodOrd(pi.past.length)} تموم شد! برای ادامه، دوره‌ی بعدی را شروع کن؛ دوره‌های قبلی نگه داشته می‌شوند.',
-                      style: const TextStyle(height: 1.7)),
+                  Text(
+                    'دوره‌ی ${periodOrd(pi.past.length)} تموم شد! برای ادامه، دوره‌ی بعدی را شروع کن.',
+                    style: const TextStyle(height: 1.7),
+                  ),
                   const SizedBox(height: 6),
                   FilledButton.tonal(
                     onPressed: () async {
-                      final n = await _askDays('دوره‌ی ${periodOrd(pi.past.length + 1)} چند روزه باشه؟ (۱ تا ${toFa(kPcMaxDays)})', pi.total);
+                      final n = await _askDays(
+                        'دوره‌ی ${periodOrd(pi.past.length + 1)} چند روزه باشه؟ (۱ تا ${toFa(kPcMaxDays)})',
+                        pi.total,
+                      );
                       if (n != null) store.startNewPeriod(h, n);
                     },
                     child: Text('شروع دوره‌ی ${periodOrd(pi.past.length + 1)}'),
@@ -494,13 +549,20 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 ],
               ),
             ),
+
+          // شاخه‌ها
           if (h.actions.isEmpty && !adding)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-              child: Text('با ＋ شروع کن؛ مثلاً «گوش دادن به پادکست».', style: TextStyle(color: Colors.white54)),
+              child: Text('با ＋ شروع کن؛ مثلاً «گوش دادن به پادکست».',
+                  style: TextStyle(color: Colors.white54)),
             ),
-          for (final a in h.actions) ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
+          for (final a in h.actions)
+            ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
+
           const SizedBox(height: 6),
+
+          // دکمه افزودن شاخه
           if (adding)
             _addRow(store, h, null, 'نام (مثلاً گوش دادن به پادکست)')
           else
@@ -516,6 +578,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
               ),
             ),
           const SizedBox(height: 8),
+
+          // نوار آمار
           InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () => setState(() {
@@ -523,28 +587,42 @@ class _GoalsSheetState extends State<GoalsSheet> {
             }),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(color: Colors.white.withAlpha(10), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(10),
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: Row(
                 children: [
-                  Text('دوره‌ی ${toFa(pi.total)} روزه · روز ${toFa(pi.dayNum)}', style: const TextStyle(fontSize: 13)),
+                  Text(
+                    'دوره‌ی ${toFa(pi.total)} روزه · روز ${toFa(pi.dayNum)}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
                   const Spacer(),
-                  Icon(statsOpen ? Icons.expand_less : Icons.expand_more, size: 20),
+                  Icon(statsOpen ? Icons.expand_less : Icons.expand_more,
+                      size: 20),
                 ],
               ),
             ),
           ),
+
           if (statsOpen)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('${toFa(todayCnt)} کار انجام‌شده‌ی امروز', style: const TextStyle(color: Colors.white70)),
+                    child: Text(
+                      '${toFa(todayCnt)} کار انجام‌شده‌ی امروز',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
                   ),
                   if (!pi.finished)
                     TextButton(
                       onPressed: () async {
-                        final n = await _askDays('دوره‌ی ${periodOrd(pi.past.length)} چند روزه باشه؟ (۱ تا ${toFa(kPcMaxDays)})', pi.total);
+                        final n = await _askDays(
+                          'دوره‌ی ${periodOrd(pi.past.length)} چند روزه باشه؟',
+                          pi.total,
+                        );
                         if (n != null) store.setPeriodDays(h, n);
                       },
                       child: const Text('تنظیم روزهای دوره'),
@@ -552,6 +630,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 ],
               ),
             ),
+
+          // جمع کردن
           Align(
             alignment: Alignment.center,
             child: TextButton.icon(
@@ -568,11 +648,17 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
   }
 
-  List<Widget> _nodeTiles(MapStore store, MapHost h, ActionNode n, PeriodInfo pi, Color hostColor, int depth, String parentName) {
-    // شاخه‌ی دستاوردشده (جام) در فهرست دیده نمیشه؛ زیرشاخه‌هاش همون سطح میان
-    if (n.extra['achieved'] == true) {
-      return [for (final c in n.children) ..._nodeTiles(store, h, c, pi, hostColor, depth, parentName)];
-    }
+  // ------------------------------------------------------------------ درخت شاخه‌ها
+
+  List<Widget> _nodeTiles(
+    MapStore store,
+    MapHost h,
+    ActionNode n,
+    PeriodInfo pi,
+    Color hostColor,
+    int depth,
+    String parentName,
+  ) {
     final color = hexColor(n.color, hostColor);
     final todayDone = truthy(n.logs[pi.todayJK]);
     final daysOpen = _daysOpen.contains(n.id);
@@ -596,15 +682,26 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   border: isSub ? Border.all(color: color) : null,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(isSub ? 'زیرشاخه' : 'شاخه',
-                    style: TextStyle(fontSize: 10, color: isSub ? color : Colors.black87, fontWeight: FontWeight.w700)),
+                child: Text(
+                  isSub ? 'زیرشاخه' : 'شاخه',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isSub ? color : Colors.black87,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               if (isSub)
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(start: 6),
-                    child: Text('زیرِ «${parentName.isEmpty ? 'شاخه' : parentName}»',
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, color: Colors.white54)),
+                    child: Text(
+                      'زیرِ «${parentName.isEmpty ? 'شاخه' : parentName}»',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 10.5, color: Colors.white54),
+                    ),
                   ),
                 ),
             ],
@@ -626,7 +723,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
                       color: todayDone ? color : Colors.transparent,
                       border: Border.all(color: color, width: 2),
                     ),
-                    child: todayDone ? const Icon(Icons.check, size: 19, color: Colors.black87) : null,
+                    child: todayDone
+                        ? const Icon(Icons.check, size: 19, color: Colors.black87)
+                        : null,
                   ),
                 ),
               ),
@@ -640,7 +739,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: isSub ? 'نام (مثلاً یوتیوب)...' : 'نام...',
+                    hintText: isSub ? 'نام زیرشاخه...' : 'نام شاخه...',
                     hintStyle: const TextStyle(color: Colors.white38),
                   ),
                 ),
@@ -649,9 +748,14 @@ class _GoalsSheetState extends State<GoalsSheet> {
                     _addingFor = n.id;
                     _addCtl.clear();
                   })),
-              _iconBtn(Icons.calendar_month_outlined, 'روزها', () => setState(() {
-                    if (!_daysOpen.remove(n.id)) _daysOpen.add(n.id);
-                  }), color: daysOpen ? color : null),
+              _iconBtn(
+                Icons.calendar_month_outlined,
+                'روزها',
+                () => setState(() {
+                  if (!_daysOpen.remove(n.id)) _daysOpen.add(n.id);
+                }),
+                color: daysOpen ? color : null,
+              ),
               _iconBtn(Icons.close, 'حذف', () => _confirmDelete(store, h, n)),
             ],
           ),
@@ -659,14 +763,24 @@ class _GoalsSheetState extends State<GoalsSheet> {
         ],
       ),
     );
+
     final tile = Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: ClipRRect(borderRadius: BorderRadius.circular(12), child: tileBody),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: tileBody,
+      ),
     );
 
     final kids = <Widget>[
-      if (_addingFor == n.id) Padding(padding: const EdgeInsets.only(bottom: 8), child: _addRow(store, h, n, 'نام')),
-      for (final c in n.children) ..._nodeTiles(store, h, c, pi, hostColor, depth + 1, n.text.isEmpty ? 'بدون نام' : n.text),
+      if (_addingFor == n.id)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _addRow(store, h, n, 'نام زیرشاخه'),
+        ),
+      for (final c in n.children)
+        ..._nodeTiles(store, h, c, pi, hostColor, depth + 1,
+            n.text.isEmpty ? 'بدون نام' : n.text),
     ];
 
     return [
@@ -679,16 +793,28 @@ class _GoalsSheetState extends State<GoalsSheet> {
               margin: const EdgeInsetsDirectional.only(start: 16),
               padding: const EdgeInsetsDirectional.only(start: 10),
               decoration: BoxDecoration(
-                border: BorderDirectional(start: BorderSide(color: Colors.white.withAlpha(60), width: 2)),
+                border: BorderDirectional(
+                    start:
+                        BorderSide(color: Colors.white.withAlpha(60), width: 2)),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: kids),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: kids),
             ),
         ],
       ),
     ];
   }
 
-  Widget _daysGrid(MapStore store, MapHost h, ActionNode n, PeriodInfo pi, Color color) {
+  // ------------------------------------------------------------------ شبکه‌ی روزها
+
+  Widget _daysGrid(
+    MapStore store,
+    MapHost h,
+    ActionNode n,
+    PeriodInfo pi,
+    Color color,
+  ) {
     final cells = <Widget>[];
     for (var d = 0; d < pi.total; d++) {
       final date = DateTime(pi.start.year, pi.start.month, pi.start.day + d);
@@ -708,14 +834,21 @@ class _GoalsSheetState extends State<GoalsSheet> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
               color: has ? color : Colors.white.withAlpha(future ? 5 : 16),
-              border: Border.all(color: isToday ? Colors.white : (has ? color : Colors.white24), width: isToday ? 2 : 1),
+              border: Border.all(
+                color: isToday
+                    ? Colors.white
+                    : (has ? color : Colors.white24),
+                width: isToday ? 2 : 1,
+              ),
             ),
             child: Text(
               has ? '✓' : toFa(j.jd),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: has ? Colors.black87 : (future ? Colors.white30 : Colors.white),
+                color: has
+                    ? Colors.black87
+                    : (future ? Colors.white30 : Colors.white),
               ),
             ),
           ),
@@ -727,6 +860,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
       child: Wrap(spacing: 6, runSpacing: 6, children: cells),
     );
   }
+
+  // ------------------------------------------------------------------ افزودن شاخه
 
   Widget _addRow(MapStore store, MapHost h, ActionNode? parent, String hint) {
     void submit() {
@@ -748,26 +883,39 @@ class _GoalsSheetState extends State<GoalsSheet> {
               isDense: true,
               filled: true,
               fillColor: Colors.white.withAlpha(14),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
         ),
         const SizedBox(width: 6),
         FilledButton(onPressed: submit, child: const Text('افزودن')),
-        TextButton(onPressed: () => setState(() => _addingFor = null), child: const Text('لغو')),
+        TextButton(
+          onPressed: () => setState(() => _addingFor = null),
+          child: const Text('لغو'),
+        ),
       ],
     );
   }
 
-  Future<void> _confirmDelete(MapStore store, MapHost h, ActionNode n) async {
+  Future<void> _confirmDelete(
+      MapStore store, MapHost h, ActionNode n) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('حذف'),
-        content: Text('«${n.text.isEmpty ? 'بدون نام' : n.text}» ${n.children.isNotEmpty ? 'همراه با زیرمجموعه‌اش ' : ''}حذف بشه؟'),
+        content: Text(
+          '«${n.text.isEmpty ? 'بدون نام' : n.text}» ${n.children.isNotEmpty ? 'همراه با زیرمجموعه‌اش ' : ''}حذف بشه؟',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('نه')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('نه')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حذف')),
         ],
       ),
     );
@@ -780,14 +928,22 @@ class _GoalsSheetState extends State<GoalsSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title, style: const TextStyle(fontSize: 15)),
-        content: TextField(controller: c, keyboardType: TextInputType.number, autofocus: true),
+        content: TextField(
+          controller: c,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('لغو')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('لغو')),
           FilledButton(
             onPressed: () {
               final n = _parseDays(c.text);
               if (n == null) {
-                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('یه عدد بین ۱ تا ${toFa(kPcMaxDays)} وارد کن')));
+                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                    content:
+                        Text('عدد بین ۱ تا ${toFa(kPcMaxDays)} وارد کن')));
                 return;
               }
               Navigator.pop(ctx, n);
