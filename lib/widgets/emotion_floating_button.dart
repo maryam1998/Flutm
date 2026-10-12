@@ -28,7 +28,7 @@ class _EmotionFloatingButtonState extends State<EmotionFloatingButton>
 
   Offset _start = Offset.zero;
   bool _dragged = false;
-  int? _pointerId;
+  int? _pointer;
 
   @override
   void initState() {
@@ -50,28 +50,28 @@ class _EmotionFloatingButtonState extends State<EmotionFloatingButton>
     final opened = widget.open;
     return Listener(
       onPointerDown: (e) {
-        _pointerId = e.pointerId;
+        _pointer = e.pointer;
         _start = e.position;
         _dragged = false;
         widget.onDragStart();
       },
       onPointerMove: (e) {
-        if (e.pointerId != _pointerId) return;
+        if (e.pointer != _pointer) return;
         final d = e.position - _start;
         if (!_dragged && d.distance > 3) _dragged = true;
         if (_dragged) widget.onDrag(d);
       },
       onPointerUp: (e) {
-        if (e.pointerId != _pointerId) return;
+        if (e.pointer != _pointer) return;
         final wasDrag = _dragged;
-        _pointerId = null;
+        _pointer = null;
         _dragged = false;
         widget.onDragEnd();
         if (!wasDrag) widget.onTap();
       },
       onPointerCancel: (e) {
-        if (e.pointerId != _pointerId) return;
-        _pointerId = null;
+        if (e.pointer != _pointer) return;
+        _pointer = null;
         _dragged = false;
         widget.onDragEnd();
       },
@@ -103,7 +103,6 @@ class _ButtonPainter extends CustomPainter {
     final center = rect.center;
     final r = size.width / 2;
 
-    // گرادیان
     final grad = LinearGradient(
       begin: const Alignment(-0.5, -1),
       end: const Alignment(0.5, 1),
@@ -115,7 +114,6 @@ class _ButtonPainter extends CustomPainter {
 
     canvas.drawCircle(center, r, Paint()..shader = grad.createShader(rect));
 
-    // حاشیه
     canvas.drawCircle(
       center, r - 0.5,
       Paint()
@@ -124,7 +122,6 @@ class _ButtonPainter extends CustomPainter {
         ..color = Colors.white.withValues(alpha: 0.45),
     );
 
-    // انعکاس
     if (!opened) {
       final hi = Rect.fromCircle(
         center: Offset(center.dx - r * 0.35, center.dy - r * 0.55),
@@ -140,7 +137,6 @@ class _ButtonPainter extends CustomPainter {
       );
     }
 
-    // آیکن
     final iconPaint = Paint()
       ..color = Colors.white
       ..strokeWidth = opened ? 1.7 : 1.4
@@ -149,12 +145,10 @@ class _ButtonPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     if (opened) {
-      // ✕
       final d = r * 0.4;
       canvas.drawLine(center + Offset(-d, -d), center + Offset(d, d), iconPaint);
       canvas.drawLine(center + Offset(d, -d), center + Offset(-d, d), iconPaint);
     } else {
-      // شکل موج ضربان
       final path = Path()
         ..moveTo(center.dx - r * 0.62, center.dy)
         ..lineTo(center.dx - r * 0.36, center.dy)
