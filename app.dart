@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/beliefs_tab.dart';
+import 'screens/gratitude_tab.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
-import 'state/map_store.dart';
-import 'state/motivation_store.dart';
 import 'state/theme_store.dart';
-import 'theme/app_theme.dart';
+import 'widgets/background_layer.dart';
 import 'widgets/motivation_bar.dart';
 
 class MaghzApp extends StatelessWidget {
@@ -17,7 +18,7 @@ class MaghzApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeStore>();
     return MaterialApp(
-      title: 'مغز',
+      title: 'بی‌نهایت راه',
       debugShowCheckedModeBanner: false,
       locale: const Locale('fa'),
       supportedLocales: const [Locale('fa'), Locale('en')],
@@ -26,15 +27,76 @@ class MaghzApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: lightTheme,
-      darkTheme: darkTheme,
+      theme: _light,
+      darkTheme: _dark,
       themeMode: theme.mode,
       home: const Shell(),
     );
   }
 }
 
-/// سه تب اصلی؛ ترتیب مثل نسخه‌ی وب: شناخت، نقشه، شکرگزاری. پیش‌فرض: نقشه
+final _light = ThemeData(
+  brightness: Brightness.light,
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: const Color(0xFFC9972B),
+    brightness: Brightness.light,
+  ),
+  useMaterial3: true,
+  textTheme: GoogleFonts.vazirmatnTextTheme(),
+  scaffoldBackgroundColor: Colors.transparent,
+  appBarTheme: AppBarTheme(
+    backgroundColor: Colors.transparent,
+    foregroundColor: const Color(0xFF2A2218),
+    elevation: 0,
+    centerTitle: true,
+    titleTextStyle: GoogleFonts.vazirmatn(
+      fontSize: 17,
+      fontWeight: FontWeight.w700,
+      color: const Color(0xFF2A2218),
+    ),
+  ),
+  navigationBarTheme: NavigationBarThemeData(
+    backgroundColor: const Color(0xFFF5EFE0).withValues(alpha: 0.96),
+    indicatorColor: const Color(0xFFC9972B).withValues(alpha: 0.28),
+    labelTextStyle: WidgetStatePropertyAll(
+      GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.w600),
+    ),
+  ),
+  snackBarTheme: const SnackBarThemeData(
+    backgroundColor: Color(0xFF2A2218),
+    contentTextStyle: TextStyle(color: Colors.white),
+  ),
+);
+
+final _dark = ThemeData(
+  brightness: Brightness.dark,
+  colorScheme: ColorScheme.fromSeed(
+    seedColor: const Color(0xFF5EC8F0),
+    brightness: Brightness.dark,
+  ),
+  useMaterial3: true,
+  textTheme: GoogleFonts.vazirmatnTextTheme(ThemeData.dark().textTheme),
+  scaffoldBackgroundColor: Colors.transparent,
+  appBarTheme: AppBarTheme(
+    backgroundColor: Colors.transparent,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    centerTitle: true,
+    titleTextStyle: GoogleFonts.vazirmatn(
+      fontSize: 17,
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+    ),
+  ),
+  navigationBarTheme: NavigationBarThemeData(
+    backgroundColor: const Color(0xFF0B0D1E).withValues(alpha: 0.96),
+    indicatorColor: const Color(0xFF5EC8F0).withValues(alpha: 0.28),
+    labelTextStyle: WidgetStatePropertyAll(
+      GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.w600),
+    ),
+  ),
+);
+
 class Shell extends StatefulWidget {
   const Shell({super.key});
   @override
@@ -56,46 +118,59 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// معادل pagehide / visibilitychange در وب: موقع رفتن به پس‌زمینه فوراً ذخیره کن
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
-    if (s == AppLifecycleState.paused || s == AppLifecycleState.inactive || s == AppLifecycleState.detached) {
-      context.read<MapStore>().flush();
+    if (s == AppLifecycleState.paused ||
+        s == AppLifecycleState.inactive ||
+        s == AppLifecycleState.detached) {
+      context.read<ThemeStore>(); // keep import used
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // وقتی نوار انگیزشی بالای صفحه است، خودش فضای status bar را می‌گیرد؛ تب‌ها دوباره آن را اضافه نکنند
-    final barVisible = context.select<MotivationStore, bool>((m) => m.showBar && m.current != null);
-    return Scaffold(
-      body: Column(
-        children: [
-          const MotivationBar(),
-          Expanded(
-            child: MediaQuery.removePadding(
-              context: context,
-              removeTop: barVisible,
+    return BackgroundLayer(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Column(
+          children: [
+            const MotivationBar(),
+            Expanded(
               child: IndexedStack(
                 index: _index,
                 children: const [
-                  PlaceholderTab(title: 'شناخت', note: 'بعد از تب نقشه منتقل میشه'),
+                  PlaceholderTab(
+                      title: 'شناخت', note: 'بعد از تب نقشه منتقل میشه'),
                   MapTab(),
-                  PlaceholderTab(title: 'شکرگزاری', note: 'بعد از تب نقشه منتقل میشه'),
+                  GratitudeTab(),
+                  BeliefsTab(),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.psychology_outlined), selectedIcon: Icon(Icons.psychology), label: 'شناخت'),
-          NavigationDestination(icon: Icon(Icons.hub_outlined), selectedIcon: Icon(Icons.hub), label: 'نقشه'),
-          NavigationDestination(icon: Icon(Icons.favorite_border), selectedIcon: Icon(Icons.favorite), label: 'شکرگزاری'),
-        ],
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: const [
+            NavigationDestination(
+                icon: Icon(Icons.psychology_outlined),
+                selectedIcon: Icon(Icons.psychology),
+                label: 'شناخت'),
+            NavigationDestination(
+                icon: Icon(Icons.hub_outlined),
+                selectedIcon: Icon(Icons.hub),
+                label: 'نقشه'),
+            NavigationDestination(
+                icon: Icon(Icons.favorite_border),
+                selectedIcon: Icon(Icons.favorite),
+                label: 'شکرگذاری'),
+            NavigationDestination(
+                icon: Icon(Icons.auto_awesome_outlined),
+                selectedIcon: Icon(Icons.auto_awesome),
+                label: 'باورها'),
+          ],
+        ),
       ),
     );
   }
