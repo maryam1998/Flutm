@@ -28,8 +28,8 @@ Future<void> showGoalsSheet(
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
-    backgroundColor: const Color(0xFF14172F),
-    builder: (ctx) => darkSheet(DraggableScrollableSheet(
+    backgroundColor: kGoalsBg,
+    builder: (ctx) => goalsLightSheet(DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.85,
       minChildSize: 0.4,
@@ -257,12 +257,12 @@ class _GoalsSheetState extends State<GoalsSheet> {
         Row(
           children: [
             const Text('اهداف من',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kGoalsInk)),
             const SizedBox(width: 8),
             Text(countText,
-                style: const TextStyle(fontSize: 12, color: Colors.white54)),
+                style: const TextStyle(fontSize: 12, color: kGoalsMuted)),
             IconButton(
-              icon: const Icon(Icons.insights, size: 20),
+              icon: const Icon(Icons.insights, size: 20, color: kGoalsGold),
               tooltip: 'نگاه هفته',
               onPressed: () => showWeeklySheet(context, store.state),
               padding: EdgeInsets.zero,
@@ -287,13 +287,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
           spacing: 8,
           children: [
             ChoiceChip(
-              label: const Text('اهداف در جریان'),
+              label: Text('اهداف در جریان',
+                  style: TextStyle(color: _tab == 0 ? Colors.white : kGoalsInk)),
               selected: _tab == 0,
               onSelected: (_) => setState(() => _tab = 0),
             ),
             ChoiceChip(
               label: Text(
                 'اهداف محقق‌شده${reached.isEmpty ? '' : ' (${toFa(reached.length)})'}',
+                style: TextStyle(color: _tab == 1 ? Colors.white : kGoalsInk),
               ),
               selected: _tab == 1,
               onSelected: (_) => setState(() => _tab = 1),
@@ -308,13 +310,21 @@ class _GoalsSheetState extends State<GoalsSheet> {
           onChanged: (v) => setState(() => _q = _norm(v.trim())),
           decoration: InputDecoration(
             hintText: 'جست‌وجو در نام هدف و متن شاخه‌ها...',
-            prefixIcon: const Icon(Icons.search),
+            prefixIcon: const Icon(Icons.search, color: kGoalsMuted),
             isDense: true,
             filled: true,
-            fillColor: Colors.white.withAlpha(14),
+            fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: const BorderSide(color: kGoalsBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: kGoalsBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: kGoalsGold, width: 1.5),
             ),
           ),
         ),
@@ -331,7 +341,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                       ? 'هنوز هدفی محقق نشده.\nوقتی به هدفی رسیدی، با دکمه‌ی ✓ به این فهرست منتقلش کن.'
                       : 'هنوز هدفی نداری.\nبا «هدف جدید» شروع کن.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54, height: 1.8),
+              style: const TextStyle(color: kGoalsMuted, height: 1.8),
             ),
           )
         else if (isReachedTab)
@@ -357,7 +367,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               '${toFa(freeRings)} نشانه‌ی آزاد روی نقشه هست؛ روی مسیر یک هدف ببرش تا خودکار زیرمجموعه‌اش شود.',
-              style: const TextStyle(fontSize: 11.5, color: Colors.white54, height: 1.7),
+              style: const TextStyle(fontSize: 11.5, color: kGoalsMuted, height: 1.7),
             ),
           ),
       ],
@@ -367,9 +377,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
   // ------------------------------------------------------------------ کارت هدف
 
   BoxDecoration _cardDeco(Color c) => BoxDecoration(
-        color: Colors.white.withAlpha(12),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.withAlpha(90)),
+        border: Border.all(color: kGoalsBorder),
       );
 
   Widget _iconBtn(IconData i, String tip, VoidCallback onTap, {Color? color}) =>
@@ -385,11 +395,11 @@ class _GoalsSheetState extends State<GoalsSheet> {
   Widget _tag(String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha(20),
+          color: kGoalsGold.withAlpha(34),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(t,
-            style: const TextStyle(fontSize: 10.5, color: Colors.white70)),
+            style: const TextStyle(fontSize: 10.5, color: kGoalsMuted)),
       );
 
   Widget _hostCard(MapStore store, _Row r, {int? reorderIndex}) {
@@ -427,7 +437,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                       child: const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 2),
                         child: Icon(Icons.drag_indicator,
-                            size: 20, color: Colors.white38),
+                            size: 20, color: kGoalsMuted),
                       ),
                     ),
                   _Avatar(host: h, color: color),
@@ -441,7 +451,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
                           spacing: 6,
                           children: [
                             Text(_name(h),
-                                style: const TextStyle(fontWeight: FontWeight.w700)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, color: kGoalsInk)),
                             if (h.isRing)
                               _tag(
                                   'نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
@@ -451,7 +462,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                         if (ago.isNotEmpty)
                           Text(ago,
                               style: const TextStyle(
-                                  fontSize: 11, color: Colors.white54)),
+                                  fontSize: 11, color: kGoalsMuted)),
                         if (r.hit.isNotEmpty)
                           Text('↳ ${r.hit}',
                               style: TextStyle(fontSize: 12, color: color),
@@ -464,7 +475,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                             value: power / 100,
                             minHeight: 5,
                             color: color,
-                            backgroundColor: Colors.white.withAlpha(24),
+                            backgroundColor: kGoalsBorder,
                           ),
                         ),
                       ],
@@ -533,13 +544,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Wrap(spacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  Text(g.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(g.name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, color: kGoalsInk)),
                   _tag('محقق شد ✓'),
                 ]),
                 if (when.isNotEmpty)
                   Text(when,
                       style:
-                          const TextStyle(fontSize: 11, color: Colors.white54)),
+                          const TextStyle(fontSize: 11, color: kGoalsMuted)),
                 if (g.feeling.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -555,7 +568,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontSize: 12,
-                                color: Colors.white70,
+                                color: kGoalsMuted,
                                 fontStyle: FontStyle.italic,
                                 height: 1.5),
                           ),
@@ -620,15 +633,16 @@ class _GoalsSheetState extends State<GoalsSheet> {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.amber.withAlpha(30),
+                color: kGoalsGold.withAlpha(34),
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kGoalsGold.withAlpha(110)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'دوره‌ی ${periodOrd(pi.past.length)} تموم شد! برای ادامه، دوره‌ی بعدی را شروع کن.',
-                    style: const TextStyle(height: 1.7),
+                    style: const TextStyle(height: 1.7, color: kGoalsInk),
                   ),
                   const SizedBox(height: 6),
                   FilledButton.tonal(
@@ -650,7 +664,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               child: Text('با ＋ شروع کن؛ مثلاً «گوش دادن به پادکست».',
-                  style: TextStyle(color: Colors.white54)),
+                  style: TextStyle(color: kGoalsMuted)),
             ),
           for (final a in h.actions)
             ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
@@ -684,14 +698,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(10),
+                color: kGoalsBg,
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kGoalsBorder),
               ),
               child: Row(
                 children: [
                   Text(
                     'دوره‌ی ${toFa(pi.total)} روزه · روز ${toFa(pi.dayNum)}',
-                    style: const TextStyle(fontSize: 13),
+                    style: const TextStyle(fontSize: 13, color: kGoalsInk),
                   ),
                   const Spacer(),
                   Icon(statsOpen ? Icons.expand_less : Icons.expand_more,
@@ -709,7 +724,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   Expanded(
                     child: Text(
                       '${toFa(todayCnt)} کار انجام‌شده‌ی امروز',
-                      style: const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: kGoalsMuted),
                     ),
                   ),
                   if (!pi.finished)
@@ -735,13 +750,13 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   Text(
                     '⏱ مجموع امروز: ${fmtDur(_sumDay(h, pi.todayJK))}',
                     style: const TextStyle(
-                        fontSize: 12.5, color: Colors.white70),
+                        fontSize: 12.5, color: kGoalsMuted),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '📊 مجموع دوره: ${fmtDur(_sumPeriod(h, pi))}',
                     style: const TextStyle(
-                        fontSize: 12.5, color: Colors.white70),
+                        fontSize: 12.5, color: kGoalsMuted),
                   ),
                 ],
               ),
@@ -791,7 +806,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
     final tileBody = Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(isSub ? 6 : 14),
+        color: isSub ? const Color(0xFFFFFCF4) : kGoalsBg,
         border: BorderDirectional(start: BorderSide(color: color, width: 3)),
       ),
       child: Column(
@@ -824,7 +839,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 10.5, color: Colors.white54),
+                          fontSize: 10.5, color: kGoalsMuted),
                     ),
                   ),
                 ),
@@ -839,7 +854,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 2),
                     child: Icon(Icons.drag_indicator,
-                        size: 18, color: Colors.white38),
+                        size: 18, color: kGoalsMuted),
                   ),
                 ),
               GestureDetector(
@@ -868,12 +883,12 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   key: ValueKey('t-${n.id}'),
                   initialValue: n.text,
                   onChanged: (v) => store.renameAction(n, v),
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 14, color: kGoalsInk),
                   decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
                     hintText: isSub ? 'نام زیرشاخه...' : 'نام شاخه...',
-                    hintStyle: const TextStyle(color: Colors.white38),
+                    hintStyle: const TextStyle(color: kGoalsMuted),
                   ),
                 ),
               ),
@@ -920,13 +935,11 @@ class _GoalsSheetState extends State<GoalsSheet> {
               padding: const EdgeInsets.only(top: 6, right: 4),
               child: Row(
                 children: [
-                  Icon(Icons.schedule,
-                      size: 13, color: Colors.white.withAlpha(140)),
+                  const Icon(Icons.schedule, size: 13, color: kGoalsMuted),
                   const SizedBox(width: 4),
                   Text(
                     'امروز: ${fmtDur(nodeDaySecs(n, pi.todayJK))}',
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.white.withAlpha(180)),
+                    style: const TextStyle(fontSize: 11, color: kGoalsMuted),
                   ),
                   if (timerRunning(n)) ...[
                     const SizedBox(width: 8),
@@ -946,23 +959,23 @@ class _GoalsSheetState extends State<GoalsSheet> {
               child: Row(
                 children: [
                   const Icon(Icons.repeat,
-                      size: 13, color: Color(0xFF5EC8F0)),
+                      size: 13, color: Color(0xFF1B8DB5)),
                   const SizedBox(width: 4),
                   Text(
                     '${toFa(routineWeekDone(n))} از ۷ روز این هفته',
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF5EC8F0)),
+                        fontSize: 11, color: Color(0xFF1B8DB5)),
                   ),
                   if (routineStreak(n) >= 2) ...[
                     const SizedBox(width: 8),
                     const Icon(Icons.local_fire_department,
-                        size: 12, color: Color(0xFFF4C542)),
+                        size: 12, color: kGoalsGold),
                     const SizedBox(width: 3),
                     Text(
                       '${toFa(routineStreak(n))} روز پیاپی',
                       style: const TextStyle(
                           fontSize: 11,
-                          color: Color(0xFFF4C542),
+                          color: kGoalsGold,
                           fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -1003,7 +1016,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
               decoration: BoxDecoration(
                 border: BorderDirectional(
                     start:
-                        BorderSide(color: Colors.white.withAlpha(60), width: 2)),
+                        const BorderSide(color: kGoalsBorder, width: 2)),
               ),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1041,11 +1054,11 @@ class _GoalsSheetState extends State<GoalsSheet> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              color: has ? color : Colors.white.withAlpha(future ? 5 : 16),
+              color: has ? color : (future ? kGoalsBg : Colors.white),
               border: Border.all(
                 color: isToday
-                    ? Colors.white
-                    : (has ? color : Colors.white24),
+                    ? kGoalsInk
+                    : (has ? color : kGoalsBorder),
                 width: isToday ? 2 : 1,
               ),
             ),
@@ -1056,7 +1069,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 fontWeight: FontWeight.w600,
                 color: has
                     ? Colors.black87
-                    : (future ? Colors.white30 : Colors.white),
+                    : (future ? kGoalsBorder : kGoalsInk),
               ),
             ),
           ),
@@ -1090,10 +1103,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
               hintText: '$hint...',
               isDense: true,
               filled: true,
-              fillColor: Colors.white.withAlpha(14),
+              fillColor: Colors.white,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
+                borderSide: const BorderSide(color: kGoalsBorder),
               ),
             ),
           ),
@@ -1225,7 +1238,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
           const SizedBox(width: 6),
           Text(
             'دستاوردها (${toFa(trophies.length)})',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: kGoalsInk),
           ),
         ],
       ),
@@ -1254,9 +1268,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4C542).withAlpha(30),
+          color: kGoalsGold.withAlpha(34),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFF4C542).withAlpha(120)),
+          border: Border.all(color: kGoalsGold.withAlpha(130)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1270,18 +1284,18 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 Text(
                   t.node.text.isEmpty ? 'بدون نام' : t.node.text,
                   style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600),
+                      fontSize: 12, fontWeight: FontWeight.w600, color: kGoalsInk),
                 ),
                 if (when.isNotEmpty)
                   Text(
                     when.replaceFirst(' · ', ''),
                     style: const TextStyle(
-                        fontSize: 10, color: Colors.white60),
+                        fontSize: 10, color: kGoalsMuted),
                   ),
               ],
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.info_outline, size: 14, color: Colors.white54),
+            const Icon(Icons.info_outline, size: 14, color: kGoalsMuted),
           ],
         ),
       ),
@@ -1309,8 +1323,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
 
     final undo = await showDialog<bool>(
       context: context,
-      builder: (ctx) => darkSheet(AlertDialog(
-        backgroundColor: const Color(0xFF1A1E3A),
+      builder: (ctx) => goalsLightSheet(AlertDialog(
+        backgroundColor: kGoalsBg,
         title: Row(
           children: [
             const Text('🏆', style: TextStyle(fontSize: 24)),
@@ -1338,7 +1352,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             if (days.isNotEmpty) ...[
               const SizedBox(height: 10),
               const Text('آخرین روزها:',
-                  style: TextStyle(fontSize: 11, color: Colors.white54)),
+                  style: TextStyle(fontSize: 11, color: kGoalsMuted)),
               const SizedBox(height: 4),
               Wrap(
                 spacing: 4,
@@ -1392,7 +1406,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
         child: Row(
           children: [
             Text('$label: ',
-                style: const TextStyle(fontSize: 12.5, color: Colors.white54)),
+                style: const TextStyle(fontSize: 12.5, color: kGoalsMuted)),
             Expanded(
               child: Text(value,
                   style: const TextStyle(
@@ -1409,8 +1423,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      backgroundColor: const Color(0xFF14172F),
-      builder: (ctx) => darkSheet(Padding(
+      backgroundColor: kGoalsBg,
+      builder: (ctx) => goalsLightSheet(Padding(
         padding: EdgeInsets.only(
           left: 16,
           right: 16,

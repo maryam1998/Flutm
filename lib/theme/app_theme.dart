@@ -7,6 +7,13 @@ const kLightInk = Color(0xFF2A2218);
 const kDarkBg = Color(0xFF0B0D1E);
 const kDarkBg2 = Color(0xFF151933);
 
+// ---------- پالت صفحه‌ی «اهداف» (هم‌رنگ وب) ----------
+const kGoalsBg = Color(0xFFFBF6EA); // کرم
+const kGoalsGold = Color(0xFFC9972B); // طلایی
+const kGoalsInk = Color(0xFF2A2218); // متن
+const kGoalsMuted = Color(0xFF7A6B57); // متن کم‌رنگ
+const kGoalsBorder = Color(0xFFE0D5C0); // حاشیه
+
 // ---------- تم روشن (پیش‌فرض — شبیه وب) ----------
 final ThemeData lightTheme = ThemeData(
   brightness: Brightness.light,
@@ -74,3 +81,67 @@ final ThemeData darkTheme = ThemeData(
 /// پنل‌های پایین‌روی اپ پس‌زمینه‌ی تیره‌ی ثابت دارن و متن‌هاشون برای زمینه‌ی تیره نوشته شده؛
 /// این wrapper باعث می‌شه توی تم روشن هم متن‌ها روشن بمونن و خوانا باشن.
 Widget darkSheet(Widget child) => Theme(data: darkTheme, child: child);
+
+/// تم روشنِ کرم/طلایی مخصوص صفحه‌ی اهداف و دیالوگ‌های داخل آن
+final ThemeData goalsLightTheme = () {
+  final base = ThemeData(
+    brightness: Brightness.light,
+    useMaterial3: true,
+    scaffoldBackgroundColor: kGoalsBg,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: kGoalsGold,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: kGoalsGold,
+      onPrimary: Colors.white,
+      surface: kGoalsBg,
+      onSurface: kGoalsInk,
+      outline: kGoalsBorder,
+      outlineVariant: kGoalsBorder,
+      secondaryContainer: kGoalsGold.withAlpha(48),
+      onSecondaryContainer: kGoalsInk,
+    ),
+    dividerColor: kGoalsBorder,
+    dividerTheme: const DividerThemeData(color: kGoalsBorder, thickness: 1),
+    dialogTheme: const DialogThemeData(backgroundColor: kGoalsBg),
+    bottomSheetTheme: const BottomSheetThemeData(backgroundColor: kGoalsBg),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: kGoalsGold,
+      selectionColor: kGoalsGold.withAlpha(70),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      hintStyle: const TextStyle(color: kGoalsMuted),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: kGoalsBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: kGoalsBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: kGoalsGold, width: 1.5),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: Colors.white,
+      selectedColor: kGoalsGold,
+      side: const BorderSide(color: kGoalsBorder),
+      labelStyle: const TextStyle(color: kGoalsInk),
+      secondaryLabelStyle: const TextStyle(color: Colors.white),
+      checkmarkColor: Colors.white,
+    ),
+    snackBarTheme: const SnackBarThemeData(
+      backgroundColor: kLightInk,
+      contentTextStyle: TextStyle(color: Colors.white),
+    ),
+  );
+  return base.copyWith(
+    textTheme: GoogleFonts.vazirmatnTextTheme(base.textTheme)
+        .apply(bodyColor: kGoalsInk, displayColor: kGoalsInk),
+  );
+}();
+
+Widget goalsLightSheet(Widget child) =>
+    Theme(data: goalsLightTheme, child: child);
