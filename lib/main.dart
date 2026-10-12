@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'services/storage.dart';
 import 'state/background_store.dart';
+import 'state/gratitude_store.dart';
 import 'state/map_store.dart';
 import 'state/motivation_store.dart';
 import 'state/theme_store.dart';
@@ -24,6 +25,7 @@ Future<void> main() async {
   final theme = ThemeStore();
   final bg = BackgroundStore();
   final motivation = MotivationStore();
+  final gratitude = GratitudeStore();
 
   try {
     await store.load();
@@ -33,6 +35,7 @@ Future<void> main() async {
   await theme.load();
   await bg.load();
   await motivation.load();
+  await gratitude.load();
 
   runApp(MultiProvider(
     providers: [
@@ -40,6 +43,7 @@ Future<void> main() async {
       ChangeNotifierProvider.value(value: theme),
       ChangeNotifierProvider.value(value: bg),
       ChangeNotifierProvider.value(value: motivation),
+      ChangeNotifierProvider.value(value: gratitude),
     ],
     child: const MaghzApp(),
   ));
