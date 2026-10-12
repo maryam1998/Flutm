@@ -41,10 +41,8 @@ class _EmotionPanelState extends State<EmotionPanel>
   late final AnimationController _wave;
   late final AnimationController _heart;
 
-  Offset _dragStart = Offset.zero;
-  double _pinchStartW = 0;
-  double _pinchStartScale = 1.0;
-  int _lastPointers = 0;
+  Offset _startFocal = Offset.zero;
+  double _startW = 250;
 
   @override
   void initState() {
@@ -72,22 +70,17 @@ class _EmotionPanelState extends State<EmotionPanel>
   Widget build(BuildContext context) {
     final store = context.watch<EmotionStore>();
     final selected = store.selectedIds;
-    final emotions = selected
-        .map(emotionById)
-        .whereType<Emotion>()
-        .toList();
+    final emotions =
+        selected.map(emotionById).whereType<Emotion>().toList();
 
     final dominant = dominantEmotion(selected);
     final colors = emotions.map((e) => hexToColor(e.color)).toList();
     final freqs = emotions.map((e) => e.freq).toList();
 
     final hasSel = emotions.isNotEmpty;
-    final auraColors = hasSel
-        ? colors
-        : <Color>[const Color(0xFF5A6178)];
+    final auraColors = hasSel ? colors : <Color>[const Color(0xFF5A6178)];
     final strongHeart = hasSel;
 
-    // ── فرم پنل ──
     final container = Container(
       decoration: widget.glass
           ? BoxDecoration(
@@ -133,7 +126,6 @@ class _EmotionPanelState extends State<EmotionPanel>
       ),
     );
 
-    // ── پوشش شیشه‌ای ──
     final content = widget.glass
         ? ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -144,46 +136,29 @@ class _EmotionPanelState extends State<EmotionPanel>
           )
         : container;
 
-    // ── toggle شیشه + پنل ──
     return GestureDetector(
       onScaleStart: (d) {
-        if (d.pointerCount >= 2) {
-          _pinchStartW = widget.panelW;
-          _pinchStartScale = d.scale;
-        } else {
-          _dragStart = d.focalPoint;
-          widget.onDragStart();
-        }
-        _lastPointers = d.pointerCount;
+        _startFocal = d.focalPoint;
+        _startW = widget.panelW;
+        widget.onDragStart();
       },
       onScaleUpdate: (d) {
-        if (d.pointerCount != _lastPointers) {
-          if (d.pointerCount >= 2) {
-            _pinchStartW = widget.panelW;
-            _pinchStartScale = d.scale;
-          } else {
-            _dragStart = d.focalPoint;
-            widget.onDragStart();
-          }
-          _lastPointers = d.pointerCount;
-        }
         if (d.pointerCount >= 2) {
-          final factor = _pinchStartScale == 0 ? 1.0 : d.scale / _pinchStartScale;
-          final w = (_pinchStartW * factor).clamp(kPanelWMin, kPanelWMax);
+          final w = (_startW * d.scale).clamp(kPanelWMin, kPanelWMax);
           widget.onResize(w);
         } else {
-          widget.onDrag(d.focalPoint - _dragStart);
+          widget.onDrag(d.focalPoint - _startFocal);
         }
       },
       onScaleEnd: (_) {
-        _lastPointers = 0;
         widget.onDragEnd();
       },
       child: Stack(
         children: [
           content,
           Positioned(
-            left: 6, top: 6,
+            left: 6,
+            top: 6,
             child: _GlassToggle(
               active: widget.glass,
               onTap: widget.onToggleGlass,
@@ -194,7 +169,6 @@ class _EmotionPanelState extends State<EmotionPanel>
     );
   }
 
-  // ── chart ──
   Widget _chart(
     List<String> selectedIds,
     Emotion? dominant,
@@ -204,23 +178,20 @@ class _EmotionPanelState extends State<EmotionPanel>
     bool strongHeart,
     bool hasSel,
   ) {
-    final heartColors = hasSel
-        ? colors.take(5).toList()
-        : <Color>[const Color(0xFF5A6178)];
+    final heartColors =
+        hasSel ? colors.take(5).toList() : <Color>[const Color(0xFF5A6178)];
 
     return Stack(
       children: [
-        // ۱) لیست
         Positioned(
-          left: 6, top: 6,
+          left: 6,
+          top: 6,
           width: 100,
           child: EmotionList(
             selectedIds: selectedIds.toSet(),
             onToggle: (id) => context.read<EmotionStore>().toggle(id),
           ),
         ),
-
-        // ۲) هاله
         Positioned.fill(
           child: AnimatedBuilder(
             animation: _aura,
@@ -232,8 +203,6 @@ class _EmotionPanelState extends State<EmotionPanel>
             ),
           ),
         ),
-
-        // ۳) امواج
         Positioned.fill(
           child: AnimatedBuilder(
             animation: _wave,
@@ -246,8 +215,6 @@ class _EmotionPanelState extends State<EmotionPanel>
             ),
           ),
         ),
-
-        // ۴) قلب (پشت بدن)
         Positioned.fill(
           child: AnimatedBuilder(
             animation: _heart,
@@ -256,17 +223,16 @@ class _EmotionPanelState extends State<EmotionPanel>
             ),
           ),
         ),
-
-        // ۵) تصویر بدن
         Positioned(
-          left: 115, top: 125, width: 140, height: 140,
+          left: 115,
+          top: 125,
+          width: 140,
+          height: 140,
           child: SvgPicture.asset(
             'assets/body.svg',
             fit: BoxFit.contain,
           ),
         ),
-
-        // ۶) هاله‌ی قلب (بالای بدن)
         if (hasSel)
           Positioned.fill(
             child: AnimatedBuilder(
@@ -283,7 +249,6 @@ class _EmotionPanelState extends State<EmotionPanel>
     );
   }
 
-  // ── نوار capture ──
   Widget _captureBar(EmotionStore store) {
     final isBefore = store.capturePhase == 'before';
     final label = store.captureLabel ?? '';
@@ -337,7 +302,8 @@ class _EmotionPanelState extends State<EmotionPanel>
                   ),
                   onPressed: () => context.read<EmotionStore>().saveCapture(),
                   child: const Text('✓ ثبت',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
                 ),
               ),
               const SizedBox(width: 6),
@@ -351,7 +317,8 @@ class _EmotionPanelState extends State<EmotionPanel>
                       borderRadius: BorderRadius.circular(9),
                     ),
                   ),
-                  onPressed: () => context.read<EmotionStore>().cancelCapture(),
+                  onPressed: () =>
+                      context.read<EmotionStore>().cancelCapture(),
                   child: const Text('انصراف', style: TextStyle(fontSize: 12)),
                 ),
               ),
@@ -375,7 +342,8 @@ class _GlassToggle extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        width: 24, height: 24,
+        width: 24,
+        height: 24,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: active
