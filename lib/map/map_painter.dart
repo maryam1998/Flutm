@@ -45,8 +45,9 @@ class MapPainter extends CustomPainter {
   // ---------- رنگ و اندازه‌ی متن ----------
   Color get _textColor {
     final c = state.textColor.toLowerCase().trim();
-    const auto = {'', '#eef0fa', '#ffffff', '#fff', '#000000', '#000'};
-    return auto.contains(c) ? Colors.white : hexColor(state.textColor, Colors.white);
+    if (c.isEmpty) return Colors.white;
+    if (c == '#000000' || c == '#000') return Colors.black;
+    return hexColor(c, Colors.white);
   }
 
   double _fs() => math.max(14, state.fontSize);
@@ -61,6 +62,55 @@ class MapPainter extends CustomPainter {
       default:
         return math.max(12, state.fontSize * math.min(1.0, scale + 0.3));
     }
+  }
+
+  String _formatStamp(int ts) {
+    try {
+      final d = DateTime.fromMillisecondsSinceEpoch(ts);
+      final parts = <String>[];
+      if (state.showDateStamps) {
+        final j = toJalaali(d.year, d.month, d.day);
+        parts.add('${toFa(j.jy)}/${toFa(j.jm)}/${toFa(j.jd)}');
+      }
+      if (state.showTimeStamps) {
+        parts.add(
+            '${toFa(d.hour.toString().padLeft(2, '0'))}:${toFa(d.minute.toString().padLeft(2, '0'))}');
+      }
+      return parts.join(' — ');
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void _ringLink(Canvas canvas, Goal g, Ring r) {
+    final dx = r.x - g.x;
+    final dy = r.y - g.y;
+    final d = math.sqrt(dx * dx + dy * dy);
+    if (d < 1) return;
+    final ux = dx / d;
+    final uy = dy / d;
+    final x1 = g.x + ux * (g.radius + 6);
+    final y1 = g.y + uy * (g.radius + 6);
+    final x2 = r.x - ux * (r.radius + 6);
+    final y2 = r.y - uy * (r.radius + 6);
+    final mx = (x1 + x2) / 2 - uy * d * 0.12;
+    final my = (y1 + y2) / 2 + ux * d * 0.12;
+
+    final col = hexColor(r.color, hexColor(kRingColor));
+    final path = Path()
+      ..moveTo(x1, y1)
+      ..quadraticBezierTo(mx, my, x2, y2);
+
+    drawDashed(
+      canvas,
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..color = withOp(col, 0.6),
+      const [2, 7],
+    );
   }
 
   // ---------- paint ----------
@@ -82,6 +132,21 @@ class MapPainter extends CustomPainter {
           final lg = _goalOf(r);
           _branches(canvas, r, tc, trunkOnly: r.collapsed || (lg?.collapsed ?? false));
         }
+      }
+    }
+    // خطوط اتصال نشانه‌ها به هدف
+    if (state.showRingLinks && !state.ringsCollapsed) {
+      for (final r in state.rings) {
+        if (r.goalId.isEmpty) continue;
+        Goal? lg;
+        for (final gg in state.goals) {
+          if (gg.id == r.goalId) {
+            lg = gg;
+            break;
+          }
+        }
+        if (lg == null) continue;
+        _ringLink(canvas, lg, r);
       }
     }
     _drawMe(canvas, tc);
@@ -254,6 +319,21 @@ class MapPainter extends CustomPainter {
     final lr = drawText(canvas, g.name, c.dx + g.labelDX, c.dy + off + g.labelDY,
         size: g.labelSize ?? _labelSize('goal'), color: tc, weight: FontWeight.w600, outline: 3);
     if (g.name.isNotEmpty) hits.add(HitEntry(type: 'goal', id: g.id, kind: HitKind.label, rect: lr));
+
+    // تاریخ/ساعت ثبت هدف
+    if ((state.showDateStamps || state.showTimeStamps) &&
+        g.createdAt != null &&
+        g.createdAt! > 0) {
+      final stamp = _formatStamp(g.createdAt!);
+      if (stamp.isNotEmpty) {
+        drawText(canvas, stamp, c.dx + g.labelDX,
+            c.dy + off + g.labelDY + (g.labelSize ?? _labelSize('goal')) * 1.15,
+            size: math.max(9, (g.labelSize ?? _labelSize('goal')) * 0.62),
+            color: withOp(tc, 0.6),
+            weight: FontWeight.w400,
+            outline: 2);
+      }
+    }
 
     final freq = kFreqBands[g.freq] ?? kFreqBands['alpha']!;
     double sumW(List<ActionNode> l) => l.fold(0.0, (s, a) => s + a.weight + sumW(a.children));
@@ -638,6 +718,20 @@ class MapPainter extends CustomPainter {
         lr = lr == null ? b : lr.expandToInclude(b);
       }
       if (lr != null) hits.add(HitEntry(type: 'action', id: a.id, hostId: h.id, kind: HitKind.label, rect: lr));
+
+      // تاریخ/ساعت ثبت شاخه
+      final cAt = a.extra['createdAt'];
+      if ((state.showDateStamps || state.showTimeStamps) && cAt is num && cAt > 0) {
+        final stamp = _formatStamp(cAt.toInt());
+        if (stamp.isNotEmpty) {
+          drawText(canvas, stamp, lx, ly + lines.length * 16,
+              size: math.max(9, fs * 0.62),
+              color: withOp(tc, 0.6),
+              weight: FontWeight.w400,
+              align: right ? LabelAlign.right : LabelAlign.left,
+              outline: 2);
+        }
+      }
     }
   }
 }

@@ -10,6 +10,7 @@ import '../state/map_store.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
+import 'settings_sheet.dart';
 
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
@@ -124,6 +125,11 @@ class _MapTabState extends State<MapTab> {
                         PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
                         PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
                       ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings, color: Colors.white),
+                      tooltip: 'تنظیمات نقشه',
+                      onPressed: () => showSettingsSheet(context),
                     ),
                     const Spacer(),
                     if (_resizeMode)
