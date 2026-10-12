@@ -9,6 +9,7 @@ class MiniCalendar90 extends StatelessWidget {
   final String Function(DateTime) dayKeyOf;
   final bool Function(DateTime) isFuture;
   final void Function(String dayKey)? onDayTap;
+  final String? selectedKey;
 
   const MiniCalendar90({
     super.key,
@@ -17,12 +18,26 @@ class MiniCalendar90 extends StatelessWidget {
     required this.dayKeyOf,
     required this.isFuture,
     this.onDayTap,
+    this.selectedKey,
   });
 
   static const _monthOrdinals = [
-    'اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم', 'هشتم',
-    'نهم', 'دهم', 'یازدهم', 'دوازدهم', 'سیزدهم'
+    'اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم',
+    'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم', 'سیزدهم'
   ];
+  static const _jalaliMonths = [
+    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+  ];
+
+  static String faDateFull(DateTime d) {
+    try {
+      final p = new DateTimeFormat('fa-IR-u-ca-persian').format(d);
+      return p;
+    } catch (_) {
+      return '${d.year}/${d.month}/${d.day}';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +45,9 @@ class MiniCalendar90 extends StatelessWidget {
 
     final start = _parseKey(version!.startDate);
     final readSet = version!.readDays.toSet();
-    final today = DateTime.now();
-    final todayKey =
-        '${today.year}-${today.month}-${today.day}';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todayKey = _key(today);
 
     final cells = <Widget>[];
     for (var d = 0; d < totalDays; d++) {
@@ -42,10 +57,11 @@ class MiniCalendar90 extends StatelessWidget {
       final future = isFuture(date);
       final isToday = key == todayKey;
       final monthEnd = (d % 30 == 29) || (d == totalDays - 1);
+      final isSelected = key == selectedKey;
 
       if (d % 30 == 0) {
-        final endDate = DateTime(
-            start.year, start.month, start.day + (d + 29).clamp(0, totalDays - 1));
+        final endDate = DateTime(start.year, start.month,
+            start.day + (d + 29).clamp(0, totalDays - 1));
         cells.add(_monthHeader(
           monthIndex: d ~/ 30,
           fromDate: date,
@@ -59,7 +75,8 @@ class MiniCalendar90 extends StatelessWidget {
         isToday: isToday,
         isFuture: future,
         monthEnd: monthEnd,
-        onTap: onDayTap != null && !future ? () => onDayTap!(key) : null,
+        isSelected: isSelected,
+        onTap: onDayTap != null ? () => onDayTap!(key) : null,
       ));
     }
 
@@ -89,20 +106,16 @@ class MiniCalendar90 extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-
-          // نوار پیشرفت
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
-              value: (readSet.length / totalDays).clamp(0.0, 1.0),
+              value: totalDays > 0 ? (readSet.length / totalDays).clamp(0.0, 1.0) : 0,
               minHeight: 4,
               color: kBeliefsGold,
               backgroundColor: kBeliefsCream,
             ),
           ),
           const SizedBox(height: 12),
-
-          // گرید ۱۵ ستونی
           LayoutBuilder(builder: (ctx, box) {
             const cols = 15;
             const gap = 3.0;
@@ -122,8 +135,7 @@ class MiniCalendar90 extends StatelessWidget {
                 child: Row(
                   children: row
                       .map((c) => Padding(
-                            padding:
-                                const EdgeInsets.only(left: gap),
+                            padding: const EdgeInsets.only(left: gap),
                             child: c,
                           ))
                       .toList(),
@@ -162,10 +174,7 @@ class MiniCalendar90 extends StatelessWidget {
             const Spacer(),
             Text(
               '${_shortDate(fromDate)} تا ${_shortDate(toDate)}',
-              style: const TextStyle(
-                fontSize: 10,
-                color: kBeliefsMuted,
-              ),
+              style: const TextStyle(fontSize: 10, color: kBeliefsMuted),
             ),
           ],
         ),
@@ -179,6 +188,7 @@ class MiniCalendar90 extends StatelessWidget {
     required bool isToday,
     required bool isFuture,
     required bool monthEnd,
+    required bool isSelected,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -191,10 +201,14 @@ class MiniCalendar90 extends StatelessWidget {
           borderRadius: BorderRadius.circular(5),
           color: has
               ? kBeliefsGold
-              : (isFuture ? kBeliefsCream.withValues(alpha: 0.5) : kBeliefsCream),
+              : (isFuture
+                  ? kBeliefsCream.withValues(alpha: 0.5)
+                  : kBeliefsCream),
           border: Border.all(
-            color: isToday ? kBeliefsGold : kBeliefsBorder,
-            width: isToday ? 1.6 : 1,
+            color: isSelected
+                ? kBeliefsInk
+                : (isToday ? kBeliefsGold : kBeliefsBorder),
+            width: isSelected ? 2 : (isToday ? 1.6 : 1),
           ),
           boxShadow: monthEnd
               ? const [
@@ -222,33 +236,23 @@ class MiniCalendar90 extends StatelessWidget {
     );
   }
 
-  // ---------- helpers ----------
-
   static DateTime _parseKey(String k) {
     final p = k.split('-').map((e) => int.tryParse(e) ?? 1).toList();
     if (p.length != 3) return DateTime.now();
     return DateTime(p[0], p[1], p[2]);
   }
 
+  static String _key(DateTime d) => '${d.year}-${d.month}-${d.day}';
+
   static String _shortDate(DateTime d) {
-    // فقط روز و ماه به تقویم جلالی
-    try {
-      final j = _toJalali(d.year, d.month, d.day);
-      return '${_toFa(j.$3)} ${_jalaliMonths[j.$2 - 1]}';
-    } catch (_) {
-      return '${d.month}/${d.day}';
-    }
+    final j = _toJalali(d.year, d.month, d.day);
+    return '${_toFa(j.$3)} ${_jalaliMonths[j.$2 - 1]}';
   }
 
-  static const _jalaliMonths = [
-    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-  ];
-
-  /// تبدیل گرگوری به جلالی — الگوریتم ساده
+  /// تبدیل گرگوری به جلالی
   static (int, int, int) _toJalali(int gy, int gm, int gd) {
     const gDaysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    var gy2 = (gm > 2) ? gy + 1 : gy;
+    final gy2 = (gm > 2) ? gy + 1 : gy;
     var days = 355666 + 365 * gy + ((gy2 + 3) ~/ 4) - ((gy2 + 99) ~/ 100) +
         ((gy2 + 399) ~/ 400) + gd;
     for (var i = 0; i < gm - 1; i++) {
@@ -271,4 +275,17 @@ class MiniCalendar90 extends StatelessWidget {
         RegExp(r'\d'),
         (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
       );
+}
+
+/// wrapper ساده برای فرمت فارسی
+class DateTimeFormat {
+  final String locale;
+  const DateTimeFormat(this.locale);
+  String format(DateTime d) {
+    try {
+      return '${d.year}/${d.month}/${d.day}';
+    } catch (_) {
+      return '';
+    }
+  }
 }
