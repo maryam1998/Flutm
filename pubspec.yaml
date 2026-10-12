@@ -1,0 +1,26 @@
+name: maghz
+description: Maghz - Flutter port (stage 1)
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  provider: ^6.1.2
+  path_provider: ^2.1.4
+  file_picker: ^8.1.2
+
+flutter:
+  uses-material-design: true
+  # فونت وزیرمتن: فایل‌های ttf را در assets/fonts بگذار و این بخش را از کامنت دربیار
+  # fonts:
+  #   - family: Vazirmatn
+  #     fonts:
+  #       - asset: assets/fonts/Vazirmatn-Regular.ttf
+  #       - asset: assets/fonts/Vazirmatn-Bold.ttf
+  #         weight: 700
