@@ -3,18 +3,27 @@ import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
+import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
-import '../theme/app_theme.dart';
+
+const _kCream = Color(0xFFFBF6EA);
+const _kCard = Colors.white;
+const _kGold = Color(0xFFC9972B);
+const _kInk = Color(0xFF2A2218);
+const _kMuted = Color(0xFF7A6B57);
+const _kBorder = Color(0xFFE0D5C0);
+const _kDanger = Color(0xFFE5484D);
 
 Future<void> showSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    showDragHandle: true,
-    backgroundColor: const Color(0xFFFBF6EA),
-    builder: (_) => Theme(data: lightTheme, child: const _SettingsSheet()),
+    showDragHandle: false,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withAlpha(100),
+    builder: (_) => const _SettingsSheet(),
   );
 }
 
@@ -44,7 +53,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showDates = s.showDateStamps;
     _showTimes = s.showTimeStamps;
     _showRingLinks = s.showRingLinks;
-    _trunkStyle = kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
+    _trunkStyle =
+        kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
   }
 
   Color _parseTextColor(String c) {
@@ -71,225 +81,463 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 
   String _hexFromColor(Color c) {
-    final r = (c.r * 255).round();
-    final g = (c.g * 255).round();
-    final b = (c.b * 255).round();
-    return '#${r.toRadixString(16).padLeft(2, '0')}'
-            '${g.toRadixString(16).padLeft(2, '0')}'
-            '${b.toRadixString(16).padLeft(2, '0')}'
+    int v(double x) => (x * 255).round().clamp(0, 255);
+    return '#${v(c.r).toRadixString(16).padLeft(2, '0')}'
+            '${v(c.g).toRadixString(16).padLeft(2, '0')}'
+            '${v(c.b).toRadixString(16).padLeft(2, '0')}'
         .toLowerCase();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints:
-            BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFFFBF6EA),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // هدر
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'تنظیمات',
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
+      decoration: const BoxDecoration(
+        color: _kCream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _kBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // هدر
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'تنظیمات',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: _kInk,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('انصراف',
+                        style: TextStyle(color: _kMuted)),
+                  ),
+                  const SizedBox(width: 4),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _kGold,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    onPressed: _save,
+                    child: const Text('ذخیره',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF2A2218),
+                            fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: _kBorder),
+
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ---------- تم ----------
+                    Consumer<ThemeStore>(
+                      builder: (_, theme, __) => _tile(
+                        title: 'تم تاریک',
+                        subtitle: theme.isDark
+                            ? 'پس‌زمینه‌ی تیره با متن روشن'
+                            : 'پس‌زمینه‌ی روشن (مثل نسخه‌ی وب)',
+                        trailing: Switch(
+                          value: theme.isDark,
+                          activeThumbColor: _kGold,
+                          onChanged: (v) => theme.setDark(v),
                         ),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('انصراف',
-                          style: TextStyle(color: Color(0xFF7A6B57))),
+                    const _SectionDivider(),
+
+                    // ---------- رنگ نوشته‌ها ----------
+                    _sectionTitle('رنگ نوشته‌ها'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final hex in [
+                          ...kPalette,
+                          '#eef0fa',
+                          '#ffffff',
+                          '#000000',
+                        ])
+                          _colorSwatch(hex),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFC9972B),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
+                    const SizedBox(height: 14),
+
+                    // پیش‌نمایش رنگ + sliders RGB
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _textColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _kBorder, width: 2),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _hexFromColor(_textColor),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _kInk,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'برای رنگ دلخواه، اسلایدرهای زیر را جابه‌جا کن',
+                                style: TextStyle(
+                                    fontSize: 10.5, color: _kMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    _rgbSlider(
+                      'R',
+                      _textColor.r,
+                      (v) => setState(() {
+                        _textColor = Color.fromARGB(
+                          255,
+                          (v * 255).round(),
+                          (_textColor.g * 255).round(),
+                          (_textColor.b * 255).round(),
+                        );
+                      }),
+                    ),
+                    _rgbSlider(
+                      'G',
+                      _textColor.g,
+                      (v) => setState(() {
+                        _textColor = Color.fromARGB(
+                          255,
+                          (_textColor.r * 255).round(),
+                          (v * 255).round(),
+                          (_textColor.b * 255).round(),
+                        );
+                      }),
+                    ),
+                    _rgbSlider(
+                      'B',
+                      _textColor.b,
+                      (v) => setState(() {
+                        _textColor = Color.fromARGB(
+                          255,
+                          (_textColor.r * 255).round(),
+                          (_textColor.g * 255).round(),
+                          (v * 255).round(),
+                        );
+                      }),
+                    ),
+                    const _SectionDivider(),
+
+                    // ---------- اندازه فونت ----------
+                    Row(
+                      children: [
+                        _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)'),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _kGold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            toFa(_fontSize.round()),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _kGold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: _kGold,
+                        thumbColor: _kGold,
+                        inactiveTrackColor: _kBorder,
+                        overlayColor: _kGold.withValues(alpha: 0.15),
                       ),
-                      onPressed: _save,
-                      child: const Text('ذخیره',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      child: Slider(
+                        min: 8,
+                        max: 28,
+                        divisions: 20,
+                        value: _fontSize,
+                        label: toFa(_fontSize.round()),
+                        onChanged: (v) => setState(() => _fontSize = v),
+                      ),
+                    ),
+                    const _SectionDivider(),
+
+                    // ---------- چک‌باکس‌ها ----------
+                    _checkTile(
+                      title:
+                          'نمایش «تاریخ» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                      value: _showDates,
+                      onChanged: (v) => setState(() => _showDates = v),
+                    ),
+                    _checkTile(
+                      title:
+                          'نمایش «ساعت» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                      value: _showTimes,
+                      onChanged: (v) => setState(() => _showTimes = v),
+                    ),
+                    _checkTile(
+                      title:
+                          'نمایش خط‌چینِ اتصال نشانه‌های نزدیکی به هدف',
+                      value: _showRingLinks,
+                      onChanged: (v) => setState(() => _showRingLinks = v),
+                    ),
+                    const _SectionDivider(),
+
+                    // ---------- پس‌زمینه ----------
+                    _sectionTitle('پس‌زمینه‌ی نقشه'),
+                    const SizedBox(height: 10),
+                    Consumer<BackgroundStore>(
+                      builder: (_, bg, __) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _kInk,
+                                    side: const BorderSide(color: _kBorder),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    final ok = await bg.pickImage();
+                                    if (ok && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('پس‌زمینه ثبت شد')),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.image_outlined, size: 18),
+                                  label: const Text('انتخاب تصویر (jpg/png/gif)',
+                                      style: TextStyle(fontSize: 12)),
+                                ),
+                              ),
+                              if (bg.hasImage) ...[
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: _kDanger),
+                                  onPressed: () => bg.clear(),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (bg.hasImage) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                const Text('محو (blur)',
+                                    style: TextStyle(fontSize: 12, color: _kMuted)),
+                                Expanded(
+                                  child: Slider(
+                                    min: 0,
+                                    max: 20,
+                                    divisions: 20,
+                                    value: bg.blur,
+                                    activeColor: _kGold,
+                                    inactiveColor: _kBorder,
+                                    onChanged: (v) => bg.setBlur(v),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                const Text('شفافیت',
+                                    style: TextStyle(fontSize: 12, color: _kMuted)),
+                                Expanded(
+                                  child: Slider(
+                                    min: 0.1,
+                                    max: 1.0,
+                                    value: bg.opacity,
+                                    activeColor: _kGold,
+                                    inactiveColor: _kBorder,
+                                    onChanged: (v) => bg.setOpacity(v),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const _SectionDivider(),
+
+                    // ---------- سبک خط پیش‌فرض ----------
+                    _sectionTitle(
+                        'نوع خط پیش‌فرض مسیر اهداف (برای هر هدف جداگانه هم می‌شه عوضش کرد)'),
+                    const SizedBox(height: 10),
+                    _trunkPicker(),
+                    const SizedBox(height: 20),
+
+                    // ذخیره
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _kGold,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _save,
+                        child: const Text(
+                          'ذخیره تنظیمات',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'انصراف',
+                          style:
+                              TextStyle(color: _kMuted, fontSize: 13),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1, color: Color(0xFFE0D5C0)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // سوییچ تم
-                      Consumer<ThemeStore>(
-                        builder: (_, theme, __) => _tile(
-                          title: 'تم تاریک',
-                          subtitle: theme.isDark
-                              ? 'پس‌زمینه‌ی تیره با متن روشن'
-                              : 'پس‌زمینه‌ی روشن (مثل نسخه‌ی وب)',
-                          trailing: Switch(
-                            value: theme.isDark,
-                            activeThumbColor: const Color(0xFFC9972B),
-                            onChanged: (v) => theme.setDark(v),
-                          ),
-                        ),
-                      ),
-                      const _SectionDivider(),
-
-                      _sectionTitle('رنگ نوشته‌ها'),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          for (final hex in [
-                            ...kPalette,
-                            '#eef0fa',
-                            '#ffffff',
-                            '#000000'
-                          ])
-                            GestureDetector(
-                              onTap: () => setState(
-                                  () => _textColor = hexColor(hex, Colors.white)),
-                              child: Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: hexColor(hex),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _hexFromColor(_textColor) ==
-                                            hex.toLowerCase()
-                                        ? const Color(0xFFC9972B)
-                                        : const Color(0xFFE0D5C0),
-                                    width: _hexFromColor(_textColor) ==
-                                            hex.toLowerCase()
-                                        ? 3
-                                        : 1.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)'),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                activeTrackColor: const Color(0xFFC9972B),
-                                thumbColor: const Color(0xFFC9972B),
-                                inactiveTrackColor: const Color(0xFFE0D5C0),
-                              ),
-                              child: Slider(
-                                min: 8,
-                                max: 28,
-                                divisions: 20,
-                                value: _fontSize,
-                                label: toFa(_fontSize.round()),
-                                onChanged: (v) =>
-                                    setState(() => _fontSize = v),
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 32,
-                            child: Text(
-                              toFa(_fontSize.round()),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF2A2218),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const _SectionDivider(),
-
-                      _checkTile(
-                        title: 'نمایش «تاریخ» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
-                        value: _showDates,
-                        onChanged: (v) => setState(() => _showDates = v),
-                      ),
-                      _checkTile(
-                        title: 'نمایش «ساعت» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
-                        value: _showTimes,
-                        onChanged: (v) => setState(() => _showTimes = v),
-                      ),
-                      _checkTile(
-                        title:
-                            'نمایش خط‌چینِ اتصال نشانه‌های نزدیکی به هدف',
-                        value: _showRingLinks,
-                        onChanged: (v) => setState(() => _showRingLinks = v),
-                      ),
-                      const _SectionDivider(),
-
-                      _sectionTitle(
-                          'نوع خط پیش‌فرض مسیر اهداف (برای هر هدف جداگانه هم می‌شه عوضش کرد)'),
-                      const SizedBox(height: 10),
-                      _trunkPicker(),
-
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFC9972B),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: _save,
-                          child: const Text(
-                            'ذخیره',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            'انصراف',
-                            style: TextStyle(
-                              color: Color(0xFF2A2218),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+  Widget _colorSwatch(String hex) {
+    final c = hexColor(hex, Colors.white);
+    final active = _hexFromColor(_textColor) == hex.toLowerCase();
+    return GestureDetector(
+      onTap: () => setState(() => _textColor = c),
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: c,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: active ? _kGold : _kBorder,
+            width: active ? 3 : 1.5,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _rgbSlider(String label, double value, ValueChanged<double> onChanged) {
+    final col = label == 'R'
+        ? const Color(0xFFE5484D)
+        : label == 'G'
+            ? const Color(0xFF63D6A8)
+            : const Color(0xFF5EC8F0);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: col.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: col,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: col,
+                thumbColor: col,
+                inactiveTrackColor: _kBorder,
+                trackHeight: 4,
+              ),
+              child: Slider(
+                min: 0,
+                max: 1,
+                value: value.clamp(0.0, 1.0),
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 34,
+            child: Text(
+              toFa((value * 255).round()),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11.5, color: _kMuted),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -298,8 +546,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         text,
         style: const TextStyle(
           fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF7A6B57),
+          fontWeight: FontWeight.w700,
+          color: _kMuted,
         ),
       );
 
@@ -318,13 +566,16 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 children: [
                   Text(title,
                       style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF2A2218))),
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: _kInk)),
                   if (subtitle != null)
-                    Text(subtitle,
-                        style: const TextStyle(
-                            fontSize: 11.5, color: Color(0xFF7A6B57))),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(subtitle,
+                          style: const TextStyle(
+                              fontSize: 11.5, color: _kMuted)),
+                    ),
                 ],
               ),
             ),
@@ -339,61 +590,27 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     required ValueChanged<bool> onChanged,
   }) =>
       Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
             Checkbox(
               value: value,
-              activeColor: const Color(0xFFC9972B),
+              activeColor: _kGold,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              side: const BorderSide(color: _kBorder, width: 1.5),
               onChanged: (v) => onChanged(v ?? false),
             ),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                    fontSize: 13, color: Color(0xFF2A2218)),
+                style: const TextStyle(fontSize: 12.5, color: _kInk),
               ),
             ),
           ],
         ),
       );
-
-  Widget _rgbSlider(String label, double value, ValueChanged<double> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(
-              width: 20,
-              child: Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white70,
-                      fontSize: 12))),
-          Expanded(
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3,
-              ),
-              child: Slider(
-                min: 0,
-                max: 1,
-                value: value.clamp(0.0, 1.0).toDouble(),
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 30,
-            child: Text(
-              toFa((value * 255).round()),
-              style: const TextStyle(fontSize: 11, color: Colors.white54),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _trunkPicker() {
     return GridView.count(
@@ -402,35 +619,33 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 8,
       mainAxisSpacing: 8,
-      childAspectRatio: 1.1,
+      childAspectRatio: 1.05,
       children: [
         for (final e in kTrunkStyles.entries)
           GestureDetector(
             onTap: () => setState(() => _trunkStyle = e.key),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _kCard,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _trunkStyle == e.key
-                      ? const Color(0xFFC9972B)
-                      : const Color(0xFFE0D5C0),
+                  color: _trunkStyle == e.key ? _kGold : _kBorder,
                   width: _trunkStyle == e.key ? 2 : 1,
                 ),
               ),
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
                     width: 44,
-                    height: 26,
+                    height: 24,
                     child: CustomPaint(
                       painter: _TrunkPreviewPainter(
                         style: e.key,
                         color: _trunkStyle == e.key
-                            ? const Color(0xFFC9972B)
-                            : const Color(0xFF7A6B57),
+                            ? _kGold
+                            : _kMuted,
                       ),
                     ),
                   ),
@@ -438,13 +653,15 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                   Text(
                     e.value,
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 10,
                       fontWeight: _trunkStyle == e.key
                           ? FontWeight.w700
                           : FontWeight.w500,
-                      color: const Color(0xFF2A2218),
+                      color: _trunkStyle == e.key ? _kGold : _kInk,
                     ),
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -460,22 +677,13 @@ class _SectionDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Padding(
         padding: EdgeInsets.symmetric(vertical: 10),
-        child: Divider(height: 1, color: Color(0xFFE0D5C0)),
+        child: Divider(height: 1, color: _kBorder),
       );
 }
 
-class _Label extends StatelessWidget {
-  const _Label(this.text);
-  final String text;
-  @override
-  Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70),
-      );
-}
-
-// ---------- پیش‌نمایش سبک خط ----------
+// ============================================================
+// پیش‌نمایش خط (برای گرید سبک تنه)
+// ============================================================
 class _TrunkPreviewPainter extends CustomPainter {
   _TrunkPreviewPainter({required this.style, required this.color});
   final String style;
@@ -489,29 +697,34 @@ class _TrunkPreviewPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..color = color;
 
-    final a = Offset(0, size.height);
-    final b = Offset(size.width, 0);
+    final a = Offset(2, size.height * 0.8);
+    final b = Offset(size.width - 2, size.height * 0.2);
+    final dir = b - a;
+    final len = dir.distance;
+    if (len == 0) return;
+    final n = dir / len;
 
     switch (style) {
       case 'solid':
         canvas.drawLine(a, b, p);
       case 'dotted':
         for (var i = 0; i < 8; i++) {
-          final t = i / 7;
-          final pt = Offset.lerp(a, b, t)!;
+          final pt = a + n * (len * i / 7);
           canvas.drawCircle(pt, 1, Paint()..color = color);
         }
       case 'dashdot':
-        _dashLine(canvas, a, b, p, [5, 3, 1, 3]);
+        _dash(canvas, a, b, p, len, n, [4, 2, 1, 2]);
       case 'long':
-        _dashLine(canvas, a, b, p, [8, 4]);
+        _dash(canvas, a, b, p, len, n, [7, 4]);
       case 'double':
-        final perp = Offset(size.width == 0 ? 0 : 1.5, 1.5);
-        canvas.drawLine(a + perp, b + perp, p..strokeWidth = 1.6);
-        canvas.drawLine(a - perp, b - perp,
+        final perp = Offset(-n.dy, n.dx) * 1.3;
+        canvas.drawLine(a + perp, b + perp, p..strokeWidth = 1.3);
+        canvas.drawLine(
+            a - perp,
+            b - perp,
             Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.6
+              ..strokeWidth = 1.3
               ..strokeCap = StrokeCap.round
               ..color = color);
       case 'glow':
@@ -520,44 +733,40 @@ class _TrunkPreviewPainter extends CustomPainter {
             b,
             Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 6
+              ..strokeWidth = 5
               ..strokeCap = StrokeCap.round
-              ..color = color.withAlpha(60));
-        canvas.drawLine(a, b, p..strokeWidth = 1.8);
+              ..color = color.withValues(alpha: 0.30));
+        canvas.drawLine(a, b, p..strokeWidth = 1.5);
       case 'taper':
-        for (var i = 0; i < 7; i++) {
-          final t0 = i / 7, t1 = (i + 1) / 7;
-          final p1 = Offset.lerp(a, b, t0)!;
-          final p2 = Offset.lerp(a, b, t1)!;
-          final w = 3.5 - i * 0.4;
+        for (var i = 0; i < 6; i++) {
+          final p1 = a + n * (len * i / 6);
+          final p2 = a + n * (len * (i + 1) / 6);
           canvas.drawLine(
               p1,
               p2,
               Paint()
                 ..style = PaintingStyle.stroke
-                ..strokeWidth = w
+                ..strokeWidth = 3 - i * 0.35
                 ..strokeCap = StrokeCap.round
                 ..color = color);
         }
       default:
-        _dashLine(canvas, a, b, p, [4, 3]);
+        _dash(canvas, a, b, p, len, n, [3, 3]);
     }
   }
 
-  void _dashLine(Canvas canvas, Offset a, Offset b, Paint p, List<double> dashes) {
-    final total = (b - a).distance;
-    if (total <= 0) return;
-    final dir = (b - a) / total;
+  void _dash(Canvas canvas, Offset a, Offset b, Paint p, double len, Offset n,
+      List<double> dashes) {
     var d = 0.0;
     var i = 0;
-    while (d < total) {
-      final len = dashes[i % dashes.length];
+    while (d < len) {
+      final seg = dashes[i % dashes.length];
       if (i.isEven) {
-        final s = a + dir * d;
-        final e = a + dir * (d + len > total ? total : d + len);
+        final s = a + n * d;
+        final e = a + n * (d + seg > len ? len : d + seg);
         canvas.drawLine(s, e, p);
       }
-      d += len;
+      d += seg;
       i++;
     }
   }
