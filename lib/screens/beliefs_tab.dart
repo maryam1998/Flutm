@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../widgets/breath_circle.dart';
-import '../widgets/nothing_scene.dart';
 import '../models/future_text_format.dart';
 import '../models/future_version.dart';
 import '../state/beliefs_store.dart';
+import '../widgets/breath_circle.dart';
 import '../widgets/format_bar.dart';
 import '../widgets/mini_calendar_90.dart';
+import '../widgets/nothing_scene.dart';
 
 class BeliefsTab extends StatefulWidget {
   const BeliefsTab({super.key});
@@ -29,7 +29,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
-            // هدر
             const Text('بازنویسی باورها',
                 style: TextStyle(
                   fontSize: 20,
@@ -51,6 +50,18 @@ class _BeliefsTabState extends State<BeliefsTab> {
             _actionsRow(store, v),
             const SizedBox(height: 16),
 
+            // ═══ کارت قلمرو ممکن‌ها ═══
+            _quantumFieldCard(),
+            const SizedBox(height: 14),
+
+            // ═══ کارت چرا باید هیچ شوی؟ ═══
+            _whyNothingCard(),
+            const SizedBox(height: 14),
+
+            // ═══ کارت تمرین روزانه ═══
+            _dailyPracticeCard(),
+            const SizedBox(height: 16),
+
             // تقویم
             MiniCalendar90(
               version: v,
@@ -62,19 +73,13 @@ class _BeliefsTabState extends State<BeliefsTab> {
                 return d.isAfter(t);
               },
             ),
-
-            const SizedBox(height: 16),
-
-            // ═══ کارت تمرین روزانه ═══
-            _dailyPracticeCard(),
           ],
         ),
       ),
     );
   }
 
-  // ---------- کارت متن آینده ----------
-
+  // ═══════════════ کارت متن آینده ═══════════════
   Widget _textCard(BeliefsStore store, FutureVersion? v) {
     final hasText = v != null && v.text.trim().isNotEmpty;
 
@@ -115,12 +120,12 @@ class _BeliefsTabState extends State<BeliefsTab> {
             ],
           ),
           const SizedBox(height: 8),
-
           if (!hasText)
             GestureDetector(
               onTap: () => _openEditor(store),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 14),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 14),
                 decoration: BoxDecoration(
                   color: kBeliefsCream,
                   borderRadius: BorderRadius.circular(12),
@@ -177,334 +182,112 @@ class _BeliefsTabState extends State<BeliefsTab> {
     );
   }
 
-  // ---------- ردیف اکشن‌ها ----------
-
-  Widget _actionsRow(BeliefsStore store, FutureVersion? v) {
-    final hasText = v != null && v.text.trim().isNotEmpty;
-    final readToday = store.hasReadToday;
-    final finished = store.cycleFinished;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // نوار دوره
-        if (hasText)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              children: [
-                Text(
-                  'روز ${_toFa(store.currentDay)} از ${_toFa(store.cycleDays)}',
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: kBeliefsInk,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${_toFa(store.readDayCount)} روز خونده',
-                  style: const TextStyle(fontSize: 11, color: kBeliefsMuted),
-                ),
-              ],
-            ),
-          ),
-
-        // دکمه‌ی اصلی ثبت
-        SizedBox(
-          height: 48,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: readToday ? kBeliefsCard : kBeliefsGold,
-              foregroundColor: readToday ? kBeliefsInk : Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                    color: readToday ? kBeliefsGold : Colors.transparent,
-                    width: 1.5),
-              ),
-            ),
-            onPressed: !hasText
-                ? null
-                : (readToday ? null : () => _markRead(store)),
-            icon: Icon(readToday ? Icons.check_circle : Icons.menu_book,
-                size: 18),
-            label: Text(
-              readToday ? '✓ امروز ثبت شد' : '📖 امروز خوندم',
-              style: const TextStyle(
-                  fontSize: 13.5, fontWeight: FontWeight.w800),
-            ),
-          ),
+  // ═══════════════ کارت قلمرو ممکن‌ها ═══════════════
+  Widget _quantumFieldCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            const Color(0xFF2BBFAB).withValues(alpha: 0.08),
+            const Color(0xFF5EC8F0).withValues(alpha: 0.05),
+          ],
         ),
-
-        if (finished && hasText)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: kBeliefsGold.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: kBeliefsGold.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2BBFAB).withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '🌌 قلمرو ممکن‌ها',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: kBeliefsInk,
+              margin: EdgeInsets.only(bottom: 8),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _p('تصور کن در ذهنِ تو فضایی شبیه به یک «میدان احتمالات» وجود دارد. علم اعصاب به ما می‌گوید مغز ثابت نیست — از خاصیت نوروپلاستیسیتی (انعطاف‌پذیری عصبی) برخوردار است؛ مثل زمینی که آماده‌ی کشت است. هر قصد و حسِ متمرکزی، اتصالات عصبی‌ات را از نظر فیزیکی بازسازی می‌کند.'),
+          const SizedBox(height: 6),
+          _p('واقعیت امروز تو، فقط عادت‌ترین مسیرِ عصبیِ فعلی توست. استعاره‌ی «موج احتمالات» — که از فیزیک کوانتوم وام گرفته‌ایم — یادآوری می‌کند: تا وقتی آن احتمال را با باور و احساس واقعی «انتخاب» نکرده‌ای، سایر مسیرها در ذهنت به‌صورت بالقوه باقی می‌مانند.'),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2BBFAB).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+              border: const Border(
+                right: BorderSide(color: Color(0xFF2BBFAB), width: 3),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            child: RichText(
+              text: const TextSpan(
+                style: TextStyle(
+                    fontSize: 12, color: kBeliefsInk, height: 1.9),
                 children: [
-                  Text(
-                    '🎉 دوره‌ی ${_toFa(store.cycleDays)} روزه تموم شد — ${_toFa(store.readDayCount)} روز از ${_toFa(store.cycleDays)} رو خوندی.',
-                    style: const TextStyle(
-                        fontSize: 12, color: kBeliefsInk, height: 1.8),
+                  TextSpan(
+                    text: 'یه نکته: ',
+                    style: TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          style: TextButton.styleFrom(
-                            backgroundColor: kBeliefsGold,
-                            foregroundColor: Colors.white,
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () => _resetCalendar(store),
-                          child: const Text('▶ شروع دوره‌ی تازه',
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-                    ],
+                  TextSpan(
+                    text:
+                        'تو این تمرین‌ها چیز جدیدی از بیرون «نمی‌سازی» — فقط مسیرهای عصبیِ تازه‌ای را در ذهن خودت تقویت می‌کنی که تا حالا فعال نبودند.',
                   ),
                 ],
               ),
             ),
           ),
-
-        if (hasText && !finished)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kBeliefsInk,
-                      side: const BorderSide(color: kBeliefsBorder),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () => _openCycleDaysDialog(store),
-                    icon: const Icon(Icons.settings, size: 15),
-                    label: Text(
-                      'روزهای دوره (الان ${_toFa(store.cycleDays)})',
-                      style: const TextStyle(fontSize: 11.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kBeliefsInk,
-                      side: const BorderSide(color: kBeliefsBorder),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () => _confirmResetCalendar(store),
-                    icon: const Icon(Icons.refresh, size: 15),
-                    label: const Text('ریست تقویم',
-                        style: TextStyle(fontSize: 11.5)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-        // آرشیو
-        if (store.versions.length > 1 || hasText)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: kBeliefsInk,
-                side: const BorderSide(color: kBeliefsBorder),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () => _openArchive(store),
-              icon: const Icon(Icons.history, size: 16),
-              label: Text(
-                '📚 آرشیو نسخه‌ها (${_toFa(store.versions.length)})',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // ---------- handlers ----------
-
-  Future<void> _openEditor(BeliefsStore store) async {
-    final cur = store.activeVersion;
-    final initial = cur?.text ?? '';
-
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _TextEditor(
-        initial: initial,
-        format: store.format,
-        onFormatChange: store.setFormat,
-      ),
-    );
-
-    if (result != null && result.trim().isNotEmpty) {
-      await store.saveText(result);
-    }
-  }
-
-  Future<void> _markRead(BeliefsStore store) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kBeliefsCard,
-        content: const Text(
-          'امروز متنت رو خوندی؟ ثبت کنم؟',
-          style: TextStyle(color: kBeliefsInk, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('نه', style: TextStyle(color: kBeliefsMuted)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('بله'),
-          ),
         ],
       ),
     );
-    if (ok == true) {
-      await store.markReadToday();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ثبت شد ✓ — یک روز دیگه به مسیرت اضافه شد')),
-        );
-      }
-    }
   }
 
-  Future<void> _openCycleDaysDialog(BeliefsStore store) async {
-    final ctrl = TextEditingController(text: store.cycleDays.toString());
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kBeliefsCard,
-        title: const Text('تعداد روزهای دوره',
-            style: TextStyle(fontSize: 15, color: kBeliefsInk)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'بین ۱ تا ۳۶۵ روز',
-              style: TextStyle(fontSize: 12, color: kBeliefsMuted),
+  // ═══════════════ کارت چرا باید هیچ شوی؟ ═══════════════
+  Widget _whyNothingCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kBeliefsCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBeliefsBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '🕳️ چرا باید «هیچ» شوی؟',
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: kBeliefsInk,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('لغو', style: TextStyle(color: kBeliefsMuted)),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('ذخیره'),
-          ),
+          const SizedBox(height: 8),
+          _p('اگر از «منِ قدیمی» شروع کنی، مغزت همون الگوهای عصبیِ قدیمی رو دوباره اجرا می‌کنه. باید اول «هیچ» شی — یعنی موقتاً از هویت قدیمی، از ترس‌ها و از داستان‌های تکرارشونده فاصله بگیری. در اون سکوت و خالی بودن، شبکه‌ی حالت پیش‌فرض مغز (DMN) — همون بخشی که مدام با خودش حرف می‌زنه — آروم می‌شه.'),
+          const SizedBox(height: 6),
+          _p('وقتی «هیچ» می‌شی، RAS (سیستم فعال‌ساز شبکه‌ای مغزت) دوباره تنظیم می‌شه و می‌تونه اون نشانه‌ها و فرصت‌هایی رو ببینه که قبلاً از فیلتر توجهت رد می‌شدن. این یعنی گفت‌وگو با انعطاف‌پذیری مغزت — نه با کائنات.'),
         ],
       ),
     );
-    if (ok == true) {
-      final n = int.tryParse(ctrl.text) ?? store.cycleDays;
-      await store.setCycleDays(n);
-    }
   }
 
-  Future<void> _confirmResetCalendar(BeliefsStore store) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kBeliefsCard,
-        content: const Text(
-          'تقویم از امروز از نو شروع بشه؟\nثبت‌های این دوره در تاریخچه‌ی همین نسخه نگه داشته می‌شن.',
-          style: TextStyle(color: kBeliefsInk, fontSize: 13, height: 1.7),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('نه', style: TextStyle(color: kBeliefsMuted)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('بله'),
-          ),
+  Widget _p(String text) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+            fontSize: 12, color: kBeliefsMuted, height: 1.9),
+        children: [
+          TextSpan(text: text),
         ],
       ),
     );
-    if (ok == true) await _resetCalendar(store);
   }
 
-  Future<void> _resetCalendar(BeliefsStore store) async {
-    await store.resetCalendar();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تقویم ریست شد — دوره‌ی تازه از امروز 🌱')),
-      );
-    }
-  }
-
-  Future<void> _openArchive(BeliefsStore store) async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ArchiveSheet(store: store),
-    );
-  }
-
-  static String _toFa(int n) => n.toString().replaceAllMapped(
-        RegExp(r'\d'),
-        (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
-      );
-
-  // ═══════════════════════════════════════════
-  // کارت تمرین روزانه (دیسپنزا)
-  // ═══════════════════════════════════════════
+  // ═══════════════ کارت تمرین روزانه ═══════════════
   Widget _dailyPracticeCard() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -531,7 +314,7 @@ class _BeliefsTabState extends State<BeliefsTab> {
                 ),
               ),
               Text(
-                '${_doneLayers.length} از ۵ مرحله',
+                '۰ جلسه',
                 style: const TextStyle(fontSize: 10.5, color: kBeliefsMuted),
               ),
             ],
@@ -543,7 +326,70 @@ class _BeliefsTabState extends State<BeliefsTab> {
           ),
           const SizedBox(height: 14),
 
-          // ═══ مرحله ۱: رهاسازی ═══
+          // ─── موسیقی مدیتیشن ───
+          const Text(
+            '🎵 موسیقی مدیتیشن (اختیاری)',
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: kBeliefsInk),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kBeliefsMuted,
+              side: const BorderSide(color: kBeliefsBorder),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {},
+            icon: const Icon(Icons.add, size: 14),
+            label: const Text('افزودن موسیقی',
+                style: TextStyle(fontSize: 11)),
+          ),
+          const Divider(height: 24),
+
+          // ─── تایمر ───
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: kBeliefsCream,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Text('⏱️ زمان تمرین',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: kBeliefsInk)),
+                const Spacer(),
+                const Text('۱۵:۰۰',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: kBeliefsInk,
+                        fontFeatures: [FontFeature.tabularFigures()])),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kBeliefsInk,
+                    side: const BorderSide(color: kBeliefsBorder),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {},
+                  child: const Text('شروع', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ─── مرحله ۱: رهاسازی ───
           _stepHeader(
             number: '۱',
             title: 'رهاسازی — آرام شدن',
@@ -557,81 +403,36 @@ class _BeliefsTabState extends State<BeliefsTab> {
             }),
           ),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0FAF8),
-              border: const Border(
-                right: BorderSide(color: Color(0xFF54C9B8), width: 3),
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '📖 رهاسازی (Relaxation): بدنت رو عمیقاً آروم کن تا از حالت آماده‌باش و تنش فاصله بگیری.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F5B53),
-                    height: 1.75,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'وقتی بدن آروم می‌شه، توجهت از فشارها و فکرهای روزمره جدا می‌شه.',
-                  style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.8),
-                ),
-              ],
-            ),
+          _whyBox(
+            def: '📖 رهاسازی (Relaxation): بدنت رو عمیقاً آروم کن تا از حالت آماده‌باش و تنش فاصله بگیری.',
+            body:
+                'وقتی بدن آروم می‌شه، توجهت از فشارها و فکرهای روزمره جدا می‌شه. ذهنت آماده می‌شه برای تمرکز، تجسم و تجربه‌ی درونی.',
           ),
           const SizedBox(height: 14),
           const BreathCircle(),
           const SizedBox(height: 18),
 
-          // ═══ مرحله ۲: هیچ شدن ═══
+          // ─── مرحله ۲: هیچ شدن ───
           _stepHeader(
             number: '۲',
             title: 'هیچ شدن',
             isDone: _doneLayers.length >= 5,
             onToggle: () {},
-            trailing: const Text('🔔', style: TextStyle(fontSize: 14)),
+            trailing: const Icon(Icons.notifications_outlined,
+                size: 18, color: kBeliefsMuted),
           ),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0FAF8),
-              border: const Border(
-                right: BorderSide(color: Color(0xFF54C9B8), width: 3),
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '📖 هیچ شدن (Becoming Nothing): توجهت رو از بدن، محیط و هویت «من» برمی‌داری.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F5B53),
-                    height: 1.75,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  '«هیچ شدن» یعنی رها کردن هویت‌های شرطی‌شده.',
-                  style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.8),
-                ),
-              ],
-            ),
+          _whyBox(
+            def:
+                '📖 هیچ شدن (Becoming Nothing): توجهت رو از بدن، محیط و هویت «من» برمی‌داری و به آگاهی محض اجازه می‌دی گسترش پیدا کنه.',
+            body:
+                'وقتی خودت رو با اسم، شغل، بدن، خاطرات گذشته و نگرانی‌های آینده تعریف می‌کنی، داری سیگنالی از «گذشته» به میدان می‌فرستی. «هیچ شدن» یعنی رها کردن این هویت‌های شرطی‌شده.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           const Text(
-            'پنج لایه رو یکی‌یکی رها کن:',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kBeliefsInk),
+            'پنج لایه رو یکی‌یکی رها کن — با هر تیک، غبار کمتر و آگاهی روشن‌تر:',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700, color: kBeliefsInk),
           ),
           const SizedBox(height: 10),
           NothingScene(
@@ -645,6 +446,39 @@ class _BeliefsTabState extends State<BeliefsTab> {
                 }
               });
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _whyBox({required String def, required String body}) {
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FAF8),
+        border: const Border(
+          right: BorderSide(color: Color(0xFF54C9B8), width: 3),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            def,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F5B53),
+              height: 1.75,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: const TextStyle(
+                fontSize: 11.5, color: kBeliefsMuted, height: 1.8),
           ),
         ],
       ),
@@ -716,11 +550,156 @@ class _BeliefsTabState extends State<BeliefsTab> {
       ],
     );
   }
+
+  // ═══════════════ handlers ═══════════════
+  Future<void> _openEditor(BeliefsStore store) async {
+    final cur = store.activeVersion;
+    final initial = cur?.text ?? '';
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TextEditor(
+        initial: initial,
+        format: store.format,
+        onFormatChange: store.setFormat,
+      ),
+    );
+    if (result != null && result.trim().isNotEmpty) {
+      await store.saveText(result);
+    }
+  }
+
+  Future<void> _markRead(BeliefsStore store) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kBeliefsCard,
+        content: const Text(
+          'امروز متنت رو خوندی؟ ثبت کنم؟',
+          style: TextStyle(color: kBeliefsInk, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('نه', style: TextStyle(color: kBeliefsMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('بله'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await store.markReadToday();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('ثبت شد ✓ — یک روز دیگه به مسیرت اضافه شد')),
+        );
+      }
+    }
+  }
+
+  Future<void> _openCycleDaysDialog(BeliefsStore store) async {
+    final ctrl = TextEditingController(text: store.cycleDays.toString());
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kBeliefsCard,
+        title: const Text('تعداد روزهای دوره',
+            style: TextStyle(fontSize: 15, color: kBeliefsInk)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('بین ۱ تا ۳۶۵ روز',
+                style: TextStyle(fontSize: 12, color: kBeliefsMuted)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لغو', style: TextStyle(color: kBeliefsMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ذخیره'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final n = int.tryParse(ctrl.text) ?? store.cycleDays;
+      await store.setCycleDays(n);
+    }
+  }
+
+  Future<void> _confirmResetCalendar(BeliefsStore store) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kBeliefsCard,
+        content: const Text(
+          'تقویم از امروز از نو شروع بشه؟\nثبت‌های این دوره در تاریخچه‌ی همین نسخه نگه داشته می‌شن.',
+          style: TextStyle(color: kBeliefsInk, fontSize: 13, height: 1.7),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('نه', style: TextStyle(color: kBeliefsMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('بله'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _resetCalendar(store);
+  }
+
+  Future<void> _resetCalendar(BeliefsStore store) async {
+    await store.resetCalendar();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('تقویم ریست شد — دوره‌ی تازه از امروز 🌱')),
+      );
+    }
+  }
+
+  Future<void> _openArchive(BeliefsStore store) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ArchiveSheet(store: store),
+    );
+  }
+
+  static String _toFa(int n) => n.toString().replaceAllMapped(
+        RegExp(r'\d'),
+        (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
+      );
 }
 
-// ============================================================
-// ویرایشگر متن
-// ============================================================
+// ═══════════════ ویرایشگر متن ═══════════════
 class _TextEditor extends StatefulWidget {
   final String initial;
   final FutureTextFormat format;
@@ -790,8 +769,6 @@ class _TextEditorState extends State<_TextEditor> {
                   style: TextStyle(fontSize: 11.5, color: kBeliefsMuted),
                 ),
                 const SizedBox(height: 12),
-
-                // نوار فرمت
                 FormatBar(
                   format: _fmt,
                   onChange: (f) {
@@ -800,8 +777,6 @@ class _TextEditorState extends State<_TextEditor> {
                   },
                 ),
                 const SizedBox(height: 10),
-
-                // textarea
                 TextField(
                   controller: _ctrl,
                   maxLines: null,
@@ -826,12 +801,12 @@ class _TextEditorState extends State<_TextEditor> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: kBeliefsGold, width: 1.5),
+                      borderSide:
+                          const BorderSide(color: kBeliefsGold, width: 1.5),
                     ),
                   ),
                 ),
                 const SizedBox(height: 14),
-
                 Row(
                   children: [
                     Expanded(
@@ -886,18 +861,14 @@ class _TextEditorState extends State<_TextEditor> {
   }
 }
 
-// ============================================================
-// شیت آرشیو
-// ============================================================
+// ═══════════════ آرشیو ═══════════════
 class _ArchiveSheet extends StatelessWidget {
   final BeliefsStore store;
-
   const _ArchiveSheet({required this.store});
 
   @override
   Widget build(BuildContext context) {
     final list = store.versions.reversed.toList();
-
     return Container(
       decoration: const BoxDecoration(
         color: kBeliefsCream,
@@ -911,52 +882,39 @@ class _ArchiveSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                '📚 آرشیو نسخه‌ها',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: kBeliefsInk,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'هر بار متن رو عوض می‌کنی، نسخه‌ی قبلی اینجا نگه داشته می‌شه.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11.5, color: kBeliefsMuted),
-              ),
+              const Text('📚 آرشیو نسخه‌ها',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: kBeliefsInk)),
               const SizedBox(height: 14),
-
               ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.6,
-                ),
+                    maxHeight: MediaQuery.of(context).size.height * 0.6),
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: list.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (ctx, i) {
-                    final v = list[i];
-                    final isActive = v.id == store.activeVersionId;
-                    return _versionTile(context, v, isActive);
-                  },
+                  itemBuilder: (ctx, i) => Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: kBeliefsCard,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kBeliefsBorder),
+                    ),
+                    child: Text(
+                      list[i].text,
+                      style: const TextStyle(
+                          fontSize: 11.5, color: kBeliefsInk, height: 1.7),
+                    ),
+                  ),
                 ),
               ),
-
               const SizedBox(height: 14),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kBeliefsInk,
-                  side: const BorderSide(color: kBeliefsBorder),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+              OutlinedButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, size: 16),
-                label: const Text('بستن'),
+                child: const Text('بستن'),
               ),
             ],
           ),
@@ -964,150 +922,4 @@ class _ArchiveSheet extends StatelessWidget {
       ),
     );
   }
-
-  Widget _versionTile(BuildContext context, FutureVersion v, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: kBeliefsCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isActive ? kBeliefsGold : kBeliefsBorder,
-          width: isActive ? 1.5 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                'نسخه ${_toFa(store.versions.indexOf(v) + 1)}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: kBeliefsInk,
-                ),
-              ),
-              if (isActive) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: kBeliefsGold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text(
-                    'فعال',
-                    style: TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                        color: kBeliefsGold),
-                  ),
-                ),
-              ],
-              const Spacer(),
-              Text(
-                '${_toFa(v.readDays.length)} روز',
-                style: const TextStyle(fontSize: 10.5, color: kBeliefsMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${v.startDate} تا ${v.endDate ?? "اکنون"}',
-            style: const TextStyle(fontSize: 10, color: kBeliefsMuted),
-          ),
-          if (v.text.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: kBeliefsCream,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '«${v.text.length > 120 ? "${v.text.substring(0, 120)}…" : v.text}»',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: kBeliefsInk,
-                  fontStyle: FontStyle.italic,
-                  height: 1.7,
-                ),
-              ),
-            ),
-          ],
-          if (!isActive) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      backgroundColor: kBeliefsGold,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    onPressed: () async {
-                      await store.activateVersion(v.id);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    child: const Text('فعال کردن',
-                        style: TextStyle(fontSize: 11.5)),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFE5484D),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Color(0x33E5484D)),
-                    ),
-                  ),
-                  onPressed: () async {
-                    final ok = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        backgroundColor: kBeliefsCard,
-                        content: const Text(
-                          'این نسخه برای همیشه حذف بشه؟',
-                          style: TextStyle(color: kBeliefsInk),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('نه'),
-                          ),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFFE5484D)),
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('حذف'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (ok == true) await store.deleteVersion(v.id);
-                  },
-                  child: const Icon(Icons.delete_outline, size: 16),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  static String _toFa(int n) => n.toString().replaceAllMapped(
-        RegExp(r'\d'),
-        (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
-      );
 }
