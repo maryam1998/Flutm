@@ -4,11 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/gratitude_entry.dart';
+import '../models/neural_container.dart';
 
 class GratitudeStore extends ChangeNotifier {
   static const _kEntries = 'gratitude_entries';
   static const _kJourneyDays = 'gratitude_journey_days';
   static const _kJourneyStart = 'gratitude_journey_start';
+  static const _kNeural = 'gratitude_neural';
+  NeuralContainer neural = NeuralContainer();
 
   final List<GratitudeEntry> entries = [];
   int journeyDays = 28;
@@ -35,6 +38,16 @@ class GratitudeStore extends ChangeNotifier {
       if (journeyDays < 1) journeyDays = 28;
       journeyStart = sp.getString(_kJourneyStart) ?? '';
       if (journeyStart.isEmpty) journeyStart = _todayKey();
+      final nRaw = sp.getString(_kNeural);
+      if (nRaw != null && nRaw.isNotEmpty) {
+        try {
+          neural = NeuralContainer.fromJson(
+            Map<String, dynamic>.from(jsonDecode(nRaw)),
+          );
+        } catch (_) {}
+      }
+      neural.autoSync();
+      await _persist();
     } catch (_) {}
     loaded = true;
     notifyListeners();
@@ -49,6 +62,7 @@ class GratitudeStore extends ChangeNotifier {
       );
       await sp.setInt(_kJourneyDays, journeyDays);
       await sp.setString(_kJourneyStart, journeyStart);
+      await sp.setString(_kNeural, jsonEncode(neural.toJson()));
     } catch (_) {}
   }
 
@@ -100,6 +114,19 @@ class GratitudeStore extends ChangeNotifier {
     return !today.isBefore(end);
   }
 
+  Future<void> markNeuralForToday() async {
+    final today = NeuralContainer.todayKey();
+    if (neural.autoDays[today] == true) return;
+    neural.autoDays[today] = true;
+    neural.addAutoFiber();
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> saveNeural() async {
+    await _persist();
+  }
+
   Future<GratitudeEntry> add({
     required String text,
     String icon = '🙏',
@@ -127,6 +154,12 @@ class GratitudeStore extends ChangeNotifier {
       txId: txId,
     );
     entries.add(e);
+    // ثبت خودکار یک رشته‌ی عصبی برای امروز (فقط اولین بار در روز)
+    final today = NeuralContainer.todayKey();
+    if (neural.autoDays[today] != true) {
+      neural.autoDays[today] = true;
+      neural.addAutoFiber();
+    }
     await _persist();
     notifyListeners();
     return e;
