@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'services/storage.dart';
+import 'state/abundance_store.dart';
 import 'state/background_store.dart';
+import 'state/beliefs_store.dart';
 import 'state/emotion_store.dart';
 import 'state/gratitude_store.dart';
 import 'state/map_store.dart';
@@ -27,7 +29,9 @@ Future<void> main() async {
   final bg = BackgroundStore();
   final motivation = MotivationStore();
   final gratitude = GratitudeStore();
+  final beliefs = BeliefsStore();
   final emotions = EmotionStore();
+  final abundance = AbundanceStore();
 
   try {
     await store.load();
@@ -38,6 +42,8 @@ Future<void> main() async {
   await bg.load();
   await motivation.load();
   await gratitude.load();
+  await beliefs.load();
+  await abundance.load();
 
   runApp(MultiProvider(
     providers: [
@@ -46,7 +52,9 @@ Future<void> main() async {
       ChangeNotifierProvider.value(value: bg),
       ChangeNotifierProvider.value(value: motivation),
       ChangeNotifierProvider.value(value: gratitude),
+      ChangeNotifierProvider.value(value: beliefs),
       ChangeNotifierProvider.value(value: emotions),
+      ChangeNotifierProvider.value(value: abundance),
     ],
     child: const MaghzApp(),
   ));
