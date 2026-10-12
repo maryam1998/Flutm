@@ -16,6 +16,7 @@ dependencies:
   file_picker: ^8.1.2
   shared_preferences: ^2.3.2
   google_fonts: ^6.2.1
+  image_picker: ^1.1.2
 
 # پلاگین lifecycle جدید به compileSdk 36 نیاز داره ولی file_picker با 34 کامپایل میشه؛ نسخه‌ی قدیمی‌تر رو ثابت می‌کنیم
 dependency_overrides:
