@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'screens/gratitude_tab.dart';
 import 'screens/practice_tab.dart';
+import 'screens/practice_tab.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
 import 'state/theme_store.dart';
@@ -136,35 +137,33 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           children: [
             const MotivationBar(),
             Expanded(
-              child: IndexedStack(
-                index: _index,
-                children: const [
-                  PlaceholderTab(
-                      title: 'شناخت', note: 'بعد از تب نقشه منتقل میشه'),
-                  MapTab(),
-                  const GratitudeTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
+  child: IndexedStack(
+    index: _index,
+    children: const [
+      PlaceholderTab(
+          title: 'شناخت', note: 'بعد از تب نقشه منتقل میشه'),
+      MapTab(),
+      PracticeTab(),
+    ],
+  ),
+),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: const [
-            NavigationDestination(
-                icon: Icon(Icons.psychology_outlined),
-                selectedIcon: Icon(Icons.psychology),
-                label: 'شناخت'),
-            NavigationDestination(
-                icon: Icon(Icons.hub_outlined),
-                selectedIcon: Icon(Icons.hub),
-                label: 'نقشه'),
-            NavigationDestination(
-                icon: Icon(Icons.favorite_border),
-                selectedIcon: Icon(Icons.favorite),
-                label: 'شکرگذاری'),
-          ],
+  NavigationDestination(
+      icon: Icon(Icons.psychology_outlined),
+      selectedIcon: Icon(Icons.psychology),
+      label: 'شناخت'),
+  NavigationDestination(
+      icon: Icon(Icons.hub_outlined),
+      selectedIcon: Icon(Icons.hub),
+      label: 'هدف‌گذاری'),
+  NavigationDestination(
+      icon: Icon(Icons.favorite_border),
+      selectedIcon: Icon(Icons.favorite),
+      label: 'تمرین'),
+],
         ),
       ),
     );
