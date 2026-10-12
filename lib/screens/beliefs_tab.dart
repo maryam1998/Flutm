@@ -16,6 +16,8 @@ class BeliefsTab extends StatefulWidget {
 }
 
 class _BeliefsTabState extends State<BeliefsTab> {
+  final Set<String> _doneLayers = {};
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<BeliefsStore>();
@@ -60,6 +62,11 @@ class _BeliefsTabState extends State<BeliefsTab> {
                 return d.isAfter(t);
               },
             ),
+
+            const SizedBox(height: 16),
+
+            // ═══ کارت تمرین روزانه ═══
+            _dailyPracticeCard(),
           ],
         ),
       ),
@@ -494,6 +501,221 @@ class _BeliefsTabState extends State<BeliefsTab> {
         RegExp(r'\d'),
         (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
       );
+
+  // ═══════════════════════════════════════════
+  // کارت تمرین روزانه (دیسپنزا)
+  // ═══════════════════════════════════════════
+  Widget _dailyPracticeCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kBeliefsCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBeliefsBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // هدر
+          Row(
+            children: [
+              const Text('🌌 ', style: TextStyle(fontSize: 14)),
+              const Expanded(
+                child: Text(
+                  'تمرین روزانه',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: kBeliefsInk,
+                  ),
+                ),
+              ),
+              Text(
+                '${_doneLayers.length} از ۵ مرحله',
+                style: const TextStyle(fontSize: 10.5, color: kBeliefsMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'شش مرحله. هر کدوم رو جدا تیک بزن. لازم نیست یه‌جا انجام بدی.',
+            style: TextStyle(fontSize: 11, color: kBeliefsMuted, height: 1.7),
+          ),
+          const SizedBox(height: 14),
+
+          // ═══ مرحله ۱: رهاسازی ═══
+          _stepHeader(
+            number: '۱',
+            title: 'رهاسازی — آرام شدن',
+            isDone: _doneLayers.contains('breath'),
+            onToggle: () => setState(() {
+              if (_doneLayers.contains('breath')) {
+                _doneLayers.remove('breath');
+              } else {
+                _doneLayers.add('breath');
+              }
+            }),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FAF8),
+              border: const Border(
+                right: BorderSide(color: Color(0xFF54C9B8), width: 3),
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '📖 رهاسازی (Relaxation): بدنت رو عمیقاً آروم کن تا از حالت آماده‌باش و تنش فاصله بگیری.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F5B53),
+                    height: 1.75,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'وقتی بدن آروم می‌شه، توجهت از فشارها و فکرهای روزمره جدا می‌شه.',
+                  style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.8),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          const BreathCircle(),
+          const SizedBox(height: 18),
+
+          // ═══ مرحله ۲: هیچ شدن ═══
+          _stepHeader(
+            number: '۲',
+            title: 'هیچ شدن',
+            isDone: _doneLayers.length >= 5,
+            onToggle: () {},
+            trailing: const Text('🔔', style: TextStyle(fontSize: 14)),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FAF8),
+              border: const Border(
+                right: BorderSide(color: Color(0xFF54C9B8), width: 3),
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '📖 هیچ شدن (Becoming Nothing): توجهت رو از بدن، محیط و هویت «من» برمی‌داری.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F5B53),
+                    height: 1.75,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  '«هیچ شدن» یعنی رها کردن هویت‌های شرطی‌شده.',
+                  style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.8),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'پنج لایه رو یکی‌یکی رها کن:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kBeliefsInk),
+          ),
+          const SizedBox(height: 10),
+          NothingScene(
+            doneLayers: _doneLayers,
+            onToggle: (key) {
+              setState(() {
+                if (_doneLayers.contains(key)) {
+                  _doneLayers.remove(key);
+                } else {
+                  _doneLayers.add(key);
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepHeader({
+    required String number,
+    required String title,
+    required bool isDone,
+    required VoidCallback onToggle,
+    Widget? trailing,
+  }) {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: onToggle,
+          child: Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isDone ? const Color(0xFF2BBFAB) : kBeliefsCard,
+              border: Border.all(
+                color: isDone ? const Color(0xFF2BBFAB) : kBeliefsBorder,
+                width: 2,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              isDone ? '✓' : '○',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDone ? Colors.white : kBeliefsMuted,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFBF6EA),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: kBeliefsMuted,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: kBeliefsInk,
+            ),
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
 }
 
 // ============================================================
