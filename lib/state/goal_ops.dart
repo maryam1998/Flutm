@@ -286,3 +286,26 @@ void clearDayTime(ActionNode n, String jk) {
   n.ranges.remove(jk);
   n.entries.remove(jk);
 }
+
+int routineStreak(ActionNode n) {
+  var streak = 0;
+  var d = DateTime.now();
+  if (!truthy(n.logs[jKey(d)])) {
+    d = d.subtract(const Duration(days: 1));
+  }
+  for (var i = 0; i < 90; i++) {
+    if (!truthy(n.logs[jKey(d)])) break;
+    streak++;
+    d = d.subtract(const Duration(days: 1));
+  }
+  return streak;
+}
+
+int routineWeekDone(ActionNode n) {
+  final days = jalaaliCurrentWeekDates();
+  var done = 0;
+  for (final k in days) {
+    if (truthy(n.logs[k])) done++;
+  }
+  return done;
+}

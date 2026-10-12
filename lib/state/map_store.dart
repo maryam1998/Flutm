@@ -15,6 +15,9 @@ class MapStore extends ChangeNotifier {
   Timer? _timer;
   bool loadedFromFile = false;
 
+  /// زمان آخرین ذخیره‌ی موفق — برای نمایش نشانگر «ذخیره شد»
+  final ValueNotifier<int> lastSaved = ValueNotifier<int>(0);
+
   /// پیام کوتاه برای کاربر (تب نقشه SnackBar نشون میده)
   void Function(String message)? toast;
 
@@ -50,6 +53,7 @@ class MapStore extends ChangeNotifier {
     _timer?.cancel();
     try {
       await _storage.write(jsonEncode(state.toJson()));
+      lastSaved.value = DateTime.now().millisecondsSinceEpoch;
     } catch (e) {
       debugPrint('save failed: $e');
     }

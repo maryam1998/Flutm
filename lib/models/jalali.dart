@@ -87,3 +87,27 @@ DateTime parseLocalKey(String k) {
   if (p.length != 3) return DateTime.now();
   return DateTime(p[0], p[1], p[2]);
 }
+
+/// کلیدهای جلالی ۷ روز هفته‌ی جاری (شنبه تا جمعه)
+List<String> jalaaliCurrentWeekDates() {
+  final now = DateTime.now();
+  final wd = now.weekday; // Mon=1 ... Sat=6, Sun=7
+  // شنبه = 0، یکشنبه = 1، ...، جمعه = 6
+  int jalaliWeekday;
+  if (wd == 6) {
+    jalaliWeekday = 0; // Sat
+  } else if (wd == 7) {
+    jalaliWeekday = 1; // Sun
+  } else {
+    jalaliWeekday = wd + 1; // Mon=2 ... Fri=6
+  }
+  final start = now.subtract(Duration(days: jalaliWeekday));
+  final keys = <String>[];
+  for (var i = 0; i < 7; i++) {
+    keys.add(jKey(start.add(Duration(days: i))));
+  }
+  return keys;
+}
+
+/// کلید جلالی امروز
+String todayJK() => jKey(DateTime.now());

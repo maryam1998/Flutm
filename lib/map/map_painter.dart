@@ -4,7 +4,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/constants.dart';
+import '../models/jalali.dart';
 import '../models/map_models.dart';
+import '../state/goal_ops.dart';
 import 'camera.dart';
 import 'draw_utils.dart';
 import 'geometry.dart' as geo;
@@ -347,9 +349,10 @@ class MapPainter extends CustomPainter {
     }
     _pts..add(cp.p0)..add(cp.p3);
     if (trunkOnly) return;
-    for (var i = 0; i < h.actions.length; i++) {
+    final acts = _visibleActs(h.actions);
+    for (var i = 0; i < acts.length; i++) {
       final t = math.min(0.9, 0.15 + i * 0.09);
-      _twig(canvas, h, col, cp.at(t), cp.tangent(t), h.actions[i], i.isEven ? 1 : -1, 1.0, tc);
+      _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i], i.isEven ? 1 : -1, 1.0, tc);
     }
   }
 
@@ -416,9 +419,151 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  // ---------- ردپا 👣 ----------
+  int _logCount(ActionNode a) {
+    var n = 0;
+    for (final v in a.logs.values) {
+      if (v == true || v == 'انجام شد ✓' || (v is String && v.isNotEmpty)) n++;
+    }
+    return n;
+  }
+
+  void _footprints(Canvas canvas, geo.TwigGeom geom, geo.Cubic cub,
+      ActionNode a, Color color, double scale) {
+    final count = _logCount(a);
+    if (count == 0) return;
+    final length = (geom.end - geom.originPt).distance;
+    if (length < 22) return;
+
+    final fs = math.max(11.0, 15.0 * scale);
+    var spacing = math.max(fs * 0.95, 14.0 * scale);
+    final usable = length * 0.86;
+    if (count * spacing > usable) spacing = usable / count;
+    final span = spacing / length;
+
+    final todayJK = jKey(DateTime.now());
+    final todayDone = a.logs[todayJK] == true ||
+        a.logs[todayJK] == 'انجام شد ✓' ||
+        (a.logs[todayJK] is String && (a.logs[todayJK] as String).isNotEmpty);
+
+    for (var i = 0; i < count; i++) {
+      final t = math.max(0.05, math.min(0.97, 0.95 - i * span));
+      Offset pt;
+      double ang;
+      if (geom.poly != null) {
+        final q = geo.polyPointAt(geom.poly!, t);
+        pt = q.pt;
+        ang = q.angle;
+      } else {
+        pt = cub.at(t);
+        ang = cub.tangent(t);
+      }
+
+      final isNewest = i == count - 1;
+      final opacity = isNewest && todayDone
+          ? 1.0
+          : 0.4 + 0.55 * (count > 1 ? i / (count - 1) : 1.0);
+
+      // جهت پا: عمود بر منحنی، چپ/راست یکی‌درمیان
+      final side = (i % 2 == 0) ? 1.0 : -1.0;
+      final off = fs * 0.4 * side;
+      final ox = -math.sin(ang) * off;
+      final oy = math.cos(ang) * off;
+
+      _drawEmoji(
+        canvas,
+        pt + Offset(ox, oy),
+        ang + math.pi / 2,
+        fs,
+        color.withAlpha((opacity * 255).round()),
+        '👣',
+      );
+    }
+  }
+
+  void _drawEmoji(Canvas canvas, Offset at, double angle, double size,
+      Color color, String emoji) {
+    canvas.save();
+    canvas.translate(at.dx, at.dy);
+    canvas.rotate(angle);
+    final tp = TextPainter(
+      text: TextSpan(
+        text: emoji,
+        style: TextStyle(fontSize: size, color: color),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+    canvas.restore();
+  }
+
+  /// شاخه‌های دستاوردشده از درخت پنهان‌اند؛ زیرشاخه‌هاشان یک سطح بالا می‌آیند
+  List<ActionNode> _visibleActs(List<ActionNode> list) {
+    final out = <ActionNode>[];
+    for (final n in list) {
+      if (n.extra['achieved'] == true) {
+        out.addAll(_visibleActs(n.children));
+      } else {
+        out.add(n);
+      }
+    }
+    return out;
+  }
+
+  // ---------- نوار هفتگی روتین ----------
+  void _routineRing(Canvas canvas, Offset center, double tipR, Color color,
+      double scale, ActionNode a) {
+    final R = tipR + 5.5 * math.max(0.8, scale);
+    final sw = 2.2 * math.max(0.8, scale);
+    final days = jalaaliCurrentWeekDates();
+    final tKey = todayJK();
+    final rect = Rect.fromCircle(center: center, radius: R);
+
+    const step = 2 * math.pi / 7;
+    const gap = 0.34;
+
+    for (var i = 0; i < 7; i++) {
+      final k = days[i];
+      final has = truthy(a.logs[k]);
+      final isToday = k == tKey;
+      final a0 = -math.pi / 2 + i * step + gap / 2;
+      final a1 = -math.pi / 2 + (i + 1) * step - gap / 2;
+      final op = has ? 0.95 : (isToday ? 0.55 : 0.20);
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = isToday ? sw * 1.45 : sw
+        ..color = withOp(color, op);
+      canvas.drawArc(rect, a0, a1 - a0, false, paint);
+    }
+
+    // اگه امروز انجام نشده، یه سایه‌ی کم‌رنگ داخل گره
+    if (!truthy(a.logs[tKey])) {
+      canvas.drawCircle(center, tipR * 0.55,
+          Paint()..color = const Color(0xFF0A0C18).withAlpha(140));
+    }
+
+    // بج استریک (≥ ۲ روز پیاپی)
+    final streak = routineStreak(a);
+    if (streak >= 2) {
+      final fs = 8.5 * math.max(0.9, scale);
+      drawText(
+        canvas,
+        toFa(streak),
+        center.dx,
+        center.dy - R - 3.5,
+        size: fs,
+        color: color,
+        weight: FontWeight.w700,
+        outline: 2,
+      );
+    }
+  }
+
   void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt, double originDir, ActionNode a, int side, double scale, Color tc) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
     final color = (a.color != null && a.color!.isNotEmpty) ? hexColor(a.color, hostColor) : hostColor;
+    final isRoutine = a.isRoutine;
     final geom = geo.computeTwigGeom(h, a, originPt, originDir, side, scale);
     geo.applyBranchStyle(geom, geo.effBranchStyle(h, a), side);
     final end = geom.end;
@@ -435,8 +580,9 @@ class MapPainter extends CustomPainter {
     } else {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
     }
+    _footprints(canvas, geom, cub, a, color, scale);
 
-    final kids = a.children;
+    final kids = _visibleActs(a.children);
     if (kids.isNotEmpty) {
       canvas.drawCircle(end, math.max(2.0, 2.6 * scale), _stroke(color, 1.2, 0.55));
       for (var i = 0; i < kids.length; i++) {
@@ -471,6 +617,11 @@ class MapPainter extends CustomPainter {
       }
     } else {
       canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale), Paint()..color = color);
+    }
+
+    if (isRoutine) {
+      final tipR = math.max(1.8, 2 + weight * 0.28 * scale);
+      _routineRing(canvas, end, tipR, color, scale, a);
     }
 
     if (a.text.isNotEmpty) {

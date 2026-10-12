@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -154,6 +156,25 @@ class _MapTabState extends State<MapTab> {
             ),
           ),
 
+          // نشانگر ذخیره (پایین وسط)
+          Positioned(
+            bottom: 90,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ValueListenableBuilder<int>(
+                  valueListenable: store.lastSaved,
+                  builder: (_, ts, __) {
+                    if (ts == 0) return const SizedBox.shrink();
+                    return _SaveIndicator(key: ValueKey(ts));
+                  },
+                ),
+              ),
+            ),
+          ),
+
           // دکمه‌های ابزار (چپ پایین)
           Positioned(
             left: 16,
@@ -250,5 +271,60 @@ class _MapTabState extends State<MapTab> {
     } catch (e) {
       msg.showSnackBar(SnackBar(content: Text('خروجی ناموفق بود: $e')));
     }
+  }
+}
+
+class _SaveIndicator extends StatefulWidget {
+  const _SaveIndicator({super.key});
+  @override
+  State<_SaveIndicator> createState() => _SaveIndicatorState();
+}
+
+class _SaveIndicatorState extends State<_SaveIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  );
+  Timer? _hide;
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward();
+    _hide = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) _c.reverse();
+    });
+  }
+
+  @override
+  void dispose() {
+    _hide?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _c,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(150),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withAlpha(40)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, size: 14, color: Color(0xFF63D6A8)),
+            SizedBox(width: 6),
+            Text('ذخیره شد',
+                style: TextStyle(fontSize: 12, color: Colors.white)),
+          ],
+        ),
+      ),
+    );
   }
 }

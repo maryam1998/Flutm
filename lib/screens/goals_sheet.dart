@@ -892,6 +892,35 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 ],
               ),
             ),
+          if (n.isRoutine)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, right: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.repeat,
+                      size: 13, color: Color(0xFF5EC8F0)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${toFa(routineWeekDone(n))} از ۷ روز این هفته',
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF5EC8F0)),
+                  ),
+                  if (routineStreak(n) >= 2) ...[
+                    const SizedBox(width: 8),
+                    const Icon(Icons.local_fire_department,
+                        size: 12, color: Color(0xFFF4C542)),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${toFa(routineStreak(n))} روز پیاپی',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFFF4C542),
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           if (daysOpen) _daysGrid(store, h, n, pi, color),
         ],
       ),
