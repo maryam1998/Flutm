@@ -118,6 +118,8 @@ class GratitudeStore extends ChangeNotifier {
 
   /// یک EmotionStore رو می‌گیره تا اگه کاربر قبل از ثبت شکرگذاری
   /// توی ویجت حس انتخاب کرده بود، رشته‌ی عصبی جدید با همون رنگ ساخته بشه.
+  /// این متد مخصوص دکمه‌ی «امروز انجام دادم» توی ویجت مسیر عصبیه —
+  /// روزی فقط یک‌بار رشته می‌سازه.
   Future<void> markNeuralForToday(EmotionStore emotions) async {
     final today = NeuralContainer.todayKey();
     if (neural.autoDays[today] == true) return;
@@ -136,7 +138,7 @@ class GratitudeStore extends ChangeNotifier {
     }
 
     neural.addAutoFiber(emotion: felt);
-    emotions.reset(); // بعد از مصرف، ویجت ریست بشه
+    emotions.reset();
 
     await _persist();
     notifyListeners();
@@ -175,25 +177,20 @@ class GratitudeStore extends ChangeNotifier {
     );
     entries.add(e);
 
-    // ثبت خودکار یک رشته‌ی عصبی برای امروز
-    final today = NeuralContainer.todayKey();
-    if (neural.autoDays[today] != true) {
-      neural.autoDays[today] = true;
-
-      NeuralFiberEmotion? felt;
-      if (emotions != null && emotions.hasSelection) {
-        final dom = dominantEmotion(emotions.selectedIds);
-        if (dom != null) {
-          felt = NeuralFiberEmotion(
-            ids: emotions.selectedIds,
-            color: dom.color,
-            freq: dom.freq,
-          );
-        }
-        emotions.reset();
+    // ✨ هر شکرگذاری = یک رشته‌ی عصبی جدید (بدون قید «روزی یک‌بار»)
+    NeuralFiberEmotion? felt;
+    if (emotions != null && emotions.hasSelection) {
+      final dom = dominantEmotion(emotions.selectedIds);
+      if (dom != null) {
+        felt = NeuralFiberEmotion(
+          ids: emotions.selectedIds,
+          color: dom.color,
+          freq: dom.freq,
+        );
       }
-      neural.addAutoFiber(emotion: felt);
+      emotions.reset();
     }
+    neural.addAutoFiber(emotion: felt);
 
     await _persist();
     notifyListeners();
