@@ -45,7 +45,7 @@ jobs:
         run: flutter pub get
 
       - name: Build web
-        run: flutter build web --release --base-href /Flutm/ --web-renderer canvaskit
+        run: flutter build web --release --base-href /Flutm/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
