@@ -11,6 +11,9 @@ class EmotionStore extends ChangeNotifier {
   String? capturePracticeKey;
   String? captureLabel;
 
+  /// کال‌بکی که وقتی کاربر «ثبت» رو زد صدا زده می‌شه
+  void Function(List<String> ids)? _onCaptureSave;
+
   List<String> get selectedIds => _selected.toList();
 
   bool get hasSelection => _selected.isNotEmpty;
@@ -43,10 +46,12 @@ class EmotionStore extends ChangeNotifier {
     required String practiceKey,
     required String label,
     List<String>? initial,
+    void Function(List<String> ids)? onSave,
   }) {
     capturePhase = phase;
     capturePracticeKey = practiceKey;
     captureLabel = label;
+    _onCaptureSave = onSave;
     if (initial != null) {
       _selected
         ..clear()
@@ -59,6 +64,22 @@ class EmotionStore extends ChangeNotifier {
     capturePhase = null;
     capturePracticeKey = null;
     captureLabel = null;
+    _onCaptureSave = null;
     notifyListeners();
+  }
+
+  /// کاربر «ثبت» رو زد: کال‌بک رو صدا می‌زنیم، بعد capture رو می‌بندیم.
+  void saveCapture() {
+    final ids = selectedIds;
+    final cb = _onCaptureSave;
+    _onCaptureSave = null;
+    endCapture();
+    cb?.call(ids);
+  }
+
+  /// کاربر «انصراف» رو زد: بدون صدا زدن کال‌بک، فقط capture رو می‌بندیم.
+  void cancelCapture() {
+    _onCaptureSave = null;
+    endCapture();
   }
 }
