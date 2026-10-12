@@ -1,0 +1,43 @@
+name: Build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - name: Generate platform folders if missing
+        run: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --org app.maghz --project-name maghz /tmp/scaffold
+            cp -r /tmp/scaffold/android .
+          fi
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with: { name: maghz-apk, path: build/app/outputs/flutter-apk/app-release.apk }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - name: Generate platform folders if missing
+        shell: bash
+        run: |
+          if [ ! -d windows ]; then
+            flutter create --platforms=windows --org app.maghz --project-name maghz ../scaffold
+            cp -r ../scaffold/windows .
+          fi
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with: { name: maghz-windows, path: build/windows/x64/runner/Release }
