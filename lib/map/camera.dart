@@ -18,6 +18,15 @@ class CameraController extends ChangeNotifier {
     }
   }
 
+  Offset screenToWorld(Offset s) => Offset((s.dx - x) / scale, (s.dy - y) / scale);
+
+  void setView(double nx, double ny, double ns) {
+    x = nx;
+    y = ny;
+    scale = ns.clamp(0.05, 4.0).toDouble();
+    notifyListeners();
+  }
+
   void panBy(Offset d) {
     x += d.dx;
     y += d.dy;

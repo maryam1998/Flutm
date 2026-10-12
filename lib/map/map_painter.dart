@@ -7,7 +7,9 @@ import '../models/constants.dart';
 import '../models/map_models.dart';
 import 'camera.dart';
 import 'draw_utils.dart';
-import 'geometry.dart';
+import 'geometry.dart' as geo;
+import 'hit_registry.dart';
+import 'map_ops.dart';
 import 'user_state.dart';
 
 /// اگه true باشه جای برچسب شاخه‌ها مثل «RTL واقعی» SVG میشه (برچسب روی نوک شاخه می‌افته)
@@ -22,6 +24,7 @@ class MapPainter extends CustomPainter {
     required this.time,
     required this.images,
     required this.boundsBox,
+    required this.hits,
   }) : super(repaint: Listenable.merge([cam, time, images]));
 
   final MapState state;
@@ -29,6 +32,7 @@ class MapPainter extends CustomPainter {
   final ValueNotifier<double> time;
   final NodeImageCache images;
   final MapBoundsBox boundsBox;
+  final HitRegistry hits;
   final List<Offset> _pts = [];
 
   double get _t => time.value;
@@ -61,6 +65,7 @@ class MapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     _pts.clear();
+    hits.clear();
     canvas.save();
     canvas.translate(cam.x, cam.y);
     canvas.scale(cam.scale);
@@ -69,18 +74,22 @@ class MapPainter extends CustomPainter {
     for (final g in state.goals) {
       _branches(canvas, g, tc, trunkOnly: g.collapsed && g.actions.isNotEmpty);
     }
-    for (final r in state.rings) {
-      if (r.actions.isNotEmpty) {
-        final lg = _goalOf(r);
-        _branches(canvas, r, tc, trunkOnly: r.collapsed || (lg?.collapsed ?? false));
+    if (!state.ringsCollapsed) {
+      for (final r in state.rings) {
+        if (r.actions.isNotEmpty) {
+          final lg = _goalOf(r);
+          _branches(canvas, r, tc, trunkOnly: r.collapsed || (lg?.collapsed ?? false));
+        }
       }
     }
     _drawMe(canvas, tc);
     for (final g in state.goals) {
       _drawGoal(canvas, g, tc);
     }
-    for (final r in state.rings) {
-      _drawRing(canvas, r, tc);
+    if (!state.ringsCollapsed) {
+      for (final r in state.rings) {
+        _drawRing(canvas, r, tc);
+      }
     }
     canvas.restore();
 
@@ -175,6 +184,7 @@ class MapPainter extends CustomPainter {
     _halo(canvas, c, hexColor(band.color), r, 1, u.band);
     final meColor = hexColor(me.color.isEmpty ? band.color : me.color);
     _addCircleBounds(c, r);
+    hits.add(HitEntry(type: 'me', id: '', kind: HitKind.node, center: c, radius: r));
 
     if (me.images.isEmpty) {
       canvas.drawCircle(c, r, Paint()..color = meColor);
@@ -202,8 +212,9 @@ class MapPainter extends CustomPainter {
         canvas.drawCircle(c, r, Paint()..color = withOp(meColor, 0.4));
       }
       canvas.drawCircle(c, r, Paint()..style = PaintingStyle.stroke..strokeWidth = 3.5..color = meColor);
-      drawText(canvas, me.name, c.dx + me.labelDX, c.dy + 6 + me.labelDY,
+      final lr = drawText(canvas, me.name, c.dx + me.labelDX, c.dy + 6 + me.labelDY,
           size: me.labelSize ?? _labelSize('me'), color: tc, weight: FontWeight.w700, outline: 3);
+      if (me.name.isNotEmpty) hits.add(HitEntry(type: 'me', id: '', kind: HitKind.label, rect: lr));
     }
   }
 
@@ -234,11 +245,13 @@ class MapPainter extends CustomPainter {
     _nodeIcon(canvas, c, r0, g.images, g.icon, col, g.iconScale, tc);
     final r = r0 * g.iconScale;
     _addCircleBounds(c, r);
+    hits.add(HitEntry(type: 'goal', id: g.id, kind: HitKind.node, center: c, radius: math.max(r, r0) + 8));
 
     var off = -(r0 + 22);
     if (r > r0) off += (off < 0 ? -1 : 1) * (r - r0);
-    drawText(canvas, g.name, c.dx + g.labelDX, c.dy + off + g.labelDY,
+    final lr = drawText(canvas, g.name, c.dx + g.labelDX, c.dy + off + g.labelDY,
         size: g.labelSize ?? _labelSize('goal'), color: tc, weight: FontWeight.w600, outline: 3);
+    if (g.name.isNotEmpty) hits.add(HitEntry(type: 'goal', id: g.id, kind: HitKind.label, rect: lr));
 
     final freq = kFreqBands[g.freq] ?? kFreqBands['alpha']!;
     double sumW(List<ActionNode> l) => l.fold(0.0, (s, a) => s + a.weight + sumW(a.children));
@@ -246,6 +259,48 @@ class MapPainter extends CustomPainter {
     final has = g.actions.isNotEmpty;
     final hud = (g.collapsed && has) ? 'رشد $power٪' : '${freq.label} — ${freq.desc} · رشد $power٪';
     drawText(canvas, hud, c.dx, c.dy + r0 + (has ? 46 : 42), size: 11, color: withOp(tc, 0.6), weight: FontWeight.w400);
+    _goalShutter(canvas, g, col, tc);
+  }
+
+  /// دکمه‌ی گرد «جمع/باز کردن مسیر» زیر هدف (با تعداد شاخه‌ها)
+  void _goalShutter(Canvas canvas, Goal g, Color col, Color tc) {
+    final n = goalBranchCount(state, g);
+    if (n == 0) return;
+    final cx = g.x, cy = g.y + g.radius + 15;
+    final open = !g.collapsed;
+    hits.add(HitEntry(
+        type: 'goalToggle', id: g.id, kind: HitKind.handle, rect: Rect.fromLTWH(cx - 34, cy - 19, 68, 38)));
+    final pill = RRect.fromRectAndRadius(Rect.fromLTWH(cx - 27, cy - 11, 54, 22), const Radius.circular(11));
+    final ink = open ? tc : const Color(0xFF1B1400);
+    if (!open) canvas.drawRRect(pill, Paint()..color = withOp(col, 0.92));
+    canvas.drawRRect(
+        pill,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..color = withOp(col, open ? 0.75 : 1.0));
+    final chev = Path();
+    if (open) {
+      chev
+        ..moveTo(-4, 1.8)
+        ..lineTo(0, -2.2)
+        ..lineTo(4, 1.8);
+    } else {
+      chev
+        ..moveTo(-4, -1.8)
+        ..lineTo(0, 2.2)
+        ..lineTo(4, -1.8);
+    }
+    canvas.drawPath(
+        chev.shift(Offset(cx - 14, cy)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = withOp(ink, open ? 0.75 : 0.95));
+    drawText(canvas, toFa(n), cx + 7, cy + 4.3,
+        size: 12, color: withOp(ink, open ? 0.8 : 1.0), weight: FontWeight.w700);
   }
 
   // ---------- حلقه ----------
@@ -257,15 +312,19 @@ class MapPainter extends CustomPainter {
     _halo(canvas, c, col, big, 1.2, null);
     _nodeIcon(canvas, c, rad, r.images, r.icon, col, r.iconScale, tc);
     _addCircleBounds(c, rad * r.iconScale);
+    hits.add(HitEntry(type: 'ring', id: r.id, kind: HitKind.node, center: c, radius: math.max(big, rad) + 8));
 
     if (r.label.isNotEmpty) {
       final lines = wrapText(r.label, 16);
       final lx = c.dx + r.labelDX;
       final ly = c.dy - (big + 20) + r.labelDY;
+      Rect? lr;
       for (var i = 0; i < lines.length; i++) {
-        drawText(canvas, lines[i], lx, ly + i * 16,
+        final b = drawText(canvas, lines[i], lx, ly + i * 16,
             size: r.labelSize ?? _labelSize('ring'), color: col, weight: FontWeight.w700, outline: 3);
+        lr = lr == null ? b : lr.expandToInclude(b);
       }
+      if (lr != null) hits.add(HitEntry(type: 'ring', id: r.id, kind: HitKind.label, rect: lr));
     }
     if (r.note.isNotEmpty) {
       final lines = wrapText(r.note, 22);
@@ -278,7 +337,7 @@ class MapPainter extends CustomPainter {
 
   // ---------- تنه و شاخه‌ها ----------
   void _branches(Canvas canvas, MapHost h, Color tc, {required bool trunkOnly}) {
-    final cp = trunkControlPoints(h, state.me);
+    final cp = geo.trunkControlPoints(h, state.me);
     final col = hexColor(h.color, hexColor(h.isRing ? kRingColor : kPalette[0]));
     if (h.isRing) {
       _taperedBezier(canvas, cp, col, 3.2, 1.6, 0.6);
@@ -301,11 +360,11 @@ class MapPainter extends CustomPainter {
     ..strokeCap = cap
     ..strokeJoin = StrokeJoin.round;
 
-  Path _pathOf(Cubic k) => Path()
+  Path _pathOf(geo.Cubic k) => Path()
     ..moveTo(k.p0.dx, k.p0.dy)
     ..cubicTo(k.p1.dx, k.p1.dy, k.p2.dx, k.p2.dy, k.p3.dx, k.p3.dy);
 
-  void _trunk(Canvas c, Cubic cp, Color col, String style) {
+  void _trunk(Canvas c, geo.Cubic cp, Color col, String style) {
     switch (style) {
       case 'solid':
         c.drawPath(_pathOf(cp), _stroke(col, 3, 0.9));
@@ -322,7 +381,9 @@ class MapPainter extends CustomPainter {
           final n = Offset(-d.dy / len * 2.6, d.dx / len * 2.6);
           for (final k in [1.0, -1.0]) {
             final o = n * k;
-            c.drawPath(_pathOf(Cubic(cp.p0 + o, cp.p1 + o, cp.p2 + o, cp.p3 + o)), _stroke(col, 1.6, 0.9));
+            c.drawPath(
+                _pathOf(geo.Cubic(cp.p0 + o, cp.p1 + o, cp.p2 + o, cp.p3 + o)),
+                _stroke(col, 1.6, 0.9));
           }
         }
       case 'glow':
@@ -335,7 +396,7 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  void _taperedBezier(Canvas c, Cubic cp, Color col, double w0, double w1, double op) {
+  void _taperedBezier(Canvas c, geo.Cubic cp, Color col, double w0, double w1, double op) {
     const seg = 7;
     final p = _stroke(col, w0, op);
     for (var s = 0; s < seg; s++) {
@@ -345,7 +406,7 @@ class MapPainter extends CustomPainter {
   }
 
   void _taperedPoly(Canvas c, List<Offset> pts, Color col, double w0, double w1, double op) {
-    final cum = polyCum(pts);
+    final cum = geo.polyCum(pts);
     final tot = cum.last == 0 ? 1.0 : cum.last;
     final p = _stroke(col, w0, op);
     for (var i = 1; i < pts.length; i++) {
@@ -358,14 +419,17 @@ class MapPainter extends CustomPainter {
   void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt, double originDir, ActionNode a, int side, double scale, Color tc) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
     final color = (a.color != null && a.color!.isNotEmpty) ? hexColor(a.color, hostColor) : hostColor;
-    final geom = computeTwigGeom(h, a, originPt, originDir, side, scale);
-    applyBranchStyle(geom, effBranchStyle(h, a), side);
+    final geom = geo.computeTwigGeom(h, a, originPt, originDir, side, scale);
+    geo.applyBranchStyle(geom, geo.effBranchStyle(h, a), side);
     final end = geom.end;
     _pts.add(end);
+    hits.geom[a.id] = ActionGeomEntry(h.id, geom.originPt, end, scale);
+    hits.add(HitEntry(
+        type: 'action', id: a.id, hostId: h.id, kind: HitKind.handle, center: end, radius: math.max(15.0, 18 * scale)));
 
     final baseW = math.max(1.0, (1.9 + weight * 1.05) * scale);
     final tipW = math.max(0.7, baseW * 0.38);
-    final cub = Cubic(geom.originPt, geom.c1, geom.c2, end);
+    final cub = geo.Cubic(geom.originPt, geom.c1, geom.c2, end);
     if (geom.poly != null) {
       _taperedPoly(canvas, geom.poly!, color, baseW, tipW, 0.92);
     } else {
@@ -380,7 +444,7 @@ class MapPainter extends CustomPainter {
         Offset co;
         double cd;
         if (geom.poly != null) {
-          final q = polyPointAt(geom.poly!, tt);
+          final q = geo.polyPointAt(geom.poly!, tt);
           co = q.pt;
           cd = q.angle;
         } else {
@@ -399,6 +463,7 @@ class MapPainter extends CustomPainter {
         final rect = Rect.fromCenter(center: end + off, width: e.size, height: e.size);
         final im = images.get(e.src);
         if (im != null) paintImage(canvas: canvas, rect: rect, image: im, fit: BoxFit.contain);
+        hits.add(HitEntry(type: 'action', id: a.id, hostId: h.id, kind: HitKind.image, imgIdx: i, rect: rect));
       }
       if (a.images.length > 3) {
         drawText(canvas, '+${a.images.length - 3}', end.dx + radius * 0.7, end.dy + radius * 0.7 + 4,
@@ -414,11 +479,14 @@ class MapPainter extends CustomPainter {
       final lx = end.dx + (side > 0 ? 8 : -8) + a.labelDX;
       final ly = end.dy + 4 + a.labelDY;
       final fs = a.labelSize ?? _labelSize('action', scale);
+      Rect? lr;
       for (var i = 0; i < lines.length; i++) {
-        drawText(canvas, lines[i], lx, ly + i * 16,
+        final b = drawText(canvas, lines[i], lx, ly + i * 16,
             size: fs, color: tc, weight: FontWeight.w400,
             align: right ? LabelAlign.right : LabelAlign.left, outline: 2.5);
+        lr = lr == null ? b : lr.expandToInclude(b);
       }
+      if (lr != null) hits.add(HitEntry(type: 'action', id: a.id, hostId: h.id, kind: HitKind.label, rect: lr));
     }
   }
 }

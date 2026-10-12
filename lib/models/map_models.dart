@@ -24,6 +24,10 @@ abstract interface class MapHost {
   List<ActionNode> get actions;
   String get branchStyle;
   bool get isRing;
+  bool get collapsed;
+  set collapsed(bool v);
+  int get lastActivity;
+  set lastActivity(int v);
 }
 
 /// تصویر روی گره. src معمولاً data: URI است.
@@ -404,6 +408,9 @@ class MapState {
         'showRingLinks': showRingLinks, 'showEmotionWidget': showEmotionWidget,
         '_savedAt': DateTime.now().millisecondsSinceEpoch,
       };
+
+  bool get ringsCollapsed => extra['ringsCollapsed'] == true;
+  set ringsCollapsed(bool v) => extra['ringsCollapsed'] = v;
 
   Object? findHost(String id) {
     for (final g in goals) { if (g.id == id) return g; }

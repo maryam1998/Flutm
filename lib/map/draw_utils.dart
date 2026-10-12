@@ -38,12 +38,12 @@ class TextCache {
 final textCache = TextCache();
 
 /// y = خط مبنا (مثل SVG). outline = دور مشکی مثل paint-order:stroke
-void drawText(
+Rect drawText(
   Canvas c, String text, double x, double y, {
   required double size, required Color color, FontWeight weight = FontWeight.w600,
   LabelAlign align = LabelAlign.center, double? outline, bool vCenter = false,
 }) {
-  if (text.isEmpty) return;
+  if (text.isEmpty) return Rect.zero;
   final fill = textCache.get(text, size, color, weight);
   final w = fill.width;
   final left = switch (align) { LabelAlign.center => x - w / 2, LabelAlign.left => x, LabelAlign.right => x - w };
@@ -52,6 +52,16 @@ void drawText(
     textCache.get(text, size, color, weight, strokeW: outline).paint(c, Offset(left, top));
   }
   fill.paint(c, Offset(left, top));
+  return Rect.fromLTWH(left, top, w, fill.height);
+}
+
+/// اعداد انگلیسی -> فارسی
+String toFa(Object n) {
+  const d = '۰۱۲۳۴۵۶۷۸۹';
+  return n.toString().split('').map((ch) {
+    final i = int.tryParse(ch);
+    return i == null ? ch : d[i];
+  }).join();
 }
 
 List<String> wrapText(String str, int maxChars) {

@@ -5,8 +5,10 @@ import '../map/camera.dart';
 import '../map/map_canvas.dart';
 import '../services/storage.dart';
 import '../state/map_store.dart';
+import 'add_goal_dialog.dart';
+import 'edit_sheet.dart';
 
-/// مرحله ۲: رسم نقشه + pan/zoom. لمس گره‌ها و ویرایش در مرحله ۳.
+/// مرحله ۳: نقشه + لمس و درگ گره‌ها/شاخه‌ها + افزودن هدف/نشانه/شاخه + پنل ویرایش
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
   @override
@@ -16,17 +18,40 @@ class MapTab extends StatefulWidget {
 class _MapTabState extends State<MapTab> {
   final cam = CameraController();
   final bounds = MapBoundsBox();
+  late final MapStore _store;
+  bool _resizeMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _store = context.read<MapStore>();
+    _store.toast = _toast;
+  }
 
   @override
   void dispose() {
+    _store.toast = null;
     cam.dispose();
     super.dispose();
+  }
+
+  void _toast(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  void _fit() {
+    final r = bounds.rect;
+    if (r != null) cam.fitRect(r);
   }
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<MapStore>();
     final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
+    final anyOpen = store.anyOpen;
     return Scaffold(
       body: Stack(
         children: [
@@ -41,7 +66,17 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
           ),
-          Positioned.fill(child: MapCanvas(cam: cam, boundsBox: bounds)),
+          Positioned.fill(
+            child: MapCanvas(
+              cam: cam,
+              boundsBox: bounds,
+              isResizeMode: () => _resizeMode,
+              onEditMe: () => showEditSheet(context, const MeTarget()),
+              onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
+              onEditRing: (id) => showEditSheet(context, RingTarget(id)),
+              onEditAction: (hostId, actionId) => showEditSheet(context, ActionTarget(hostId, actionId)),
+            ),
+          ),
           if (empty)
             Positioned.fill(
               child: IgnorePointer(
@@ -50,7 +85,7 @@ class _MapTabState extends State<MapTab> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
-                      'هنوز هدفی نیست.\nاز منوی بالا «ورودی بکاپ» رو بزن تا نقشه‌ی قبلی‌ت بیاد.\n(افزودن هدف جدید در مرحله‌ی بعد اضافه میشه)',
+                      'هنوز هدفی نیست.\nبا دکمه‌ی + یه هدف بساز، یا از منوی بالا «ورودی بکاپ» رو بزن تا نقشه‌ی قبلی‌ت بیاد.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white.withAlpha(140), height: 1.8),
                     ),
@@ -73,6 +108,17 @@ class _MapTabState extends State<MapTab> {
                     ],
                   ),
                   const Spacer(),
+                  if (_resizeMode)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5EC8F0).withAlpha(60),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF5EC8F0)),
+                      ),
+                      child: const Text('حالت تغییر اندازه: دو انگشت روی نوشته/آیکون', style: TextStyle(fontSize: 12)),
+                    ),
                   ListenableBuilder(
                     listenable: cam,
                     builder: (_, __) => Container(
@@ -85,19 +131,59 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
           ),
+          // دکمه‌های ابزار (چپ پایین)
           Positioned(
             left: 16,
             bottom: 16,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                FloatingActionButton.small(
+                  heroTag: 'resize',
+                  tooltip: 'حالت تغییر اندازه',
+                  backgroundColor: _resizeMode ? const Color(0xFF5EC8F0) : null,
+                  foregroundColor: _resizeMode ? Colors.black : null,
+                  onPressed: () => setState(() => _resizeMode = !_resizeMode),
+                  child: const Icon(Icons.open_in_full),
+                ),
+                if (store.hasCollapsible) ...[
+                  const SizedBox(height: 10),
+                  FloatingActionButton.small(
+                    heroTag: 'collapse',
+                    tooltip: anyOpen ? 'جمع همه' : 'باز همه',
+                    onPressed: () => store.collapseAll(anyOpen),
+                    child: Icon(anyOpen ? Icons.unfold_less : Icons.unfold_more),
+                  ),
+                ],
+                const SizedBox(height: 10),
                 FloatingActionButton.small(
                   heroTag: 'fit',
                   tooltip: 'نمایش همه',
-                  onPressed: () {
-                    final r = bounds.rect;
-                    if (r != null) cam.fitRect(r);
-                  },
+                  onPressed: _fit,
                   child: const Icon(Icons.fit_screen),
+                ),
+              ],
+            ),
+          ),
+          // افزودن (راست پایین)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'addRing',
+                  tooltip: 'نشانه‌ی نزدیکی جدید',
+                  onPressed: store.addRing,
+                  child: const Icon(Icons.stars_outlined),
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton(
+                  heroTag: 'addGoal',
+                  tooltip: 'هدف جدید',
+                  onPressed: () => showAddGoalDialog(context),
+                  child: const Icon(Icons.add),
                 ),
               ],
             ),

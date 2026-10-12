@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../map/map_ops.dart';
 import '../models/map_models.dart';
 import '../services/storage.dart';
 
@@ -13,6 +14,9 @@ class MapStore extends ChangeNotifier {
   MapState state = MapState();
   Timer? _timer;
   bool loadedFromFile = false;
+
+  /// پیام کوتاه برای کاربر (تب نقشه SnackBar نشون میده)
+  void Function(String message)? toast;
 
   Future<void> load() async {
     try {
@@ -27,11 +31,19 @@ class MapStore extends ChangeNotifier {
     }
   }
 
-  /// بعد از هر تغییر صدا بزن: UI رو آپدیت می‌کنه و ذخیره رو (با تأخیر ۴۰۰ms) زمان‌بندی می‌کنه
-  void changed() {
-    notifyListeners();
+  /// فقط ذخیره‌ی با تأخیر (بدون بازسازی UI). موقع درگ استفاده میشه چون painter خودش هر فریم دوباره می‌کشه
+  void touch() {
     _timer?.cancel();
     _timer = Timer(const Duration(milliseconds: 400), flush);
+  }
+
+  /// بعد از هر تغییر ساختاری صدا بزن: لینک خودکار حلقه‌ها، آپدیت UI و ذخیره
+  void changed() {
+    for (final m in autoLinkRings(state)) {
+      toast?.call(m);
+    }
+    notifyListeners();
+    touch();
   }
 
   Future<void> flush() async {
@@ -68,5 +80,103 @@ class MapStore extends ChangeNotifier {
     state = MapState.fromJson(d);
     await flush();
     notifyListeners();
+  }
+
+  // ---------- افزودن ----------
+
+  Goal addGoal({required String name, String icon = '🎯', required String color}) {
+    final spot = pickGoalSpot(state);
+    final g = Goal(
+      name: name,
+      icon: icon.trim().isEmpty ? '🎯' : icon.trim(),
+      color: color,
+      x: spot.dx,
+      y: spot.dy,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    state.goals.add(g);
+    changed();
+    return g;
+  }
+
+  Ring addRing() {
+    final r = newRingNearMe(state);
+    state.ringsCollapsed = false;
+    state.rings.add(r);
+    changed();
+    toast?.call('نشانه اضافه شد — روی مسیر یک هدف ببرش تا خودکار زیرمجموعه‌اش شود');
+    return r;
+  }
+
+  ActionNode addBranch(MapHost host) {
+    final a = newAction(radius: 12);
+    host.actions.add(a);
+    host.collapsed = false;
+    host.lastActivity = DateTime.now().millisecondsSinceEpoch;
+    changed();
+    return a;
+  }
+
+  ActionNode addSubBranch(MapHost host, ActionNode parent) {
+    final c = newAction(radius: 10);
+    parent.children.add(c);
+    host.collapsed = false;
+    changed();
+    return c;
+  }
+
+  // ---------- حذف ----------
+
+  void deleteGoal(String id) {
+    for (final r in state.rings) {
+      if (r.goalId == id) r.goalId = '';
+    }
+    state.goals.removeWhere((g) => g.id == id);
+    changed();
+  }
+
+  void deleteRing(String id) {
+    state.rings.removeWhere((r) => r.id == id);
+    changed();
+  }
+
+  void deleteAction(String hostId, String actionId) {
+    final h = state.findHost(hostId);
+    if (h is! MapHost) return;
+    final f = findActionNode(h.actions, actionId);
+    if (f == null) return;
+    f.list.remove(f.node);
+    changed();
+  }
+
+  // ---------- جمع / باز ----------
+
+  void toggleGoalCollapse(String id) {
+    final h = state.findHost(id);
+    if (h is! MapHost) return;
+    h.collapsed = !h.collapsed;
+    changed();
+  }
+
+  /// true اگه حداقل یک مسیر بازه (دکمه‌ی «جمع همه»)، false یعنی دکمه «باز همه» باشه
+  bool get anyOpen {
+    final goals = state.goals.where((g) => goalBranchCount(state, g) > 0);
+    final orphans = state.rings.where((r) => ringIsOrphan(state, r) && r.actions.isNotEmpty);
+    return goals.any((g) => !g.collapsed) || orphans.any((r) => !r.collapsed);
+  }
+
+  bool get hasCollapsible =>
+      state.goals.any((g) => goalBranchCount(state, g) > 0) ||
+      state.rings.any((r) => ringIsOrphan(state, r) && r.actions.isNotEmpty);
+
+  void collapseAll(bool collapse) {
+    for (final g in state.goals) {
+      if (goalBranchCount(state, g) > 0) g.collapsed = collapse;
+    }
+    for (final r in state.rings) {
+      if (ringIsOrphan(state, r) && r.actions.isNotEmpty) r.collapsed = collapse;
+    }
+    state.ringsCollapsed = false;
+    changed();
   }
 }
