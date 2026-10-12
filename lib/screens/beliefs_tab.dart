@@ -8,6 +8,8 @@ import '../widgets/breath_circle.dart';
 import '../widgets/format_bar.dart';
 import '../widgets/mini_calendar_90.dart';
 import '../widgets/nothing_scene.dart';
+import '../widgets/quantum_connect.dart';
+import '../widgets/ras_mission.dart';
 
 class BeliefsTab extends StatefulWidget {
   const BeliefsTab({super.key});
@@ -416,7 +418,10 @@ class _BeliefsTabState extends State<BeliefsTab> {
           _stepHeader(
             number: '۲',
             title: 'هیچ شدن',
-            isDone: _doneLayers.length >= 5,
+            isDone: _doneLayers
+                    .where((k) => !const {'connection', 'seed', 'images'}.contains(k))
+                    .length >=
+                5,
             onToggle: () {},
             trailing: const Icon(Icons.notifications_outlined,
                 size: 18, color: kBeliefsMuted),
@@ -447,6 +452,99 @@ class _BeliefsTabState extends State<BeliefsTab> {
               });
             },
           ),
+          const SizedBox(height: 18),
+
+          // ═══ مرحله ۳: اتصال به قلمرو ممکن‌ها ═══
+          _stepHeader(
+            number: '۳',
+            title: 'اتصال به قلمرو ممکن‌ها',
+            isDone: _doneLayers.contains('connection'),
+            onToggle: () => setState(() {
+              if (_doneLayers.contains('connection')) {
+                _doneLayers.remove('connection');
+              } else {
+                _doneLayers.add('connection');
+              }
+            }),
+          ),
+          const SizedBox(height: 10),
+          _whyBox(
+            def: '📖 اتصال (Connection): در این حالت خالی و آروم، RAS مغزت دوباره تنظیم می‌شه و می‌تونه فرصت‌ها و نشانه‌هایی رو ببینه که قبلاً از فیلتر توجهت رد می‌شدن.',
+            body: 'این یه تمرین ذهن‌آگاهی برای بازکردن کانال توجهه — نه ارسال سیگنال به یک میدان بیرونی.',
+          ),
+          const QuantumConnect(),
+          const SizedBox(height: 18),
+
+          // ═══ مرحله ۴: بذر ═══
+          _stepHeader(
+            number: '۴',
+            title: 'کاشتن بذر',
+            isDone: _doneLayers.contains('seed'),
+            onToggle: () => setState(() {
+              if (_doneLayers.contains('seed')) {
+                _doneLayers.remove('seed');
+              } else {
+                _doneLayers.add('seed');
+              }
+            }),
+          ),
+          const SizedBox(height: 18),
+
+          // ═══ مرحله ۵: تصاویر ═══
+          _stepHeader(
+            number: '۵',
+            title: 'تصاویر',
+            isDone: _doneLayers.contains('images'),
+            onToggle: () => setState(() {
+              if (_doneLayers.contains('images')) {
+                _doneLayers.remove('images');
+              } else {
+                _doneLayers.add('images');
+              }
+            }),
+          ),
+          const SizedBox(height: 10),
+          _whyBox(
+            def: '📖 کاشتن بذر (Seeding): یه تصویر واضح از واقعیت دلخواهت توی ذهن می‌کاری — بدون حس نیاز یا کمبود.',
+            body: 'خودت رو توی صحنه‌ای ببین که به خواسته‌ات رسیدی. هر تعداد عکس یا ویدیو که دوست داری اضافه کن.',
+          ),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              color: kBeliefsCream,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: kBeliefsBorder),
+            ),
+            child: const Column(
+              children: [
+                Text('✨', style: TextStyle(fontSize: 28)),
+                SizedBox(height: 6),
+                Text('هنوز تصویری اضافه نکردی',
+                    style: TextStyle(fontSize: 12, color: kBeliefsMuted)),
+                SizedBox(height: 4),
+                Text('عکس یا ویدیوی مورد دلخواهت رو اضافه کن',
+                    style: TextStyle(fontSize: 10.5, color: kBeliefsMuted)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // ═══ مأموریت ذهن ═══
+          _stepHeader(
+            number: '🎯',
+            title: 'مأموریت ذهن',
+            isDone: false,
+            onToggle: () {},
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'ذهنت رو برای دیدن چیزی که تا حالا ازش رد می‌شدی، آموزش بده.',
+            style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.75),
+          ),
+          const SizedBox(height: 12),
+          const RasMission(),
         ],
       ),
     );
