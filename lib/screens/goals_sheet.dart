@@ -12,10 +12,16 @@ import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
+import 'day_sheet.dart';
 import 'edit_sheet.dart';
 import '../theme/app_theme.dart';
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
+
+const _kGold = Color(0xFFC9972B);
+const _kInk = Color(0xFF2A2218);
+const _kMuted = Color(0xFF7A6B57);
+const _kBorder = Color(0xFFE0D5C0);
 
 /// فهرست اهداف — معادل «اهداف من» نسخه‌ی وب
 Future<void> showGoalsSheet(
@@ -1036,49 +1042,93 @@ class _GoalsSheetState extends State<GoalsSheet> {
     PeriodInfo pi,
     Color color,
   ) {
+    const cols = 15;
     final cells = <Widget>[];
     for (var d = 0; d < pi.total; d++) {
       final date = DateTime(pi.start.year, pi.start.month, pi.start.day + d);
       final jk = jKey(date);
       final j = toJalaali(date.year, date.month, date.day);
       final has = truthy(n.logs[jk]);
+      final hasTime = nodeDaySecs(n, jk) > 0;
       final future = date.isAfter(pi.today);
       final isToday = date.isAtSameMomentAs(pi.today);
       cells.add(
         InkWell(
-          onTap: future ? null : () => store.toggleLog(h, n, jk),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 34,
-            height: 34,
+          onTap: future
+              ? null
+              : () => showDaySheet(
+                    context,
+                    store: store,
+                    host: h,
+                    node: n,
+                    date: date,
+                    accent: color,
+                  ),
+          borderRadius: BorderRadius.circular(6),
+          child: Stack(
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: has ? color : (future ? kGoalsBg : Colors.white),
-              border: Border.all(
-                color: isToday
-                    ? kGoalsInk
-                    : (has ? color : kGoalsBorder),
-                width: isToday ? 2 : 1,
+            children: [
+              Container(
+                width: 25,
+                height: 25,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  color: has ? color : const Color(0xFFF5EFE0),
+                  border: isToday
+                      ? Border.all(color: _kGold, width: 2)
+                      : Border.all(color: _kBorder, width: 1),
+                ),
+                child: Text(
+                  has ? '✓' : toFa(j.jd),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: has
+                        ? Colors.white
+                        : (future
+                            ? _kMuted.withValues(alpha: 0.5)
+                            : _kInk),
+                  ),
+                ),
               ),
-            ),
-            child: Text(
-              has ? '✓' : toFa(j.jd),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: has
-                    ? Colors.black87
-                    : (future ? kGoalsBorder : kGoalsInk),
-              ),
-            ),
+              // نقطه‌ی زمان ثبت‌شده (گوشه‌ی پایین)
+              if (hasTime)
+                Positioned(
+                  bottom: 1,
+                  right: 1,
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: has ? Colors.white : color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: has ? color : Colors.transparent,
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Wrap(spacing: 6, runSpacing: 6, children: cells),
+      child: LayoutBuilder(builder: (ctx, box) {
+        final cellW = (box.maxWidth - (cols - 1) * 3) / cols;
+        final size = cellW.clamp(18.0, 25.0);
+        return Wrap(
+          spacing: 3,
+          runSpacing: 3,
+          children: [
+            for (final c in cells)
+              SizedBox(width: size, height: size, child: c),
+          ],
+        );
+      }),
     );
   }
 

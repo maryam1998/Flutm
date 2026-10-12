@@ -6,6 +6,7 @@ import '../models/constants.dart';
 import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
+import '../widgets/hsv_color_picker.dart';
 import 'motivation_sheet.dart';
 
 const _kCream = Color(0xFFFBF6EA);
@@ -343,42 +344,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    _rgbSlider(
-                      'R',
-                      _textColor.r,
-                      (v) => setState(() {
-                        _textColor = Color.fromARGB(
-                          255,
-                          (v * 255).round(),
-                          (_textColor.g * 255).round(),
-                          (_textColor.b * 255).round(),
-                        );
-                      }),
-                    ),
-                    _rgbSlider(
-                      'G',
-                      _textColor.g,
-                      (v) => setState(() {
-                        _textColor = Color.fromARGB(
-                          255,
-                          (_textColor.r * 255).round(),
-                          (v * 255).round(),
-                          (_textColor.b * 255).round(),
-                        );
-                      }),
-                    ),
-                    _rgbSlider(
-                      'B',
-                      _textColor.b,
-                      (v) => setState(() {
-                        _textColor = Color.fromARGB(
-                          255,
-                          (_textColor.r * 255).round(),
-                          (_textColor.g * 255).round(),
-                          (v * 255).round(),
-                        );
-                      }),
+                    const SizedBox(height: 8),
+                    HsvColorPicker(
+                      initial: _textColor,
+                      onChanged: (c) => setState(() => _textColor = c),
                     ),
                     const _SectionDivider(),
 
@@ -533,63 +502,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             width: active ? 3 : 1.5,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _rgbSlider(String label, double value, ValueChanged<double> onChanged) {
-    final col = label == 'R'
-        ? const Color(0xFFE5484D)
-        : label == 'G'
-            ? const Color(0xFF63D6A8)
-            : const Color(0xFF5EC8F0);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: col.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: col,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: col,
-                thumbColor: col,
-                inactiveTrackColor: _kBorder,
-                trackHeight: 4,
-              ),
-              child: Slider(
-                min: 0,
-                max: 1,
-                value: value.clamp(0.0, 1.0),
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 34,
-            child: Text(
-              toFa((value * 255).round()),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11.5, color: _kMuted),
-            ),
-          ),
-        ],
       ),
     );
   }
