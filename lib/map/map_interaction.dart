@@ -37,6 +37,7 @@ class MapInteraction {
     required this.onEditGoal,
     required this.onEditRing,
     required this.onEditAction,
+    this.onTimeBranch,
   });
 
   final CameraController cam;
@@ -47,6 +48,7 @@ class MapInteraction {
   final void Function(String id) onEditGoal;
   final void Function(String id) onEditRing;
   final void Function(String hostId, String actionId) onEditAction;
+  final void Function(String hostId, String actionId)? onTimeBranch;
 
   static const double _slop = 6;
 
@@ -213,6 +215,12 @@ class MapInteraction {
 
     if (_ptrs.isEmpty && hit != null && hit.type == 'goalToggle') {
       store.toggleGoalCollapse(hit.id);
+      return;
+    }
+
+    // ردپا → پنل زمان
+    if (_ptrs.isEmpty && hit != null && hit.type == 'actionTime') {
+      onTimeBranch?.call(hit.hostId, hit.id);
       return;
     }
 

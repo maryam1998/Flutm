@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../map/camera.dart';
 import '../map/map_canvas.dart';
 import '../map/map_ops.dart';
+import '../models/map_models.dart';
 import '../services/storage.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';

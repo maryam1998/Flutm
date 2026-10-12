@@ -21,6 +21,7 @@ class MapCanvas extends StatefulWidget {
     required this.onEditGoal,
     required this.onEditRing,
     required this.onEditAction,
+    this.onTimeBranch,
   });
 
   final CameraController cam;
@@ -30,6 +31,7 @@ class MapCanvas extends StatefulWidget {
   final void Function(String id) onEditGoal;
   final void Function(String id) onEditRing;
   final void Function(String hostId, String actionId) onEditAction;
+  final void Function(String hostId, String actionId)? onTimeBranch;
 
   @override
   State<MapCanvas> createState() => _MapCanvasState();
@@ -55,6 +57,7 @@ class _MapCanvasState extends State<MapCanvas> with SingleTickerProviderStateMix
       onEditGoal: widget.onEditGoal,
       onEditRing: widget.onEditRing,
       onEditAction: widget.onEditAction,
+      onTimeBranch: widget.onTimeBranch,
     );
     WidgetsBinding.instance.addObserver(this);
   }
