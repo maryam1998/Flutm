@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 const int kNeuralFiberCap = 10;
 
-// رنگ‌های پایه‌ی مسیر عصبی
 const Color kEmerald300 = Color(0xFF54C9B8);
 const Color kEmerald500 = Color(0xFF2BBFAB);
 const Color kEmerald700 = Color(0xFF0F5B53);
@@ -14,7 +13,6 @@ const Color kNeuralCard = Color(0xFFFFFFFF);
 const Color kNeuralCream = Color(0xFFFBF6EA);
 const Color kGold500 = Color(0xFFC9972B);
 
-/// تیِر رشد هر نورون: ۰ تا ۳
 int neuralTier(int fiberCount, bool habitFormed) {
   if (habitFormed) return 3;
   if (fiberCount <= 0) return 0;
@@ -23,7 +21,6 @@ int neuralTier(int fiberCount, bool habitFormed) {
   return 1;
 }
 
-/// ظاهر هر تیِر (رنگ و کاراکتر)
 class NeuralTierStyle {
   final Color fill;
   final Color stroke;
