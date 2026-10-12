@@ -8,37 +8,35 @@ const _kMuted = Color(0xFF7A6B57);
 const _kBorder = Color(0xFFE0D5C0);
 const _kCard = Colors.white;
 
-class LayerWave {
-  final double baseR, amp, freq, phase;
-  final Color color;
-  const LayerWave({
+class _Layer {
+  final String key;
+  final String chip;
+  final String title;
+  final String desc;
+  final double baseR;
+  final double amp;
+  final double freq;
+  final double phase;
+  const _Layer({
+    required this.key,
+    required this.chip,
+    required this.title,
+    required this.desc,
     required this.baseR,
     required this.amp,
     required this.freq,
     required this.phase,
-    required this.color,
   });
 }
 
-const Map<String, LayerWave> kLayerWaves = {
-  'body':  LayerWave(baseR: 105, amp: 11.0, freq: 3, phase: 0.0, color: Color(0xFF8B8FA8)),
-  'one':   LayerWave(baseR: 88,  amp: 9.5,  freq: 4, phase: 0.8, color: Color(0xFFA0A4B8)),
-  'thing': LayerWave(baseR: 72,  amp: 8.0,  freq: 5, phase: 1.6, color: Color(0xFFB0B4C8)),
-  'where': LayerWave(baseR: 56,  amp: 6.5,  freq: 6, phase: 2.4, color: Color(0xFFC0C4D8)),
-  'time':  LayerWave(baseR: 40,  amp: 5.0,  freq: 7, phase: 3.2, color: Color(0xFFD0D4E8)),
-};
-
-const List<String> kLayerKeys = ['body', 'one', 'thing', 'where', 'time'];
-
-const List<Map<String, String>> kLayerLabels = [
-  {'key': 'body',  'chip': 'بدن',  'title': 'No body',  'desc': 'من بدنم نیستم. توجه از بدن، دردها و حس‌های جسمی جدا می‌شه.'},
-  {'key': 'one',   'chip': 'هویت', 'title': 'No one',   'desc': 'من اون شخصیت، اسم، نقش، گذشته و داستان‌هام نیستم.'},
-  {'key': 'thing', 'chip': 'اشیا', 'title': 'No thing', 'desc': 'وابستگی به اشیا، دارایی‌ها و شرایط بیرونی رها می‌شه.'},
-  {'key': 'where', 'chip': 'مکان', 'title': 'No where', 'desc': 'آگاهی به اینجا و آنجا گره نخورده.'},
-  {'key': 'time',  'chip': 'زمان', 'title': 'In no time', 'desc': 'گذشته و آینده رها می‌شن و فقط حالِ بی‌زمان می‌مونه.'},
+const List<_Layer> _layers = [
+  _Layer(key: 'body',  chip: 'بدن',  title: 'No body',    desc: 'من بدنم نیستم. توجه از بدن، دردها و حس‌های جسمی جدا می‌شه.',           baseR: 105, amp: 11.0, freq: 3, phase: 0.0),
+  _Layer(key: 'one',   chip: 'هویت', title: 'No one',     desc: 'من اون شخصیت، اسم، نقش، گذشته و داستان‌هام نیستم.',                  baseR: 88,  amp: 9.5,  freq: 4, phase: 0.8),
+  _Layer(key: 'thing', chip: 'اشیا', title: 'No thing',   desc: 'وابستگی به اشیا، دارایی‌ها و شرایط بیرونی رها می‌شه.',                baseR: 72,  amp: 8.0,  freq: 5, phase: 1.6),
+  _Layer(key: 'where', chip: 'مکان', title: 'No where',   desc: 'آگاهی به اینجا و آنجا گره نخورده.',                                    baseR: 56,  amp: 6.5,  freq: 6, phase: 2.4),
+  _Layer(key: 'time',  chip: 'زمان', title: 'In no time', desc: 'گذشته و آینده رها می‌شن و فقط حالِ بی‌زمان می‌مونه.',                baseR: 40,  amp: 5.0,  freq: 7, phase: 3.2),
 ];
 
-/// صحنه‌ی «هیچ شدن» — ۵ موج سینوسی + هسته‌ی نورانی + چیپ‌ها + دکمه‌ها
 class NothingScene extends StatefulWidget {
   final Set<String> doneLayers;
   final ValueChanged<String> onToggle;
@@ -80,38 +78,38 @@ class _NothingSceneState extends State<NothingScene>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // صحنه‌ی موج‌ها
+        // صحنه
         AspectRatio(
           aspectRatio: 1,
           child: AnimatedBuilder(
             animation: _ctrl,
             builder: (_, __) => CustomPaint(
-              painter: _NothingWavePainter(
+              painter: _NothingPainter(
                 t: _ctrl.value,
                 doneLayers: widget.doneLayers,
                 progress: progress,
               ),
               child: Stack(
                 children: [
-                  // چیپ‌های پنج‌گانه
+                  // چیپ‌های داخل دایره
                   ..._buildChips(),
-                  // برچسب آگاهی خالص
+                  // برچسب «آگاهی خالص»
                   Positioned(
-                    bottom: 4,
+                    bottom: 8,
                     left: 0,
                     right: 0,
                     child: Center(
                       child: Text(
                         'آگاهی خالص',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                           color: _kEmerald700,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.4,
                           shadows: [
                             Shadow(
-                              color: _kGold500.withValues(alpha: 0.5 * progress),
-                              blurRadius: 8 * progress,
+                              color: _kGold500.withValues(alpha: 0.2 + progress * 0.5),
+                              blurRadius: 4 + progress * 8,
                             ),
                           ],
                         ),
@@ -126,21 +124,17 @@ class _NothingSceneState extends State<NothingScene>
 
         const SizedBox(height: 14),
 
-        // ۵ دکمه‌ی مرحله
-        ...kLayerLabels.map((m) {
-          final key = m['key']!;
-          final isDone = widget.doneLayers.contains(key);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: _LayerStepButton(
-              number: (kLayerKeys.indexOf(key) + 1).toString(),
-              title: m['title']!,
-              desc: m['desc']!,
-              isDone: isDone,
-              onTap: () => widget.onToggle(key),
-            ),
-          );
-        }),
+        // ۵ دکمه
+        ..._layers.map((l) => Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: _LayerButton(
+            number: (_layers.indexOf(l) + 1).toString(),
+            title: l.title,
+            desc: l.desc,
+            isDone: widget.doneLayers.contains(l.key),
+            onTap: () => widget.onToggle(l.key),
+          ),
+        )),
 
         const SizedBox(height: 8),
 
@@ -170,13 +164,12 @@ class _NothingSceneState extends State<NothingScene>
           ),
         ),
 
-        // دکمه‌ی ریست
         Align(
           alignment: Alignment.center,
           child: TextButton(
             onPressed: () {
-              for (final k in kLayerKeys) {
-                if (widget.doneLayers.contains(k)) widget.onToggle(k);
+              for (final l in _layers) {
+                if (widget.doneLayers.contains(l.key)) widget.onToggle(l.key);
               }
             },
             child: const Text(
@@ -190,26 +183,19 @@ class _NothingSceneState extends State<NothingScene>
   }
 
   List<Widget> _buildChips() {
-    // موقعیت چیپ‌ها حول هسته (نسبت به مربع)
-    const positions = <String, Alignment>{
-      'body':  Alignment(-0.42, -0.35),
-      'one':   Alignment(0.42, -0.35),
-      'thing': Alignment(-0.42, 0.42),
-      'where': Alignment(0.42, 0.42),
-      'time':  Alignment(0.0, 0.05),
-    };
-
-    return kLayerLabels.map((m) {
-      final key = m['key']!;
-      final isDone = widget.doneLayers.contains(key);
+    // دو ردیف چیپ داخل دایره: [بدن][هویت] / [اشیا][مکان] / [زمان]
+    return _layers.map((l) {
+      final isDone = widget.doneLayers.contains(l.key);
+      // ترتیب: body, one → ردیف اول؛ thing, where → ردیف دوم؛ time → ردیف سوم
       return Align(
-        alignment: positions[key]!,
+        alignment: _alignmentFor(l.key),
         child: AnimatedOpacity(
           opacity: isDone ? 0 : 1,
           duration: const Duration(milliseconds: 500),
           child: GestureDetector(
-            onTap: () => widget.onToggle(key),
+            onTap: () => widget.onToggle(l.key),
             child: Container(
+              margin: const EdgeInsets.all(2),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: _kCard.withValues(alpha: 0.92),
@@ -223,7 +209,7 @@ class _NothingSceneState extends State<NothingScene>
                 ],
               ),
               child: Text(
-                m['chip']!,
+                l.chip,
                 style: const TextStyle(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w800,
@@ -236,139 +222,31 @@ class _NothingSceneState extends State<NothingScene>
       );
     }).toList();
   }
+
+  Alignment _alignmentFor(String key) {
+    // چیدمان مثل وب:
+    //      [بدن] [هویت]
+    //      [اشیا] [مکان]
+    //         [زمان]
+    switch (key) {
+      case 'body':  return const Alignment(-0.38, -0.62);
+      case 'one':   return const Alignment( 0.38, -0.62);
+      case 'thing': return const Alignment(-0.38, -0.20);
+      case 'where': return const Alignment( 0.38, -0.20);
+      case 'time':  return const Alignment( 0.0,  0.22);
+    }
+    return Alignment.center;
+  }
 }
 
-// ═══════════════ Painter ═══════════════
-class _NothingWavePainter extends CustomPainter {
-  final double t; // 0..1 cycle
-  final Set<String> doneLayers;
-  final double progress;
-
-  _NothingWavePainter({
-    required this.t,
-    required this.doneLayers,
-    required this.progress,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final scale = size.width / 300.0;
-
-    canvas.save();
-    canvas.translate(cx, cy);
-    canvas.scale(scale);
-
-    final phase = t * 2 * math.pi;
-
-    // ۵ موج لایه‌ای
-    for (final key in kLayerKeys) {
-      final wave = kLayerWaves[key]!;
-      final isDone = doneLayers.contains(key);
-      final targetAmp = isDone ? 0.0 : wave.amp;
-      // انیمیشن نرم برای کاهش دامنه
-      final curAmp = targetAmp; // ساده: مستقیم
-
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.1
-        ..color = wave.color.withValues(alpha: isDone ? 0.15 : 0.78);
-
-      final path = _buildSinePath(
-        baseR: wave.baseR,
-        amp: curAmp,
-        freq: wave.freq,
-        phase: wave.phase + phase * (isDone ? 1.8 : 1.0),
-      );
-      canvas.drawPath(path, paint);
-    }
-
-    // هسته‌ی نورانی
-    final allDone = doneLayers.length >= 5;
-    final pureAmp = allDone ? 0.4 : 1.6;
-    final purePath = _buildSinePath(
-      baseR: 26,
-      amp: pureAmp,
-      freq: 8,
-      phase: phase * 2.4,
-    );
-    final purePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..color = _kGold500.withValues(alpha: 0.9);
-    canvas.drawPath(purePath, purePaint);
-
-    // هاله‌ی هسته
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          _kGold500.withValues(alpha: 0.20 + progress * 0.55),
-          _kEmerald500.withValues(alpha: 0.08 + progress * 0.35),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.42, 0.72],
-      ).createShader(Rect.fromCircle(center: Offset.zero, radius: 75));
-    canvas.drawCircle(Offset.zero, 75, glowPaint);
-
-    // حلقه‌ی هسته
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1 + progress * 1.2
-      ..color = _kGold500.withValues(alpha: 0.45 + progress * 0.5);
-    canvas.drawCircle(Offset.zero, 24, ringPaint);
-
-    // نقطه‌ی مرکزی
-    final dotPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          Colors.white,
-          _kGold500,
-        ],
-      ).createShader(Rect.fromCircle(center: Offset.zero, radius: 8));
-    canvas.drawCircle(Offset.zero, 8 + progress * 3, dotPaint);
-
-    canvas.restore();
-  }
-
-  Path _buildSinePath({
-    required double baseR,
-    required double amp,
-    required double freq,
-    required double phase,
-  }) {
-    final path = Path();
-    const pts = 160;
-    for (var i = 0; i <= pts; i++) {
-      final theta = (i / pts) * 2 * math.pi;
-      final r = baseR + amp * math.sin(freq * theta + phase);
-      final x = r * math.cos(theta);
-      final y = r * math.sin(theta);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldRepaint(covariant _NothingWavePainter old) =>
-      old.t != t || old.progress != progress ||
-      old.doneLayers.length != doneLayers.length;
-}
-
-// ═══════════════ دکمه‌ی هر لایه ═══════════════
-class _LayerStepButton extends StatelessWidget {
+class _LayerButton extends StatelessWidget {
   final String number;
   final String title;
   final String desc;
   final bool isDone;
   final VoidCallback onTap;
 
-  const _LayerStepButton({
+  const _LayerButton({
     required this.number,
     required this.title,
     required this.desc,
@@ -452,7 +330,6 @@ class _LayerStepButton extends StatelessWidget {
   }
 }
 
-// ═══════════════ نقطه‌ی تپنده ═══════════════
 class _PulseDot extends StatefulWidget {
   const _PulseDot();
   @override
@@ -501,4 +378,115 @@ class _PulseDotState extends State<_PulseDot>
       },
     );
   }
+}
+
+class _NothingPainter extends CustomPainter {
+  final double t;
+  final Set<String> doneLayers;
+  final double progress;
+
+  _NothingPainter({
+    required this.t,
+    required this.doneLayers,
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final scale = size.width / 300.0;
+
+    canvas.save();
+    canvas.translate(cx, cy);
+    canvas.scale(scale);
+
+    final phase = t * 2 * math.pi;
+
+    // موج‌های ۵ لایه
+    for (final l in _layers) {
+      final isDone = doneLayers.contains(l.key);
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.1
+        ..color = const Color(0xFF8B8FA8).withValues(alpha: isDone ? 0.15 : 0.78);
+
+      final path = _sinePath(
+        baseR: l.baseR,
+        amp: isDone ? 0 : l.amp,
+        freq: l.freq,
+        phase: l.phase + phase * (isDone ? 1.8 : 1.0),
+      );
+      canvas.drawPath(path, paint);
+    }
+
+    // هسته‌ی نورانی
+    final allDone = doneLayers.length >= 5;
+    final pureAmp = allDone ? 0.4 : 1.6;
+    final purePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = _kGold500.withValues(alpha: 0.9);
+    canvas.drawPath(
+      _sinePath(baseR: 26, amp: pureAmp, freq: 8, phase: phase * 2.4),
+      purePaint,
+    );
+
+    // هاله‌ی هسته
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          _kGold500.withValues(alpha: 0.20 + progress * 0.55),
+          _kEmerald500.withValues(alpha: 0.08 + progress * 0.35),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.42, 0.72],
+      ).createShader(Rect.fromCircle(center: Offset.zero, radius: 75));
+    canvas.drawCircle(Offset.zero, 75, glowPaint);
+
+    // حلقه‌ی مرکزی
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1 + progress * 1.2
+      ..color = _kGold500.withValues(alpha: 0.45 + progress * 0.5);
+    canvas.drawCircle(Offset.zero, 24, ringPaint);
+
+    // نقطه‌ی مرکزی
+    final dotPaint = Paint()
+      ..shader = const RadialGradient(
+        colors: [Colors.white, _kGold500],
+      ).createShader(Rect.fromCircle(center: Offset.zero, radius: 8));
+    canvas.drawCircle(Offset.zero, 8 + progress * 3, dotPaint);
+
+    canvas.restore();
+  }
+
+  Path _sinePath({
+    required double baseR,
+    required double amp,
+    required double freq,
+    required double phase,
+  }) {
+    final path = Path();
+    const pts = 160;
+    for (var i = 0; i <= pts; i++) {
+      final theta = (i / pts) * 2 * math.pi;
+      final r = baseR + amp * math.sin(freq * theta + phase);
+      final x = r * math.cos(theta);
+      final y = r * math.sin(theta);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldRepaint(covariant _NothingPainter old) =>
+      old.t != t ||
+      old.progress != progress ||
+      old.doneLayers.length != doneLayers.length;
 }
