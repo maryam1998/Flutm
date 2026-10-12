@@ -10,6 +10,7 @@ import '../models/gratitude_entry.dart';
 import '../models/jalali.dart';
 import '../services/image_service.dart';
 import '../state/gratitude_store.dart';
+import '../widgets/neural_pathway.dart';
 
 const _kCream = Color(0xFFFBF6EA);
 const _kCard = Colors.white;
@@ -169,6 +170,16 @@ class _GratitudeTabState extends State<GratitudeTab> {
 
             // تقویم کوچک
             _MiniCalendar(store: store),
+            const SizedBox(height: 16),
+
+            // مسیر عصبی
+            NeuralPathway(
+              container: store.neural,
+              label: 'شکرگذاری',
+              showDayButtons: true,
+              showHabitButton: true,
+              onChange: () { store.saveNeural(); },
+            ),
             const SizedBox(height: 16),
 
             // فرم افزودن
