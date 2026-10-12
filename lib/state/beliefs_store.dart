@@ -6,6 +6,53 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/future_text_format.dart';
 import '../models/future_version.dart';
 
+// ═══════════════ مدل‌های مأموریت ذهن (RAS) ═══════════════
+class RasSignal {
+  final String id;
+  final DateTime ts;
+  final String text;
+  final String feel;
+  const RasSignal({
+    required this.id,
+    required this.ts,
+    required this.text,
+    required this.feel,
+  });
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'ts': ts.millisecondsSinceEpoch,
+        'text': text,
+        'feel': feel,
+      };
+  factory RasSignal.fromJson(Map<String, dynamic> j) => RasSignal(
+        id: j['id'] as String,
+        ts: DateTime.fromMillisecondsSinceEpoch(j['ts'] as int),
+        text: j['text'] as String? ?? '',
+        feel: j['feel'] as String? ?? 'normal',
+      );
+}
+
+class RasMissionData {
+  final String label;
+  final String? chipId;
+  final String startDate;
+  const RasMissionData({
+    required this.label,
+    this.chipId,
+    required this.startDate,
+  });
+  Map<String, dynamic> toJson() => {
+        'label': label,
+        'chip': chipId,
+        'startDate': startDate,
+      };
+  factory RasMissionData.fromJson(Map<String, dynamic> j) => RasMissionData(
+        label: j['label'] as String? ?? '',
+        chipId: j['chip'] as String?,
+        startDate: j['startDate'] as String? ?? '',
+      );
+}
+
 /// مقدار پیش‌فرض دوره‌ی خواندن (۹۰ روز طبق وب)
 const int kFutureDefaultDays = 90;
 const int kFutureMaxDays = 365;
@@ -13,6 +60,8 @@ const int kFutureMaxDays = 365;
 class BeliefsStore extends ChangeNotifier {
   static const _kVersions = 'beliefs_versions';
   static const _kActiveId = 'beliefs_active_id';
+  static const _kRasMission = 'ras_mission_v1';
+  static const _kRasSignals = 'ras_signals_v1';
   static const _kFormat = 'beliefs_format';
   static const _kCycleDays = 'beliefs_cycle_days';
   static const _kAlarmEnabled = 'beliefs_alarm_enabled';
@@ -22,6 +71,10 @@ class BeliefsStore extends ChangeNotifier {
   String? activeVersionId;
   FutureTextFormat format = FutureTextFormat();
   int cycleDays = kFutureDefaultDays;
+
+  // ═══════════════ مأموریت ذهن (RAS) ═══════════════
+  RasMissionData? rasMission;
+  final List<RasSignal> rasSignals = [];
 
   bool alarmEnabled = false;
   String alarmTime = '20:00';
@@ -60,6 +113,25 @@ class BeliefsStore extends ChangeNotifier {
 
       alarmEnabled = sp.getBool(_kAlarmEnabled) ?? false;
       alarmTime = sp.getString(_kAlarmTime) ?? '20:00';
+
+      // RAS Mission
+      final rmRaw = sp.getString(_kRasMission);
+      if (rmRaw != null && rmRaw.isNotEmpty) {
+        try {
+          rasMission = RasMissionData.fromJson(
+            Map<String, dynamic>.from(jsonDecode(rmRaw)),
+          );
+        } catch (_) {}
+      }
+      final rsRaw = sp.getString(_kRasSignals);
+      if (rsRaw != null && rsRaw.isNotEmpty) {
+        try {
+          rasSignals
+            ..clear()
+            ..addAll((jsonDecode(rsRaw) as List).map(
+                (e) => RasSignal.fromJson(Map<String, dynamic>.from(e))));
+        } catch (_) {}
+      }
     } catch (_) {}
 
     loaded = true;
@@ -80,6 +152,10 @@ class BeliefsStore extends ChangeNotifier {
       await sp.setInt(_kCycleDays, cycleDays);
       await sp.setBool(_kAlarmEnabled, alarmEnabled);
       await sp.setString(_kAlarmTime, alarmTime);
+      await sp.setString(_kRasMission,
+          rasMission == null ? '' : jsonEncode(rasMission!.toJson()));
+      await sp.setString(_kRasSignals,
+          jsonEncode(rasSignals.map((e) => e.toJson()).toList()));
     } catch (_) {}
   }
 
@@ -262,5 +338,78 @@ class BeliefsStore extends ChangeNotifier {
     final p = k.split('-').map((e) => int.tryParse(e) ?? 1).toList();
     if (p.length != 3) return DateTime.now();
     return DateTime(p[0], p[1], p[2]);
+  }
+
+  // ═══════════════ RAS Mission ═══════════════
+  static String todayKey() {
+    final d = DateTime.now();
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  int get rasMissionDay {
+    if (rasMission == null) return 0;
+    final parts =
+        rasMission!.startDate.split('-').map((e) => int.tryParse(e) ?? 1).toList();
+    if (parts.length != 3) return 1;
+    final start = DateTime(parts[0], parts[1], parts[2]);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final diff = today.difference(start).inDays + 1;
+    return diff < 1 ? 1 : diff;
+  }
+
+  void startRasMission({String? chipId, required String label}) {
+    rasMission = RasMissionData(
+      label: label,
+      chipId: chipId,
+      startDate: todayKey(),
+    );
+    notifyListeners();
+    _persist();
+  }
+
+  void endRasMission() {
+    rasMission = null;
+    notifyListeners();
+    _persist();
+  }
+
+  void addRasSignal(String text, String feel) {
+    rasSignals.add(RasSignal(
+      id: 'sig_${DateTime.now().millisecondsSinceEpoch}_${rasSignals.length}',
+      ts: DateTime.now(),
+      text: text,
+      feel: feel,
+    ));
+    notifyListeners();
+    _persist();
+  }
+
+  void removeRasSignal(String id) {
+    rasSignals.removeWhere((s) => s.id == id);
+    notifyListeners();
+    _persist();
+  }
+
+  List<RasSignal> rasSignalsForDay(String key) {
+    return rasSignals.where((s) {
+      final d = s.ts;
+      final k =
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      return k == key;
+    }).toList();
+  }
+
+  List<({DateTime date, String key, int count})> rasSignalsForLast7Days() {
+    final out = <({DateTime date, String key, int count})>[];
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (var i = 6; i >= 0; i--) {
+      final d = today.subtract(Duration(days: i));
+      final k =
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      out.add((date: d, key: k, count: rasSignalsForDay(k).length));
+    }
+    return out;
   }
 }
