@@ -8,6 +8,11 @@ import 'state/map_store.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = MapStore(StorageService());
-  await store.load();
+  try {
+    await store.load();
+  } catch (e, st) {
+    // اگه خوندن ذخیره‌شده خراب شد هم برنامه با نقشه‌ی خالی بالا بیاد، نه صفحه‌ی سفید
+    debugPrint('load failed: $e\n$st');
+  }
   runApp(ChangeNotifierProvider.value(value: store, child: const MaghzApp()));
 }

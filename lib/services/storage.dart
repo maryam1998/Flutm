@@ -1,8 +1,13 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show File, Platform;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// کلید ذخیره در مرورگر (نسخه‌ی وب؛ dart:io و path_provider روی وب کار نمی‌کنن)
+const _webKey = 'maghz_map_json';
 
 /// ذخیره‌سازی روی فایل JSON (جایگزین localStorage / IndexedDB)
 class StorageService {
@@ -13,12 +18,17 @@ class StorageService {
   }
 
   Future<String?> read() async {
+    if (kIsWeb) return (await SharedPreferences.getInstance()).getString(_webKey);
     final f = await _file();
     return await f.exists() ? f.readAsString() : null;
   }
 
   /// نوشتن امن: اول فایل موقت، بعد جایگزینی
   Future<void> write(String data) async {
+    if (kIsWeb) {
+      await (await SharedPreferences.getInstance()).setString(_webKey, data);
+      return;
+    }
     final f = await _file();
     final tmp = File('${f.path}.tmp');
     await tmp.writeAsString(data, flush: true);
@@ -27,9 +37,19 @@ class StorageService {
 
   /// اگه فایل خراب بود یک کپی نگه می‌داریم تا داده از بین نره
   Future<void> keepCorruptCopy() async {
-    final f = await _file();
-    if (await f.exists()) {
-      await f.copy('${f.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}');
+    try {
+      if (kIsWeb) {
+        final p = await SharedPreferences.getInstance();
+        final raw = p.getString(_webKey);
+        if (raw != null) await p.setString('$_webKey.corrupt-${DateTime.now().millisecondsSinceEpoch}', raw);
+        return;
+      }
+      final f = await _file();
+      if (await f.exists()) {
+        await f.copy('${f.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}');
+      }
+    } catch (_) {
+      // نگه‌داشتن کپی خراب نباید جلوی بالا اومدن برنامه رو بگیره
     }
   }
 
@@ -42,8 +62,9 @@ class StorageService {
       fileName: name,
       type: FileType.custom,
       allowedExtensions: ['json'],
-      bytes: (Platform.isAndroid || Platform.isIOS) ? bytes : null,
+      bytes: (kIsWeb || Platform.isAndroid || Platform.isIOS) ? bytes : null,
     );
+    if (kIsWeb) return true; // روی وب مرورگر خودش فایل رو دانلود می‌کنه
     if (path == null) return false;
     if (!(Platform.isAndroid || Platform.isIOS)) {
       await File(path).writeAsBytes(bytes, flush: true);
@@ -61,7 +82,7 @@ class StorageService {
     if (res == null || res.files.isEmpty) return null;
     final f = res.files.first;
     if (f.bytes != null) return utf8.decode(f.bytes!);
-    if (f.path != null) return File(f.path!).readAsString();
+    if (!kIsWeb && f.path != null) return File(f.path!).readAsString();
     return null;
   }
 }
