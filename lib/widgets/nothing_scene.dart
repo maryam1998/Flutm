@@ -4,11 +4,9 @@ import 'package:flutter/material.dart';
 const _kEmerald500 = Color(0xFF2BBFAB);
 const _kEmerald700 = Color(0xFF0F5B53);
 const _kGold500 = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
 const _kMuted = Color(0xFF7A6B57);
 const _kBorder = Color(0xFFE0D5C0);
 const _kCard = Colors.white;
-const _kCream = Color(0xFFFBF6EA);
 
 class LayerWave {
   final double baseR, amp, freq, phase;
