@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
 import '../models/neural_container.dart';
+import 'emotion_store.dart';
 
 class GratitudeStore extends ChangeNotifier {
   static const _kEntries = 'gratitude_entries';
@@ -114,11 +116,28 @@ class GratitudeStore extends ChangeNotifier {
     return !today.isBefore(end);
   }
 
-  Future<void> markNeuralForToday() async {
+  /// یک EmotionStore رو می‌گیره تا اگه کاربر قبل از ثبت شکرگذاری
+  /// توی ویجت حس انتخاب کرده بود، رشته‌ی عصبی جدید با همون رنگ ساخته بشه.
+  Future<void> markNeuralForToday(EmotionStore emotions) async {
     final today = NeuralContainer.todayKey();
     if (neural.autoDays[today] == true) return;
     neural.autoDays[today] = true;
-    neural.addAutoFiber();
+
+    NeuralFiberEmotion? felt;
+    if (emotions.hasSelection) {
+      final dom = dominantEmotion(emotions.selectedIds);
+      if (dom != null) {
+        felt = NeuralFiberEmotion(
+          ids: emotions.selectedIds,
+          color: dom.color,
+          freq: dom.freq,
+        );
+      }
+    }
+
+    neural.addAutoFiber(emotion: felt);
+    emotions.reset(); // بعد از مصرف، ویجت ریست بشه
+
     await _persist();
     notifyListeners();
   }
@@ -136,6 +155,7 @@ class GratitudeStore extends ChangeNotifier {
     double? amount,
     String source = 'manual',
     double? txId,
+    EmotionStore? emotions,
   }) async {
     final now = DateTime.now();
     final e = GratitudeEntry(
@@ -154,12 +174,27 @@ class GratitudeStore extends ChangeNotifier {
       txId: txId,
     );
     entries.add(e);
-    // ثبت خودکار یک رشته‌ی عصبی برای امروز (فقط اولین بار در روز)
+
+    // ثبت خودکار یک رشته‌ی عصبی برای امروز
     final today = NeuralContainer.todayKey();
     if (neural.autoDays[today] != true) {
       neural.autoDays[today] = true;
-      neural.addAutoFiber();
+
+      NeuralFiberEmotion? felt;
+      if (emotions != null && emotions.hasSelection) {
+        final dom = dominantEmotion(emotions.selectedIds);
+        if (dom != null) {
+          felt = NeuralFiberEmotion(
+            ids: emotions.selectedIds,
+            color: dom.color,
+            freq: dom.freq,
+          );
+        }
+        emotions.reset();
+      }
+      neural.addAutoFiber(emotion: felt);
     }
+
     await _persist();
     notifyListeners();
     return e;

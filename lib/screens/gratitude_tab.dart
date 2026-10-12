@@ -9,6 +9,7 @@ import '../map/draw_utils.dart' show toFa;
 import '../models/gratitude_entry.dart';
 import '../models/jalali.dart';
 import '../services/image_service.dart';
+import '../state/emotion_store.dart';
 import '../state/gratitude_store.dart';
 import '../widgets/neural_pathway.dart';
 
@@ -55,6 +56,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
 
   Future<void> _submit() async {
     final store = context.read<GratitudeStore>();
+    final emotions = context.read<EmotionStore>();
     final text = _text.text.trim();
     if (text.isEmpty && _pendingImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -69,6 +71,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
         text: text,
         images: List.of(_pendingImages),
         shared: _shared,
+        emotions: emotions,
       );
       _text.clear();
       setState(() {
