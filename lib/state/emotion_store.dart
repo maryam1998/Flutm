@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'emotion.dart';
+import '../models/emotion.dart';
 
 /// انتخاب فعلی توی ویجت شناور «آدم و احساسات».
 /// بعد از اینکه یک رشته‌ی عصبی ازش مصرف کرد، ریست می‌شه.
