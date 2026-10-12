@@ -9,7 +9,6 @@ import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
 
-/// مرحله ۳: نقشه + لمس و درگ + افزودن + پنل ویرایش. مرحله ۴: فهرست اهداف و تیک روزانه
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
   @override
@@ -61,147 +60,169 @@ class _MapTabState extends State<MapTab> {
     final store = context.watch<MapStore>();
     final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
     final anyOpen = store.anyOpen;
+
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,          // ← این خط حیاتی
         children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                  colors: [Color(0xFF0B0D1E), Color(0xFF151933)],
-                ),
+          // پس‌زمینه
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [Color(0xFF0B0D1E), Color(0xFF151933)],
               ),
             ),
           ),
-          Positioned.fill(
-            child: MapCanvas(
-              cam: cam,
-              boundsBox: bounds,
-              isResizeMode: () => _resizeMode,
-              onEditMe: () => showEditSheet(context, const MeTarget()),
-              onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
-              onEditRing: (id) => showEditSheet(context, RingTarget(id)),
-              onEditAction: (hostId, actionId) => showEditSheet(context, ActionTarget(hostId, actionId)),
-            ),
+
+          // بوم نقشه
+          MapCanvas(
+            cam: cam,
+            boundsBox: bounds,
+            isResizeMode: () => _resizeMode,
+            onEditMe: () => showEditSheet(context, const MeTarget()),
+            onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
+            onEditRing: (id) => showEditSheet(context, RingTarget(id)),
+            onEditAction: (hostId, actionId) =>
+                showEditSheet(context, ActionTarget(hostId, actionId)),
           ),
+
+          // پیام حالت خالی
           if (empty)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Align(
-                  alignment: const Alignment(0, 0.35),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      'هنوز هدفی نیست.\nبا دکمه‌ی + یه هدف بساز، یا از منوی بالا «ورودی بکاپ» رو بزن تا نقشه‌ی قبلی‌ت بیاد.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white.withAlpha(140), height: 1.8),
-                    ),
+            IgnorePointer(
+              child: Align(
+                alignment: const Alignment(0, 0.35),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'هنوز هدفی نیست.\nبا دکمه‌ی + یه هدف بساز، یا از منوی بالا «ورودی بکاپ» رو بزن.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withAlpha(140), height: 1.8),
                   ),
                 ),
               ),
             ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (v) => v == 'in' ? _import(context, store) : _export(context, store),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
-                      PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
-                    ],
-                  ),
-                  const Spacer(),
-                  if (_resizeMode)
-                    Container(
-                      margin: const EdgeInsets.only(left: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF5EC8F0).withAlpha(60),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF5EC8F0)),
+
+          // نوار بالا (منوی سه‌نقطه + درصد زوم)
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      onSelected: (v) =>
+                          v == 'in' ? _import(context, store) : _export(context, store),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
+                        PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
+                      ],
+                    ),
+                    const Spacer(),
+                    if (_resizeMode)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF5EC8F0).withAlpha(60),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF5EC8F0)),
+                        ),
+                        child: const Text('تغییر اندازه با دو انگشت',
+                            style: TextStyle(fontSize: 12, color: Colors.white)),
                       ),
-                      child: const Text('حالت تغییر اندازه: دو انگشت روی نوشته/آیکون', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 8),
+                    ListenableBuilder(
+                      listenable: cam,
+                      builder: (_, __) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                            color: Colors.black38,
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Text('${(cam.scale * 100).round()}٪',
+                            style: const TextStyle(fontSize: 12, color: Colors.white)),
+                      ),
                     ),
-                  ListenableBuilder(
-                    listenable: cam,
-                    builder: (_, __) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(10)),
-                      child: Text('${(cam.scale * 100).round()}٪', style: const TextStyle(fontSize: 12)),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
+
           // دکمه‌های ابزار (چپ پایین)
           Positioned(
             left: 16,
             bottom: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: 'goals',
-                  tooltip: 'فهرست اهداف',
-                  onPressed: _openGoals,
-                  child: const Icon(Icons.format_list_bulleted),
-                ),
-                const SizedBox(height: 10),
-                FloatingActionButton.small(
-                  heroTag: 'resize',
-                  tooltip: 'حالت تغییر اندازه',
-                  backgroundColor: _resizeMode ? const Color(0xFF5EC8F0) : null,
-                  foregroundColor: _resizeMode ? Colors.black : null,
-                  onPressed: () => setState(() => _resizeMode = !_resizeMode),
-                  child: const Icon(Icons.open_in_full),
-                ),
-                if (store.hasCollapsible) ...[
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'goals',
+                    tooltip: 'فهرست اهداف',
+                    onPressed: _openGoals,
+                    child: const Icon(Icons.format_list_bulleted),
+                  ),
                   const SizedBox(height: 10),
                   FloatingActionButton.small(
-                    heroTag: 'collapse',
-                    tooltip: anyOpen ? 'جمع همه' : 'باز همه',
-                    onPressed: () => store.collapseAll(anyOpen),
-                    child: Icon(anyOpen ? Icons.unfold_less : Icons.unfold_more),
+                    heroTag: 'resize',
+                    tooltip: 'حالت تغییر اندازه',
+                    backgroundColor: _resizeMode ? const Color(0xFF5EC8F0) : null,
+                    foregroundColor: _resizeMode ? Colors.black : null,
+                    onPressed: () => setState(() => _resizeMode = !_resizeMode),
+                    child: const Icon(Icons.open_in_full),
+                  ),
+                  if (store.hasCollapsible) ...[
+                    const SizedBox(height: 10),
+                    FloatingActionButton.small(
+                      heroTag: 'collapse',
+                      tooltip: anyOpen ? 'جمع همه' : 'باز همه',
+                      onPressed: () => store.collapseAll(anyOpen),
+                      child: Icon(anyOpen ? Icons.unfold_less : Icons.unfold_more),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  FloatingActionButton.small(
+                    heroTag: 'fit',
+                    tooltip: 'نمایش همه',
+                    onPressed: _fit,
+                    child: const Icon(Icons.fit_screen),
                   ),
                 ],
-                const SizedBox(height: 10),
-                FloatingActionButton.small(
-                  heroTag: 'fit',
-                  tooltip: 'نمایش همه',
-                  onPressed: _fit,
-                  child: const Icon(Icons.fit_screen),
-                ),
-              ],
+              ),
             ),
           ),
+
           // افزودن (راست پایین)
           Positioned(
             right: 16,
             bottom: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: 'addRing',
-                  tooltip: 'نشانه‌ی نزدیکی جدید',
-                  onPressed: store.addRing,
-                  child: const Icon(Icons.stars_outlined),
-                ),
-                const SizedBox(height: 10),
-                FloatingActionButton(
-                  heroTag: 'addGoal',
-                  tooltip: 'هدف جدید',
-                  onPressed: () => showAddGoalDialog(context),
-                  child: const Icon(Icons.add),
-                ),
-              ],
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'addRing',
+                    tooltip: 'نشانه‌ی نزدیکی جدید',
+                    onPressed: store.addRing,
+                    child: const Icon(Icons.stars_outlined),
+                  ),
+                  const SizedBox(height: 10),
+                  FloatingActionButton(
+                    heroTag: 'addGoal',
+                    tooltip: 'هدف جدید',
+                    onPressed: () => showAddGoalDialog(context),
+                    child: const Icon(Icons.add),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
