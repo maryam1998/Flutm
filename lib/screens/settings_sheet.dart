@@ -38,7 +38,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _inited = true;
     final s = context.read<MapStore>().state;
     _textColor = _parseTextColor(s.textColor);
-    _fontSize = s.fontSize.clamp(8.0, 28.0);
+    _fontSize = s.fontSize.clamp(8.0, 28.0).toDouble();
     _showDates = s.showDateStamps;
     _showTimes = s.showTimeStamps;
     _showRingLinks = s.showRingLinks;
@@ -288,7 +288,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               child: Slider(
                 min: 0,
                 max: 1,
-                value: value.clamp(0.0, 1.0),
+                value: value.clamp(0.0, 1.0).toDouble(),
                 onChanged: onChanged,
               ),
             ),

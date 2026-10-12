@@ -46,7 +46,9 @@ jobs:
             cp -r /tmp/scaffold/android .
           fi
           for f in android/app/build.gradle.kts android/app/build.gradle; do
-            [ -f "$f" ] && sed -i -E 's/compileSdk(Version)?( =)? *flutter\.compileSdkVersion/compileSdk = 36/' "$f"
+            if [ -f "$f" ]; then
+              sed -i -E 's/compileSdk(Version)?( =)? *flutter\.compileSdkVersion/compileSdk = 36/' "$f"
+            fi
           done
 
       - run: flutter pub get
