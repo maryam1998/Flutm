@@ -3,11 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import 'screens/gratitude_tab.dart';
-import 'screens/practice_tab.dart';
-import 'screens/practice_tab.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
+import 'screens/practice_tab.dart';
 import 'state/theme_store.dart';
 import 'widgets/background_layer.dart';
 import 'widgets/motivation_bar.dart';
@@ -124,7 +122,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     if (s == AppLifecycleState.paused ||
         s == AppLifecycleState.inactive ||
         s == AppLifecycleState.detached) {
-      context.read<ThemeStore>(); // keep import used
+      context.read<ThemeStore>();
     }
   }
 
@@ -137,33 +135,38 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           children: [
             const MotivationBar(),
             Expanded(
-  child: IndexedStack(
-    index: _index,
-    children: const [
-      PlaceholderTab(
-          title: 'شناخت', note: 'بعد از تب نقشه منتقل میشه'),
-      MapTab(),
-      PracticeTab(),
-    ],
-  ),
-),
+              child: IndexedStack(
+                index: _index,
+                children: const [
+                  PlaceholderTab(
+                      title: 'شناخت', note: 'بعد از تب نقشه منتقل می‌شه'),
+                  MapTab(),
+                  PracticeTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: const [
-  NavigationDestination(
-      icon: Icon(Icons.psychology_outlined),
-      selectedIcon: Icon(Icons.psychology),
-      label: 'شناخت'),
-  NavigationDestination(
-      icon: Icon(Icons.hub_outlined),
-      selectedIcon: Icon(Icons.hub),
-      label: 'هدف‌گذاری'),
-  NavigationDestination(
-      icon: Icon(Icons.favorite_border),
-      selectedIcon: Icon(Icons.favorite),
-      label: 'تمرین'),
-],
+            NavigationDestination(
+              icon: Icon(Icons.psychology_outlined),
+              selectedIcon: Icon(Icons.psychology),
+              label: 'شناخت',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.hub_outlined),
+              selectedIcon: Icon(Icons.hub),
+              label: 'هدف‌گذاری',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.favorite_border),
+              selectedIcon: Icon(Icons.favorite),
+              label: 'تمرین',
+            ),
+          ],
         ),
       ),
     );
