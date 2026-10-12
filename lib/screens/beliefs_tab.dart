@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../widgets/breath_circle.dart';
+import '../widgets/nothing_scene.dart';
 import '../models/future_text_format.dart';
 import '../models/future_version.dart';
 import '../state/beliefs_store.dart';
