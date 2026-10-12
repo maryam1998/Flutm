@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 const _kEmerald500 = Color(0xFF2BBFAB);
 const _kEmerald700 = Color(0xFF0F5B53);
 const _kMuted = Color(0xFF7A6B57);
+const _kInk = Color(0xFF2A2218);
+const _kBorder = Color(0xFFE0D5C0);
 
 class BreathCircle extends StatefulWidget {
   const BreathCircle({super.key});
@@ -88,9 +90,13 @@ class _BreathCircleState extends State<BreathCircle>
           builder: (_, __) {
             final t = _ctrl.value;
             double scale = 1;
-            if (_phase == 'inhale') scale = 0.9 + t * 0.24;
-            else if (_phase == 'exhale') scale = 1.14 - t * 0.24;
-            else if (_phase == 'hold') scale = 1.14;
+            if (_phase == 'inhale') {
+              scale = 0.9 + t * 0.24;
+            } else if (_phase == 'exhale') {
+              scale = 1.14 - t * 0.24;
+            } else if (_phase == 'hold') {
+              scale = 1.14;
+            }
 
             return SizedBox(
               width: 172,
@@ -98,7 +104,6 @@ class _BreathCircleState extends State<BreathCircle>
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // دایره‌ی پشت
                   Transform.scale(
                     scale: scale,
                     child: Container(
@@ -116,7 +121,6 @@ class _BreathCircleState extends State<BreathCircle>
                       ),
                     ),
                   ),
-                  // حلقه‌ی پیشرفت
                   SizedBox(
                     width: 168,
                     height: 168,
@@ -127,7 +131,6 @@ class _BreathCircleState extends State<BreathCircle>
                       valueColor: const AlwaysStoppedAnimation(_kEmerald500),
                     ),
                   ),
-                  // محتوا
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -168,7 +171,8 @@ class _BreathCircleState extends State<BreathCircle>
                 onPressed: isActive ? _stop : _start,
                 child: Text(
                   isActive ? '⏸ توقف تنفس' : '▶ شروع تنفس',
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 11.5, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
