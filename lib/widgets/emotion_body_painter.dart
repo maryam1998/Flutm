@@ -21,14 +21,13 @@ const double kListHeaderH = 6;
 const double kBodyCX = 185;
 const double kBodyCY = 195;
 
-// ── مختصات قلب (اندازه‌گیری‌شده از وب) ──
+// ── مختصات قلب ──
 const double kHeartCX = 3, kHeartCY = -32;
 const double kHeartRX = 6.5, kHeartRY = 9;
 
 /// سیلوئت ساده‌ی بدن برای هاله (پورت drawBodyShape).
 Path buildBodyOutlinePath({bool skipHead = false, bool skipNeck = false}) {
   final p = Path();
-  const d = BodyDims();
 
   if (!skipHead) {
     p.addOval(Rect.fromCircle(
@@ -41,57 +40,70 @@ Path buildBodyOutlinePath({bool skipHead = false, bool skipNeck = false}) {
   }
 
   // تنه
-  p.moveTo(-d.shoulderW, d.shoulderY);
-  p.quadraticBezierTo(0, d.shoulderY - 5, d.shoulderW, d.shoulderY);
-  p.lineTo(d.waistW, d.waistY);
-  p.lineTo(d.hipW, d.hipY);
-  p.quadraticBezierTo(0, d.hipY + 3, -d.hipW, d.hipY);
-  p.lineTo(-d.waistW, d.waistY);
+  p.moveTo(-BodyDims.shoulderW, BodyDims.shoulderY);
+  p.quadraticBezierTo(
+      0, BodyDims.shoulderY - 5, BodyDims.shoulderW, BodyDims.shoulderY);
+  p.lineTo(BodyDims.waistW, BodyDims.waistY);
+  p.lineTo(BodyDims.hipW, BodyDims.hipY);
+  p.quadraticBezierTo(0, BodyDims.hipY + 3, -BodyDims.hipW, BodyDims.hipY);
+  p.lineTo(-BodyDims.waistW, BodyDims.waistY);
   p.close();
 
   // بازوی چپ
-  p.moveTo(-d.shoulderW, d.shoulderY);
-  p.quadraticBezierTo(-d.shoulderW - 4, d.shoulderY + 15, -d.shoulderW - 2, d.armEndY);
-  p.lineTo(-d.shoulderW + 4, d.armEndY);
-  p.quadraticBezierTo(-d.shoulderW + 3, d.shoulderY + 15, -d.waistW - 2, d.waistY + 3);
+  p.moveTo(-BodyDims.shoulderW, BodyDims.shoulderY);
+  p.quadraticBezierTo(-BodyDims.shoulderW - 4, BodyDims.shoulderY + 15,
+      -BodyDims.shoulderW - 2, BodyDims.armEndY);
+  p.lineTo(-BodyDims.shoulderW + 4, BodyDims.armEndY);
+  p.quadraticBezierTo(-BodyDims.shoulderW + 3, BodyDims.shoulderY + 15,
+      -BodyDims.waistW - 2, BodyDims.waistY + 3);
   p.close();
 
   // بازوی راست
-  p.moveTo(d.shoulderW, d.shoulderY);
-  p.quadraticBezierTo(d.shoulderW + 4, d.shoulderY + 15, d.shoulderW + 2, d.armEndY);
-  p.lineTo(d.shoulderW - 4, d.armEndY);
-  p.quadraticBezierTo(d.shoulderW - 3, d.shoulderY + 15, d.waistW + 2, d.waistY + 3);
+  p.moveTo(BodyDims.shoulderW, BodyDims.shoulderY);
+  p.quadraticBezierTo(BodyDims.shoulderW + 4, BodyDims.shoulderY + 15,
+      BodyDims.shoulderW + 2, BodyDims.armEndY);
+  p.lineTo(BodyDims.shoulderW - 4, BodyDims.armEndY);
+  p.quadraticBezierTo(BodyDims.shoulderW - 3, BodyDims.shoulderY + 15,
+      BodyDims.waistW + 2, BodyDims.waistY + 3);
   p.close();
 
   // دست‌ها
   p.addOval(Rect.fromCenter(
-      center: Offset(-d.shoulderW - 2, d.armHandY), width: 7.6, height: 11));
+      center: const Offset(-BodyDims.shoulderW - 2, BodyDims.armHandY),
+      width: 7.6,
+      height: 11));
   p.addOval(Rect.fromCenter(
-      center: Offset(d.shoulderW + 2, d.armHandY), width: 7.6, height: 11));
+      center: const Offset(BodyDims.shoulderW + 2, BodyDims.armHandY),
+      width: 7.6,
+      height: 11));
 
   // پای چپ
-  p.moveTo(-d.hipW, d.hipY);
-  p.lineTo(-d.hipW + 1, d.kneeY);
-  p.lineTo(-d.hipW + 2, d.footY);
-  p.lineTo(-5, d.footY);
-  p.lineTo(-4, d.kneeY);
-  p.lineTo(-3, d.hipY);
+  p.moveTo(-BodyDims.hipW, BodyDims.hipY);
+  p.lineTo(-BodyDims.hipW + 1, BodyDims.kneeY);
+  p.lineTo(-BodyDims.hipW + 2, BodyDims.footY);
+  p.lineTo(-5, BodyDims.footY);
+  p.lineTo(-4, BodyDims.kneeY);
+  p.lineTo(-3, BodyDims.hipY);
   p.close();
 
   // پای راست
-  p.moveTo(d.hipW, d.hipY);
-  p.lineTo(d.hipW - 1, d.kneeY);
-  p.lineTo(d.hipW - 2, d.footY);
-  p.lineTo(5, d.footY);
-  p.lineTo(4, d.kneeY);
-  p.lineTo(3, d.hipY);
+  p.moveTo(BodyDims.hipW, BodyDims.hipY);
+  p.lineTo(BodyDims.hipW - 1, BodyDims.kneeY);
+  p.lineTo(BodyDims.hipW - 2, BodyDims.footY);
+  p.lineTo(5, BodyDims.footY);
+  p.lineTo(4, BodyDims.kneeY);
+  p.lineTo(3, BodyDims.hipY);
   p.close();
 
   // پاها
   p.addOval(Rect.fromCenter(
-      center: Offset(-d.hipW / 2 - 1, d.footY + 3), width: 14, height: 7));
+      center: const Offset(-BodyDims.hipW / 2 - 1, BodyDims.footY + 3),
+      width: 14,
+      height: 7));
   p.addOval(Rect.fromCenter(
-      center: Offset(d.hipW / 2 + 1, d.footY + 3), width: 14, height: 7));
+      center: const Offset(BodyDims.hipW / 2 + 1, BodyDims.footY + 3),
+      width: 14,
+      height: 7));
 
   return p;
 }
@@ -99,8 +111,8 @@ Path buildBodyOutlinePath({bool skipHead = false, bool skipNeck = false}) {
 // ───────────────────────── Aura ─────────────────────────
 
 class AuraPainter extends CustomPainter {
-  final List<Color> colors; // حداکثر ۵ تا
-  final double pulse;       // 0..1
+  final List<Color> colors;
+  final double pulse;
 
   AuraPainter({required this.colors, required this.pulse});
 
@@ -122,7 +134,8 @@ class AuraPainter extends CustomPainter {
     for (var i = layers.length - 1; i >= 0; i--) {
       final color = layers[i];
       final scaleUp = 1.28 + i * 0.30;
-      final layerOp = ((hasSelection ? 0.55 : 0.22) - i * 0.06).clamp(0.0, 1.0);
+      final layerOp =
+          ((hasSelection ? 0.55 : 0.22) - i * 0.06).clamp(0.0, 1.0);
       final sigma = i >= 3 ? 9.0 : 5.5;
       final pulseScale = 1 + pulse * 0.06 * (i + 1);
 
@@ -150,9 +163,14 @@ class AuraPainter extends CustomPainter {
 // ───────────────────────── Waves ─────────────────────────
 
 Path _eegPath({
-  required double cx, required double y, required double halfW,
-  required double amp, required double cycles, required double phase,
-  required double seed, required double irr,
+  required double cx,
+  required double y,
+  required double halfW,
+  required double amp,
+  required double cycles,
+  required double phase,
+  required double seed,
+  required double irr,
 }) {
   const n = 60;
   final path = Path();
@@ -165,9 +183,12 @@ Path _eegPath({
     final env = math.sin(t * math.pi);
     final x = cx - halfW + t * 2 * halfW;
     final main = math.sin(t * cycles * math.pi * 2 + phase);
-    final harm1 = h1 * math.sin(t * cycles * math.pi * 2 * 2.3 + phase * 1.7 + seed);
-    final harm2 = h2 * math.sin(t * cycles * math.pi * 2 * 4.1 + phase * 0.6 + seed * 2);
-    final harm3 = h3 * math.sin(t * cycles * math.pi * 2 * 7.7 + phase * 2.4 + seed * 3);
+    final harm1 =
+        h1 * math.sin(t * cycles * math.pi * 2 * 2.3 + phase * 1.7 + seed);
+    final harm2 =
+        h2 * math.sin(t * cycles * math.pi * 2 * 4.1 + phase * 0.6 + seed * 2);
+    final harm3 =
+        h3 * math.sin(t * cycles * math.pi * 2 * 7.7 + phase * 2.4 + seed * 3);
     final yy = y - (main + harm1 + harm2 + harm3) * amp * env;
     if (i == 0) {
       path.moveTo(x, yy);
@@ -181,9 +202,13 @@ Path _eegPath({
 class WavesPainter extends CustomPainter {
   final List<Color> colors;
   final List<int> freqs;
-  final double phase; // 0..1 چرخه‌ی مداوم
+  final double phase;
 
-  WavesPainter({required this.colors, required this.freqs, required this.phase});
+  WavesPainter({
+    required this.colors,
+    required this.freqs,
+    required this.phase,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -194,12 +219,13 @@ class WavesPainter extends CustomPainter {
 
     final hasSelection = colors.isNotEmpty;
     const neutral = Color(0xFF9FA5BA);
-    final waveColors = hasSelection ? colors.take(2).toList() : <Color>[neutral, neutral];
-    final waveFreqs = hasSelection ? freqs.take(2).toList() : <int>[250, 250];
+    final waveColors =
+        hasSelection ? colors.take(2).toList() : <Color>[neutral, neutral];
+    final waveFreqs =
+        hasSelection ? freqs.take(2).toList() : <int>[250, 250];
     final waveY0 = kBodyCY + BodyDims.headCY - 20;
     const waveHalfW = 34.0;
 
-    // خط پایه
     canvas.drawLine(
       Offset(kBodyCX - waveHalfW - 4, waveY0),
       Offset(kBodyCX + waveHalfW + 4, waveY0),
@@ -225,28 +251,38 @@ class WavesPainter extends CustomPainter {
       final ph = phase * 2 * math.pi;
 
       final path = _eegPath(
-        cx: kBodyCX, y: y, halfW: halfW, amp: amp,
-        cycles: cycles, phase: ph, seed: seed, irr: irr,
+        cx: kBodyCX,
+        y: y,
+        halfW: halfW,
+        amp: amp,
+        cycles: cycles,
+        phase: ph,
+        seed: seed,
+        irr: irr,
       );
 
-      final opGlow = ((hasSelection ? 0.28 : 0.16) - wi * 0.06).clamp(0.0, 1.0);
-      final opLine = ((hasSelection ? 0.9 : 0.55) - wi * 0.15).clamp(0.0, 1.0);
+      final opGlow =
+          ((hasSelection ? 0.28 : 0.16) - wi * 0.06).clamp(0.0, 1.0);
+      final opLine =
+          ((hasSelection ? 0.9 : 0.55) - wi * 0.15).clamp(0.0, 1.0);
 
-      // هاله‌ی موج
-      canvas.drawPath(path, Paint()
-        ..color = color.withValues(alpha: opGlow)
-        ..strokeWidth = 3.2
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.3));
+      canvas.drawPath(
+          path,
+          Paint()
+            ..color = color.withValues(alpha: opGlow)
+            ..strokeWidth = 3.2
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.3));
 
-      // خط اصلی
-      canvas.drawPath(path, Paint()
-        ..color = color.withValues(alpha: opLine)
-        ..strokeWidth = 1.0
-        ..style = PaintingStyle.stroke
-        ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round);
+      canvas.drawPath(
+          path,
+          Paint()
+            ..color = color.withValues(alpha: opLine)
+            ..strokeWidth = 1.0
+            ..style = PaintingStyle.stroke
+            ..strokeJoin = StrokeJoin.round
+            ..strokeCap = StrokeCap.round);
     }
     canvas.restore();
   }
@@ -258,7 +294,7 @@ class WavesPainter extends CustomPainter {
 // ───────────────────────── Heart ─────────────────────────
 
 class HeartPainter extends CustomPainter {
-  final double pulse; // 0..1
+  final double pulse;
 
   HeartPainter({required this.pulse});
 
