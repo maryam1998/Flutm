@@ -435,10 +435,25 @@ class MapPainter extends CustomPainter {
     }
     _pts..add(cp.p0)..add(cp.p3);
     if (trunkOnly) return;
+    // چیدمان یکنواخت شاخه‌ها روی تنه:
+    // - فاصله‌ی مساوی بین startT تا 0.85
+    // - راست/چپ یکی‌درمیان
+    // - پایین‌ترها کمی بلندتر، بالاترها کوتاه‌تر
     final acts = _visibleActs(h.actions);
-    for (var i = 0; i < acts.length; i++) {
-      final t = math.min(0.9, 0.15 + i * 0.09);
-      _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i], i.isEven ? 1 : -1, 1.0, tc);
+    final n = acts.length;
+    if (n == 0) return;
+    for (var i = 0; i < n; i++) {
+      double t;
+      if (n == 1) {
+        t = 0.55; // تک شاخه: کمی بالاتر از وسط
+      } else {
+        final startT = n >= 8 ? 0.18 : (n >= 5 ? 0.22 : 0.28);
+        const endT = 0.85;
+        t = startT + (i / (n - 1)) * (endT - startT);
+      }
+      final side = i.isEven ? 1 : -1;
+      final scaleMod = 1.0 - (i / math.max(1, n - 1)) * 0.20;
+      _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i], side, scaleMod, tc);
     }
   }
 
@@ -515,7 +530,7 @@ class MapPainter extends CustomPainter {
   }
 
   void _footprints(Canvas canvas, geo.TwigGeom geom, geo.Cubic cub,
-      ActionNode a, Color color, double scale, MapHost h) {
+      ActionNode a, Color color, double scale) {
     final count = _logCount(a);
     if (count == 0) return;
     final length = (geom.end - geom.originPt).distance;
@@ -530,8 +545,7 @@ class MapPainter extends CustomPainter {
     final todayJK = jKey(DateTime.now());
     final todayDone = a.logs[todayJK] == true ||
         a.logs[todayJK] == 'انجام شد ✓' ||
-        (a.logs[todayJK] is String &&
-            (a.logs[todayJK] as String).isNotEmpty);
+        (a.logs[todayJK] is String && (a.logs[todayJK] as String).isNotEmpty);
 
     for (var i = 0; i < count; i++) {
       final t = math.max(0.05, math.min(0.97, 0.95 - i * span));
@@ -551,30 +565,20 @@ class MapPainter extends CustomPainter {
           ? 1.0
           : 0.4 + 0.55 * (count > 1 ? i / (count - 1) : 1.0);
 
+      // جهت پا: عمود بر منحنی، چپ/راست یکی‌درمیان
       final side = (i % 2 == 0) ? 1.0 : -1.0;
       final off = fs * 0.4 * side;
       final ox = -math.sin(ang) * off;
       final oy = math.cos(ang) * off;
-      final pos = pt + Offset(ox, oy);
 
       _drawEmoji(
         canvas,
-        pos,
+        pt + Offset(ox, oy),
         ang + math.pi / 2,
         fs,
         color.withAlpha((opacity * 255).round()),
         '👣',
       );
-
-      // ناحیه‌ی کلیک برای این ردپا
-      hits.add(HitEntry(
-        type: 'actionTime',
-        id: a.id,
-        hostId: h.id,
-        kind: HitKind.handle,
-        center: pos,
-        radius: math.max(12.0, fs * 0.9),
-      ));
     }
   }
 
@@ -677,7 +681,7 @@ class MapPainter extends CustomPainter {
     } else {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
     }
-    _footprints(canvas, geom, cub, a, color, scale, h);
+    _footprints(canvas, geom, cub, a, color, scale);
 
     final kids = _visibleActs(a.children);
     if (kids.isNotEmpty) {
@@ -714,12 +718,6 @@ class MapPainter extends CustomPainter {
       }
     } else {
       canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale), Paint()..color = color);
-    }
-
-    // بج دستاورد 🏆
-    if (a.extra['achieved'] == true) {
-      _drawEmoji(canvas, end.translate(0, -22 * scale), 0, 20 * scale,
-          const Color(0xFFC9972B), '🏆');
     }
 
     if (isRoutine) {

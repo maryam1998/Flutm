@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
-import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
+import 'motivation_sheet.dart';
 
 const _kCream = Color(0xFFFBF6EA);
 const _kCard = Colors.white;
@@ -13,7 +13,6 @@ const _kGold = Color(0xFFC9972B);
 const _kInk = Color(0xFF2A2218);
 const _kMuted = Color(0xFF7A6B57);
 const _kBorder = Color(0xFFE0D5C0);
-const _kDanger = Color(0xFFE5484D);
 
 Future<void> showSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -332,84 +331,24 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ---------- پس‌زمینه ----------
-                    _sectionTitle('پس‌زمینه‌ی نقشه'),
+                    // ---------- جملات انگیزشی ----------
+                    _sectionTitle('جمله‌های انگیزه‌بخش'),
                     const SizedBox(height: 10),
-                    Consumer<BackgroundStore>(
-                      builder: (_, bg, __) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _kInk,
-                                    side: const BorderSide(color: _kBorder),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    final ok = await bg.pickImage();
-                                    if (ok && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('پس‌زمینه ثبت شد')),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.image_outlined, size: 18),
-                                  label: const Text('انتخاب تصویر (jpg/png/gif)',
-                                      style: TextStyle(fontSize: 12)),
-                                ),
-                              ),
-                              if (bg.hasImage) ...[
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: _kDanger),
-                                  onPressed: () => bg.clear(),
-                                ),
-                              ],
-                            ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kInk,
+                          side: const BorderSide(color: _kBorder),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          if (bg.hasImage) ...[
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Text('محو (blur)',
-                                    style: TextStyle(fontSize: 12, color: _kMuted)),
-                                Expanded(
-                                  child: Slider(
-                                    min: 0,
-                                    max: 20,
-                                    divisions: 20,
-                                    value: bg.blur,
-                                    activeColor: _kGold,
-                                    inactiveColor: _kBorder,
-                                    onChanged: (v) => bg.setBlur(v),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                const Text('شفافیت',
-                                    style: TextStyle(fontSize: 12, color: _kMuted)),
-                                Expanded(
-                                  child: Slider(
-                                    min: 0.1,
-                                    max: 1.0,
-                                    value: bg.opacity,
-                                    activeColor: _kGold,
-                                    inactiveColor: _kBorder,
-                                    onChanged: (v) => bg.setOpacity(v),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
+                        ),
+                        onPressed: () => showMotivationSheet(context),
+                        icon: const Icon(Icons.auto_awesome, size: 18, color: _kGold),
+                        label: const Text('مدیریت جمله‌های انگیزه‌بخش',
+                            style: TextStyle(fontSize: 12.5)),
                       ),
                     ),
                     const _SectionDivider(),
