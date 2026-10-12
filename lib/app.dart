@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/gratitude_tab.dart';
+import 'screens/practice_tab.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
 import 'state/theme_store.dart';
