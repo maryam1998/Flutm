@@ -223,87 +223,88 @@ class _StoreTabState extends State<StoreTab> {
   }
 
   Widget _addForm() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('🛍️ خرید مورد دلخواه',
-              style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: _kInk)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: _kCream,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: _image != null
-                      ? Image.memory(_decode(_image!), fit: BoxFit.cover)
-                      : const Icon(Icons.image_outlined,
-                          color: _kMuted, size: 22),
+  final imageBytes = _image != null ? _decode(_image!) : null;
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: _kCard,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: _kBorder),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('🛍️ خرید مورد دلخواه',
+            style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                color: _kInk)),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _kCream,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kBorder),
                 ),
+                clipBehavior: Clip.antiAlias,
+                child: imageBytes != null
+                    ? Image.memory(imageBytes, fit: BoxFit.cover)
+                    : const Icon(Icons.image_outlined,
+                        color: _kMuted, size: 22),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: _name,
-                      textAlign: TextAlign.right,
-                      textDirection: TextDirection.rtl,
-                      style: const TextStyle(fontSize: 13, color: _kInk),
-                      decoration: _inputDeco('اسم این خرید'),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _price,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.right,
-                      textDirection: TextDirection.rtl,
-                      style: const TextStyle(fontSize: 13, color: _kInk),
-                      decoration: _inputDeco('قیمت (تومان)'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 42,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: _kGold,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: _addItem,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('افزودن به لیست',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
             ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _name,
+                    textAlign: TextAlign.right,
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(fontSize: 13, color: _kInk),
+                    decoration: _inputDeco('اسم این خرید'),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _price,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.right,
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(fontSize: 13, color: _kInk),
+                    decoration: _inputDeco('قیمت (تومان)'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 42,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: _kGold,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: _addItem,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('افزودن به لیست',
+                style: TextStyle(fontWeight: FontWeight.w800)),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _pendingList(AbundanceStore store) {
     return Container(
