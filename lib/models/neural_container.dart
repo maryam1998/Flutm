@@ -122,6 +122,40 @@ class NeuralContainer {
     }
   }
 
+  // ---------------- fiber emotions ----------------
+
+  /// رنگ/فرکانس یک رشته رو عوض می‌کنه (وقتی کاربر بعداً حسش رو ویرایش کرد).
+  /// اگه `emotion` برابر null باشه، رشته به رنگ پیش‌فرض برمی‌گرده.
+  void updateFiberEmotion(String fiberKey, NeuralFiberEmotion? emotion) {
+    if (logs[fiberKey] != true) return;
+    if (emotion == null) {
+      fiberEmotions.remove(fiberKey);
+    } else {
+      fiberEmotions[fiberKey] = emotion;
+    }
+  }
+
+  /// رنگِ همه‌ی رشته‌های **امروز** رو با حسِ جدید عوض می‌کنه.
+  /// برای وقتی کاربر از صفحه‌ی «لیست شکرگذاری» حسش رو ویرایش می‌کنه
+  /// و می‌خواد رشته‌ی عصبیِ امروز همرنگِ حسِ جدید بشه.
+  ///
+  /// `emotion == null` یعنی حس برداشته شد → رشته‌ها به رنگ پیش‌فرض برمی‌گردن.
+  void recolorTodayFibers(NeuralFiberEmotion? emotion) {
+    final today = todayKey();
+    for (final key in logs.keys.toList()) {
+      if (logs[key] != true) continue;
+      // رشته‌ی امروز = کلیدِ تاریخ امروز، یا کلیدِ f<timestamp> که timestampش امروزه
+      final isToday = key == today || _isFiberFromToday(key);
+      if (!isToday) continue;
+      updateFiberEmotion(key, emotion);
+    }
+  }
+
+  /// همه‌ی رشته‌های امروز رو پاک می‌کنه (برای وقتی کاربر «برداشتن حس» رو می‌زنه).
+  void clearTodayFiberEmotions() {
+    recolorTodayFibers(null);
+  }
+
   // ---------------- sync ----------------
 
   /// روزهایی که گذشته ولی نه دستی ثبت شدن نه خودکار → «انجام نشد»
@@ -254,5 +288,16 @@ class NeuralContainer {
     if (parts.length != 3) return key;
     final d = DateTime(parts[0], parts[1], parts[2]);
     return '${d.year}-${d.month}-${d.day}';
+  }
+
+  /// آیا این کلیدِ رشته (`f<timestamp>-xxx`) متعلق به امروزه؟
+  static bool _isFiberFromToday(String key) {
+    final m = RegExp(r'^f(\d{10,})-').firstMatch(key);
+    if (m == null) return false;
+    final ts = int.tryParse(m.group(1) ?? '');
+    if (ts == null) return false;
+    final d = DateTime.fromMillisecondsSinceEpoch(ts);
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
   }
 }
