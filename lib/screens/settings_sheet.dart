@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -92,11 +95,39 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         .toLowerCase();
   }
 
-  /// انتخاب چندتایی تصویر برای angels.
+  // ─────────── انتخاب عکس ───────────
   /// بدون resize تا GIF انیمیت‌شده دست‌نخورده بماند.
   Future<List<XFile>> _pickAngelImages() async {
     final picker = ImagePicker();
     return picker.pickMultiImage();
+  }
+
+  // ─────────── انتخاب ویدیو ───────────
+  Future<List<XFile>> _pickAngelVideos() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['mp4', 'mov', 'webm', 'm4v', 'mkv'],
+      allowMultiple: true,
+      withData: true,
+    );
+    if (result == null) return const [];
+    return result.files
+        .where((f) => f.bytes != null && f.bytes!.isNotEmpty)
+        .map((f) => XFile.fromData(
+              f.bytes!,
+              name: f.name,
+              mimeType: _mimeOfVideo(f.name),
+            ))
+        .toList();
+  }
+
+  static String _mimeOfVideo(String name) {
+    final l = name.toLowerCase();
+    if (l.endsWith('.mov')) return 'video/quicktime';
+    if (l.endsWith('.webm')) return 'video/webm';
+    if (l.endsWith('.m4v')) return 'video/x-m4v';
+    if (l.endsWith('.mkv')) return 'video/x-matroska';
+    return 'video/mp4';
   }
 
   @override
@@ -311,100 +342,122 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ---------- angels (تصاویر متحرک شناور) ----------
+                    // ---------- angels (عکس + ویدیوی متحرک شناور) ----------
                     _sectionTitle('افزودن موارد بیشتر به پیش‌زمینه'),
                     const SizedBox(height: 10),
                     Consumer<AngelsStore>(
                       builder: (_, angels, __) => Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (angels.hasImages)
+                          if (angels.hasAssets)
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
                               children: [
                                 for (final im in angels.images)
-                                  Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Container(
-                                        width: 58,
-                                        height: 58,
-                                        decoration: BoxDecoration(
-                                          color: _kCard,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border:
-                                              Border.all(color: _kBorder),
-                                        ),
-                                        clipBehavior: Clip.antiAlias,
-                                        child: Image.memory(
-                                          im.bytes,
-                                          fit: BoxFit.cover,
-                                          gaplessPlayback: true,
-                                        ),
-                                      ),
-                                      Positioned(
-                                        top: -4,
-                                        right: -4,
-                                        child: GestureDetector(
-                                          onTap: () =>
-                                              angels.removeImage(im.id),
-                                          child: Container(
-                                            width: 20,
-                                            height: 20,
-                                            decoration:
-                                                const BoxDecoration(
-                                              color: Colors.black87,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                              Icons.close,
-                                              size: 12,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                  _angelImageThumb(
+                                    bytes: im.bytes,
+                                    onDelete: () =>
+                                        angels.removeImage(im.id),
+                                  ),
+                                for (final v in angels.videos)
+                                  _angelVideoThumb(
+                                    name: v.name,
+                                    onDelete: () =>
+                                        angels.removeVideo(v.id),
                                   ),
                               ],
                             ),
-                          if (angels.hasImages) const SizedBox(height: 10),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _kInk,
-                              side: const BorderSide(color: _kBorder),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 11),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          if (angels.hasAssets)
+                            const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _kInk,
+                                    side: const BorderSide(color: _kBorder),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 11),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      final files =
+                                          await _pickAngelImages();
+                                      for (final f in files) {
+                                        final bytes =
+                                            await f.readAsBytes();
+                                        final ok =
+                                            await angels.addImage(bytes);
+                                        if (!ok && context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                            content: Text(
+                                                'حجم هر تصویر باید کمتر از ۱۰ مگابایت باشد'),
+                                          ));
+                                        }
+                                      }
+                                    } catch (e) {
+                                      debugPrint('angel pick images: $e');
+                                    }
+                                  },
+                                  icon: const Icon(
+                                      Icons.add_photo_alternate_outlined,
+                                      size: 18),
+                                  label: const Text('＋ عکس',
+                                      style: TextStyle(fontSize: 12.5)),
+                                ),
                               ),
-                            ),
-                            onPressed: () async {
-                              try {
-                                final files = await _pickAngelImages();
-                                for (final f in files) {
-                                  final bytes = await f.readAsBytes();
-                                  final ok = await angels.addImage(bytes);
-                                  if (!ok && context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'حجم هر تصویر باید کمتر از ۱۰ مگابایت باشد'),
-                                      ),
-                                    );
-                                  }
-                                }
-                              } catch (e) {
-                                debugPrint('angel pick failed: $e');
-                              }
-                            },
-                            icon: const Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 18),
-                            label: const Text('＋ افزودن',
-                                style: TextStyle(fontSize: 12.5)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _kInk,
+                                    side: const BorderSide(color: _kBorder),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 11),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      final files =
+                                          await _pickAngelVideos();
+                                      for (final f in files) {
+                                        final bytes =
+                                            await f.readAsBytes();
+                                        final mime = _mimeOfVideo(f.name);
+                                        final ok = await angels.addVideo(
+                                          name: f.name,
+                                          mime: mime,
+                                          bytes: bytes,
+                                        );
+                                        if (!ok && context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                            content: Text(
+                                                'حجم هر ویدیو باید کمتر از ۳۰۰ مگابایت باشد'),
+                                          ));
+                                        }
+                                      }
+                                    } catch (e) {
+                                      debugPrint('angel pick videos: $e');
+                                    }
+                                  },
+                                  icon: const Icon(
+                                      Icons.video_library_outlined,
+                                      size: 18),
+                                  label: const Text('＋ ویدیو (بی‌صدا)',
+                                      style: TextStyle(fontSize: 12.5)),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 10),
                           _checkTile(
@@ -655,6 +708,94 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       ),
     );
   }
+
+  // ─────────── thumbnail widgets ───────────
+
+  Widget _angelImageThumb({
+    required Uint8List bytes,
+    required VoidCallback onDelete,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: _kCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kBorder),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          ),
+        ),
+        Positioned(
+          top: -4,
+          right: -4,
+          child: GestureDetector(
+            onTap: onDelete,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Colors.black87,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close,
+                  size: 12, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _angelVideoThumb({
+    required String name,
+    required VoidCallback onDelete,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: _kCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kBorder),
+          ),
+          child: const Center(
+            child: Icon(Icons.play_circle_outline,
+                color: _kGold, size: 28),
+          ),
+        ),
+        Positioned(
+          top: -4,
+          right: -4,
+          child: GestureDetector(
+            onTap: onDelete,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Colors.black87,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close,
+                  size: 12, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─────────── helpers ───────────
 
   Widget _sectionTitle(String text) => Text(
         text,
