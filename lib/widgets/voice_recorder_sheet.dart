@@ -8,7 +8,6 @@ const _kGold = Color(0xFFC9972B);
 const _kInk = Color(0xFF2A2218);
 const _kMuted = Color(0xFF7A6B57);
 const _kBorder = Color(0xFFE0D5C0);
-const _kCard = Colors.white;
 const _kCream = Color(0xFFFBF6EA);
 const _kDanger = Color(0xFFE5484D);
 
@@ -132,7 +131,6 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
               ),
               const SizedBox(height: 18),
 
-              // دایره‌ی بزرگ ضبط
               GestureDetector(
                 onTap: _recording ? () => _stop(save: true) : _start,
                 child: Container(
@@ -149,9 +147,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: (_recording
-                                ? _kDanger
-                                : _kGold)
+                        color: (_recording ? _kDanger : _kGold)
                             .withValues(alpha: 0.35),
                         blurRadius: 20,
                         spreadRadius: 4,
@@ -159,7 +155,9 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
                     ],
                   ),
                   child: Icon(
-                    _recording ? Icons.stop_rounded : Icons.mic_none_rounded,
+                    _recording
+                        ? Icons.stop_rounded
+                        : Icons.mic_none_rounded,
                     size: 52,
                     color: Colors.white,
                   ),
