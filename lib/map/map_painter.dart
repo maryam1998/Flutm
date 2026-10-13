@@ -384,7 +384,7 @@ class MapPainter extends CustomPainter {
           ..strokeJoin = StrokeJoin.round
           ..color = withOp(ink, open ? 0.75 : 0.95));
     drawText(canvas, toFa(n), cx + 7, cy + 4.3,
-        size: 12, color = withOp(ink, open ? 0.8 : 1.0), weight: FontWeight.w700);
+        size: 12, color: withOp(ink, open ? 0.8 : 1.0), weight: FontWeight.w700);
   }
 
   // ---------- حلقه ----------
@@ -430,19 +430,6 @@ class MapPainter extends CustomPainter {
       _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : 'dashed');
     }
     _pts..add(cp.p0)..add(cp.p3);
-
-    // ─── انیمیشن راه رفتن روی تنه (فقط هدف‌ها، نه نشانه‌ها) ───
-    if (!h.isRing) {
-      _walkingFoot(
-        canvas: canvas,
-        cub: cp,
-        poly: null,
-        color: col,
-        baseSize: 18.0,
-        speedSec: 4.2,
-      );
-    }
-
     if (trunkOnly) return;
     final acts = _visibleActs(h.actions);
     for (var i = 0; i < acts.length; i++) {
@@ -531,9 +518,10 @@ class MapPainter extends CustomPainter {
     if (length < 22) return;
 
     final sizeMul = state.footScale.clamp(0.4, 3.0);
+    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
 
-    final fs = math.max(11.0, 15.0 * scale) * sizeMul;
-    var spacing = math.max(fs * 0.95, 14.0 * scale * sizeMul);
+    final fs = math.max(11.0, 15.0 * scale) * sizeMul * footMul;
+    var spacing = math.max(fs * 0.95, 14.0 * scale * sizeMul * footMul);
     final usable = length * 0.86;
     if (count * spacing > usable) spacing = usable / count;
     final span = spacing / length;
@@ -575,34 +563,36 @@ class MapPainter extends CustomPainter {
         '👣',
       );
     }
-
-    _walkingFoot(
-      canvas: canvas,
-      cub: cub,
-      poly: geom.poly,
-      color: color,
-      baseSize: 15.0 * scale,
-      speedSec: 3.2,
-    );
   }
 
-  /// انیمیشن راه رفتن: یک 👣 از نوک شاخه به سمت هدف و برمی‌گردد.
-  /// پای چپ و راست یکی‌درمیان عوض می‌شود تا شبیه قدم زدن شود.
+  /// قدم متحرک: از نوک شاخه به سمت هدف و برمی‌گردد.
+  /// - اگر `a.footPlaying == false`، در `a.footPos` ثابت می‌ماند
+  /// - می‌شود با انگشت کشید و جابجا کرد
+  /// - با تپ، حرکت/توقف toggle می‌شود
   void _walkingFoot({
     required Canvas canvas,
     required geo.Cubic cub,
     List<Offset>? poly,
     required Color color,
     required double baseSize,
-    required double speedSec,
+    required ActionNode a,
+    required String hostId,
   }) {
-    const startT = 0.06;
-    const endT = 0.94;
+    if (_logCount(a) == 0) return;
 
-    // حرکت رفت و برگشتی: یک دور کامل در speedSec ثانیه
-    final cycle = (_t / speedSec) % 1.0;
-    final journey = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2;
-    final t = startT + journey * (endT - startT);
+    final sizeMul = state.footScale.clamp(0.4, 3.0);
+    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
+    final size = baseSize * sizeMul * footMul;
+
+    double t;
+    if (a.footPlaying) {
+      final speed = (a.footSpeed ?? 3.2).clamp(1.0, 10.0);
+      final cycle = (_t / speed) % 1.0;
+      final journey = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2;
+      t = 0.06 + journey * (0.94 - 0.06);
+    } else {
+      t = (a.footPos ?? 0.5).clamp(0.06, 0.94);
+    }
 
     Offset pt;
     double ang;
@@ -615,24 +605,21 @@ class MapPainter extends CustomPainter {
       ang = cub.tangent(t);
     }
 
-    final size = baseSize * state.footScale.clamp(0.4, 3.0);
-
-    // تعویض پای چپ/راست با سرعت بالاتر (شبیه قدم زدن)
-    final stepPhase = (_t / 0.55) % 1.0;
+    final stepPhase = a.footPlaying ? (_t / 0.55) % 1.0 : 0.5;
     final side = stepPhase < 0.5 ? 1.0 : -1.0;
     final off = size * 0.42 * side;
     final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
 
-    // هاله‌ی رنگ شاخه زیر پا
+    final glowAlpha = a.footPlaying ? 110 : 50;
+    final glowBlur = a.footPlaying ? 8.0 : 5.0;
     canvas.drawCircle(
       pos,
       size * 0.9,
       Paint()
-        ..color = color.withAlpha(70)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        ..color = color.withAlpha(glowAlpha)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowBlur),
     );
 
-    // هاله‌ی سفید درونی
     canvas.drawCircle(
       pos,
       size * 0.5,
@@ -641,7 +628,17 @@ class MapPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
     );
 
-    // خود پا
+    if (!a.footPlaying) {
+      canvas.drawCircle(
+        pos,
+        size * 1.05,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = withOp(color, 0.7),
+      );
+    }
+
     _drawEmoji(
       canvas,
       pos,
@@ -650,6 +647,15 @@ class MapPainter extends CustomPainter {
       color,
       '👣',
     );
+
+    hits.add(HitEntry(
+      type: 'foot',
+      id: a.id,
+      hostId: hostId,
+      kind: HitKind.handle,
+      center: pos,
+      radius: size * 1.2,
+    ));
   }
 
   void _drawEmoji(Canvas canvas, Offset at, double angle, double size,
@@ -798,7 +804,20 @@ class MapPainter extends CustomPainter {
     } else {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
     }
+
+    // ردپاهای ثابت (به تعداد روزهای لاگ‌شده)
     _footprints(canvas, geom, cub, a, color, scale);
+
+    // قدم متحرک قابل تنظیم
+    _walkingFoot(
+      canvas: canvas,
+      cub: cub,
+      poly: geom.poly,
+      color: color,
+      baseSize: 15.0 * scale,
+      a: a,
+      hostId: h.id,
+    );
 
     final kids = _visibleActs(a.children);
     if (kids.isNotEmpty) {
