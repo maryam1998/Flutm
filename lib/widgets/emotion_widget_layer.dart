@@ -30,6 +30,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
   Offset _btnDragStart = Offset.zero;
   Offset? _panelDragStart;
   Offset? _panelDragAnchor;
+  double _panelDragStartW = 250;
 
   late final AnimationController _openCtrl;
 
@@ -156,8 +157,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
       builder: (context, _) {
         final t = Curves.easeOutCubic.transform(_openCtrl.value);
 
-        // scale/slide از سمت دکمه به پنل
-        final originSide = _panelOriginSide(rect, btn, screen);
+        final originSide = _panelOriginSide(rect, btn);
         final dx = originSide.dx * (1 - t) * 22;
         final dy = originSide.dy * (1 - t) * 22;
 
@@ -175,7 +175,8 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                   child: GestureDetector(
                     behavior: HitTestBehavior.deferToChild,
                     onScaleStart: (d) {
-                      _panelDragStart = _panelPos ?? Offset(rect.left, rect.top);
+                      _panelDragStart =
+                          _panelPos ?? Offset(rect.left, rect.top);
                       _panelDragAnchor = d.focalPoint;
                       if (d.pointerCount >= 2) {
                         _panelDragStartW = rect.width;
@@ -229,12 +230,12 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                   setState(() => _btnPos = _clampBtn(_btnPos, screen));
                   _persist();
                 },
-                onTap: () {
+                onTap: (bool willOpen) {
                   if (store.isCapturing) return;
                   if (_open) {
                     store.fireCommitClose();
                   }
-                  _setOpen(newOpen);
+                  _setOpen(willOpen);
                 },
               ),
             ),
@@ -244,14 +245,11 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     );
   }
 
-  double _panelDragStartW = 250;
-
   Alignment _originAlignment(Offset dir) {
-    // پنل باید طوری بزرگ شود که به سمت دکمه باز شود
     return Alignment(-dir.dx, -dir.dy);
   }
 
-  Offset _panelOriginSide(Rect rect, Offset btn, Size screen) {
+  Offset _panelOriginSide(Rect rect, Offset btn) {
     final bc = btn + const Offset(kEmotionBtnSize / 2, kEmotionBtnSize / 2);
     final pc = Offset(rect.left + rect.width / 2, rect.top + rect.height / 2);
     return Offset(
