@@ -13,6 +13,7 @@ import '../services/image_service.dart';
 import '../state/emotion_store.dart';
 import '../state/gratitude_store.dart';
 import '../widgets/neural_pathway.dart';
+import '../widgets/voice_recorder_sheet.dart';
 
 const _kCream = Color(0xFFFBF6EA);
 const _kCard = Colors.white;
@@ -80,6 +81,15 @@ class _GratitudeTabState extends State<GratitudeTab> {
     }
     setState(() {
       _pendingAudios.add(GratitudeAudio(src: src, name: 'صوت'));
+    });
+  }
+
+  Future<void> _recordVoice() async {
+    final src =
+        await VoiceRecorderSheet.show(context, title: 'ضبط ویس شکرگذاری');
+    if (!mounted || src == null) return;
+    setState(() {
+      _pendingAudios.add(GratitudeAudio(src: src, name: 'ویس ضبط‌شده'));
     });
   }
 
@@ -346,7 +356,13 @@ class _GratitudeTabState extends State<GratitudeTab> {
             children: [
               _iconBtn(
                 icon: Icons.mic_none,
-                tooltip: 'صوت',
+                tooltip: 'ضبط ویس',
+                onTap: _recordVoice,
+              ),
+              const SizedBox(width: 6),
+              _iconBtn(
+                icon: Icons.audiotrack,
+                tooltip: 'انتخاب صوت',
                 onTap: _pickAudio,
               ),
               const SizedBox(width: 6),
@@ -499,7 +515,13 @@ class _GratitudeTabState extends State<GratitudeTab> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.audiotrack, size: 16, color: _kGold),
+              Icon(
+                a.name.contains('ویس')
+                    ? Icons.mic_none
+                    : Icons.audiotrack,
+                size: 16,
+                color: _kGold,
+              ),
               const SizedBox(width: 6),
               Text(
                 a.name.isEmpty ? 'صوت' : a.name,
@@ -606,6 +628,27 @@ class _GratitudeTabState extends State<GratitudeTab> {
                       height: 1.7,
                     ),
                   ),
+                  if (e.amount != null && e.amount! > 0) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _kEmerald.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                            color: _kEmerald.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        '${toFa(e.amount!.toInt())} تومان',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F5B53),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -668,8 +711,13 @@ class _GratitudeTabState extends State<GratitudeTab> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.audiotrack,
-                                    size: 13, color: _kGold),
+                                Icon(
+                                  a.name.contains('ویس')
+                                      ? Icons.mic_none
+                                      : Icons.audiotrack,
+                                  size: 13,
+                                  color: _kGold,
+                                ),
                                 const SizedBox(width: 5),
                                 Text(
                                   a.name.isEmpty ? 'صوت' : a.name,
@@ -1148,6 +1196,14 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
     });
   }
 
+  Future<void> _recordVoice() async {
+    final src = await VoiceRecorderSheet.show(context, title: 'ضبط ویس جدید');
+    if (!mounted || src == null) return;
+    setState(() {
+      _audios.add(GratitudeAudio(src: src, name: 'ویس ضبط‌شده'));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1210,7 +1266,13 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
                   children: [
                     _editorIconBtn(
                       icon: Icons.mic_none,
-                      tooltip: 'صوت',
+                      tooltip: 'ضبط ویس',
+                      onTap: _recordVoice,
+                    ),
+                    const SizedBox(width: 6),
+                    _editorIconBtn(
+                      icon: Icons.audiotrack,
+                      tooltip: 'انتخاب صوت',
                       onTap: _pickAudio,
                     ),
                     const SizedBox(width: 6),
@@ -1256,8 +1318,13 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.audiotrack,
-                                      size: 16, color: _kGold),
+                                  Icon(
+                                    _audios[i].name.contains('ویس')
+                                        ? Icons.mic_none
+                                        : Icons.audiotrack,
+                                    size: 16,
+                                    color: _kGold,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     _audios[i].name.isEmpty
