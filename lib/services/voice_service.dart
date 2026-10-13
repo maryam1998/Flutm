@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io' show File;
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -18,12 +19,10 @@ class VoiceService {
       ? Duration.zero
       : DateTime.now().difference(_startedAt!);
 
-  /// شروع ضبط.
   static Future<bool> start() async {
     try {
       if (!await _rec.hasPermission()) return false;
 
-      // روی موبایل مسیر فایل لازم است، روی وب خالی
       String path = '';
       if (!kIsWeb) {
         final dir = await getTemporaryDirectory();
@@ -48,7 +47,6 @@ class VoiceService {
     }
   }
 
-  /// توقف و برگرداندن data URL صوتی.
   static Future<String?> stop() async {
     try {
       if (!_isRecording) return null;
@@ -59,7 +57,6 @@ class VoiceService {
 
       Uint8List? bytes;
       if (kIsWeb) {
-        // روی وب، out یک blob URL است — fetch می‌کنیم
         final r = await http.get(Uri.parse(out));
         bytes = r.bodyBytes;
       } else {
@@ -83,7 +80,6 @@ class VoiceService {
     }
   }
 
-  /// لغو ضبط بدون ذخیره
   static Future<void> cancel() async {
     try {
       if (_isRecording) {
