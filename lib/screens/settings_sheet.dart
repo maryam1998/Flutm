@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
+import '../state/angels_store.dart';
 import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
@@ -88,6 +90,15 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             '${v(c.g).toRadixString(16).padLeft(2, '0')}'
             '${v(c.b).toRadixString(16).padLeft(2, '0')}'
         .toLowerCase();
+  }
+
+  Future<List<XFile>> _pickAngelImages() async {
+    final picker = ImagePicker();
+    return picker.pickMultiImage(
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
   }
 
   @override
@@ -297,6 +308,182 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                               ],
                             ),
                           ],
+                        ],
+                      ),
+                    ),
+                    const _SectionDivider(),
+
+                    // ---------- angels (تصاویر متحرک شناور) ----------
+                    _sectionTitle('افزودن موارد بیشتر به پیش‌زمینه'),
+                    const SizedBox(height: 10),
+                    Consumer<AngelsStore>(
+                      builder: (_, angels, __) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (angels.hasImages)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final im in angels.images)
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Container(
+                                        width: 58,
+                                        height: 58,
+                                        decoration: BoxDecoration(
+                                          color: _kCard,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border:
+                                              Border.all(color: _kBorder),
+                                        ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: Image.memory(
+                                          im.bytes,
+                                          fit: BoxFit.cover,
+                                          gaplessPlayback: true,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: -4,
+                                        right: -4,
+                                        child: GestureDetector(
+                                          onTap: () =>
+                                              angels.removeImage(im.id),
+                                          child: Container(
+                                            width: 20,
+                                            height: 20,
+                                            decoration:
+                                                const BoxDecoration(
+                                              color: Colors.black87,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              size: 12,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          if (angels.hasImages) const SizedBox(height: 10),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kInk,
+                              side: const BorderSide(color: _kBorder),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 11),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () async {
+                              try {
+                                final files = await _pickAngelImages();
+                                for (final f in files) {
+                                  final bytes = await f.readAsBytes();
+                                  final ok = await angels.addImage(bytes);
+                                  if (!ok && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'حجم هر تصویر باید کمتر از ۱۰ مگابایت باشد'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                debugPrint('angel pick failed: $e');
+                              }
+                            },
+                            icon: const Icon(
+                                Icons.add_photo_alternate_outlined,
+                                size: 18),
+                            label: const Text('＋ افزودن',
+                                style: TextStyle(fontSize: 12.5)),
+                          ),
+                          const SizedBox(height: 10),
+                          _checkTile(
+                            title: 'نمایش روی همه‌ی تب‌ها',
+                            value: angels.on,
+                            onChanged: (v) => angels.setOn(v),
+                          ),
+                          _checkTile(
+                            title:
+                                'نمایش روی عکس‌ها و ویدیوها در حالت تمام‌صفحه',
+                            value: angels.fs,
+                            onChanged: (v) => angels.setFs(v),
+                          ),
+                          const SizedBox(height: 4),
+                          _angelSlider(
+                            label: 'اندازه',
+                            value: angels.size,
+                            min: 60,
+                            max: 320,
+                            onChanged: (v) => angels.setSize(v),
+                          ),
+                          _angelSlider(
+                            label: 'سرعت',
+                            value: angels.speed,
+                            min: 1,
+                            max: 12,
+                            onChanged: (v) => angels.setSpeed(v),
+                          ),
+                          _angelSlider(
+                            label: 'شفافیت',
+                            value: angels.opacity * 100,
+                            min: 20,
+                            max: 100,
+                            onChanged: (v) => angels.setOpacity(v / 100),
+                          ),
+                          _checkTile(
+                            title: 'محو کردن لبه‌ها',
+                            value: angels.soft,
+                            onChanged: (v) => angels.setSoft(v),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _kCard,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _kBorder),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: angels.blend,
+                                isExpanded: true,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: _kInk,
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'normal',
+                                    child: Text('حالت: عادی'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'screen',
+                                    child: Text('حالت: محو تیره‌ها'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'multiply',
+                                    child: Text('حالت: محو سفیدها'),
+                                  ),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) angels.setBlend(v);
+                                },
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -540,6 +727,39 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           ],
         ),
       );
+
+  Widget _angelSlider({
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: _kMuted),
+            ),
+          ),
+          Expanded(
+            child: Slider(
+              min: min,
+              max: max,
+              value: value.clamp(min, max),
+              activeColor: _kGold,
+              inactiveColor: _kBorder,
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _trunkPicker() {
     return GridView.count(
