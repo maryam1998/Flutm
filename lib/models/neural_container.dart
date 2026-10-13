@@ -43,7 +43,6 @@ class PendingManual {
 /// کانتینر مسیر عصبی — یکی برای هر تمرین (شکرگذاری، باور، دیسپنزا، ...)
 class NeuralContainer {
   /// کلید → true (انجام دادم) / false (انجام ندادم)
-  /// کلید یا روز است (`2026-10-12`) یا رشته‌ی تصادفی (`f1712...-abc123`)
   Map<String, bool> logs = {};
 
   /// ثبت‌های دستیِ در انتظارِ تأییدِ تقویم
@@ -65,7 +64,6 @@ class NeuralContainer {
 
   // ---------------- fiber count ----------------
 
-  /// تعداد رشته‌های ساخته‌شده = (تعداد true) − (تعداد false)، هیچ سقفی نداره، فقط منفی نمی‌شه
   int get fiberCount {
     int n = 0;
     for (final v in logs.values) {
@@ -80,7 +78,6 @@ class NeuralContainer {
 
   // ---------------- mutations ----------------
 
-  /// «امروز انجام دادم» — هر بار کلیک یک رشته‌ی جدید می‌سازه
   String addFiber({
     bool calendarLinked = false,
     NeuralFiberEmotion? emotion,
@@ -102,18 +99,15 @@ class NeuralContainer {
     return key;
   }
 
-  /// «یک روز گذشت، انجام ندادم» — هر کلیک یک رشته کم می‌کنه
   String removeFiber() {
     final key = _newFiberKey();
     logs[key] = false;
     return key;
   }
 
-  /// ثبت خودکار (وقتی خودِ اقدام مربوطه در یک روز انجام می‌شه)
   String addAutoFiber({NeuralFiberEmotion? emotion}) =>
       addFiber(calendarLinked: false, emotion: emotion);
 
-  /// علامت‌زدن یک روز خاص (برای تقویم‌های متصل)
   void markDay(String key, bool done) {
     if (logs[key] == done) {
       logs.remove(key);
@@ -124,8 +118,6 @@ class NeuralContainer {
 
   // ---------------- fiber emotions ----------------
 
-  /// رنگ/فرکانس یک رشته رو عوض می‌کنه (وقتی کاربر بعداً حسش رو ویرایش کرد).
-  /// اگه `emotion` برابر null باشه، رشته به رنگ پیش‌فرض برمی‌گرده.
   void updateFiberEmotion(String fiberKey, NeuralFiberEmotion? emotion) {
     if (logs[fiberKey] != true) return;
     if (emotion == null) {
@@ -135,30 +127,47 @@ class NeuralContainer {
     }
   }
 
-  /// رنگِ همه‌ی رشته‌های **امروز** رو با حسِ جدید عوض می‌کنه.
-  /// برای وقتی کاربر از صفحه‌ی «لیست شکرگذاری» حسش رو ویرایش می‌کنه
-  /// و می‌خواد رشته‌ی عصبیِ امروز همرنگِ حسِ جدید بشه.
-  ///
-  /// `emotion == null` یعنی حس برداشته شد → رشته‌ها به رنگ پیش‌فرض برمی‌گردن.
   void recolorTodayFibers(NeuralFiberEmotion? emotion) {
     final today = todayKey();
     for (final key in logs.keys.toList()) {
       if (logs[key] != true) continue;
-      // رشته‌ی امروز = کلیدِ تاریخ امروز، یا کلیدِ f<timestamp> که timestampش امروزه
       final isToday = key == today || _isFiberFromToday(key);
       if (!isToday) continue;
       updateFiberEmotion(key, emotion);
     }
   }
 
-  /// همه‌ی رشته‌های امروز رو پاک می‌کنه (برای وقتی کاربر «برداشتن حس» رو می‌زنه).
   void clearTodayFiberEmotions() {
     recolorTodayFibers(null);
   }
 
+  // ──────────────── احساسات یک روز مشخص ────────────────
+
+  /// همه‌ی احساس‌های ثبت‌شده روی رشته‌های یک روز مشخص
+  Set<String> emotionIdsForDay(String dayKey) {
+    final out = <String>{};
+    final norm = _normDay(dayKey);
+    for (final entry in fiberEmotions.entries) {
+      if (logs[entry.key] != true) continue;
+      if (!_isFiberOfDay(entry.key, norm)) continue;
+      out.addAll(entry.value.ids);
+    }
+    return out;
+  }
+
+  /// رشته‌های **یک روز مشخص** را با یک حس جدید همرنگ می‌کند.
+  /// `emotion == null` یعنی حس برداشته شد → رشته‌ها به رنگ پیش‌فرض برمی‌گردند.
+  void recolorFibersForDay(String dayKey, NeuralFiberEmotion? emotion) {
+    final norm = _normDay(dayKey);
+    for (final key in logs.keys.toList()) {
+      if (logs[key] != true) continue;
+      if (!_isFiberOfDay(key, norm)) continue;
+      updateFiberEmotion(key, emotion);
+    }
+  }
+
   // ---------------- sync ----------------
 
-  /// روزهایی که گذشته ولی نه دستی ثبت شدن نه خودکار → «انجام نشد»
   bool autoSync({bool noMissPenalty = false}) {
     if (noMissPenalty) return false;
     final yesterday = dayKeyOffset(-1);
@@ -184,7 +193,6 @@ class NeuralContainer {
     return changed;
   }
 
-  /// پاک‌سازیِ ثبت‌های دستیِ در انتظارِ تأیید که بعد از ۱ ساعت هنوز تأیید نشدن
   bool cleanupPending({
     required bool calendarLinked,
     required bool Function(String dayKey) isConfirmed,
@@ -290,7 +298,6 @@ class NeuralContainer {
     return '${d.year}-${d.month}-${d.day}';
   }
 
-  /// آیا این کلیدِ رشته (`f<timestamp>-xxx`) متعلق به امروزه؟
   static bool _isFiberFromToday(String key) {
     final m = RegExp(r'^f(\d{10,})-').firstMatch(key);
     if (m == null) return false;
@@ -299,5 +306,29 @@ class NeuralContainer {
     final d = DateTime.fromMillisecondsSinceEpoch(ts);
     final now = DateTime.now();
     return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  // ---- helpers برای تطبیق روز ----
+
+  static String _pad2(int n) => n.toString().padLeft(2, '0');
+
+  /// نرمال‌سازی کلید روز به yyyy-mm-dd (با صفر پیشوند)
+  static String _normDay(String k) {
+    final p = k.split('-').map((e) => int.tryParse(e) ?? 0).toList();
+    if (p.length != 3) return k;
+    return '${p[0]}-${_pad2(p[1])}-${_pad2(p[2])}';
+  }
+
+  /// آیا این رشته مربوط به این روز است؟ (هم کلید روز، هم `f<ts>-xxx`)
+  static bool _isFiberOfDay(String key, String normDayKey) {
+    if (_normDay(key) == normDayKey) return true;
+
+    final m = RegExp(r'^f(\d{10,})-').firstMatch(key);
+    if (m == null) return false;
+    final ts = int.tryParse(m.group(1) ?? '');
+    if (ts == null) return false;
+    final d = DateTime.fromMillisecondsSinceEpoch(ts);
+    final n = '${d.year}-${_pad2(d.month)}-${_pad2(d.day)}';
+    return n == normDayKey;
   }
 }
