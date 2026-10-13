@@ -82,6 +82,13 @@ class ActionNode {
   int? timerStart;
   bool isRoutine, detached;
   double? originX, originY, dir, len, bend1, bend2;
+
+  // ─────────── قدم متحرک 👣 ───────────
+  double? footSize;    // ضریب اندازه (پیش‌فرض 1.0)
+  double? footSpeed;   // ثانیه برای یک دور (پیش‌فرض 3.2)
+  bool footPlaying;    // آیا در حال حرکت است؟
+  double? footPos;     // موقعیت 0..1 (اگر ثابت باشد)
+
   Map<String, dynamic> extra;
 
   ActionNode({
@@ -108,6 +115,10 @@ class ActionNode {
     this.len,
     this.bend1,
     this.bend2,
+    this.footSize,
+    this.footSpeed,
+    this.footPlaying = true,
+    this.footPos,
     Map<String, dynamic>? extra,
   })  : id = id ?? uid(),
         children = children ?? [],
@@ -123,6 +134,7 @@ class ActionNode {
     'labelSize', 'children', 'images', 'logs', 'entries', 'time', 'ranges',
     'timerStart', 'isRoutine', 'detached', 'originX', 'originY', 'dir', 'len',
     'bend1', 'bend2',
+    'footSize', 'footSpeed', 'footPlaying', 'footPos',
   };
 
   factory ActionNode.fromJson(dynamic raw) {
@@ -156,6 +168,10 @@ class ActionNode {
       len: _dn(j['len']),
       bend1: _dn(j['bend1']),
       bend2: _dn(j['bend2']),
+      footSize: _dn(j['footSize']),
+      footSpeed: _dn(j['footSpeed']),
+      footPlaying: _b(j['footPlaying'], true),
+      footPos: _dn(j['footPos']),
       extra: _rest(j, _known),
     );
   }
@@ -185,6 +201,10 @@ class ActionNode {
         if (len != null) 'len': len,
         if (bend1 != null) 'bend1': bend1,
         if (bend2 != null) 'bend2': bend2,
+        if (footSize != null) 'footSize': footSize,
+        if (footSpeed != null) 'footSpeed': footSpeed,
+        'footPlaying': footPlaying,
+        if (footPos != null) 'footPos': footPos,
       };
 }
 
