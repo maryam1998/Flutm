@@ -648,7 +648,7 @@ class MapInteraction {
           }
         } else if (hit.kind == HitKind.label) {
           final cur = _labelSizeOf(node) ?? _defaultLabelSize(hit.type, hit.id);
-          _setLabelSize(node, math.max(8.0, Math.min(60.0, cur * f)));
+          _setLabelSize(node, math.max(8.0, math.min(60.0, cur * f)));
           store.touch();
         }
         return;
