@@ -4,8 +4,8 @@ import '../data/neural_tiers.dart';
 import '../models/emotion.dart';
 import '../models/neural_container.dart';
 
-/// نقاشِ مسیر عصبی — هر رشته رنگِ ترکیبی احساساتِ خودش را دارد.
-/// رشته‌های رنگی ضخیم‌ترند، و با هر احساسِ اضافه ضخیم‌تر می‌شوند.
+/// نقاشِ مسیر عصبی — همه‌ی رشته‌های `true` رنگ احساسِ خودشان را دارند.
+/// رشته‌های رنگی ضخیم‌ترند، با هر احساسِ اضافه ضخیم‌تر می‌شوند.
 class NeuralPathwayPainter extends CustomPainter {
   final int fiberCount;
   final NeuralContainer container;
@@ -55,20 +55,21 @@ class NeuralPathwayPainter extends CustomPainter {
   // ---------------- fibers ----------------
 
   void _drawFibers(Canvas canvas) {
-    if (fiberCount <= 0) return;
-
+    // همه‌ی رشته‌های true به ترتیب درج
     final trueKeys = <String>[];
     for (final k in container.logs.keys) {
       if (container.logs[k] == true) trueKeys.add(k);
     }
+    if (trueKeys.isEmpty) return;
 
     const defaultColor = kEmerald500;
     const defaultOpacity = 0.55;
     const defaultWidth = 1.0;
-    const feltOpacity = 0.88;
+    const feltOpacity = 0.9;
     const spreadCycle = 9;
 
-    for (int i = 0; i < fiberCount; i++) {
+    for (int i = 0; i < trueKeys.length; i++) {
+      final key = trueKeys[i];
       final pairIdx = (i ~/ 2) % spreadCycle;
       final mag = 3.0 + 6.0 * pairIdx;
       final off = (i % 2 == 0 ? -1 : 1) * mag;
@@ -81,14 +82,11 @@ class NeuralPathwayPainter extends CustomPainter {
       double fWidth = defaultWidth;
       double fOpacity = defaultOpacity;
 
-      if (i < trueKeys.length) {
-        final felt = container.fiberEmotions[trueKeys[i]];
-        if (felt != null && felt.ids.isNotEmpty) {
-          fColor = blendEmotionColors(felt.ids);
-          // پایه ۲.۴، هر احساس اضافه ۰.۴، حداکثر ۴.۰
-          fWidth = (2.4 + (felt.ids.length - 1) * 0.4).clamp(2.4, 4.0);
-          fOpacity = feltOpacity;
-        }
+      final felt = container.fiberEmotions[key];
+      if (felt != null && felt.ids.isNotEmpty) {
+        fColor = blendEmotionColors(felt.ids);
+        fWidth = (2.4 + (felt.ids.length - 1) * 0.4).clamp(2.4, 4.0);
+        fOpacity = feltOpacity;
       }
 
       final path = Path()
@@ -106,7 +104,7 @@ class NeuralPathwayPainter extends CustomPainter {
     }
   }
 
-  /// ترکیبِ رنگِ همه‌ی احساساتِ یک لیست (میانگین RGB).
+  /// ترکیبِ رنگ همه‌ی احساسات یک لیست (میانگین RGB).
   static Color blendEmotionColors(List<String> ids) {
     final list = ids.map(emotionById).whereType<Emotion>().toList();
     if (list.isEmpty) return kEmerald500;
