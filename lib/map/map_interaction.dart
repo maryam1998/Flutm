@@ -11,13 +11,32 @@ import 'geometry.dart';
 import 'hit_registry.dart';
 import 'map_ops.dart';
 
-enum _Mode { none, pan, pinch, dragNode, dragLabel, dragImage, resizeNode, resizeLabel, resizeImage }
+enum _Mode {
+  none,
+  pan,
+  pinch,
+  dragNode,
+  dragLabel,
+  dragImage,
+  resizeNode,
+  resizeLabel,
+  resizeImage,
+  dragFoot,
+}
 
 class _Pending {
-  _Pending(this.hostId, this.actionId, this.imgIdx, this.isLabel, this.start);
+  _Pending(
+    this.hostId,
+    this.actionId,
+    this.imgIdx,
+    this.isLabel,
+    this.start, {
+    this.isFoot = false,
+  });
   final String hostId, actionId;
   final int? imgIdx;
   final bool isLabel;
+  final bool isFoot;
   final Offset start;
 }
 
@@ -44,8 +63,6 @@ class MapInteraction {
   final void Function(String id) onEditRing;
   final void Function(String hostId, String actionId) onEditAction;
   final void Function(String hostId, String actionId)? onTimeBranch;
-
-  /// نگه‌داشتن طولانی روی نوک شاخه (بدون حرکت) → منوی زمینه
   final void Function(String hostId, String actionId)? onShowBranchMenu;
 
   static const double _slop = 6;
@@ -242,9 +259,18 @@ class MapInteraction {
 
     final world = cam.screenToWorld(pos);
 
+    // ─────── قدم متحرک ───────
+    if (hit.type == 'foot') {
+      _pending = _Pending(hit.hostId, hit.id, null, false, pos, isFoot: true);
+      _slopPassed = false;
+      return;
+    }
+
     if (hit.type == 'action') {
-      _pending = _Pending(hit.hostId, hit.id,
-          hit.kind == HitKind.image ? hit.imgIdx : null, hit.kind == HitKind.label, pos);
+      _pending = _Pending(
+          hit.hostId, hit.id,
+          hit.kind == HitKind.image ? hit.imgIdx : null,
+          hit.kind == HitKind.label, pos);
       _slopPassed = false;
       _lp = Timer(const Duration(milliseconds: 600), () {
         _holdArmed = true;
@@ -294,14 +320,21 @@ class MapInteraction {
     if (isResizeMode()) {
       final h1 = hits.hitTest(cam.screenToWorld(pts[0]), cam.scale);
       final h2 = hits.hitTest(cam.screenToWorld(pts[1]), cam.scale);
-      if (h1 != null && h2 != null && h1.type == h2.type && h1.id == h2.id && h1.hostId == h2.hostId) {
+      if (h1 != null &&
+          h2 != null &&
+          h1.type == h2.type &&
+          h1.id == h2.id &&
+          h1.hostId == h2.hostId) {
         final node = _nodeRef(h1.type, h1.id, h1.hostId);
         if (node != null) {
           _dType = h1.type;
           _dId = h1.id;
           _dHost = h1.hostId;
           _rsStartDist = d;
-          if (h1.kind == HitKind.image && h2.kind == HitKind.image && h1.imgIdx == h2.imgIdx && node is ActionNode) {
+          if (h1.kind == HitKind.image &&
+              h2.kind == HitKind.image &&
+              h1.imgIdx == h2.imgIdx &&
+              node is ActionNode) {
             final idx = h1.imgIdx ?? 0;
             if (idx < node.images.length) {
               _dImg = idx;
@@ -315,7 +348,9 @@ class MapInteraction {
             _mode = _Mode.resizeLabel;
             return;
           }
-          if (h1.kind == HitKind.node && h2.kind == HitKind.node && h1.type != 'action') {
+          if (h1.kind == HitKind.node &&
+              h2.kind == HitKind.node &&
+              h1.type != 'action') {
             _rsStart = _radiusOf(node);
             _mode = _Mode.resizeNode;
             return;
@@ -374,11 +409,13 @@ class MapInteraction {
     final w = cam.screenToWorld(cur);
     switch (_mode) {
       case _Mode.pan:
-        cam.setView(_panCamX + (cur.dx - _panStart.dx), _panCamY + (cur.dy - _panStart.dy), cam.scale);
+        cam.setView(_panCamX + (cur.dx - _panStart.dx),
+            _panCamY + (cur.dy - _panStart.dy), cam.scale);
       case _Mode.dragLabel:
         final lbNode = _nodeRef(_dType, _dId, _dHost);
         if (lbNode == null) return;
-        _setLabelOff(lbNode, _dStartA + (w.dx - _dStartWorld.dx), _dStartB + (w.dy - _dStartWorld.dy));
+        _setLabelOff(lbNode, _dStartA + (w.dx - _dStartWorld.dx),
+            _dStartB + (w.dy - _dStartWorld.dy));
         _mark();
       case _Mode.dragImage:
         final imNode = _nodeRef('action', _dId, _dHost);
@@ -388,6 +425,8 @@ class MapInteraction {
         _mark();
       case _Mode.dragNode:
         _doDragNode(w);
+      case _Mode.dragFoot:
+        _doDragFoot(w);
       default:
         break;
     }
@@ -399,6 +438,17 @@ class MapInteraction {
   }
 
   void _beginFromPending(_Pending p, Offset cur) {
+    if (p.isFoot) {
+      _mode = _Mode.dragFoot;
+      _dType = 'foot';
+      _dHost = p.hostId;
+      _dId = p.actionId;
+      _dStartWorld = cam.screenToWorld(p.start);
+      _slopPassed = true;
+      _tap = null;
+      return;
+    }
+
     final host = store.state.findHost(p.hostId);
     if (host is! MapHost) return;
     final found = findActionNode(host.actions, p.actionId);
@@ -411,7 +461,8 @@ class MapInteraction {
       _holdArmed = false;
       _holdToggle(host, node, ws);
     } else if (node.detached && !p.isLabel && p.imgIdx == null) {
-      _beginActionDrag(host.id, node.id, ws - Offset(node.originX ?? 0, node.originY ?? 0));
+      _beginActionDrag(
+          host.id, node.id, ws - Offset(node.originX ?? 0, node.originY ?? 0));
     } else if (p.imgIdx != null && p.imgIdx! < node.images.length) {
       final img = node.images[p.imgIdx!];
       _mode = _Mode.dragImage;
@@ -513,6 +564,31 @@ class MapInteraction {
     _mark();
   }
 
+  /// کشیدن قدم روی مسیر شاخه.
+  /// پروجکشن نقطه روی پاره‌خط (origin → end) و clamp به [0.06, 0.94].
+  void _doDragFoot(Offset w) {
+    final host = store.state.findHost(_dHost);
+    if (host is! MapHost) return;
+    final found = findActionNode(host.actions, _dId);
+    if (found == null) return;
+    final node = found.node;
+
+    final ent = hits.geom[node.id];
+    if (ent == null) return;
+
+    final o = ent.originPt;
+    final e = ent.end;
+    final dx = e.dx - o.dx;
+    final dy = e.dy - o.dy;
+    final len2 = dx * dx + dy * dy;
+    if (len2 < 1) return;
+
+    final t = ((w.dx - o.dx) * dx + (w.dy - o.dy) * dy) / len2;
+    node.footPos = t.clamp(0.06, 0.94);
+    node.footPlaying = false;
+    _mark();
+  }
+
   void _snapOriginToTrunk(MapHost host, ActionNode node) {
     final cp = trunkControlPoints(host, store.state.me);
     final res = nearestOnCubic(cp, Offset(node.originX ?? 0, node.originY ?? 0));
@@ -563,20 +639,36 @@ class MapInteraction {
 
     final p = _pending;
     if (p != null && _ptrs.length == 1) {
-      // نگه‌داشتن بدون حرکت → منوی زمینه؛ تپ → پنل ویرایش
-      final wasHold = _holdArmed;
       _cancelLongPress();
       _pending = null;
       _ptrs.remove(e.pointer);
       _holdArmed = false;
+      final wasDrag = _slopPassed;
       _finish();
-      if (wasHold && onShowBranchMenu != null) {
-        onShowBranchMenu!(p.hostId, p.actionId);
-      } else {
-        onEditAction(p.hostId, p.actionId);
+
+      if (p.isFoot) {
+        // تپ روی قدم (بدون حرکت) → toggle حرکت/توقف
+        if (!wasDrag) {
+          final host = store.state.findHost(p.hostId);
+          if (host is MapHost) {
+            final found = findActionNode(host.actions, p.actionId);
+            if (found != null) {
+              found.node.footPlaying = !found.node.footPlaying;
+              store.changed();
+              store.toast?.call(found.node.footPlaying
+                  ? 'قدم به راه افتاد 👣'
+                  : 'قدم متوقف شد');
+            }
+          }
+        }
+        return;
       }
+
+      // تپ روی شاخه → کادر ویرایش باز شود
+      onEditAction(p.hostId, p.actionId);
       return;
     }
+
     final t = _tap;
     if (t != null && !_slopPassed && _ptrs.length == 1) {
       _ptrs.remove(e.pointer);
@@ -643,7 +735,8 @@ class MapInteraction {
         if (hit.kind == HitKind.image && node is ActionNode) {
           final i = hit.imgIdx ?? 0;
           if (i < node.images.length) {
-            node.images[i].size = math.max(16.0, math.min(260.0, node.images[i].size * f));
+            node.images[i].size =
+                math.max(16.0, math.min(260.0, node.images[i].size * f));
             store.touch();
           }
         } else if (hit.kind == HitKind.label) {
