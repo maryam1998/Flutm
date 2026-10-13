@@ -55,6 +55,10 @@ class GratitudeEntry {
   bool shared;
   int? editedAt;
   double? txId;
+
+  /// شناسه‌های احساسی که کاربر روی این شکرگذاری انتخاب کرده
+  List<String> emotionIds;
+
   Map<String, dynamic> extra;
 
   GratitudeEntry({
@@ -73,15 +77,18 @@ class GratitudeEntry {
     this.shared = false,
     this.editedAt,
     this.txId,
+    List<String>? emotionIds,
     Map<String, dynamic>? extra,
   })  : id = id ?? _uid(),
         images = images ?? [],
         audios = audios ?? [],
+        emotionIds = emotionIds ?? [],
         extra = extra ?? {};
 
   static const _known = {
     'id', 'text', 'icon', 'image', 'amount', 'images', 'audios',
     'date', 'day', 'time', 'iso', 'source', 'shared', 'editedAt', 'txId',
+    'emotionIds',
   };
 
   factory GratitudeEntry.fromJson(dynamic raw) {
@@ -113,6 +120,9 @@ class GratitudeEntry {
       shared: j['shared'] == true,
       editedAt: j['editedAt'] is num ? (j['editedAt'] as num).toInt() : null,
       txId: j['txId'] is num ? (j['txId'] as num).toDouble() : null,
+      emotionIds: j['emotionIds'] is List
+          ? (j['emotionIds'] as List).map((e) => e.toString()).toList()
+          : [],
       extra: extra,
     );
   }
@@ -134,6 +144,7 @@ class GratitudeEntry {
         'shared': shared,
         'editedAt': editedAt,
         'txId': txId,
+        'emotionIds': emotionIds,
       };
 
   String displayText() {
