@@ -98,8 +98,10 @@ class GratitudeStore extends ChangeNotifier {
     final start = _parseKey(journeyStart);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final passed =
-        today.difference(DateTime(start.year, start.month, start.day)).inDays + 1;
+    final passed = today
+            .difference(DateTime(start.year, start.month, start.day))
+            .inDays +
+        1;
     return passed < 1 ? 1 : passed;
   }
 
@@ -118,10 +120,11 @@ class GratitudeStore extends ChangeNotifier {
 
     NeuralFiberEmotion? felt;
     if (emotions.hasSelection) {
-      final dom = dominantEmotion(emotions.selectedIds);
+      final ids = emotions.selectedIds;
+      final dom = dominantEmotion(ids);
       if (dom != null) {
         felt = NeuralFiberEmotion(
-          ids: emotions.selectedIds,
+          ids: ids,
           color: dom.color,
           freq: dom.freq,
         );
@@ -129,7 +132,6 @@ class GratitudeStore extends ChangeNotifier {
     }
 
     neural.addAutoFiber(emotion: felt);
-    emotions.reset();
 
     await _persist();
     notifyListeners();
@@ -186,9 +188,19 @@ class GratitudeStore extends ChangeNotifier {
           freq: dom.freq,
         );
       }
-      emotions?.reset();
+      // توجه: emotions?.reset() حذف شد تا انتخاب بین ثبت‌های روز حفظ شود.
     }
-    neural.addAutoFiber(emotion: felt);
+
+    // اگر حس داشت، آخرین رشته‌ی بدون‌احساس را رنگ کن
+    // وگرنه یک رشته‌ی جدید بدون‌رنگ بساز
+    if (felt != null) {
+      final colored = neural.colorLatestUncolored(felt);
+      if (!colored) {
+        neural.addAutoFiber(emotion: felt);
+      }
+    } else {
+      neural.addAutoFiber();
+    }
 
     await _persist();
     notifyListeners();
@@ -224,7 +236,6 @@ class GratitudeStore extends ChangeNotifier {
 
   // ───────── احساسات روز ─────────
 
-  /// احساسات ذخیره‌شده روی همه‌ی ثبت‌های یک روز
   Set<String> emotionIdsForDay(String dayKey) {
     final norm = _normDayKey(dayKey);
     final out = <String>{};
@@ -239,7 +250,6 @@ class GratitudeStore extends ChangeNotifier {
     return out;
   }
 
-  /// رنگِ کادر روز — بر اساس بالاترین فرکانس بین احساسات آن روز
   String? dominantEmotionColorForDay(String dayKey) {
     final ids = emotionIdsForDay(dayKey);
     if (ids.isEmpty) return null;
@@ -247,9 +257,6 @@ class GratitudeStore extends ChangeNotifier {
     return dom?.color;
   }
 
-  /// ویرایش احساسات یک روز:
-  ///   - همه‌ی entryهای آن روز → emotionIds جدید
-  ///   - همه‌ی رشته‌های عصبی آن روز → رنگ/فرکانس جدید
   Future<void> updateDayEmotions(
     String dayKey,
     List<String> emotionIds,
