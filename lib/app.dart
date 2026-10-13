@@ -3,9 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'models/emotion.dart';
+import 'models/neural_container.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
 import 'screens/practice_tab.dart';
+import 'state/emotion_store.dart';
+import 'state/gratitude_store.dart';
 import 'state/theme_store.dart';
 import 'widgets/background_layer.dart';
 import 'widgets/emotion_widget_layer.dart';
@@ -117,6 +121,32 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _wireEmotionCommit();
+  }
+
+  /// وقتی کاربر پنل احساسات رو با یک انتخاب می‌بندد،
+  /// یک رشته‌ی عصبی جدید در GratitudeStore.neural ساخته می‌شود.
+  /// این همان رفتار `echw:commit` در نسخه‌ی وب است.
+  void _wireEmotionCommit() {
+    final em = context.read<EmotionStore>();
+    final gr = context.read<GratitudeStore>();
+    em.onCommitClose = (ids) {
+      final dom = dominantEmotion(ids);
+      if (dom == null) return;
+      gr.neural.addAutoFiber(
+        emotion: NeuralFiberEmotion(
+          ids: ids,
+          color: dom.color,
+          freq: dom.freq,
+        ),
+      );
+      gr.saveNeural();
+    };
   }
 
   @override
