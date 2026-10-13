@@ -16,7 +16,6 @@ Map<String, dynamic> _rest(Map<String, dynamic> j, Set<String> known) =>
 double _clampScale(double v) =>
     v.clamp(kIconScaleMin, kIconScaleMax).toDouble();
 
-/// هدف یا حلقه: چیزی که تنه و شاخه داره
 abstract interface class MapHost {
   String get id;
   double get x;
@@ -32,7 +31,6 @@ abstract interface class MapHost {
   set lastActivity(int v);
 }
 
-/// تصویر روی گره. src معمولاً data: URI است.
 class ImageItem {
   String src;
   double size, dx, dy;
@@ -71,7 +69,6 @@ class ImageItem {
 List<ImageItem> _images(dynamic v) =>
     v is List ? v.map(ImageItem.fromAny).toList() : <ImageItem>[];
 
-/// شاخه / زیرشاخه
 class ActionNode {
   String id, text, style;
   String? color;
@@ -80,8 +77,8 @@ class ActionNode {
   List<ActionNode> children;
   List<ImageItem> images;
   Map<String, dynamic> logs, entries;
-  Map<String, dynamic> time; // jk → seconds (int)
-  Map<String, dynamic> ranges; // jk → [{s, e}]
+  Map<String, dynamic> time;
+  Map<String, dynamic> ranges;
   int? timerStart;
   bool isRoutine, detached;
   double? originX, originY, dir, len, bend1, bend2;
@@ -194,7 +191,6 @@ class ActionNode {
 int countActions(List<ActionNode> list) =>
     list.fold(0, (n, a) => n + 1 + countActions(a.children));
 
-/// هدف
 class Goal implements MapHost {
   @override
   String id;
@@ -344,7 +340,6 @@ class Goal implements MapHost {
       };
 }
 
-/// حلقه (نزدیک شدن به هدف)
 class Ring implements MapHost {
   @override
   String id;
@@ -457,7 +452,6 @@ class Ring implements MapHost {
       };
 }
 
-/// گره «من» در مرکز نقشه
 class MeNode {
   String color, note, name;
   double x, y, radius, labelDX, labelDY;
@@ -519,7 +513,6 @@ class MeNode {
       };
 }
 
-/// کل وضعیت تب نقشه (معادل state در map-tab.js / کلید frequencyMapData)
 class MapState {
   MeNode me;
   List<Goal> goals;
@@ -528,6 +521,7 @@ class MapState {
   double fontSize;
   bool showDateStamps, showTimeStamps, showRingLinks, showEmotionWidget;
   String userName;
+  double footScale;
   Map<String, dynamic> extra;
 
   MapState({
@@ -542,6 +536,7 @@ class MapState {
     this.showRingLinks = false,
     this.showEmotionWidget = true,
     this.userName = '',
+    this.footScale = 1.0,
     Map<String, dynamic>? extra,
   })  : me = me ?? MeNode(),
         goals = goals ?? [],
@@ -551,7 +546,7 @@ class MapState {
   static const _known = {
     'me', 'goals', 'rings', 'textColor', 'trunkStyle', 'fontSize',
     'showDateStamps', 'showTimeStamps', 'showRingLinks', 'showEmotionWidget',
-    'userName',
+    'userName', 'footScale',
   };
 
   factory MapState.fromJson(dynamic raw) {
@@ -576,6 +571,7 @@ class MapState {
       showRingLinks: _b(j['showRingLinks'], false),
       showEmotionWidget: _b(j['showEmotionWidget'], true),
       userName: _s(j['userName'], ''),
+      footScale: _d(j['footScale'], 1.0),
       extra: extra,
     );
   }
@@ -593,6 +589,7 @@ class MapState {
         'showRingLinks': showRingLinks,
         'showEmotionWidget': showEmotionWidget,
         'userName': userName,
+        'footScale': footScale,
         '_savedAt': DateTime.now().millisecondsSinceEpoch,
       };
 
