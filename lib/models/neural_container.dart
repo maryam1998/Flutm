@@ -1,6 +1,6 @@
 import 'dart:math';
 
-/// احساسِ همراهِ یک رشته‌ی عصبی (وقتی کاربر با ادمکِ شناور حس ثبت کرده باشه)
+/// احساسِ همراهِ یک رشته‌ی عصبی
 class NeuralFiberEmotion {
   final List<String> ids;
   final String color;
@@ -26,7 +26,6 @@ class NeuralFiberEmotion {
       );
 }
 
-/// ثبتِ دستیِ «امروز انجام دادم» برای تقویم‌های متصل (هنوز تأیید نشده)
 class PendingManual {
   final int ts;
   final String dayKey;
@@ -40,24 +39,13 @@ class PendingManual {
       );
 }
 
-/// کانتینر مسیر عصبی — یکی برای هر تمرین (شکرگذاری، باور، دیسپنزا، ...)
+/// کانتینر مسیر عصبی — یکی برای هر تمرین
 class NeuralContainer {
-  /// کلید → true (انجام دادم) / false (انجام ندادم)
   Map<String, bool> logs = {};
-
-  /// ثبت‌های دستیِ در انتظارِ تأییدِ تقویم
   Map<String, PendingManual> pendingManual = {};
-
-  /// آخرین روزی که autoSync تا اون‌جا رو حساب کرده
   String? lastSyncKey;
-
-  /// آیا کاربر خودش تأیید کرده که این عادت جاافتاده؟
   bool habitFormed = false;
-
-  /// رنگ/فرکانسِ همراه هر رشته (اختیاری)
   Map<String, NeuralFiberEmotion> fiberEmotions = {};
-
-  /// جلوگیری از ثبت تکراری در یک روز (برای ثبت خودکار)
   Map<String, bool> autoDays = {};
 
   NeuralContainer();
@@ -118,6 +106,21 @@ class NeuralContainer {
 
   // ---------------- fiber emotions ----------------
 
+  /// آخرین رشته‌ی بدون‌احساس را رنگ می‌کند.
+  /// اگر همه‌ی رشته‌ها رنگی بودند، `false` برمی‌گرداند
+  /// (یعنی caller باید یک رشته‌ی جدید بسازد).
+  bool colorLatestUncolored(NeuralFiberEmotion emotion) {
+    final keys = logs.keys.toList();
+    for (int i = keys.length - 1; i >= 0; i--) {
+      final k = keys[i];
+      if (logs[k] != true) continue;
+      if (fiberEmotions.containsKey(k)) continue;
+      fiberEmotions[k] = emotion;
+      return true;
+    }
+    return false;
+  }
+
   void updateFiberEmotion(String fiberKey, NeuralFiberEmotion? emotion) {
     if (logs[fiberKey] != true) return;
     if (emotion == null) {
@@ -143,7 +146,6 @@ class NeuralContainer {
 
   // ──────────────── احساسات یک روز مشخص ────────────────
 
-  /// همه‌ی احساس‌های ثبت‌شده روی رشته‌های یک روز مشخص
   Set<String> emotionIdsForDay(String dayKey) {
     final out = <String>{};
     final norm = _normDay(dayKey);
@@ -155,8 +157,6 @@ class NeuralContainer {
     return out;
   }
 
-  /// رشته‌های **یک روز مشخص** را با یک حس جدید همرنگ می‌کند.
-  /// `emotion == null` یعنی حس برداشته شد → رشته‌ها به رنگ پیش‌فرض برمی‌گردند.
   void recolorFibersForDay(String dayKey, NeuralFiberEmotion? emotion) {
     final norm = _normDay(dayKey);
     for (final key in logs.keys.toList()) {
@@ -204,10 +204,8 @@ class NeuralContainer {
 
     pendingManual.removeWhere((key, entry) {
       if (now - entry.ts < oneHour) return false;
-
       final confirmed = isConfirmed(entry.dayKey);
       if (confirmed) return true;
-
       if (logs[key] == true) logs.remove(key);
       fiberEmotions.remove(key);
       changed = true;
@@ -308,21 +306,16 @@ class NeuralContainer {
     return d.year == now.year && d.month == now.month && d.day == now.day;
   }
 
-  // ---- helpers برای تطبیق روز ----
-
   static String _pad2(int n) => n.toString().padLeft(2, '0');
 
-  /// نرمال‌سازی کلید روز به yyyy-mm-dd (با صفر پیشوند)
   static String _normDay(String k) {
     final p = k.split('-').map((e) => int.tryParse(e) ?? 0).toList();
     if (p.length != 3) return k;
     return '${p[0]}-${_pad2(p[1])}-${_pad2(p[2])}';
   }
 
-  /// آیا این رشته مربوط به این روز است؟ (هم کلید روز، هم `f<ts>-xxx`)
   static bool _isFiberOfDay(String key, String normDayKey) {
     if (_normDay(key) == normDayKey) return true;
-
     final m = RegExp(r'^f(\d{10,})-').firstMatch(key);
     if (m == null) return false;
     final ts = int.tryParse(m.group(1) ?? '');
