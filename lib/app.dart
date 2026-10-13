@@ -3,14 +3,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import 'models/emotion.dart';
-import 'models/neural_container.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
 import 'screens/practice_tab.dart';
-import 'state/emotion_store.dart';
-import 'state/gratitude_store.dart';
 import 'state/theme_store.dart';
+import 'widgets/angels_layer.dart';
 import 'widgets/background_layer.dart';
 import 'widgets/emotion_widget_layer.dart';
 import 'widgets/motivation_bar.dart';
@@ -38,6 +35,7 @@ class MaghzApp extends StatelessWidget {
         textDirection: TextDirection.rtl,
         children: [
           child ?? const SizedBox.shrink(),
+          const AngelsLayer(),
           const EmotionWidgetLayer(),
         ],
       ),
@@ -116,47 +114,11 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _index = 1;
-  bool _wired = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_wired) return;
-    _wired = true;
-    _wireEmotionCommit();
-  }
-
-  void _wireEmotionCommit() {
-    final em = context.read<EmotionStore>();
-    final gr = context.read<GratitudeStore>();
-
-    em.onCommitClose = (ids) {
-      if (ids.isEmpty) return;
-      final valid = ids.where((id) => emotionById(id) != null).toList();
-      if (valid.isEmpty) return;
-      final dom = dominantEmotion(valid);
-      if (dom == null) return;
-
-      final felt = NeuralFiberEmotion(
-        ids: valid,
-        color: dom.color,
-        freq: dom.freq,
-      );
-
-      // اول سعی کن آخرین رشته‌ی بدون‌احساس را رنگ کنی
-      final colored = gr.neural.colorLatestUncolored(felt);
-      // اگر همه‌ی رشته‌ها رنگی بودند، یک رشته‌ی جدید بساز
-      if (!colored) {
-        gr.neural.addAutoFiber(emotion: felt);
-      }
-      gr.saveNeural();
-    };
   }
 
   @override
