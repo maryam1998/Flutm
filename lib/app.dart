@@ -3,9 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'models/emotion.dart';
+import 'models/neural_container.dart';
 import 'screens/map_tab.dart';
 import 'screens/placeholder_tab.dart';
 import 'screens/practice_tab.dart';
+import 'state/emotion_store.dart';
+import 'state/gratitude_store.dart';
 import 'state/theme_store.dart';
 import 'widgets/background_layer.dart';
 import 'widgets/emotion_widget_layer.dart';
@@ -112,11 +116,46 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _index = 1;
+  bool _wired = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_wired) return;
+    _wired = true;
+    _wireEmotionCommit();
+  }
+
+  /// وقتی کاربر پنل احساسات را می‌بندد و حسی انتخاب کرده:
+  /// یک رشته‌ی عصبی جدید با همان حس (یا ترکیبِ حس‌ها) در GratitudeStore ساخته می‌شود.
+  /// این همان رفتار `echw:commit` در نسخه‌ی وب است.
+  void _wireEmotionCommit() {
+    final em = context.read<EmotionStore>();
+    final gr = context.read<GratitudeStore>();
+
+    em.onCommitClose = (ids) {
+      if (ids.isEmpty) return;
+      final valid =
+          ids.where((id) => emotionById(id) != null).toList();
+      if (valid.isEmpty) return;
+      final dom = dominantEmotion(valid);
+      if (dom == null) return;
+
+      gr.neural.addAutoFiber(
+        emotion: NeuralFiberEmotion(
+          ids: valid,
+          color: dom.color,
+          freq: dom.freq,
+        ),
+      );
+      gr.saveNeural();
+    };
   }
 
   @override
