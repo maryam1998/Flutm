@@ -1,16 +1,19 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../state/angels_store.dart';
+import 'angel_video_view.dart';
 
 /// لایه‌ی تصاویر و ویدیوهای متحرک شناور روی همه‌ی تب‌ها.
-/// - عکس‌ها: از حافظه (bytes)
-/// - ویدیوها: از IndexedDB، بی‌صدا، loop، autoplay
+/// - عکس‌ها: با ShaderMask (در RepaintBoundary برای پشتیبانی از GIF)
+/// - ویدیوها روی وب: HTML `<video>` با CSS mask
+/// - ویدیوها روی نیتیو: VideoPlayer + ShaderMask
 class AngelsLayer extends StatefulWidget {
   const AngelsLayer({super.key});
 
@@ -112,7 +115,6 @@ class _AngelsLayerState extends State<AngelsLayer>
     _signature = sig;
     _screen = screen;
 
-    // حذف مواردی که دیگه نیستند
     final aliveImgs = store.images.map((e) => e.id).toSet();
     final aliveVids = store.videos.map((e) => e.id).toSet();
     _items.removeWhere((it) {
@@ -125,11 +127,8 @@ class _AngelsLayerState extends State<AngelsLayer>
       return true;
     });
 
-    // اضافه‌کردن عکس‌های جدید
-    final existingImgIds = _items
-        .where((it) => !it.isVideo)
-        .map((it) => it.id)
-        .toSet();
+    final existingImgIds =
+        _items.where((it) => !it.isVideo).map((it) => it.id).toSet();
     for (final im in store.images) {
       if (existingImgIds.contains(im.id)) continue;
       final a = _rng.nextDouble() * math.pi * 2;
@@ -145,11 +144,8 @@ class _AngelsLayerState extends State<AngelsLayer>
       ));
     }
 
-    // اضافه‌کردن ویدیوهای جدید (async)
-    final existingVidIds = _items
-        .where((it) => it.isVideo)
-        .map((it) => it.id)
-        .toSet();
+    final existingVidIds =
+        _items.where((it) => it.isVideo).map((it) => it.id).toSet();
     for (final v in store.videos) {
       if (existingVidIds.contains(v.id)) continue;
       _loadVideo(store, v, screen);
@@ -161,7 +157,6 @@ class _AngelsLayerState extends State<AngelsLayer>
     AngelVideo v,
     Size screen,
   ) async {
-    // علامت «در حال بارگذاری» تا دوباره تلاش نشود
     final placeholder = _AngelItem(
       id: v.id,
       isVideo: true,
@@ -184,6 +179,26 @@ class _AngelsLayerState extends State<AngelsLayer>
       _items.removeWhere((it) => identical(it, placeholder));
       return;
     }
+
+    // روی وب: دیگر VideoPlayer لازم نیست — از HTML video استفاده می‌کنیم
+    if (kIsWeb) {
+      if (!mounted) return;
+      final a = _rng.nextDouble() * math.pi * 2;
+      setState(() {
+        placeholder.loading = false;
+        placeholder.blobUrl = url;
+        placeholder.x =
+            _rng.nextDouble() * math.max(10, screen.width - store.size);
+        placeholder.y =
+            _rng.nextDouble() * math.max(10, screen.height - store.size);
+        placeholder.vx = math.cos(a);
+        placeholder.vy = math.sin(a);
+        placeholder.ph = _rng.nextDouble() * 6.28;
+      });
+      return;
+    }
+
+    // روی نیتیو: VideoPlayer
     final ctl = VideoPlayerController.networkUrl(Uri.parse(url));
     try {
       await ctl.initialize();
@@ -282,13 +297,24 @@ class _AngelWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget child;
+    // ─── ویدیو روی وب: HTML video با CSS mask ───
+    if (item.isVideo && kIsWeb && item.blobUrl != null) {
+      return buildAngelVideo(
+        id: item.id,
+        url: item.blobUrl!,
+        soft: soft,
+        size: size,
+        opacity: opacity,
+      );
+    }
+
+    // ─── ویدیو روی نیتیو: VideoPlayer ───
     if (item.isVideo) {
       final ctl = item.videoController;
       if (ctl == null || !ctl.value.isInitialized) {
         return const SizedBox.shrink();
       }
-      child = SizedBox(
+      Widget v = SizedBox(
         width: size,
         height: size,
         child: FittedBox(
@@ -301,31 +327,46 @@ class _AngelWidget extends StatelessWidget {
           ),
         ),
       );
-    } else {
-      final b = item.imageBytes;
-      if (b == null || b.isEmpty) return const SizedBox.shrink();
-      child = Image.memory(
-        b,
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        gaplessPlayback: true,
-        filterQuality: FilterQuality.low,
-      );
+      if (soft) {
+        v = RepaintBoundary(
+          child: ShaderMask(
+            shaderCallback: _maskShader,
+            blendMode: BlendMode.dstIn,
+            child: v,
+          ),
+        );
+      }
+      return Opacity(opacity: opacity, child: v);
     }
 
+    // ─── عکس یا GIF ───
+    final b = item.imageBytes;
+    if (b == null || b.isEmpty) return const SizedBox.shrink();
+    Widget img = Image.memory(
+      b,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.low,
+    );
     if (soft) {
-      child = ShaderMask(
-        shaderCallback: (rect) => const RadialGradient(
-          colors: [Colors.white, Colors.white, Colors.transparent],
-          stops: [0.0, 0.52, 0.72],
-        ).createShader(rect),
-        blendMode: BlendMode.dstIn,
-        child: child,
+      img = RepaintBoundary(
+        child: ShaderMask(
+          shaderCallback: _maskShader,
+          blendMode: BlendMode.dstIn,
+          child: img,
+        ),
       );
     }
+    return Opacity(opacity: opacity, child: img);
+  }
 
-    return Opacity(opacity: opacity, child: child);
+  static Shader _maskShader(Rect rect) {
+    return const RadialGradient(
+      colors: [Colors.white, Colors.white, Colors.transparent],
+      stops: [0.0, 0.52, 0.72],
+    ).createShader(rect);
   }
 }
 
