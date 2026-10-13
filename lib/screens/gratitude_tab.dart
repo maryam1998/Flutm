@@ -43,6 +43,26 @@ class _GratitudeTabState extends State<GratitudeTab> {
     super.dispose();
   }
 
+  // ─────────── helpers ───────────
+
+  /// مبلغ با جداکننده‌ی هزارگان و ارقام فارسی
+  static String _fmtMoney(double amount) {
+    final n = amount.toInt();
+    final s = n.abs().toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('٬');
+      buf.write(s[i]);
+    }
+    final withSep = (n < 0 ? '-' : '') + buf.toString();
+    return withSep.replaceAllMapped(
+      RegExp(r'\d'),
+      (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
+    );
+  }
+
+  // ─────────── pickers ───────────
+
   Future<void> _pickImages() async {
     final srcs = await ImageService.pickImages();
     if (!mounted || srcs.isEmpty) return;
@@ -101,6 +121,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
     setState(() => _pendingAudios.removeAt(i));
   }
 
+  // ─────────── submit ───────────
+
   Future<void> _submit() async {
     final store = context.read<GratitudeStore>();
     final emotions = context.read<EmotionStore>();
@@ -151,6 +173,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
     if (res != null) setState(() {});
   }
+
+  // ─────────── build ───────────
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +274,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
   }
 
-  // ---------- فرم افزودن ----------
+  // ─────────── form ───────────
+
   Widget _addForm(GratitudeStore store) {
     final phase = computeGratitudePhase(store.journeyDay, store.journeyDays);
     return Container(
@@ -410,6 +435,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
   }
 
+  // ─────────── small widgets ───────────
+
   Widget _visRadio(String label, bool selected, VoidCallback onTap) {
     return InkWell(
       borderRadius: BorderRadius.circular(999),
@@ -560,8 +587,11 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
   }
 
-  // ---------- کارت هر شکرگذاری (بدون سطل آشغال) ----------
+  // ─────────── entry card ───────────
+
   Widget _entryCard(GratitudeStore store, GratitudeEntry e) {
+    final hasAmount = e.amount != null && e.amount! > 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -576,6 +606,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // آیکون (راست)
             Container(
               width: 38,
               height: 38,
@@ -588,41 +619,55 @@ class _GratitudeTabState extends State<GratitudeTab> {
               child: Text(e.icon, style: const TextStyle(fontSize: 18)),
             ),
             const SizedBox(width: 10),
+
+            // متن و بقیه
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    e.displayText(),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: _kInk,
-                      height: 1.7,
-                    ),
-                  ),
-                  if (e.amount != null && e.amount! > 0) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _kEmerald.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                            color: _kEmerald.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        '${toFa(e.amount!.toInt())} تومان',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F5B53),
+                  // ردیف ۱: متن + مبلغ
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          e.displayText(),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: _kInk,
+                            height: 1.7,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      if (hasAmount) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _kEmerald.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                                color: _kEmerald.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            '${_fmtMoney(e.amount!)} تومان',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F5B53),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 4),
+
+                  // ردیف ۲: تاریخ + برچسب‌ها
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
                         '${e.day} ${_faDateShort(e.iso)} - ${e.time}',
@@ -650,56 +695,71 @@ class _GratitudeTabState extends State<GratitudeTab> {
                       ],
                     ],
                   ),
+
+                  // ردیف ۳: چیپ احساس
                   if (e.emotionIds.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    _emotionChips(e.emotionIds),
-                  ],
-                  if (e.images.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final im in e.images.take(6))
-                          _imgThumbReadonly(im.src),
-                      ],
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _emotionChips(e.emotionIds),
                     ),
                   ],
+
+                  // ردیف ۴: تصاویر
+                  if (e.images.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final im in e.images.take(6))
+                            _imgThumbReadonly(im.src),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // ردیف ۵: صوت‌ها
                   if (e.audios.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final a in e.audios)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: _kCream,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: _kBorder),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final a in e.audios)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: _kCream,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: _kBorder),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    a.name.contains('ویس')
+                                        ? Icons.mic_none
+                                        : Icons.audiotrack,
+                                    size: 13,
+                                    color: _kGold,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    a.name.isEmpty ? 'صوت' : a.name,
+                                    style: const TextStyle(
+                                        fontSize: 10.5, color: _kInk),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  a.name.contains('ویس')
-                                      ? Icons.mic_none
-                                      : Icons.audiotrack,
-                                  size: 13,
-                                  color: _kGold,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  a.name.isEmpty ? 'صوت' : a.name,
-                                  style: const TextStyle(
-                                      fontSize: 10.5, color: _kInk),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -763,6 +823,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
           : const Icon(Icons.broken_image, color: _kMuted, size: 18),
     );
   }
+
+  // ─────────── static helpers ───────────
 
   static Uint8List? _decode(String src) {
     try {
