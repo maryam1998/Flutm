@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
-import '../models/gratitude_entry.dart';
 import '../state/gratitude_store.dart';
 
 const _kGold = Color(0xFFC9972B);
@@ -37,6 +36,15 @@ class _SlideshowCfg {
   }
 }
 
+// ───────────────────── slide model ─────────────────────
+
+class _Slide {
+  final String key;
+  final bool isVideo;
+  final String src;
+  const _Slide({required this.key, required this.isVideo, required this.src});
+}
+
 // ───────────────────── widget ─────────────────────
 
 class GratitudeSlideshow extends StatefulWidget {
@@ -56,42 +64,47 @@ class GratitudeSlideshow extends StatefulWidget {
 class _GratitudeSlideshowState extends State<GratitudeSlideshow>
     with TickerProviderStateMixin {
   static const _kKey = 'gratSlideshow';
+  static const _fadeMs = 700;
 
   final _cfg = _SlideshowCfg();
   bool _cfgLoaded = false;
 
   List<_Slide> _slides = [];
-  int _pos = 0;
+
+  // دو اسلات برای cross-fade
+  final List<int> _slotIdx = [-1, -1];
+  final List<VideoPlayerController?> _slotVid = [null, null];
+
+  /// اسلاتی که در حال حاضر «روی» است (کاملاً نمایان).
+  int _activeSlot = 0;
+
+  /// اسلاتی که در حال fade-in است. -1 یعنی انتقالی در جریان نیست.
+  int _pendingSlot = -1;
 
   Timer? _timer;
   bool _paused = false;
   Duration _remaining = Duration.zero;
   DateTime? _startedAt;
 
-  int _activeLayer = 0;
-  late final AnimationController _fade;
-
-  VideoPlayerController? _vid0;
-  VideoPlayerController? _vid1;
+  late final AnimationController _transition;
 
   @override
   void initState() {
     super.initState();
-    _fade = AnimationController(
+    _transition = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
-      value: 1,
+      duration: const Duration(milliseconds: _fadeMs),
+      value: 0,
     );
     _loadCfg();
-    _refreshSlides();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _fade.dispose();
-    _vid0?.dispose();
-    _vid1?.dispose();
+    _transition.dispose();
+    _slotVid[0]?.dispose();
+    _slotVid[1]?.dispose();
     super.dispose();
   }
 
@@ -109,9 +122,10 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
         _cfg.loop = j['loop'] as bool? ?? true;
       }
     } catch (_) {}
-    if (mounted) {
-      setState(() => _cfgLoaded = true);
-      _restart();
+    _refreshSlides();
+    if (mounted) setState(() => _cfgLoaded = true);
+    if (_slides.isNotEmpty) {
+      _showAt(0, initial: true);
     }
   }
 
@@ -127,129 +141,175 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
     } catch (_) {}
   }
 
-  // ────── slides ──────
+  // ────── slides list ──────
 
   void _refreshSlides() {
     final out = <_Slide>[];
     for (final e in widget.store.entries) {
       if (e.source == 'purchase') continue;
       for (final im in e.images) {
-        final isVideo = _isVideoSrc(im.src);
         out.add(_Slide(
           key: 'g${e.id}_${im.id}',
-          isVideo: isVideo,
+          isVideo: _isVideoSrc(im.src),
           src: im.src,
         ));
       }
     }
-    if (_cfg.order == 'rnd') {
-      out.shuffle();
-    }
+    if (_cfg.order == 'rnd') out.shuffle();
     _slides = out;
-    if (_pos >= _slides.length) _pos = 0;
   }
 
-  static bool _isVideoSrc(String src) {
-    if (!src.startsWith('data:')) return false;
-    return src.startsWith('data:video/');
+  static bool _isVideoSrc(String src) =>
+      src.startsWith('data:video/');
+
+  // ────── slot management ──────
+
+  void _clearSlot(int slot) {
+    _slotIdx[slot] = -1;
+    final ctl = _slotVid[slot];
+    if (ctl != null) {
+      try {
+        ctl.pause();
+      } catch (_) {}
+      ctl.dispose();
+      _slotVid[slot] = null;
+    }
+  }
+
+  void _loadIntoSlot(int slot, int slideIdx) {
+    final slide = _slides[slideIdx];
+    _slotIdx[slot] = slideIdx;
+    if (slide.isVideo) {
+      _setupVideo(slot, slide.src);
+    }
+  }
+
+  Future<void> _setupVideo(int slot, String src) async {
+    _slotVid[slot]?.dispose();
+    _slotVid[slot] = null;
+    try {
+      final ctl = VideoPlayerController.networkUrl(Uri.parse(src));
+      await ctl.initialize();
+      await ctl.setLooping(true);
+      await ctl.setVolume(0);
+      await ctl.play();
+      if (!mounted) {
+        ctl.dispose();
+        return;
+      }
+      _slotVid[slot] = ctl;
+      setState(() {});
+    } catch (_) {}
+  }
+
+  /// نمایش اسلایدِ شماره‌ی `idx` با cross-fade.
+  void _showAt(int idx, {bool initial = false}) {
+    if (_slides.isEmpty) return;
+    idx = idx.clamp(0, _slides.length - 1);
+
+    if (initial) {
+      _clearSlot(0);
+      _clearSlot(1);
+      _loadIntoSlot(0, idx);
+      _activeSlot = 0;
+      _pendingSlot = -1;
+      _transition.value = 0;
+      setState(() {});
+      _scheduleNext();
+      return;
+    }
+
+    // اگر انتقالی در جریان است، آن را تمام کن.
+    if (_pendingSlot != -1) {
+      _transition.stop();
+      final old = _pendingSlot;
+      _clearSlot(old);
+      _activeSlot = 1 - old;
+      _pendingSlot = -1;
+      _transition.value = 0;
+    }
+
+    final next = 1 - _activeSlot;
+    _clearSlot(next);
+    _loadIntoSlot(next, idx);
+    _pendingSlot = next;
+
+    _transition.forward(from: 0).whenComplete(() {
+      if (!mounted) return;
+      setState(() {
+        _activeSlot = next;
+        _pendingSlot = -1;
+        _transition.value = 0;
+      });
+      // اسلات قدیمی را پاک کن
+      _clearSlot(1 - next);
+    });
+    setState(() {});
+  }
+
+  int _currentSlideIdx() =>
+      _activeSlot >= 0 && _activeSlot < 2 ? _slotIdx[_activeSlot] : -1;
+
+  // ────── navigation ──────
+
+  void _step(int dir, {required bool manual}) {
+    if (_slides.length < 1) return;
+    final cur = _currentSlideIdx();
+    if (cur < 0) {
+      _showAt(0);
+      return;
+    }
+    int next = cur + dir;
+    if (next >= _slides.length) {
+      if (_cfg.loop || manual) {
+        next = 0;
+        if (_cfg.order == 'rnd') _refreshSlides();
+      } else {
+        next = _slides.length - 1;
+      }
+    } else if (next < 0) {
+      if (_cfg.loop || manual) {
+        next = _slides.length - 1;
+      } else {
+        next = 0;
+      }
+    }
+    if (manual) {
+      _paused = false;
+    }
+    _showAt(next);
+  }
+
+  void _goTo(int idx) {
+    if (_slides.isEmpty) return;
+    _showAt(idx);
+    _paused = false;
+    _scheduleNext();
   }
 
   // ────── timing ──────
 
-  void _restart() {
+  void _scheduleNext() {
     _timer?.cancel();
     _timer = null;
     if (_paused) return;
     if (_slides.length < 2) return;
     _remaining = Duration(milliseconds: _cfg.ms);
     _startedAt = DateTime.now();
-    _timer = Timer(_remaining, _tick);
-  }
-
-  void _tick() {
-    if (!mounted) return;
-    if (_slides.length < 2) return;
-    _step(1, manual: false);
-  }
-
-  void _step(int dir, {required bool manual}) {
-    if (_slides.isEmpty) return;
-    final n = _slides.length;
-    _pos = (_pos + dir) % n;
-    if (_pos < 0) _pos = n - 1;
-
-    if (manual) {
-      _paused = false;
-    }
-    _showCurrent();
-    if (!_paused) _restart();
-  }
-
-  void _showCurrent() {
-    final idx = _pos.clamp(0, _slides.length - 1);
-    final slide = _slides[idx];
-    final next = 1 - _activeLayer;
-
-    if (slide.isVideo) {
-      _setupVideo(next, slide.src);
-    } else {
-      _clearLayer(next);
-    }
-    setState(() {
-      _activeLayer = next;
+    _timer = Timer(_remaining, () {
+      if (!mounted) return;
+      _step(1, manual: false);
     });
-    _fade.forward(from: 0);
   }
 
-  Future<void> _setupVideo(int layer, String src) async {
-    _clearLayer(layer);
-    try {
-      final uri = Uri.parse(src);
-      final ctl = VideoPlayerController.networkUrl(uri);
-      await ctl.initialize();
-      await ctl.setLooping(true);
-      await ctl.setVolume(0);
-      await ctl.play();
-      if (layer == 0) {
-        _vid0 = ctl;
-      } else {
-        _vid1 = ctl;
-      }
-      if (mounted) setState(() {});
-    } catch (_) {}
-  }
-
-  void _clearLayer(int layer) {
-    if (layer == 0) {
-      _vid0?.dispose();
-      _vid0 = null;
-    } else {
-      _vid1?.dispose();
-      _vid1 = null;
-    }
-  }
-
-  static Uint8List? _dataUrlToBytes(String src) {
-    try {
-      if (!src.startsWith('data:')) return null;
-      final i = src.indexOf(',');
-      if (i < 0) return null;
-      return base64Decode(src.substring(i + 1));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ────── gestures ──────
-
-  void _onTap() {
-    if (_slides.isEmpty) return;
+  void _togglePause() {
+    if (_slides.length < 2) return;
     setState(() => _paused = !_paused);
     if (_paused) {
       _timer?.cancel();
       _timer = null;
     } else {
-      _restart();
+      _scheduleNext();
     }
   }
 
@@ -292,7 +352,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
       aspectRatio: 4 / 3,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: _onTap,
+        onTap: _togglePause,
         onHorizontalDragEnd: (d) {
           final v = d.primaryVelocity ?? 0;
           if (v < -200) {
@@ -307,8 +367,9 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
             fit: StackFit.expand,
             children: [
               const ColoredBox(color: Colors.black),
-              _layer(0),
-              _layer(1),
+              _slotWidget(0),
+              _slotWidget(1),
+              // شمارنده
               Positioned(
                 top: 8,
                 left: 8,
@@ -320,7 +381,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    '${_toFa(_pos + 1)} / ${_toFa(_slides.length)}',
+                    '${_toFa(_currentSlideIdx() + 1)} / ${_toFa(_slides.length)}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
@@ -329,7 +390,8 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
                   ),
                 ),
               ),
-              if (!_paused && _slides.length > 1)
+              // نوار پیشرفت
+              if (!_paused && _slides.length > 1 && _startedAt != null)
                 Positioned(
                   left: 0,
                   right: 0,
@@ -337,7 +399,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
                   height: 3,
                   child: _ProgressBar(
                     key: ValueKey(
-                        '${_pos}_${_cfg.ms}_${_startedAt?.millisecondsSinceEpoch}'),
+                        '${_currentSlideIdx()}_${_cfg.ms}_${_startedAt!.millisecondsSinceEpoch}'),
                     duration: Duration(milliseconds: _cfg.ms),
                   ),
                 ),
@@ -348,15 +410,17 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
     );
   }
 
-  Widget _layer(int layer) {
-    if (_slides.isEmpty) return const SizedBox.shrink();
-    final idx = _pos.clamp(0, _slides.length - 1);
-    final slide = _slides[idx];
-    final isActive = layer == _activeLayer;
+  Widget _slotWidget(int slot) {
+    final idx = _slotIdx[slot];
+    if (idx < 0 || idx >= _slides.length) return const SizedBox.shrink();
 
+    final opacity = _slotOpacity(slot);
+    if (opacity <= 0.001) return const SizedBox.shrink();
+
+    final slide = _slides[idx];
     Widget child;
     if (slide.isVideo) {
-      final ctl = layer == 0 ? _vid0 : _vid1;
+      final ctl = _slotVid[slot];
       if (ctl != null && ctl.value.isInitialized) {
         child = Center(
           child: AspectRatio(
@@ -380,24 +444,34 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
           : const SizedBox.shrink();
     }
 
-    return AnimatedBuilder(
-      animation: _fade,
-      builder: (_, __) {
-        final t = isActive ? _fade.value : 1 - _fade.value;
-        return Opacity(opacity: t.clamp(0.0, 1.0), child: child);
-      },
+    return Opacity(
+      opacity: opacity.clamp(0.0, 1.0),
+      child: child,
     );
+  }
+
+  double _slotOpacity(int slot) {
+    if (_pendingSlot == -1) {
+      return slot == _activeSlot ? 1.0 : 0.0;
+    }
+    if (slot == _activeSlot) return 1.0 - _transition.value;
+    if (slot == _pendingSlot) return _transition.value;
+    return 0.0;
   }
 
   Widget _navRow() {
     return Row(
       children: [
         Expanded(
-          child: _navBtn('‹ بعدی', () => _step(1, manual: true)),
+          child: _navBtn('‹ بعدی', () {
+            _step(1, manual: true);
+          }),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _navBtn('قبلی ›', () => _step(-1, manual: true)),
+          child: _navBtn('قبلی ›', () {
+            _step(-1, manual: true);
+          }),
         ),
       ],
     );
@@ -459,7 +533,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
               if (n != null && n > 0) {
                 _cfg.value = n;
                 _saveCfg();
-                if (!_paused) _restart();
+                _scheduleNext();
               }
             },
           ),
@@ -470,7 +544,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
           onChanged: (v) {
             setState(() => _cfg.unit = v);
             _saveCfg();
-            if (!_paused) _restart();
+            _scheduleNext();
           },
         ),
         _ddl(
@@ -480,10 +554,9 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
             setState(() {
               _cfg.order = v;
               _refreshSlides();
-              _pos = 0;
             });
             _saveCfg();
-            if (!_paused) _restart();
+            _goTo(0);
           },
         ),
         InkWell(
@@ -576,6 +649,17 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
 
   // ────── helpers ──────
 
+  static Uint8List? _dataUrlToBytes(String src) {
+    try {
+      if (!src.startsWith('data:')) return null;
+      final i = src.indexOf(',');
+      if (i < 0) return null;
+      return base64Decode(src.substring(i + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+
   static String _toFa(int n) => n.toString().replaceAllMapped(
         RegExp(r'\d'),
         (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
@@ -603,15 +687,6 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
     }
     return b.toString();
   }
-}
-
-// ───────────────────── slide model ─────────────────────
-
-class _Slide {
-  final String key;
-  final bool isVideo;
-  final String src;
-  const _Slide({required this.key, required this.isVideo, required this.src});
 }
 
 // ───────────────────── progress bar ─────────────────────
