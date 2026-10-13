@@ -132,28 +132,29 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     _wireEmotionCommit();
   }
 
-  /// وقتی کاربر پنل احساسات را می‌بندد و حسی انتخاب کرده:
-  /// یک رشته‌ی عصبی جدید با همان حس (یا ترکیبِ حس‌ها) در GratitudeStore ساخته می‌شود.
-  /// این همان رفتار `echw:commit` در نسخه‌ی وب است.
   void _wireEmotionCommit() {
     final em = context.read<EmotionStore>();
     final gr = context.read<GratitudeStore>();
 
     em.onCommitClose = (ids) {
       if (ids.isEmpty) return;
-      final valid =
-          ids.where((id) => emotionById(id) != null).toList();
+      final valid = ids.where((id) => emotionById(id) != null).toList();
       if (valid.isEmpty) return;
       final dom = dominantEmotion(valid);
       if (dom == null) return;
 
-      gr.neural.addAutoFiber(
-        emotion: NeuralFiberEmotion(
-          ids: valid,
-          color: dom.color,
-          freq: dom.freq,
-        ),
+      final felt = NeuralFiberEmotion(
+        ids: valid,
+        color: dom.color,
+        freq: dom.freq,
       );
+
+      // اول سعی کن آخرین رشته‌ی بدون‌احساس را رنگ کنی
+      final colored = gr.neural.colorLatestUncolored(felt);
+      // اگر همه‌ی رشته‌ها رنگی بودند، یک رشته‌ی جدید بساز
+      if (!colored) {
+        gr.neural.addAutoFiber(emotion: felt);
+      }
       gr.saveNeural();
     };
   }
