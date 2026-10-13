@@ -5,17 +5,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/emotion.dart';
 
+/// انتخاب فعلی توی ویجت شناور «آدم و احساسات».
+/// انتخاب‌ها بین باز/بسته شدن پنل حفظ می‌شوند.
+/// فقط وقتی انتخاب با آخرین commit فرق داشته باشد، رشته‌ی عصبی رنگ می‌گیرد.
 class EmotionStore extends ChangeNotifier {
   static const _kSelected = 'echwSelectedEmotions_v5';
 
   final Set<String> _selected = {};
 
-  /// 'before' | 'after' | 'entry' | null
+  /// آخرین انتخابی که commit شده — برای جلوگیری از commit تکراری
+  Set<String> _lastCommitted = {};
+
+  /// فاز فعلی: 'before' | 'after' | 'entry' | null
   String? capturePhase;
   String? capturePracticeKey;
   String? captureLabel;
 
-  /// در فاز 'entry': شناسه‌ی GratitudeEntry که داریم ویرایش می‌کنیم
+  /// در فاز 'entry': شناسه‌ی GratitudeEntry/روز که داریم ویرایش می‌کنیم
   String? editingEntryId;
 
   void Function(List<String> ids)? _onCaptureSave;
@@ -72,6 +78,7 @@ class EmotionStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// پاک کردن اجباری انتخاب (مثلاً بعد از ریست دستی توسط کاربر)
   void reset() {
     if (_selected.isEmpty) return;
     _selected.clear();
@@ -122,17 +129,34 @@ class EmotionStore extends ChangeNotifier {
     endCapture();
   }
 
-  /// بستن پنل با انتخاب (معادل رویداد `echw:commit` در وب)
+  /// بستن پنل با یک انتخاب (معادل رویداد `echw:commit` در وب).
+  /// - اگر انتخاب با آخرین commit یکسان باشد، هیچ کاری نمی‌کند.
+  /// - انتخاب حفظ می‌شود (ریست نمی‌شود).
   void fireCommitClose() {
-    if (_selected.isEmpty) return;
     if (isCapturing) return;
-    final cb = onCommitClose;
-    if (cb == null) {
-      reset();
-      return;
+    if (_selected.isEmpty) return;
+
+    // مقایسه با آخرین commit
+    final cur = _selected.toList()..sort();
+    final last = _lastCommitted.toList()..sort();
+    bool same = cur.length == last.length;
+    if (same) {
+      for (int i = 0; i < cur.length; i++) {
+        if (cur[i] != last[i]) {
+          same = false;
+          break;
+        }
+      }
     }
-    final ids = selectedIds;
-    cb(ids);
-    reset();
+    if (same) return;
+
+    _lastCommitted = Set.of(_selected);
+    onCommitClose?.call(_selected.toList());
+    // انتخاب حفظ می‌شود — کاربر می‌خواهد دفعه‌ی بعد هم ببیند
+  }
+
+  /// پاک‌کردن «آخرین commit» — مثلاً بعد از ویرایش یک روز مشخص
+  void clearLastCommit() {
+    _lastCommitted.clear();
   }
 }
