@@ -19,6 +19,13 @@ const kLabelRtlAnchor = false;
 
 double _l(double a, double b, double t) => a + (b - a) * t;
 
+/// ease in-out (کند → تند → کند)
+double _easeInOut(double t) {
+  if (t < 0.5) return 2 * t * t;
+  final u = -2 * t + 2;
+  return 1 - u * u / 2;
+}
+
 class MapPainter extends CustomPainter {
   MapPainter({
     required this.state,
@@ -50,7 +57,9 @@ class MapPainter extends CustomPainter {
     final c = state.textColor.toLowerCase().trim();
     final auto = isDark ? Colors.white : kLightInk;
     if (c == '#000000' || c == '#000') return Colors.black;
-    if (c.isEmpty || c == '#eef0fa' || c == '#ffffff' || c == '#fff') return auto;
+    if (c.isEmpty || c == '#eef0fa' || c == '#ffffff' || c == '#fff') {
+      return auto;
+    }
     return hexColor(c, auto);
   }
 
@@ -190,7 +199,7 @@ class MapPainter extends CustomPainter {
     _pts..add(c.translate(-r, -r))..add(c.translate(r, r));
   }
 
-  // ───────────────────────── هاله و آئورا ─────────────────────────
+  // ───────────────────────── هاله ─────────────────────────
 
   void _halo(Canvas canvas, Offset c, Color color, double r, double pf,
       String? freqKey) {
@@ -258,7 +267,7 @@ class MapPainter extends CustomPainter {
     canvas.restore();
   }
 
-  // ───────────────────────── گره من ─────────────────────────
+  // ───────────────────────── من ─────────────────────────
 
   void _drawMe(Canvas canvas, Color tc) {
     final me = state.me;
@@ -326,8 +335,8 @@ class MapPainter extends CustomPainter {
           weight: FontWeight.w700,
           outline: 3);
       if (me.name.isNotEmpty) {
-        hits.add(HitEntry(
-            type: 'me', id: '', kind: HitKind.label, rect: lr));
+        hits.add(
+            HitEntry(type: 'me', id: '', kind: HitKind.label, rect: lr));
       }
     }
   }
@@ -350,7 +359,8 @@ class MapPainter extends CustomPainter {
         canvas.drawCircle(c, r, Paint()..color = withOp(color, 0.4));
       }
     } else if (icon.trim().isNotEmpty) {
-      drawText(canvas, icon, c.dx, c.dy, size: r * 1.7, color: tc, vCenter: true);
+      drawText(canvas, icon, c.dx, c.dy,
+          size: r * 1.7, color: tc, vCenter: true);
     } else {
       canvas.drawCircle(c, r, Paint()..color = withOp(color, 0.85));
     }
@@ -375,7 +385,8 @@ class MapPainter extends CustomPainter {
 
     var off = -(r0 + 22);
     if (r > r0) off += (off < 0 ? -1 : 1) * (r - r0);
-    final lr = drawText(canvas, g.name, c.dx + g.labelDX, c.dy + off + g.labelDY,
+    final lr = drawText(
+        canvas, g.name, c.dx + g.labelDX, c.dy + off + g.labelDY,
         size: g.labelSize ?? _labelSize('goal'),
         color: tc,
         weight: FontWeight.w600,
@@ -507,7 +518,7 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  // ───────────────────────── تنه و شاخه ─────────────────────────
+  // ───────────────────────── تنه ─────────────────────────
 
   void _branches(Canvas canvas, MapHost h, Color tc,
       {required bool trunkOnly}) {
@@ -517,16 +528,15 @@ class MapPainter extends CustomPainter {
     if (h.isRing) {
       _taperedBezier(canvas, cp, col, 3.2, 1.6, 0.6);
     } else {
-      final ts =
-          (h is Goal && h.trunkStyle.isNotEmpty) ? h.trunkStyle : state.trunkStyle;
+      final ts = (h is Goal && h.trunkStyle.isNotEmpty)
+          ? h.trunkStyle
+          : state.trunkStyle;
       _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : 'dashed');
     }
     _pts..add(cp.p0)..add(cp.p3);
 
-    // ─── روی تنه‌ی هدف: قدم‌های نامرئی + قدم‌زن + جام ───
     if (h is Goal) {
-      _trunkWalkway(canvas, h, cp, col);
-      if (!h.collapsed || h.actions.isEmpty) {
+      if (!h.collapsed) {
         _walker(canvas, h, cp, col);
       }
       _goalTrophy(canvas, h, col);
@@ -648,41 +658,21 @@ class MapPainter extends CustomPainter {
     return n;
   }
 
-  int _goalBranches(Goal g) {
-    var n = 0;
-    void walk(List<ActionNode> list) {
-      for (final a in list) {
-        n++;
-        walk(a.children);
-      }
-    }
-    walk(g.actions);
-    return n;
-  }
+  // ───────────────────────── شکل قدم ─────────────────────────
 
-  // ───────────────────────── شکل قدم (Path) ─────────────────────────
-
-  /// شکل یک جای پای پیاده: کف، پاشنه، ۵ انگشت.
-  /// مختصات داخلش با اندازه‌ی `size` مقیاس می‌شود.
   Path _footPath(double size) {
     final s = size / 16.0;
     final p = Path();
-
-    // کف پا (بخش جلویی و بزرگ) — بیضی عمودی
     p.addOval(Rect.fromCenter(
       center: Offset(0, -3 * s),
       width: 8 * s,
       height: 11 * s,
     ));
-
-    // پاشنه — بیضی کوچک‌تر
     p.addOval(Rect.fromCenter(
       center: Offset(0, 5.5 * s),
       width: 6 * s,
       height: 4.5 * s,
     ));
-
-    // ۵ انگشت
     const toesX = [-3.2, -1.6, 0.0, 1.5, 2.8];
     const toesY = [-8.5, -9.5, -9.8, -9.3, -8.3];
     const toesR = [1.15, 1.30, 1.35, 1.25, 1.05];
@@ -692,11 +682,9 @@ class MapPainter extends CustomPainter {
         radius: toesR[i] * s,
       ));
     }
-
     return p;
   }
 
-  /// رسم یک قدم. outline=true فقط ضخامت خط را می‌کشد (برای قدم‌های نامرئی).
   void _drawFoot(
     Canvas canvas,
     Offset pos,
@@ -726,159 +714,179 @@ class MapPainter extends CustomPainter {
     canvas.restore();
   }
 
-  // ───────────────────────── مسیر هدف: قدم‌ها و جام ─────────────────────────
+  // ───────────────────────── قدم‌زن روی تنه ─────────────────────────
 
-  /// سری قدم‌ها روی تنه: پرشده‌ها واضح، نامرئی‌ها خط‌چین.
-  /// هر ۳۰ لاگ = یک قدم پر می‌شود.
-  void _trunkWalkway(Canvas canvas, Goal g, geo.Cubic cp, Color col) {
-    const totalSteps = 10;
-    final totalLogs = _goalTotalLogs(g);
-    final branches = _goalBranches(g);
-    if (branches == 0) return;
-
-    // نسبت پیشرفت: ۳۰ لاگ = تکمیل
-    final progress = (totalLogs / 30.0).clamp(0.0, 1.0);
-    final doneSteps = (progress * totalSteps).round();
-
-    for (var i = 0; i < totalSteps; i++) {
-      final t = (i + 1) / (totalSteps + 1);
-      final pt = cp.at(t);
-      final ang = cp.tangent(t);
-
-      final isDone = i < doneSteps;
-      final size = 15.0;
-
-      // چپ/راست، مثل پیاده‌رو
-      final side = (i % 2 == 0) ? 1.0 : -1.0;
-      final off = size * 0.35 * side;
-      final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
-
-      if (isDone) {
-        _drawFoot(canvas, pos, ang + math.pi / 2, size, withOp(col, 0.9));
-      } else {
-        // قدم نامرئی — خط‌چین خیلی کم‌رنگ
-        _drawFoot(
-          canvas,
-          pos,
-          ang + math.pi / 2,
-          size,
-          withOp(col, 0.16),
-          outline: true,
-          strokeW: 1.0,
-        );
-      }
-    }
-  }
-
-  /// قدم‌زن: یک قدم که بین «من» و «هدف» حرکت رفت و برگشتی دارد.
-  /// کاربر می‌تواند با تپ متوقف/راه‌انداز کند و با انگشت جایش را عوض کند.
+  /// قدم‌زن: بدنه‌ی گرد + دو پا + دنباله‌ی پاهای محو.
+  /// - بدنه بین من و هدف با سرعت طبیعی حرکت رفت و برگشتی دارد.
+  /// - دو پا با فاز نصف جابجا می‌شوند.
+  /// - پایی که می‌رود جلو از زمین کنده می‌شود (lift).
+  /// - دنباله‌ی ۵ قدم پشت سرش محو می‌شوند.
   void _walker(Canvas canvas, Goal g, geo.Cubic cp, Color col) {
     if (_goalTotalLogs(g) == 0) return;
 
     final playing = g.extra['walkerPlaying'] as bool? ?? true;
-    final speed = (g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.0;
-    final manual = (g.extra['walkerPos'] as num?)?.toDouble();
+    final speed =
+        ((g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.5).clamp(0.3, 4.0);
+    final manualT = (g.extra['walkerPos'] as num?)?.toDouble();
 
-    double t;
+    const totalSteps = 20;
+    const stepLen = 1.0 / totalSteps;
+
+    // ─── موقعیت بدنه ───
+    double bodyT;
     if (playing) {
-      final secondsPerCycle = 4.6 / speed.clamp(0.2, 3.0);
-      final cycle = (_t / secondsPerCycle) % 1.0;
-
-      // رفت (ease-out) → توقف → برگشت (ease-out) → توقف
-      double pingPong(double c) {
-        if (c < 0.38) {
-          final p = c / 0.38;
-          return 1.0 - math.pow(1 - p, 3).toDouble();
-        } else if (c < 0.5) {
-          return 1.0;
-        } else if (c < 0.88) {
-          final p = (c - 0.5) / 0.38;
-          return 1.0 - math.pow(p, 3).toDouble();
-        } else {
-          return 0.0;
-        }
+      final tSteps = _t * speed;
+      final cycleLen = totalSteps * 2.0;
+      final cycle = tSteps % cycleLen;
+      double stepNum;
+      if (cycle < totalSteps) {
+        stepNum = cycle;
+      } else {
+        stepNum = cycleLen - cycle;
       }
-
-      final journey = pingPong(cycle);
-      t = 0.06 + journey * 0.88;
+      final norm = (stepNum / totalSteps).clamp(0.0, 1.0);
+      bodyT = 0.06 + norm * 0.88;
     } else {
-      t = (manual ?? 0.5).clamp(0.06, 0.94);
+      bodyT = (manualT ?? 0.5).clamp(0.06, 0.94);
     }
 
-    final pt = cp.at(t);
-    final ang = cp.tangent(t);
+    // ─── فاز قدم ───
+    final stepPhase = playing ? (_t * speed) % 1.0 : 0.0;
+    final leftSwinging = stepPhase < 0.5;
+    final swingPhase = leftSwinging ? stepPhase * 2 : (stepPhase - 0.5) * 2;
+    final swingEase = _easeInOut(swingPhase);
 
-    final size = 22.0 * state.footScale.clamp(0.4, 3.0);
+    // ─── موقعیت پاها ───
+    final footGap = stepLen * 0.45;
+    final plantedT = (bodyT - footGap).clamp(0.05, 0.95);
+    final swingStart = (bodyT - footGap).clamp(0.05, 0.95);
+    final swingEnd = (bodyT + footGap).clamp(0.05, 0.95);
+    final swingingT = swingStart + (swingEnd - swingStart) * swingEase;
 
-    // هاله‌ی نورانی زیر
+    final leftT = leftSwinging ? swingingT : plantedT;
+    final rightT = leftSwinging ? plantedT : swingingT;
+
+    const maxLift = 5.0;
+    final leftLift =
+        leftSwinging ? math.sin(swingPhase * math.pi) * maxLift : 0.0;
+    final rightLift =
+        leftSwinging ? 0.0 : math.sin(swingPhase * math.pi) * maxLift;
+
+    final baseSize = 20.0 * state.footScale.clamp(0.4, 3.0);
+
+    // ─── دنباله ───
+    for (var i = 1; i <= 5; i++) {
+      final trailT = (bodyT - i * stepLen).clamp(0.02, 0.98);
+      if (trailT <= 0.03) continue;
+      final trailSize = baseSize * (0.5 - i * 0.06);
+      final trailOpacity = (1.0 - i / 6.0) * 0.42;
+      final trailIsLeft = (i + (leftSwinging ? 0 : 1)) % 2 == 0;
+      _drawWalkerFoot(canvas, cp, trailT, trailIsLeft ? -1.0 : 1.0,
+          trailSize, withOp(col, trailOpacity),
+          lift: 0, outline: true);
+    }
+
+    // ─── دو پا ───
+    _drawWalkerFoot(canvas, cp, leftT, -1.0, baseSize, withOp(col, 0.92),
+        lift: leftLift);
+    _drawWalkerFoot(canvas, cp, rightT, 1.0, baseSize, withOp(col, 0.92),
+        lift: rightLift);
+
+    // ─── بدنه ───
+    final bodyPt = cp.at(bodyT);
+    final bodyAng = cp.tangent(bodyT);
+
+    final bobFreq = speed * 2;
+    final bobPhase = (_t * bobFreq * math.pi * 2) % (math.pi * 2);
+    final bob = playing ? math.sin(bobPhase) * 1.5 : 0.0;
+    final nx = -math.sin(bodyAng);
+    final ny = math.cos(bodyAng);
+    final bodyPos = Offset(bodyPt.dx + nx * bob, bodyPt.dy + ny * bob);
+
+    final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
+    final pulse = 0.9 + math.sin(_t * pulseRate * 2 * math.pi) * 0.1;
+    final bodyR = 8.0 * pulse;
+
     canvas.drawCircle(
-      pt,
-      size * 1.5,
-      Paint()
-        ..color = withOp(col, 0.35)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
-    canvas.drawCircle(
-      pt,
-      size * 0.9,
-      Paint()
-        ..color = withOp(Colors.white, 0.15)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-    );
+        bodyPos,
+        bodyR * 2.6,
+        Paint()
+          ..color = withOp(col, 0.20)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
 
-    // اگر متوقف است، حلقه‌ی نشانگر
+    canvas.drawCircle(
+        bodyPos,
+        bodyR * 1.35,
+        Paint()
+          ..color = withOp(col, 0.18)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+
+    canvas.drawCircle(
+        bodyPos,
+        bodyR,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..color = withOp(col, 0.92));
+
+    canvas.drawCircle(
+        bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.92));
+
     if (!playing) {
-      canvas.drawCircle(
-        pt,
-        size * 1.15,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6
-          ..color = withOp(col, 0.8),
-      );
-      canvas.drawCircle(
-        pt,
-        size * 1.4,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.0
-          ..color = withOp(col, 0.4),
+      final r = bodyR * 0.32;
+      canvas.drawRect(
+        Rect.fromCenter(center: bodyPos, width: r, height: r),
+        Paint()..color = withOp(col, 0.92),
       );
     }
 
-    // خود قدم — بزرگ، پررنگ
-    _drawFoot(canvas, pt, ang + math.pi / 2, size, col);
-
-    // ثبت hit برای لمس
     hits.add(HitEntry(
       type: 'walker',
       id: g.id,
       hostId: g.id,
       kind: HitKind.handle,
-      center: pt,
-      radius: size * 1.5,
+      center: bodyPos,
+      radius: baseSize * 1.4,
     ));
   }
 
-  /// جام شاین نزدیک هدف. با پیشرفت پرنورتر می‌شود.
-  /// از تنظیمات می‌شود نامرئی‌اش کرد.
+  void _drawWalkerFoot(
+    Canvas canvas,
+    geo.Cubic cp,
+    double t,
+    double side,
+    double size,
+    Color color, {
+    double lift = 0,
+    bool outline = false,
+  }) {
+    final pt = cp.at(t);
+    final ang = cp.tangent(t);
+    final nx = -math.sin(ang);
+    final ny = math.cos(ang);
+    final sideOffset = size * 0.32 * side;
+    final total = sideOffset + lift;
+    final pos = Offset(pt.dx + nx * total, pt.dy + ny * total);
+    _drawFoot(canvas, pos, ang + math.pi / 2, size, color,
+        outline: outline, strokeW: outline ? 1.2 : 1.4);
+  }
+
+  // ───────────────────────── جام ─────────────────────────
+
   void _goalTrophy(Canvas canvas, Goal g, Color col) {
     if (g.extra['trophyVisible'] == false) return;
 
     final totalLogs = _goalTotalLogs(g);
-    final branches = _goalBranches(g);
-    if (branches == 0 || totalLogs == 0) return;
+    if (totalLogs == 0) return;
 
     final progress = (totalLogs / 30.0).clamp(0.0, 1.0);
 
-    // موقعیت: بالای سمت راست هدف
     final cx = g.x + g.radius + 34;
     final cy = g.y - g.radius - 34;
 
     final pulse = 0.9 + math.sin(_t * 2.2) * 0.1;
     final size = 26.0 * pulse;
 
-    // هاله‌ی بیرونی
     canvas.drawCircle(
       Offset(cx, cy),
       size * 1.7,
@@ -887,7 +895,6 @@ class MapPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
     );
 
-    // هاله‌ی درونی
     canvas.drawCircle(
       Offset(cx, cy),
       size * 0.95,
@@ -896,7 +903,6 @@ class MapPainter extends CustomPainter {
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
 
-    // شعاع‌های چرخان
     final rayPaint = Paint()
       ..color = withOp(col, 0.7)
       ..strokeWidth = 1.6
@@ -912,10 +918,8 @@ class MapPainter extends CustomPainter {
       );
     }
 
-    // خود جام (ایموجی)
     _drawEmoji(canvas, Offset(cx, cy), 0, size, col, '🏆');
 
-    // درصد پیشرفت زیر جام
     drawText(
       canvas,
       '${(progress * 100).round()}٪',
@@ -927,7 +931,6 @@ class MapPainter extends CustomPainter {
       outline: 2,
     );
 
-    // ثبت hit
     hits.add(HitEntry(
       type: 'trophy',
       id: g.id,
@@ -938,14 +941,13 @@ class MapPainter extends CustomPainter {
     ));
   }
 
-  // ───────────────────────── ردپای روی شاخه (به تعداد روزها) ─────────────────────────
+  // ───────────────────────── ردپای شاخه ─────────────────────────
 
   void _footprints(Canvas canvas, geo.TwigGeom geom, geo.Cubic cub,
       ActionNode a, Color color, double scale) {
     final length = (geom.end - geom.originPt).distance;
     if (length < 22) return;
 
-    // همه‌ی لاگ‌ها (شامل روزهای جاافتاده)
     final entries = a.logs.entries.toList();
     if (entries.isEmpty) return;
 
@@ -964,7 +966,6 @@ class MapPainter extends CustomPainter {
     final fs = math.max(11.0, 15.0 * scale) * sizeMul * footMul;
 
     if (span <= 1) {
-      // همه در یک روز
       final e = entries.first;
       if (_isDoneLog(e.value)) {
         _drawFoot(canvas, geom.end, cub.tangent(1.0) + math.pi / 2, fs,
@@ -1028,7 +1029,6 @@ class MapPainter extends CustomPainter {
           );
         }
       } else if (isMissed) {
-        // روز جاافتاده — حلقه‌ی خالی
         canvas.drawCircle(
           pos,
           fs * 0.34,
@@ -1058,7 +1058,6 @@ class MapPainter extends CustomPainter {
     final sizeMul = state.footScale.clamp(0.4, 3.0);
     final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
     final size = baseSize * sizeMul * footMul;
-
     final progress = (count / 30.0).clamp(0.25, 1.0);
 
     double t;
@@ -1089,11 +1088,9 @@ class MapPainter extends CustomPainter {
 
     final stepPhase = a.footPlaying ? (_t / 0.5) % 1.0 : 0.25;
     final rightLeads = stepPhase < 0.5;
-
     const strideLen = 0.07;
     final tFront = t;
     final tBack = (t - strideLen).clamp(0.05, 0.95);
-
     final tRight = rightLeads ? tFront : tBack;
     final tLeft = rightLeads ? tBack : tFront;
 
@@ -1158,6 +1155,8 @@ class MapPainter extends CustomPainter {
     _drawFoot(canvas, pos, ang + math.pi / 2, size * 1.1,
         color.withAlpha((255 * opacity).round()));
   }
+
+  // ───────────────────────── کمکی ─────────────────────────
 
   void _drawEmoji(Canvas canvas, Offset at, double angle, double size,
       Color color, String emoji) {
@@ -1298,7 +1297,8 @@ class MapPainter extends CustomPainter {
             center: end + off, width: e.size, height: e.size);
         final im = images.get(e.src);
         if (im != null) {
-          paintImage(canvas: canvas, rect: rect, image: im, fit: BoxFit.contain);
+          paintImage(
+              canvas: canvas, rect: rect, image: im, fit: BoxFit.contain);
         }
         hits.add(HitEntry(
             type: 'action',
