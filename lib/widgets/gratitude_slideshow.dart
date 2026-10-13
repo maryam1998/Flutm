@@ -15,12 +15,12 @@ const _kMuted = Color(0xFF7A6B57);
 const _kBorder = Color(0xFFE0D5C0);
 const _kCard = Colors.white;
 
-// ───────────────────── state ─────────────────────
+// ───────────────────── config ─────────────────────
 
 class _SlideshowCfg {
   double value;
-  String unit; // 's' | 'm' | 'h'
-  String order; // 'seq' | 'rnd'
+  String unit;
+  String order;
   bool loop;
 
   _SlideshowCfg({
@@ -61,7 +61,6 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
   bool _cfgLoaded = false;
 
   List<_Slide> _slides = [];
-  List<int> _order = [];
   int _pos = 0;
 
   Timer? _timer;
@@ -69,15 +68,11 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
   Duration _remaining = Duration.zero;
   DateTime? _startedAt;
 
-  int _activeLayer = 0; // 0 یا 1
+  int _activeLayer = 0;
   late final AnimationController _fade;
 
   VideoPlayerController? _vid0;
   VideoPlayerController? _vid1;
-
-  // برای تشخیص swipe/tap
-  Offset? _downPos;
-  DateTime? _downTime;
 
   @override
   void initState() {
@@ -147,13 +142,10 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
         ));
       }
     }
-    _slides = out;
-
     if (_cfg.order == 'rnd') {
-      _order = List.generate(_slides.length, (i) => i)..shuffle();
-    } else {
-      _order = List.generate(_slides.length, (i) => i);
+      out.shuffle();
     }
+    _slides = out;
     if (_pos >= _slides.length) _pos = 0;
   }
 
@@ -212,9 +204,8 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
   Future<void> _setupVideo(int layer, String src) async {
     _clearLayer(layer);
     try {
-      final bytes = _dataUrlToBytes(src);
-      if (bytes == null) return;
-      final ctl = VideoPlayerController.blobUrl(Uri.parse(src));
+      final uri = Uri.parse(src);
+      final ctl = VideoPlayerController.networkUrl(uri);
       await ctl.initialize();
       await ctl.setLooping(true);
       await ctl.setVolume(0);
@@ -262,9 +253,6 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
     }
   }
 
-  void _onSwipeLeft() => _step(1, manual: true);
-  void _onSwipeRight() => _step(-1, manual: true);
-
   // ────── build ──────
 
   @override
@@ -308,9 +296,9 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
         onHorizontalDragEnd: (d) {
           final v = d.primaryVelocity ?? 0;
           if (v < -200) {
-            _onSwipeLeft();
+            _step(1, manual: true);
           } else if (v > 200) {
-            _onSwipeRight();
+            _step(-1, manual: true);
           }
         },
         child: ClipRRect(
@@ -321,7 +309,6 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
               const ColoredBox(color: Colors.black),
               _layer(0),
               _layer(1),
-              // شمارنده
               Positioned(
                 top: 8,
                 left: 8,
@@ -342,7 +329,6 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
                   ),
                 ),
               ),
-              // نوار پیشرفت
               if (!_paused && _slides.length > 1)
                 Positioned(
                   left: 0,
@@ -350,7 +336,8 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
                   bottom: 0,
                   height: 3,
                   child: _ProgressBar(
-                    key: ValueKey('${_pos}_${_cfg.ms}_${_startedAt?.millisecondsSinceEpoch}'),
+                    key: ValueKey(
+                        '${_pos}_${_cfg.ms}_${_startedAt?.millisecondsSinceEpoch}'),
                     duration: Duration(milliseconds: _cfg.ms),
                   ),
                 ),
@@ -362,8 +349,8 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
   }
 
   Widget _layer(int layer) {
-    final idx = _pos.clamp(0, _slides.length - 1);
     if (_slides.isEmpty) return const SizedBox.shrink();
+    final idx = _pos.clamp(0, _slides.length - 1);
     final slide = _slides[idx];
     final isActive = layer == _activeLayer;
 
@@ -449,8 +436,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        const Text('هر',
-            style: TextStyle(fontSize: 12, color: _kInk)),
+        const Text('هر', style: TextStyle(fontSize: 12, color: _kInk)),
         SizedBox(
           width: 64,
           child: TextFormField(
