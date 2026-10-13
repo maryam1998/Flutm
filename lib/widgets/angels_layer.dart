@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -7,11 +8,6 @@ import 'package:provider/provider.dart';
 import '../state/angels_store.dart';
 
 /// لایه‌ی تصاویر متحرک شناور روی همه‌ی تب‌ها.
-/// دقیقاً همان منطق `angels.js`:
-///   - هر تصویر یک موقعیت، یک بردار سرعت، و یک فاز نوسان دارد
-///   - هر فریم: زاویه‌ی حرکت با sin(phase) کمی منحرف می‌شود
-///   - bounce در لبه‌ها
-///   - جابه‌جایی عمودی آرام با sin(phase*2)
 class AngelsLayer extends StatefulWidget {
   const AngelsLayer({super.key});
 
@@ -39,7 +35,6 @@ class _AngelsLayerState extends State<AngelsLayer>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // مثل نسخه‌ی وب: بعد از برگشت به اپ، زمان از نو حساب کن
       _lastElapsed = Duration.zero;
     }
   }
@@ -70,8 +65,10 @@ class _AngelsLayerState extends State<AngelsLayer>
     if (w <= 0 || h <= 0) return;
 
     for (final it in _items) {
-      // خودترمیمی اگر NaN شد
-      if (!it.x.isFinite || !it.y.isFinite || !it.vx.isFinite || !it.vy.isFinite) {
+      if (!it.x.isFinite ||
+          !it.y.isFinite ||
+          !it.vx.isFinite ||
+          !it.vy.isFinite) {
         final a0 = _rng.nextDouble() * math.pi * 2;
         it.x = _rng.nextDouble() * math.max(10, w - s);
         it.y = _rng.nextDouble() * math.max(10, h - s);
@@ -81,8 +78,6 @@ class _AngelsLayerState extends State<AngelsLayer>
       }
 
       it.ph += dt * 0.7;
-
-      // انحراف آرام مسیر
       final ang = math.atan2(it.vy, it.vx) + math.sin(it.ph) * dt * 0.8;
       it.vx = math.cos(ang);
       it.vy = math.sin(ang);
@@ -148,12 +143,18 @@ class _AngelsLayerState extends State<AngelsLayer>
     }
   }
 
+  Uint8List? _bytesFor(AngelsStore store, String id) {
+    for (final im in store.images) {
+      if (im.id == id) return im.bytes;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<AngelsStore>();
     final screen = MediaQuery.sizeOf(context);
 
-    // بعد از فریم، بر اساس state جدید ticker و items را sync کن
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _syncItems(store, screen);
@@ -181,20 +182,10 @@ class _AngelsLayerState extends State<AngelsLayer>
       ),
     );
   }
-
-  static Uint8ListLike? _bytesFor(AngelsStore store, String id) {
-    for (final im in store.images) {
-      if (im.id == id) return im.bytes;
-    }
-    return null;
-  }
 }
 
-// این کلاس کمکی صرفاً برای type-safety است؛ عملاً Uint8List است.
-typedef Uint8ListLike = List<int>;
-
 class _AngelImage extends StatelessWidget {
-  final Uint8ListLike? bytes;
+  final Uint8List? bytes;
   final double size;
   final double opacity;
   final bool soft;
@@ -211,7 +202,7 @@ class _AngelImage extends StatelessWidget {
     if (bytes == null || bytes!.isEmpty) return const SizedBox.shrink();
 
     Widget img = Image.memory(
-      bytes is Uint8List ? bytes as Uint8List : Uint8List.fromList(bytes!),
+      bytes!,
       width: size,
       height: size,
       fit: BoxFit.contain,
