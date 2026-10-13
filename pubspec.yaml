@@ -21,8 +21,9 @@ dependencies:
   flutter_svg: ^2.0.10+1
   record: ^5.1.2
   http: ^1.2.0
+  idb_shim: ^2.6.4
+  web: ^1.1.0
 
-# پلاگین lifecycle جدید به compileSdk 36 نیاز داره ولی file_picker با 34 کامپایل میشه؛ نسخه‌ی قدیمی‌تر رو ثابت می‌کنیم
 dependency_overrides:
   flutter_plugin_android_lifecycle: 2.0.24
 
@@ -30,10 +31,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/body.svg
-  # فونت وزیرمتن: فایل‌های ttf را در assets/fonts بگذار و این بخش را از کامنت دربیار
-  # fonts:
-  #   - family: Vazirmatn
-  #     fonts:
-  #       - asset: assets/fonts/Vazirmatn-Regular.ttf
-  #       - asset: assets/fonts/Vazirmatn-Bold.ttf
-  #         weight: 700
