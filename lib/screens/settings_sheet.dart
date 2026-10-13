@@ -46,7 +46,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late bool _showDates;
   late bool _showTimes;
   late bool _showRingLinks;
+  late bool _showEmotionWidget;
   late String _trunkStyle;
+  late String _userName;
+  late TextEditingController _nameCtrl;
   bool _inited = false;
 
   @override
@@ -60,8 +63,17 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showDates = s.showDateStamps;
     _showTimes = s.showTimeStamps;
     _showRingLinks = s.showRingLinks;
+    _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
         kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
+    _userName = s.userName;
+    _nameCtrl = TextEditingController(text: _userName);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
   }
 
   Color _parseTextColor(String c) {
@@ -79,7 +91,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.showDateStamps = _showDates;
     s.showTimeStamps = _showTimes;
     s.showRingLinks = _showRingLinks;
+    s.showEmotionWidget = _showEmotionWidget;
     s.trunkStyle = _trunkStyle;
+    s.userName = _nameCtrl.text.trim();
     store.changed();
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -95,14 +109,13 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         .toLowerCase();
   }
 
-  // ─────────── انتخاب عکس ───────────
-  /// بدون resize تا GIF انیمیت‌شده دست‌نخورده بماند.
+  // ───── انتخاب عکس angels ─────
   Future<List<XFile>> _pickAngelImages() async {
     final picker = ImagePicker();
     return picker.pickMultiImage();
   }
 
-  // ─────────── انتخاب ویدیو ───────────
+  // ───── انتخاب ویدیو angels ─────
   Future<List<XFile>> _pickAngelVideos() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -203,13 +216,13 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ---------- تم ----------
+                    // ═══════════ ۱) تم تاریک ═══════════
                     Consumer<ThemeStore>(
                       builder: (_, theme, __) => _tile(
                         title: 'تم تاریک',
                         subtitle: theme.isDark
                             ? 'پس‌زمینه‌ی تیره با متن روشن'
-                            : 'پس‌زمینه‌ی روشن (مثل نسخه‌ی وب)',
+                            : 'پس‌زمینه‌ی روشن',
                         trailing: Switch(
                           value: theme.isDark,
                           activeThumbColor: _kGold,
@@ -219,8 +232,173 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ---------- پس‌زمینه ----------
-                    _sectionTitle('پس‌زمینه‌ی اپ (در همه‌ی تب‌ها)'),
+                    // ═══════════ ۲) ایمیل ورود ═══════════
+                    _sectionTitle('ایمیل ورود'),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _kCard,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _kBorder),
+                      ),
+                      child: const Text(
+                        '—',
+                        style: TextStyle(fontSize: 13, color: _kMuted),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'در نسخه‌ی Flutter هنوز ورود پیاده نشده',
+                      style: TextStyle(fontSize: 10.5, color: _kMuted),
+                    ),
+                    const _SectionDivider(),
+
+                    // ═══════════ ۳) نام شما ═══════════
+                    _sectionTitle(
+                        'نام شما (در بخش دوستان با همین نام نمایش داده می‌شود)'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _nameCtrl,
+                      textDirection: TextDirection.rtl,
+                      style: const TextStyle(fontSize: 13, color: _kInk),
+                      decoration: InputDecoration(
+                        hintText: 'مثلاً مریم',
+                        hintStyle: const TextStyle(
+                            fontSize: 12, color: _kMuted),
+                        filled: true,
+                        fillColor: _kCard,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _kBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _kBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide:
+                              const BorderSide(color: _kGold, width: 1.5),
+                        ),
+                      ),
+                    ),
+                    const _SectionDivider(),
+
+                    // ═══════════ ۴) رنگ نوشته‌ها ═══════════
+                    _sectionTitle('رنگ نوشته‌ها'),
+                    const SizedBox(height: 10),
+                    WebColorPicker(
+                      value: _textColor,
+                      onChanged: (c) => setState(() => _textColor = c),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: _textColor,
+                            shape: BoxShape.circle,
+                            border:
+                                Border.all(color: _kBorder, width: 1.5),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'رنگ انتخابی: ${_hexFromColor(_textColor)}',
+                          style: const TextStyle(
+                              fontSize: 11.5, color: _kMuted),
+                        ),
+                      ],
+                    ),
+                    const _SectionDivider(),
+
+                    // ═══════════ ۵) اندازه فونت ═══════════
+                    Row(
+                      children: [
+                        _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)'),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _kGold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            toFa(_fontSize.round()),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _kGold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: _kGold,
+                        thumbColor: _kGold,
+                        inactiveTrackColor: _kBorder,
+                        overlayColor: _kGold.withValues(alpha: 0.15),
+                      ),
+                      child: Slider(
+                        min: 8,
+                        max: 28,
+                        divisions: 20,
+                        value: _fontSize,
+                        label: toFa(_fontSize.round()),
+                        onChanged: (v) => setState(() => _fontSize = v),
+                      ),
+                    ),
+                    const _SectionDivider(),
+
+                    // ═══════════ ۶) چک‌باکس‌ها ═══════════
+                    _checkTile(
+                      title:
+                          'نمایش «تاریخ» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                      value: _showDates,
+                      onChanged: (v) => setState(() => _showDates = v),
+                    ),
+                    _checkTile(
+                      title:
+                          'نمایش «ساعت» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                      value: _showTimes,
+                      onChanged: (v) => setState(() => _showTimes = v),
+                    ),
+                    _checkTile(
+                      title:
+                          'نمایش خط‌چینِ اتصال نشانه‌های نزدیکی به هدف',
+                      value: _showRingLinks,
+                      onChanged: (v) => setState(() => _showRingLinks = v),
+                    ),
+                    const _SectionDivider(),
+
+                    // ═══════════ ۷) نوع خط پیش‌فرض ═══════════
+                    _sectionTitle(
+                        'نوع خط پیش‌فرض مسیر اهداف (برای هر هدف جداگانه هم می‌شه عوضش کرد)'),
+                    const SizedBox(height: 10),
+                    _trunkPicker(),
+                    const _SectionDivider(),
+
+                    // ═══════════ ۸) ویجت شناور احساسات ═══════════
+                    _checkTile(
+                      title:
+                          'نمایش ویجت شناور «آدم و احساسات» روی صفحه (در تمام تب‌ها)',
+                      value: _showEmotionWidget,
+                      onChanged: (v) =>
+                          setState(() => _showEmotionWidget = v),
+                    ),
+                    const _SectionDivider(),
+
+                    // ═══════════ ۹) پس‌زمینه ═══════════
+                    _sectionTitle('پس‌زمینه'),
                     const SizedBox(height: 10),
                     Consumer<BackgroundStore>(
                       builder: (_, bg, __) => Column(
@@ -244,8 +422,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                     if (ok && context.mounted) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(const SnackBar(
-                                              content:
-                                                  Text('تصویر پس‌زمینه ثبت شد')));
+                                              content: Text(
+                                                  'تصویر پس‌زمینه ثبت شد')));
                                     }
                                   },
                                   icon: const Icon(Icons.image_outlined,
@@ -303,7 +481,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                const Text('محو (blur)',
+                                const Text('محو بودن پس‌زمینه (Blur)',
                                     style: TextStyle(
                                         fontSize: 12, color: _kMuted)),
                                 Expanded(
@@ -321,7 +499,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                             ),
                             Row(
                               children: [
-                                const Text('شفافیت',
+                                const Text('شفافیت پس‌زمینه',
                                     style: TextStyle(
                                         fontSize: 12, color: _kMuted)),
                                 Expanded(
@@ -342,7 +520,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ---------- angels (عکس + ویدیوی متحرک شناور) ----------
+                    // ═══════════ ۱۰) angels ═══════════
                     _sectionTitle('افزودن موارد بیشتر به پیش‌زمینه'),
                     const SizedBox(height: 10),
                     Consumer<AngelsStore>(
@@ -540,101 +718,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ---------- رنگ نوشته‌ها ----------
-                    _sectionTitle('رنگ نوشته‌ها'),
-                    const SizedBox(height: 10),
-                    WebColorPicker(
-                      value: _textColor,
-                      onChanged: (c) => setState(() => _textColor = c),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: _textColor,
-                            shape: BoxShape.circle,
-                            border:
-                                Border.all(color: _kBorder, width: 1.5),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'رنگ انتخابی: ${_hexFromColor(_textColor)}',
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: _kMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const _SectionDivider(),
-
-                    // ---------- اندازه فونت ----------
-                    Row(
-                      children: [
-                        _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)'),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: _kGold.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            toFa(_fontSize.round()),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _kGold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: _kGold,
-                        thumbColor: _kGold,
-                        inactiveTrackColor: _kBorder,
-                        overlayColor: _kGold.withValues(alpha: 0.15),
-                      ),
-                      child: Slider(
-                        min: 8,
-                        max: 28,
-                        divisions: 20,
-                        value: _fontSize,
-                        label: toFa(_fontSize.round()),
-                        onChanged: (v) => setState(() => _fontSize = v),
-                      ),
-                    ),
-                    const _SectionDivider(),
-
-                    // ---------- چک‌باکس‌ها ----------
-                    _checkTile(
-                      title:
-                          'نمایش «تاریخ» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
-                      value: _showDates,
-                      onChanged: (v) => setState(() => _showDates = v),
-                    ),
-                    _checkTile(
-                      title:
-                          'نمایش «ساعت» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
-                      value: _showTimes,
-                      onChanged: (v) => setState(() => _showTimes = v),
-                    ),
-                    _checkTile(
-                      title:
-                          'نمایش خط‌چینِ اتصال نشانه‌های نزدیکی به هدف',
-                      value: _showRingLinks,
-                      onChanged: (v) => setState(() => _showRingLinks = v),
-                    ),
-                    const _SectionDivider(),
-
-                    // ---------- جملات انگیزشی ----------
+                    // ═══════════ ۱۱) جمله‌های انگیزه‌بخش ═══════════
                     _sectionTitle('جمله‌های انگیزه‌بخش'),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -656,47 +740,77 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                             style: TextStyle(fontSize: 12.5)),
                       ),
                     ),
-                    const _SectionDivider(),
-
-                    // ---------- سبک خط پیش‌فرض ----------
-                    _sectionTitle(
-                        'نوع خط پیش‌فرض مسیر اهداف (برای هر هدف جداگانه هم می‌شه عوضش کرد)'),
-                    const SizedBox(height: 10),
-                    _trunkPicker(),
                     const SizedBox(height: 20),
 
-                    // ذخیره
+                    // ═══════════ دکمه‌های پایین ═══════════
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kMuted,
+                              side: const BorderSide(color: _kBorder),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('انصراف',
+                                style: TextStyle(fontSize: 13.5)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _kGold,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: _save,
+                            child: const Text(
+                              'ذخیره',
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // ═══════════ خروج از حساب ═══════════
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _kGold,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kDanger,
+                          side: const BorderSide(color: _kDanger),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        onPressed: _save,
-                        child: const Text(
-                          'ذخیره تنظیمات',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          'انصراف',
-                          style:
-                              TextStyle(color: _kMuted, fontSize: 13),
-                        ),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: const Text('خروج از حساب',
+                            style: TextStyle(fontSize: 13)),
                       ),
                     ),
                   ],
@@ -709,7 +823,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     );
   }
 
-  // ─────────── thumbnail widgets ───────────
+  // ─────────── thumbnails ───────────
 
   Widget _angelImageThumb({
     required Uint8List bytes,
@@ -727,11 +841,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             border: Border.all(color: _kBorder),
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-          ),
+          child: Image.memory(bytes,
+              fit: BoxFit.cover, gaplessPlayback: true),
         ),
         Positioned(
           top: -4,
@@ -969,9 +1080,9 @@ class _SectionDivider extends StatelessWidget {
       );
 }
 
-// ============================================================
-// پیش‌نمایش خط (برای گرید سبک تنه)
-// ============================================================
+// ═══════════════════════════════════════════════════════
+// پیش‌نمایش خط
+// ═══════════════════════════════════════════════════════
 class _TrunkPreviewPainter extends CustomPainter {
   _TrunkPreviewPainter({required this.style, required this.color});
   final String style;
