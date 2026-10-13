@@ -152,34 +152,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
     if (res != null) setState(() {});
   }
 
-  Future<void> _confirmDelete(GratitudeEntry e) async {
-    final store = context.read<GratitudeStore>();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _kCard,
-        title: const Text('حذف',
-            style: TextStyle(fontSize: 15, color: _kInk)),
-        content: const Text('این شکرگذاری حذف بشه؟',
-            style: TextStyle(color: _kInk)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('نه', style: TextStyle(color: _kMuted)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: _kDanger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await store.remove(e.id);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final store = context.watch<GratitudeStore>();
@@ -588,7 +560,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
   }
 
-  // ---------- کارت هر شکرگذاری ----------
+  // ---------- کارت هر شکرگذاری (بدون سطل آشغال) ----------
   Widget _entryCard(GratitudeStore store, GratitudeEntry e) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -732,14 +704,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
                   ],
                 ],
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  size: 18, color: _kDanger),
-              onPressed: () => _confirmDelete(e),
-              padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints.tightFor(width: 32, height: 32),
             ),
           ],
         ),
