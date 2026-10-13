@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../data/gratitude_journey.dart';
 import '../map/draw_utils.dart' show toFa;
+import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
 import '../models/jalali.dart';
 import '../services/image_service.dart';
@@ -111,7 +112,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
         backgroundColor: _kCard,
         title: const Text('حذف',
             style: TextStyle(fontSize: 15, color: _kInk)),
-        content: Text('این شکرگذاری حذف بشه؟',
+        content: const Text('این شکرگذاری حذف بشه؟',
             style: TextStyle(color: _kInk)),
         actions: [
           TextButton(
@@ -142,7 +143,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            // هدر
             Row(
               children: [
                 const Text(
@@ -167,29 +167,26 @@ class _GratitudeTabState extends State<GratitudeTab> {
             ),
             const SizedBox(height: 14),
 
-            // بنر مسیر ۲۸ روزه
             _JourneyBanner(phase: phase, store: store),
             const SizedBox(height: 16),
 
-            // تقویم کوچک
             _MiniCalendar(store: store),
             const SizedBox(height: 16),
 
-            // مسیر عصبی
             NeuralPathway(
               container: store.neural,
               label: 'شکرگذاری',
               showDayButtons: true,
               showHabitButton: true,
-              onChange: () { store.saveNeural(); },
+              onChange: () {
+                store.saveNeural();
+              },
             ),
             const SizedBox(height: 16),
 
-            // فرم افزودن
             _addForm(store),
             const SizedBox(height: 20),
 
-            // لیست
             if (store.entries.isEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 36),
@@ -249,7 +246,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _kGold.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
@@ -306,7 +304,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
           ),
           const SizedBox(height: 10),
 
-          // دکمه‌ی افزودن عکس + پیش‌نمایش‌ها
           Row(
             children: [
               OutlinedButton.icon(
@@ -321,12 +318,12 @@ class _GratitudeTabState extends State<GratitudeTab> {
                 ),
                 onPressed: _pickImages,
                 icon: const Icon(Icons.image_outlined, size: 18),
-                label: const Text('افزودن عکس',
-                    style: TextStyle(fontSize: 12.5)),
+                label:
+                    const Text('افزودن عکس', style: TextStyle(fontSize: 12.5)),
               ),
               const Spacer(),
-              // رادیوهای اشتراک‌گذاری
-              _visRadio('فقط خودم', !_shared, () => setState(() => _shared = false)),
+              _visRadio('فقط خودم', !_shared,
+                  () => setState(() => _shared = false)),
               const SizedBox(width: 8),
               _visRadio('اشتراک', _shared, () => setState(() => _shared = true)),
             ],
@@ -380,7 +377,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: selected ? _kGold.withValues(alpha: 0.16) : Colors.transparent,
+          color:
+              selected ? _kGold.withValues(alpha: 0.16) : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: selected ? _kGold : _kBorder),
         ),
@@ -514,6 +512,10 @@ class _GratitudeTabState extends State<GratitudeTab> {
                       ],
                     ],
                   ),
+                  if (e.emotionIds.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _emotionChips(e.emotionIds),
+                  ],
                   if (e.images.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(
@@ -540,6 +542,42 @@ class _GratitudeTabState extends State<GratitudeTab> {
         ),
       ),
     );
+  }
+
+  Widget _emotionChips(List<String> ids) {
+    final chips = <Widget>[];
+    for (final id in ids.take(4)) {
+      final e = emotionById(id);
+      if (e == null) continue;
+      Color c;
+      try {
+        final h = e.color.replaceFirst('#', '');
+        c = Color(int.parse('FF$h', radix: 16));
+      } catch (_) {
+        c = _kMuted;
+      }
+      chips.add(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: c.withValues(alpha: 0.5)),
+        ),
+        child: Text(
+          e.fa,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: c,
+          ),
+        ),
+      ));
+    }
+    if (ids.length > 4) {
+      chips.add(Text('+${ids.length - 4}',
+          style: const TextStyle(fontSize: 10, color: _kMuted)));
+    }
+    return Wrap(spacing: 5, runSpacing: 5, children: chips);
   }
 
   Widget _imgThumbReadonly(String src) {
@@ -699,8 +737,8 @@ class _JourneyBanner extends StatelessWidget {
                         if (ok == true) await store.startNewJourney();
                       },
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                         child: Text('▶ شروع دوره‌ی تازه',
                             style: TextStyle(
                                 fontSize: 11.5,
@@ -775,29 +813,46 @@ class _MiniCalendar extends StatelessWidget {
               final has = doneSet.contains(key);
               final future = date.isAfter(todayDate);
               final isToday = key == todayKey;
+
+              final hexColor = store.dominantEmotionColorForDay(key);
+              Color? dayColor;
+              if (hexColor != null) {
+                try {
+                  final h = hexColor.replaceFirst('#', '');
+                  dayColor = Color(int.parse('FF$h', radix: 16));
+                } catch (_) {}
+              }
+
               cells.add(
-                Container(
-                  width: size,
-                  height: size,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: has ? _kGold : _kCream,
-                    border: Border.all(
-                      color: isToday ? _kGold : _kBorder,
-                      width: isToday ? 2 : 1,
+                GestureDetector(
+                  onTap: has
+                      ? () => _openDayEmotions(context, store, key)
+                      : null,
+                  child: Container(
+                    width: size,
+                    height: size,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      color: dayColor ?? (has ? _kGold : _kCream),
+                      border: Border.all(
+                        color: dayColor != null
+                            ? dayColor
+                            : (isToday ? _kGold : _kBorder),
+                        width: isToday ? 2 : 1,
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    has ? '✓' : toFa(j.jd),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: has
-                          ? Colors.white
-                          : (future
-                              ? _kMuted.withValues(alpha: 0.5)
-                              : _kInk),
+                    child: Text(
+                      has ? '✓' : toFa(j.jd),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: has
+                            ? Colors.white
+                            : (future
+                                ? _kMuted.withValues(alpha: 0.5)
+                                : _kInk),
+                      ),
                     ),
                   ),
                 ),
@@ -818,6 +873,31 @@ class _MiniCalendar extends StatelessWidget {
     final p = k.split('-').map((e) => int.tryParse(e) ?? 1).toList();
     if (p.length != 3) return DateTime.now();
     return DateTime(p[0], p[1], p[2]);
+  }
+
+  static void _openDayEmotions(
+    BuildContext context,
+    GratitudeStore store,
+    String dayKey,
+  ) {
+    final emotions = context.read<EmotionStore>();
+    final current = store.emotionIdsForDay(dayKey).toList();
+
+    final p = dayKey.split('-').map((e) => int.tryParse(e) ?? 1).toList();
+    final date = DateTime(p[0], p[1], p[2]);
+    final j = toJalaali(date.year, date.month, date.day);
+    final label = '${toFa(j.jd)} ${kJalaliMonths[j.jm - 1]}';
+
+    emotions.beginCapture(
+      phase: 'entry',
+      practiceKey: 'gratitude',
+      label: label,
+      initial: current,
+      entryId: dayKey,
+      onSave: (ids) async {
+        await store.updateDayEmotions(dayKey, ids);
+      },
+    );
   }
 }
 
@@ -1051,8 +1131,8 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child:
-                      const Text('انصراف', style: TextStyle(color: _kMuted)),
+                  child: const Text('انصراف',
+                      style: TextStyle(color: _kMuted)),
                 ),
               ],
             ),
