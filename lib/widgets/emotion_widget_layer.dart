@@ -16,7 +16,8 @@ class EmotionWidgetLayer extends StatefulWidget {
   State<EmotionWidgetLayer> createState() => _EmotionWidgetLayerState();
 }
 
-class _EmotionWidgetLayerState extends State<EmotionWidgetLayer> {
+class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
+    with SingleTickerProviderStateMixin {
   final _prefs = EmotionWidgetPrefs();
 
   bool _loaded = false;
@@ -26,12 +27,20 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer> {
   Offset? _panelPos;
   double _panelW = 250;
 
-  Offset _btnDragStartPos = Offset.zero;
-  Offset? _panelDragStartPos;
+  Offset _btnDragStart = Offset.zero;
+  Offset? _panelDragStart;
+  Offset? _panelDragAnchor;
+
+  late final AnimationController _openCtrl;
 
   @override
   void initState() {
     super.initState();
+    _openCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+      value: 0,
+    );
     _prefs.load().then((s) {
       if (!mounted) return;
       setState(() {
@@ -43,8 +52,15 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer> {
         _open = s.open;
         _glass = s.glass;
         _loaded = true;
+        if (_open) _openCtrl.value = 1;
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _openCtrl.dispose();
+    super.dispose();
   }
 
   Offset _clampBtn(Offset p, Size screen) {
@@ -105,13 +121,29 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer> {
     ));
   }
 
+  void _setOpen(bool v) {
+    setState(() => _open = v);
+    if (v) {
+      _openCtrl.forward();
+    } else {
+      _openCtrl.reverse();
+    }
+    _persist();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_loaded) return const SizedBox.shrink();
 
     final screen = MediaQuery.of(context).size;
     final store = context.watch<EmotionStore>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // در حالت capture، پنل باید همیشه باز باشد
     final effectiveOpen = _open || store.isCapturing;
+    if (store.isCapturing && _openCtrl.value < 1) {
+      _openCtrl.value = 1;
+    }
 
     final btn = _btnPos == Offset.zero
         ? _defaultBtnPos(screen)
@@ -119,78 +151,112 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer> {
 
     final rect = _computePanelRect(btn, screen);
 
-    return Stack(
-      // اجازه می‌دهد ویجت روی هر چیزی که زیرش است شناور باشد
-      clipBehavior: Clip.none,
-      children: [
-        // ── پنل (زیر دکمه) ──
-        if (effectiveOpen)
-          Positioned(
-            left: rect.left,
-            top: rect.top,
-            width: rect.width,
-            child: EmotionPanel(
-              key: const ValueKey('emotion-panel'),
-              glass: _glass,
-              panelW: rect.width,
-              onToggleGlass: () {
-                setState(() => _glass = !_glass);
-                _persist();
-              },
-              onDragStart: () {
-                _panelDragStartPos = _panelPos ?? Offset(rect.left, rect.top);
-                setState(() => _panelPos = _panelDragStartPos);
-              },
-              onDrag: (delta) {
-                if (_panelDragStartPos == null) return;
-                setState(() {
-                  _panelPos = _panelDragStartPos! + delta;
-                });
-              },
-              onDragEnd: () {
-                _panelDragStartPos = null;
-                _persist();
-              },
-              onResize: (w) {
-                setState(() => _panelW = w);
-              },
+    return AnimatedBuilder(
+      animation: _openCtrl,
+      builder: (context, _) {
+        final t = Curves.easeOutCubic.transform(_openCtrl.value);
+
+        // scale/slide از سمت دکمه به پنل
+        final originSide = _panelOriginSide(rect, btn, screen);
+        final dx = originSide.dx * (1 - t) * 22;
+        final dy = originSide.dy * (1 - t) * 22;
+
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (effectiveOpen && t > 0.01)
+              Positioned(
+                left: rect.left + dx,
+                top: rect.top + dy,
+                width: rect.width,
+                child: Transform.scale(
+                  scale: 0.88 + 0.12 * t,
+                  alignment: _originAlignment(originSide),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.deferToChild,
+                    onScaleStart: (d) {
+                      _panelDragStart = _panelPos ?? Offset(rect.left, rect.top);
+                      _panelDragAnchor = d.focalPoint;
+                      if (d.pointerCount >= 2) {
+                        _panelDragStartW = rect.width;
+                      }
+                    },
+                    onScaleUpdate: (d) {
+                      if (d.pointerCount >= 2) {
+                        final w = (_panelDragStartW * d.scale)
+                            .clamp(kPanelWMin, kPanelWMax);
+                        setState(() => _panelW = w);
+                        return;
+                      }
+                      if (_panelDragAnchor == null) return;
+                      final delta = d.focalPoint - _panelDragAnchor!;
+                      setState(() {
+                        _panelPos = _panelDragStart! + delta;
+                      });
+                    },
+                    onScaleEnd: (_) {
+                      _panelDragStart = null;
+                      _panelDragAnchor = null;
+                      _persist();
+                    },
+                    child: EmotionPanel(
+                      width: rect.width,
+                      glass: _glass,
+                      isDark: isDark,
+                      opacity: t,
+                      chartVisible: t > 0.05,
+                      onToggleGlass: () {
+                        setState(() => _glass = !_glass);
+                        _persist();
+                      },
+                      tapSuppressed: () => _panelDragAnchor != null,
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: btn.dx,
+              top: btn.dy,
+              child: EmotionFloatingButton(
+                open: _open,
+                onDragStart: () {
+                  _btnDragStart = btn;
+                },
+                onDrag: (delta) {
+                  setState(() => _btnPos = _btnDragStart + delta);
+                },
+                onDragEnd: () {
+                  setState(() => _btnPos = _clampBtn(_btnPos, screen));
+                  _persist();
+                },
+                onTap: () {
+                  if (store.isCapturing) return;
+                  if (_open) {
+                    store.fireCommitClose();
+                  }
+                  _setOpen(!_open);
+                },
+              ),
             ),
-          ),
+          ],
+        );
+      },
+    );
+  }
 
-        // ── دکمه‌ی شناور — همیشه آخرین فرزند، همیشه روی همه چیز ──
-        Positioned(
-          left: btn.dx,
-          top: btn.dy,
-          child: EmotionFloatingButton(
-            open: _open,
-            onDragStart: () {
-              _btnDragStartPos = btn;
-            },
-            onDrag: (delta) {
-              setState(() {
-                _btnPos = _btnDragStartPos + delta;
-              });
-            },
-            onDragEnd: () {
-              final clamped = _clampBtn(_btnPos, screen);
-              setState(() => _btnPos = clamped);
-              _persist();
-            },
-            onTap: () {
-              // در حالت capture/ویرایش، دکمه کاری نمی‌کند
-              if (store.isCapturing) return;
+  double _panelDragStartW = 250;
 
-              // اگر پنل باز است و انتخاب داریم، بستن پنل = ثبت خودکار
-              if (_open) {
-                store.fireCommitClose();
-              }
+  Alignment _originAlignment(Offset dir) {
+    // پنل باید طوری بزرگ شود که به سمت دکمه باز شود
+    return Alignment(-dir.dx, -dir.dy);
+  }
 
-              setState(() => _open = !_open);
-              _persist();
-            },
-          ),
-        ),
-      ],
+  Offset _panelOriginSide(Rect rect, Offset btn, Size screen) {
+    final bc = btn + const Offset(kEmotionBtnSize / 2, kEmotionBtnSize / 2);
+    final pc = Offset(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return Offset(
+      pc.dx > bc.dx ? -1 : 1,
+      pc.dy > bc.dy ? -1 : 1,
     );
   }
 }
