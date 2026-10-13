@@ -10,7 +10,6 @@ import 'hit_registry.dart';
 import 'map_interaction.dart';
 import 'map_painter.dart';
 
-/// بوم نقشه: رسم + لمس (جابجایی، زوم، درگ گره‌ها و شاخه‌ها، تپ برای ویرایش)
 class MapCanvas extends StatefulWidget {
   const MapCanvas({
     super.key,
@@ -22,6 +21,7 @@ class MapCanvas extends StatefulWidget {
     required this.onEditRing,
     required this.onEditAction,
     this.onTimeBranch,
+    this.onShowBranchMenu,
   });
 
   final CameraController cam;
@@ -32,12 +32,14 @@ class MapCanvas extends StatefulWidget {
   final void Function(String id) onEditRing;
   final void Function(String hostId, String actionId) onEditAction;
   final void Function(String hostId, String actionId)? onTimeBranch;
+  final void Function(String hostId, String actionId)? onShowBranchMenu;
 
   @override
   State<MapCanvas> createState() => _MapCanvasState();
 }
 
-class _MapCanvasState extends State<MapCanvas> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+class _MapCanvasState extends State<MapCanvas>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final Ticker _ticker;
   final ValueNotifier<double> _time = ValueNotifier(0);
   final NodeImageCache _images = NodeImageCache();
@@ -58,6 +60,7 @@ class _MapCanvasState extends State<MapCanvas> with SingleTickerProviderStateMix
       onEditRing: widget.onEditRing,
       onEditAction: widget.onEditAction,
       onTimeBranch: widget.onTimeBranch,
+      onShowBranchMenu: widget.onShowBranchMenu,
     );
     WidgetsBinding.instance.addObserver(this);
   }
