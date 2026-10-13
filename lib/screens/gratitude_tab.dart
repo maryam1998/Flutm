@@ -32,6 +32,7 @@ class GratitudeTab extends StatefulWidget {
 class _GratitudeTabState extends State<GratitudeTab> {
   final _text = TextEditingController();
   final List<GratitudeImage> _pendingImages = [];
+  final List<GratitudeAudio> _pendingAudios = [];
   bool _shared = false;
   bool _saving = false;
 
