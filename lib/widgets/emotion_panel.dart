@@ -351,6 +351,8 @@ class _ToggleIconPainter extends CustomPainter {
 
 // ───────────────────── نوار ثبتِ «حس قبل/بعد از تمرین» ─────────────────────
 
+// ───────────────────── نوار ثبتِ «حس قبل/بعد/ویرایش» ─────────────────────
+
 class _CaptureBar extends StatelessWidget {
   const _CaptureBar({required this.isDark});
 
@@ -359,17 +361,48 @@ class _CaptureBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<EmotionStore>();
-    final isBefore = store.capturePhase == 'before';
+    final phase = store.capturePhase;
     final label = store.captureLabel ?? store.capturePracticeKey ?? '';
     final cnt = store.selectedIds.length;
+
+    final String header;
+    if (phase == 'before') {
+      header = '💗 قبل از تمرین';
+    } else if (phase == 'after') {
+      header = '✨ بعد از تمرین';
+    } else if (phase == 'entry') {
+      header = '📝 ویرایش احساس';
+    } else {
+      header = '📝 انتخاب احساس';
+    }
+
+    final String emptyHint;
+    if (phase == 'entry') {
+      emptyHint = 'یک یا چند احساس برای این روز انتخاب کن';
+    } else {
+      emptyHint = 'از لیست کنار آدمک، یک یا چند احساس را انتخاب کن';
+    }
+
+    final String filledHint;
+    if (phase == 'entry') {
+      filledHint = '$cnt احساس — دکمه ثبت را بزن تا رنگ رشته عوض شود';
+    } else {
+      filledHint = '$cnt احساس انتخاب شد — دکمه ثبت را بزن';
+    }
 
     final ink = isDark ? Colors.white : const Color(0xFF0F5B53);
     final border = isDark
         ? const Color.fromRGBO(84, 201, 184, 0.55)
         : const Color.fromRGBO(43, 191, 171, 0.55);
     final grad = isDark
-        ? const [Color.fromRGBO(43, 191, 171, 0.22), Color.fromRGBO(94, 200, 240, 0.14)]
-        : const [Color.fromRGBO(43, 191, 171, 0.18), Color.fromRGBO(94, 200, 240, 0.12)];
+        ? const [
+            Color.fromRGBO(43, 191, 171, 0.22),
+            Color.fromRGBO(94, 200, 240, 0.14)
+          ]
+        : const [
+            Color.fromRGBO(43, 191, 171, 0.18),
+            Color.fromRGBO(94, 200, 240, 0.12)
+          ];
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
@@ -388,7 +421,7 @@ class _CaptureBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${isBefore ? '💗 قبل از تمرین' : '✨ بعد از تمرین'} — $label',
+            label.isEmpty ? header : '$header — $label',
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.right,
             style: GoogleFonts.vazirmatn(
@@ -399,9 +432,7 @@ class _CaptureBar extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            cnt > 0
-                ? '$cnt احساس انتخاب شد — دکمه ثبت را بزن'
-                : 'از لیست کنار آدمک، یک یا چند احساس را انتخاب کن',
+            cnt > 0 ? filledHint : emptyHint,
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.right,
             style: GoogleFonts.vazirmatn(
@@ -429,7 +460,7 @@ class _CaptureBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(9),
                     ),
                     child: Text(
-                      '✓ ثبت',
+                      phase == 'entry' ? '✓ ذخیره' : '✓ ثبت',
                       style: GoogleFonts.vazirmatn(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
