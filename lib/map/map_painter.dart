@@ -50,7 +50,6 @@ class MapPainter extends CustomPainter {
     final c = state.textColor.toLowerCase().trim();
     final auto = isDark ? Colors.white : kLightInk;
     if (c == '#000000' || c == '#000') return Colors.black;
-    // رنگ پیش‌فرض: روی زمینه‌ی تیره سفید، روی زمینه‌ی روشن قهوه‌ای تیره
     if (c.isEmpty || c == '#eef0fa' || c == '#ffffff' || c == '#fff') return auto;
     return hexColor(c, auto);
   }
@@ -140,7 +139,6 @@ class MapPainter extends CustomPainter {
         }
       }
     }
-    // خطوط اتصال نشانه‌ها به هدف
     if (state.showRingLinks && !state.ringsCollapsed) {
       for (final r in state.rings) {
         if (r.goalId.isEmpty) continue;
@@ -326,7 +324,6 @@ class MapPainter extends CustomPainter {
         size: g.labelSize ?? _labelSize('goal'), color: tc, weight: FontWeight.w600, outline: 3);
     if (g.name.isNotEmpty) hits.add(HitEntry(type: 'goal', id: g.id, kind: HitKind.label, rect: lr));
 
-    // تاریخ/ساعت ثبت هدف
     if ((state.showDateStamps || state.showTimeStamps) &&
         g.createdAt != null &&
         g.createdAt! > 0) {
@@ -350,7 +347,6 @@ class MapPainter extends CustomPainter {
     _goalShutter(canvas, g, col, tc);
   }
 
-  /// دکمه‌ی گرد «جمع/باز کردن مسیر» زیر هدف (با تعداد شاخه‌ها)
   void _goalShutter(Canvas canvas, Goal g, Color col, Color tc) {
     final n = goalBranchCount(state, g);
     if (n == 0) return;
@@ -388,7 +384,7 @@ class MapPainter extends CustomPainter {
           ..strokeJoin = StrokeJoin.round
           ..color = withOp(ink, open ? 0.75 : 0.95));
     drawText(canvas, toFa(n), cx + 7, cy + 4.3,
-        size: 12, color: withOp(ink, open ? 0.8 : 1.0), weight: FontWeight.w700);
+        size: 12, color = withOp(ink, open ? 0.8 : 1.0), weight: FontWeight.w700);
   }
 
   // ---------- حلقه ----------
@@ -434,6 +430,19 @@ class MapPainter extends CustomPainter {
       _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : 'dashed');
     }
     _pts..add(cp.p0)..add(cp.p3);
+
+    // ─── انیمیشن راه رفتن روی تنه (فقط هدف‌ها، نه نشانه‌ها) ───
+    if (!h.isRing) {
+      _walkingFoot(
+        canvas: canvas,
+        cub: cp,
+        poly: null,
+        color: col,
+        baseSize: 18.0,
+        speedSec: 4.2,
+      );
+    }
+
     if (trunkOnly) return;
     final acts = _visibleActs(h.actions);
     for (var i = 0; i < acts.length; i++) {
@@ -521,8 +530,10 @@ class MapPainter extends CustomPainter {
     final length = (geom.end - geom.originPt).distance;
     if (length < 22) return;
 
-    final fs = math.max(11.0, 15.0 * scale);
-    var spacing = math.max(fs * 0.95, 14.0 * scale);
+    final sizeMul = state.footScale.clamp(0.4, 3.0);
+
+    final fs = math.max(11.0, 15.0 * scale) * sizeMul;
+    var spacing = math.max(fs * 0.95, 14.0 * scale * sizeMul);
     final usable = length * 0.86;
     if (count * spacing > usable) spacing = usable / count;
     final span = spacing / length;
@@ -550,7 +561,6 @@ class MapPainter extends CustomPainter {
           ? 1.0
           : 0.4 + 0.55 * (count > 1 ? i / (count - 1) : 1.0);
 
-      // جهت پا: عمود بر منحنی، چپ/راست یکی‌درمیان
       final side = (i % 2 == 0) ? 1.0 : -1.0;
       final off = fs * 0.4 * side;
       final ox = -math.sin(ang) * off;
@@ -565,6 +575,81 @@ class MapPainter extends CustomPainter {
         '👣',
       );
     }
+
+    _walkingFoot(
+      canvas: canvas,
+      cub: cub,
+      poly: geom.poly,
+      color: color,
+      baseSize: 15.0 * scale,
+      speedSec: 3.2,
+    );
+  }
+
+  /// انیمیشن راه رفتن: یک 👣 از نوک شاخه به سمت هدف و برمی‌گردد.
+  /// پای چپ و راست یکی‌درمیان عوض می‌شود تا شبیه قدم زدن شود.
+  void _walkingFoot({
+    required Canvas canvas,
+    required geo.Cubic cub,
+    List<Offset>? poly,
+    required Color color,
+    required double baseSize,
+    required double speedSec,
+  }) {
+    const startT = 0.06;
+    const endT = 0.94;
+
+    // حرکت رفت و برگشتی: یک دور کامل در speedSec ثانیه
+    final cycle = (_t / speedSec) % 1.0;
+    final journey = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2;
+    final t = startT + journey * (endT - startT);
+
+    Offset pt;
+    double ang;
+    if (poly != null) {
+      final q = geo.polyPointAt(poly, t);
+      pt = q.pt;
+      ang = q.angle;
+    } else {
+      pt = cub.at(t);
+      ang = cub.tangent(t);
+    }
+
+    final size = baseSize * state.footScale.clamp(0.4, 3.0);
+
+    // تعویض پای چپ/راست با سرعت بالاتر (شبیه قدم زدن)
+    final stepPhase = (_t / 0.55) % 1.0;
+    final side = stepPhase < 0.5 ? 1.0 : -1.0;
+    final off = size * 0.42 * side;
+    final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
+
+    // هاله‌ی رنگ شاخه زیر پا
+    canvas.drawCircle(
+      pos,
+      size * 0.9,
+      Paint()
+        ..color = color.withAlpha(70)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // هاله‌ی سفید درونی
+    canvas.drawCircle(
+      pos,
+      size * 0.5,
+      Paint()
+        ..color = Colors.white.withAlpha(45)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+
+    // خود پا
+    _drawEmoji(
+      canvas,
+      pos,
+      ang + math.pi / 2,
+      size * 1.2,
+      color,
+      '👣',
+    );
   }
 
   void _drawEmoji(Canvas canvas, Offset at, double angle, double size,
@@ -587,13 +672,11 @@ class MapPainter extends CustomPainter {
     final r = 16.0 * math.max(0.8, scale);
     final pos = center.translate(0, -r * 0.9);
 
-    // هاله‌ی طلایی درخشان
     final glowPaint = Paint()
       ..color = const Color(0xFFF4C542).withAlpha(80)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     canvas.drawCircle(pos, r * 1.4, glowPaint);
 
-    // دایره‌ی پس‌زمینه
     canvas.drawCircle(
       pos,
       r,
@@ -603,7 +686,6 @@ class MapPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: pos, radius: r)),
     );
 
-    // حلقه‌ی بیرونی
     canvas.drawCircle(
       pos,
       r,
@@ -613,7 +695,6 @@ class MapPainter extends CustomPainter {
         ..color = const Color(0xFFFFFFFF).withAlpha(200),
     );
 
-    // ایموجی جام
     _drawEmoji(
       canvas,
       pos.translate(0, 0.5),
@@ -623,7 +704,6 @@ class MapPainter extends CustomPainter {
       '🏆',
     );
 
-    // شعاع‌های تزئینی
     final rayPaint = Paint()
       ..color = const Color(0xFFF4C542).withAlpha(120)
       ..strokeWidth = 1.2
@@ -638,7 +718,6 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  /// شاخه‌های دستاوردشده از درخت پنهان‌اند؛ زیرشاخه‌هاشان یک سطح بالا می‌آیند
   List<ActionNode> _visibleActs(List<ActionNode> list) {
     final out = <ActionNode>[];
     for (final n in list) {
@@ -678,13 +757,11 @@ class MapPainter extends CustomPainter {
       canvas.drawArc(rect, a0, a1 - a0, false, paint);
     }
 
-    // اگه امروز انجام نشده، یه سایه‌ی کم‌رنگ داخل گره
     if (!truthy(a.logs[tKey])) {
       canvas.drawCircle(center, tipR * 0.55,
           Paint()..color = const Color(0xFF0A0C18).withAlpha(140));
     }
 
-    // بج استریک (≥ ۲ روز پیاپی)
     final streak = routineStreak(a);
     if (streak >= 2) {
       final fs = 8.5 * math.max(0.9, scale);
@@ -760,7 +837,6 @@ class MapPainter extends CustomPainter {
       canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale), Paint()..color = color);
     }
 
-    // بج دستاورد (جام طلایی با هاله)
     if (a.extra['achieved'] == true) {
       _trophyBadge(canvas, end, scale);
     }
@@ -785,7 +861,6 @@ class MapPainter extends CustomPainter {
       }
       if (lr != null) hits.add(HitEntry(type: 'action', id: a.id, hostId: h.id, kind: HitKind.label, rect: lr));
 
-      // تاریخ/ساعت ثبت شاخه
       final cAt = a.extra['createdAt'];
       if ((state.showDateStamps || state.showTimeStamps) && cAt is num && cAt > 0) {
         final stamp = _formatStamp(cAt.toInt());
