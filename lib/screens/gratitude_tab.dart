@@ -47,19 +47,19 @@ class _GratitudeTabState extends State<GratitudeTab> {
 
   /// مبلغ با جداکننده‌ی هزارگان و ارقام فارسی
   static String _fmtMoney(double amount) {
-  final n = amount.toInt();
-  final s = n.abs().toString();
-  final buf = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
+    final n = amount.toInt();
+    final s = n.abs().toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    final withSep = (n < 0 ? '-' : '') + buf.toString();
+    return withSep.replaceAllMapped(
+      RegExp(r'\d'),
+      (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
+    );
   }
-  final withSep = (n < 0 ? '-' : '') + buf.toString();
-  return withSep.replaceAllMapped(
-    RegExp(r'\d'),
-    (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
-  );
-}
 
   // ─────────── pickers ───────────
 
@@ -606,7 +606,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // آیکون (راست)
             Container(
               width: 38,
               height: 38,
@@ -619,15 +618,14 @@ class _GratitudeTabState extends State<GratitudeTab> {
               child: Text(e.icon, style: const TextStyle(fontSize: 18)),
             ),
             const SizedBox(width: 10),
-
-            // متن و بقیه
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ردیف ۱: متن + مبلغ
+                  // ردیف ۱: متن + مبلغ هم‌تراز با خط اول
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
                     children: [
                       Expanded(
                         child: Text(
@@ -642,22 +640,12 @@ class _GratitudeTabState extends State<GratitudeTab> {
                       ),
                       if (hasAmount) ...[
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _kEmerald.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                                color: _kEmerald.withValues(alpha: 0.4)),
-                          ),
-                          child: Text(
-                            '${_fmtMoney(e.amount!)} تومان',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F5B53),
-                            ),
+                        Text(
+                          '${_fmtMoney(e.amount!)} تومان',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F5B53),
                           ),
                         ),
                       ],
@@ -665,35 +653,38 @@ class _GratitudeTabState extends State<GratitudeTab> {
                   ),
                   const SizedBox(height: 4),
 
-                  // ردیف ۲: تاریخ + برچسب‌ها
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${e.day} ${_faDateShort(e.iso)} - ${e.time}',
-                        style: const TextStyle(
-                            fontSize: 10.5, color: _kMuted),
-                      ),
-                      if (e.editedAt != null) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: _kBorder),
-                          ),
-                          child: const Text('✏️ ویرایش‌شده',
-                              style: TextStyle(
-                                  fontSize: 9.5, color: _kMuted)),
+                  // ردیف ۲: تاریخ
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${e.day} ${_faDateShort(e.iso)} - ${e.time}',
+                          style: const TextStyle(
+                              fontSize: 10.5, color: _kMuted),
                         ),
+                        if (e.editedAt != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: _kBorder),
+                            ),
+                            child: const Text('✏️ ویرایش‌شده',
+                                style: TextStyle(
+                                    fontSize: 9.5, color: _kMuted)),
+                          ),
+                        ],
+                        if (e.shared) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.public,
+                              size: 12, color: _kEmerald),
+                        ],
                       ],
-                      if (e.shared) ...[
-                        const SizedBox(width: 6),
-                        const Icon(Icons.public,
-                            size: 12, color: _kEmerald),
-                      ],
-                    ],
+                    ),
                   ),
 
                   // ردیف ۳: چیپ احساس
