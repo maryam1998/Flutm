@@ -60,129 +60,6 @@ class _MapTabState extends State<MapTab> {
     );
   }
 
-  // ═══════════ منوی زمینه‌ی شاخه ═══════════
-  void _showBranchMenu(String hostId, String actionId) {
-    final h = _store.state.findHost(hostId);
-    if (h is! MapHost) return;
-    final f = findActionNode(h.actions, actionId);
-    if (f == null) return;
-    final node = f.node;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor:
-          isDark ? const Color(0xFF1A1E3A) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                child: Text(
-                  node.text.isEmpty ? 'شاخه' : node.text,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.add, color: Color(0xFFC9972B)),
-                title: const Text('افزودن زیرشاخه'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final c = _store.addSubBranch(h, node);
-                  // بعد از انیمیشن بسته شدن، پنل ویرایش زیرشاخه باز می‌شود
-                  Future.delayed(const Duration(milliseconds: 180), () {
-                    if (mounted) {
-                      showEditSheet(context, ActionTarget(h.id, c.id));
-                    }
-                  });
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('ویرایش'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  showEditSheet(context, ActionTarget(h.id, node.id));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.timer_outlined),
-                title: const Text('ثبت زمان'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final pi = periodInfo(h, _store);
-                  showTimeSheet(
-                    context,
-                    store: _store,
-                    host: h,
-                    node: node,
-                    jk: pi.todayJK,
-                    dayLabel: 'امروز',
-                  );
-                },
-              ),
-              if (node.detached)
-                ListTile(
-                  leading: const Icon(Icons.link, color: Color(0xFF63D6A8)),
-                  title: const Text('اتصال به مسیر'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    resetBranchPos(node);
-                    _store.changed();
-                  },
-                ),
-              ListTile(
-                leading:
-                    const Icon(Icons.delete_outline, color: Color(0xFFE5484D)),
-                title: const Text('حذف',
-                    style: TextStyle(color: Color(0xFFE5484D))),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final ok = await showDialog<bool>(
-                    context: context,
-                    builder: (dctx) => AlertDialog(
-                      title: const Text('حذف'),
-                      content:
-                          const Text('این شاخه (و زیرشاخه‌هاش) حذف بشه؟'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dctx, false),
-                          child: const Text('لغو'),
-                        ),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFE5484D),
-                          ),
-                          onPressed: () => Navigator.pop(dctx, true),
-                          child: const Text('حذف'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (ok == true) _store.deleteAction(h.id, node.id);
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final store = context.watch<MapStore>();
@@ -220,7 +97,6 @@ class _MapTabState extends State<MapTab> {
                 dayLabel: 'امروز',
               );
             },
-            onShowBranchMenu: _showBranchMenu,
           ),
 
           if (empty)
@@ -241,7 +117,7 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
 
-          // نوار بالا
+          // نوار بالا — بدون دکمه‌ی تنظیمات
           Positioned(
             top: 0,
             left: 0,
@@ -277,12 +153,6 @@ class _MapTabState extends State<MapTab> {
                       Icons.open_in_full,
                       _resizeMode ? const Color(0xFF5EC8F0) : ink,
                       () => setState(() => _resizeMode = !_resizeMode),
-                    ),
-                    const SizedBox(width: 6),
-                    _roundBtn(
-                      Icons.settings,
-                      ink,
-                      () => showSettingsSheet(context),
                     ),
                     const SizedBox(width: 6),
                     Container(
@@ -327,7 +197,7 @@ class _MapTabState extends State<MapTab> {
             ),
           ),
 
-          // نوار ابزار افقی
+          // نوار ابزار پایین — دکمه‌ی تنظیمات اضافه شد
           Positioned(
             left: 8,
             right: 8,
@@ -367,6 +237,12 @@ class _MapTabState extends State<MapTab> {
                         ink,
                         () => store.collapseAll(anyOpen),
                       ),
+                    _toolBtn(
+                      Icons.settings,
+                      'تنظیمات',
+                      ink,
+                      () => showSettingsSheet(context),
+                    ),
                     _toolBtn(
                       Icons.add,
                       'هدف جدید',
