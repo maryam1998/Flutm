@@ -20,7 +20,6 @@ class GratitudeStore extends ChangeNotifier {
   String journeyStart = '';
   bool loaded = false;
 
-  // صفحه‌بندی
   int homeLimit = 40;
   int histLimit = 40;
 
@@ -70,7 +69,6 @@ class GratitudeStore extends ChangeNotifier {
 
   int get totalCount => entries.length;
 
-  /// تعداد شکرگذاری‌های امروز (بدون خرید)
   int get todayCount {
     final k = _todayKey();
     return entries
@@ -80,11 +78,9 @@ class GratitudeStore extends ChangeNotifier {
 
   List<GratitudeEntry> get allReversed => entries.reversed.toList();
 
-  /// لیست برای صفحه‌ی خانه (محدود به homeLimit)
   List<GratitudeEntry> get homeSlice =>
       allReversed.take(homeLimit).toList();
 
-  /// لیست برای تب شکرگذاری (محدود به histLimit)
   List<GratitudeEntry> get histSlice =>
       allReversed.take(histLimit).toList();
 
@@ -98,7 +94,6 @@ class GratitudeStore extends ChangeNotifier {
     return null;
   }
 
-  /// روز چندم مسیر
   int get journeyDay {
     final start = _parseKey(journeyStart);
     final now = DateTime.now();
@@ -116,10 +111,6 @@ class GratitudeStore extends ChangeNotifier {
     return !today.isBefore(end);
   }
 
-  /// یک EmotionStore رو می‌گیره تا اگه کاربر قبل از ثبت شکرگذاری
-  /// توی ویجت حس انتخاب کرده بود، رشته‌ی عصبی جدید با همون رنگ ساخته بشه.
-  /// این متد مخصوص دکمه‌ی «امروز انجام دادم» توی ویجت مسیر عصبیه —
-  /// روزی فقط یک‌بار رشته می‌سازه.
   Future<void> markNeuralForToday(EmotionStore emotions) async {
     final today = NeuralContainer.todayKey();
     if (neural.autoDays[today] == true) return;
@@ -160,6 +151,13 @@ class GratitudeStore extends ChangeNotifier {
     EmotionStore? emotions,
   }) async {
     final now = DateTime.now();
+
+    final emoIds = (emotions != null && emotions.hasSelection)
+        ? emotions.selectedIds
+            .where((id) => emotionById(id) != null)
+            .toList()
+        : <String>[];
+
     final e = GratitudeEntry(
       text: text,
       icon: icon,
@@ -174,21 +172,21 @@ class GratitudeStore extends ChangeNotifier {
       source: source,
       shared: shared,
       txId: txId,
+      emotionIds: emoIds,
     );
     entries.add(e);
 
-    // ✨ هر شکرگذاری = یک رشته‌ی عصبی جدید (بدون قید «روزی یک‌بار»)
     NeuralFiberEmotion? felt;
-    if (emotions != null && emotions.hasSelection) {
-      final dom = dominantEmotion(emotions.selectedIds);
+    if (emoIds.isNotEmpty) {
+      final dom = dominantEmotion(emoIds);
       if (dom != null) {
         felt = NeuralFiberEmotion(
-          ids: emotions.selectedIds,
+          ids: emoIds,
           color: dom.color,
           freq: dom.freq,
         );
       }
-      emotions.reset();
+      emotions?.reset();
     }
     neural.addAutoFiber(emotion: felt);
 
@@ -223,6 +221,74 @@ class GratitudeStore extends ChangeNotifier {
     await _persist();
     notifyListeners();
   }
+
+  // ───────── احساسات روز ─────────
+
+  /// احساسات ذخیره‌شده روی همه‌ی ثبت‌های یک روز
+  Set<String> emotionIdsForDay(String dayKey) {
+    final norm = _normDayKey(dayKey);
+    final out = <String>{};
+    for (final e in entries) {
+      if (e.source == 'purchase') continue;
+      if (isoToKey(e.iso) != norm) continue;
+      out.addAll(e.emotionIds);
+    }
+    if (out.isEmpty) {
+      out.addAll(neural.emotionIdsForDay(norm));
+    }
+    return out;
+  }
+
+  /// رنگِ کادر روز — بر اساس بالاترین فرکانس بین احساسات آن روز
+  String? dominantEmotionColorForDay(String dayKey) {
+    final ids = emotionIdsForDay(dayKey);
+    if (ids.isEmpty) return null;
+    final dom = dominantEmotion(ids);
+    return dom?.color;
+  }
+
+  /// ویرایش احساسات یک روز:
+  ///   - همه‌ی entryهای آن روز → emotionIds جدید
+  ///   - همه‌ی رشته‌های عصبی آن روز → رنگ/فرکانس جدید
+  Future<void> updateDayEmotions(
+    String dayKey,
+    List<String> emotionIds,
+  ) async {
+    final norm = _normDayKey(dayKey);
+    final valid =
+        emotionIds.where((id) => emotionById(id) != null).toSet().toList();
+
+    for (final e in entries) {
+      if (e.source == 'purchase') continue;
+      if (isoToKey(e.iso) != norm) continue;
+      e.emotionIds = List.of(valid);
+      e.editedAt = DateTime.now().millisecondsSinceEpoch;
+    }
+
+    NeuralFiberEmotion? felt;
+    if (valid.isNotEmpty) {
+      final dom = dominantEmotion(valid);
+      if (dom != null) {
+        felt = NeuralFiberEmotion(
+          ids: valid,
+          color: dom.color,
+          freq: dom.freq,
+        );
+      }
+    }
+    neural.recolorFibersForDay(norm, felt);
+
+    await _persist();
+    notifyListeners();
+  }
+
+  static String _normDayKey(String k) {
+    final p = k.split('-').map((e) => int.tryParse(e) ?? 0).toList();
+    if (p.length != 3) return k;
+    return '${p[0]}-${p[1].toString().padLeft(2, '0')}-${p[2].toString().padLeft(2, '0')}';
+  }
+
+  // ───────── صفحه‌بندی ─────────
 
   Future<void> showMoreHome() async {
     homeLimit += 40;
@@ -276,7 +342,6 @@ class GratitudeStore extends ChangeNotifier {
   ];
 
   static String _faDate(DateTime d) {
-    // میلادی ذخیره می‌شه، توی UI جلالی نشون داده می‌شه
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
