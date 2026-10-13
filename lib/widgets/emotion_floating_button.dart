@@ -1,22 +1,29 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 const double kEmotionBtnSize = 32;
 
+/// دایره‌ی شناور (دقیقاً مثل .echw-btn وب): گرادیان ۱۵۰ درجه، هایلایت، سایه، آیکون ECG،
+/// تنفس (echwBtnBreathe)، بزرگ شدن هنگام درگ، و حالت بازِ تیره با ضربدر.
 class EmotionFloatingButton extends StatefulWidget {
-  final bool open;
-  final void Function(Offset delta) onDrag;
-  final void Function() onDragStart;
-  final void Function() onDragEnd;
-  final VoidCallback onTap;
-
   const EmotionFloatingButton({
     super.key,
     required this.open,
-    required this.onDrag,
     required this.onDragStart,
+    required this.onDrag,
     required this.onDragEnd,
     required this.onTap,
   });
+
+  final bool open;
+  final VoidCallback onDragStart;
+  final void Function(Offset delta) onDrag;
+
+  /// moved = true یعنی کاربر دکمه را کشیده (نه تپ)
+  final void Function(bool moved) onDragEnd;
+  final VoidCallback onTap;
 
   @override
   State<EmotionFloatingButton> createState() => _EmotionFloatingButtonState();
@@ -27,15 +34,17 @@ class _EmotionFloatingButtonState extends State<EmotionFloatingButton>
   late final AnimationController _breath;
 
   Offset _start = Offset.zero;
-  bool _dragged = false;
+  bool _moved = false;
+  bool _down = false;
   int? _pointer;
 
   @override
   void initState() {
     super.initState();
+    // 2.8s برای یک دور کامل: 1.4s بالا + 1.4s پایین
     _breath = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2800),
+      duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
   }
 
@@ -47,119 +56,201 @@ class _EmotionFloatingButtonState extends State<EmotionFloatingButton>
 
   @override
   Widget build(BuildContext context) {
-    final opened = widget.open;
     return Listener(
+      behavior: HitTestBehavior.opaque,
       onPointerDown: (e) {
+        if (_pointer != null) return;
         _pointer = e.pointer;
         _start = e.position;
-        _dragged = false;
+        _moved = false;
+        setState(() => _down = true);
         widget.onDragStart();
       },
       onPointerMove: (e) {
         if (e.pointer != _pointer) return;
         final d = e.position - _start;
-        if (!_dragged && d.distance > 3) _dragged = true;
-        if (_dragged) widget.onDrag(d);
+        if (!_moved && (d.dx.abs() > 3 || d.dy.abs() > 3)) _moved = true;
+        if (_moved) widget.onDrag(d);
       },
       onPointerUp: (e) {
         if (e.pointer != _pointer) return;
-        final wasDrag = _dragged;
+        final wasMoved = _moved;
         _pointer = null;
-        _dragged = false;
-        widget.onDragEnd();
-        if (!wasDrag) widget.onTap();
+        _moved = false;
+        setState(() => _down = false);
+        widget.onDragEnd(wasMoved);
+        if (!wasMoved) widget.onTap();
       },
       onPointerCancel: (e) {
         if (e.pointer != _pointer) return;
+        final wasMoved = _moved;
         _pointer = null;
-        _dragged = false;
-        widget.onDragEnd();
+        _moved = false;
+        setState(() => _down = false);
+        widget.onDragEnd(wasMoved);
       },
-      child: AnimatedBuilder(
-        animation: _breath,
-        builder: (_, __) {
-          final s = opened ? 1.0 : 1.0 + _breath.value * 0.06;
-          return Transform.scale(
-            scale: s,
-            child: SizedBox(
-              width: kEmotionBtnSize,
-              height: kEmotionBtnSize,
-              child: CustomPaint(painter: _ButtonPainter(opened: opened)),
-            ),
-          );
-        },
+      child: AnimatedScale(
+        scale: _down ? 1.14 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.ease,
+        child: AnimatedBuilder(
+          animation: _breath,
+          builder: (context, _) {
+            final breathe = (widget.open || _down)
+                ? 1.0
+                : 1.0 + 0.06 * Curves.easeInOut.transform(_breath.value);
+            return Transform.scale(
+              scale: breathe,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(end: widget.open ? 1.0 : 0.0),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.ease,
+                builder: (context, t, _) => CustomPaint(
+                  size: const Size(kEmotionBtnSize, kEmotionBtnSize),
+                  painter: _ButtonPainter(t: t, open: widget.open),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 }
 
 class _ButtonPainter extends CustomPainter {
-  final bool opened;
-  _ButtonPainter({required this.opened});
+  _ButtonPainter({required this.t, required this.open});
+
+  /// ۰ = حالت بسته (آبی/فیروزه‌ای)، ۱ = حالت باز (تیره)
+  final double t;
+  final bool open;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final center = rect.center;
+    final c = size.center(Offset.zero);
     final r = size.width / 2;
+    final circle = Rect.fromCircle(center: c, radius: r);
 
-    final grad = LinearGradient(
-      begin: const Alignment(-0.5, -1),
-      end: const Alignment(0.5, 1),
-      colors: opened
-          ? const [Color(0xFF3A4256), Color(0xFF1C2233)]
-          : const [Color(0xFF38E0D8), Color(0xFF4F7CF0), Color(0xFF5B4FD6)],
-      stops: opened ? null : const [0.0, 0.55, 1.0],
+    // سایه‌ی بیرونی: 0 3px 12px
+    final shadow = Color.lerp(
+      const Color(0x663C5AD2), // rgba(60,90,210,.4)
+      const Color(0x800A0E1A), // rgba(10,14,26,.5)
+      t,
+    )!;
+    canvas.drawCircle(
+      c + const Offset(0, 3),
+      r,
+      Paint()
+        ..color = shadow
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
     );
 
-    canvas.drawCircle(center, r, Paint()..shader = grad.createShader(rect));
+    // گرادیان ۱۵۰ درجه‌ی CSS
+    const angle = 150 * math.pi / 180;
+    final dir = Offset(math.sin(angle), -math.cos(angle));
+    final half = (size.width * math.sin(angle).abs() +
+            size.height * math.cos(angle).abs()) /
+        2;
+    final start = c - dir * half;
+    final end = c + dir * half;
+
+    const openA = Color(0xFF3A4256);
+    const openB = Color(0xFF1C2233);
+    final c0 = Color.lerp(const Color(0xFF38E0D8), openA, t)!;
+    final c1 = Color.lerp(
+        const Color(0xFF4F7CF0), Color.lerp(openA, openB, 0.55)!, t)!;
+    final c2 = Color.lerp(const Color(0xFF5B4FD6), openB, t)!;
 
     canvas.drawCircle(
-      center, r - 0.5,
+      c,
+      r,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          start,
+          end,
+          [c0, c1, c2],
+          const [0.0, 0.55, 1.0],
+        ),
+    );
+
+    // نور داخلی بالا: inset 0 1px 3px rgba(255,255,255,.4)
+    canvas.save();
+    canvas.clipPath(Path()..addOval(circle));
+    final inner = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(circle.inflate(20)),
+      Path()..addOval(circle.shift(const Offset(0, 1))),
+    );
+    canvas.drawPath(
+      inner,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.4 - 0.2 * t)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
+    );
+    canvas.restore();
+
+    // حاشیه: 1px rgba(255,255,255,.45)
+    canvas.drawCircle(
+      c,
+      r - 0.5,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
         ..color = Colors.white.withValues(alpha: 0.45),
     );
 
-    if (!opened) {
-      final hi = Rect.fromCircle(
-        center: Offset(center.dx - r * 0.35, center.dy - r * 0.55),
-        radius: r * 0.35,
-      );
-      canvas.drawOval(
-        hi,
-        Paint()
-          ..shader = const RadialGradient(colors: [
-            Color(0xCCFFFFFF),
-            Color(0x00FFFFFF),
-          ]).createShader(hi),
-      );
-    }
+    // هایلایت بالا-چپ (::after): left 16%، top 12%، w 32%، h 22%
+    final hi = Rect.fromLTWH(
+      size.width * 0.16,
+      size.height * 0.12,
+      size.width * 0.32,
+      size.height * 0.22,
+    );
+    canvas.save();
+    canvas.clipPath(Path()..addOval(hi));
+    canvas.drawRect(
+      hi,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          hi.center,
+          math.sqrt(hi.width * hi.width / 4 + hi.height * hi.height / 4),
+          [
+            Colors.white.withValues(alpha: 0.8),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+          const [0.0, 0.7],
+        ),
+    );
+    canvas.restore();
 
-    final iconPaint = Paint()
+    // آیکون ۱۵px داخل viewBox ۱۶
+    final s = 15 / 16;
+    canvas.save();
+    canvas.translate((size.width - 15) / 2, (size.height - 15) / 2);
+    canvas.scale(s);
+    final icon = Paint()
       ..color = Colors.white
-      ..strokeWidth = opened ? 1.7 : 1.4
+      ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-
-    if (opened) {
-      final d = r * 0.4;
-      canvas.drawLine(center + Offset(-d, -d), center + Offset(d, d), iconPaint);
-      canvas.drawLine(center + Offset(d, -d), center + Offset(-d, d), iconPaint);
+      ..strokeJoin = StrokeJoin.round;
+    if (open) {
+      icon.strokeWidth = 1.7;
+      canvas.drawLine(const Offset(4, 4), const Offset(12, 12), icon);
+      canvas.drawLine(const Offset(12, 4), const Offset(4, 12), icon);
     } else {
-      final path = Path()
-        ..moveTo(center.dx - r * 0.62, center.dy)
-        ..lineTo(center.dx - r * 0.36, center.dy)
-        ..lineTo(center.dx - r * 0.22, center.dy - r * 0.45)
-        ..lineTo(center.dx - r * 0.02, center.dy + r * 0.45)
-        ..lineTo(center.dx + r * 0.14, center.dy)
-        ..lineTo(center.dx + r * 0.62, center.dy);
-      canvas.drawPath(path, iconPaint);
+      icon.strokeWidth = 1.4;
+      final ecg = Path()
+        ..moveTo(1.8, 8)
+        ..lineTo(4.6, 8)
+        ..lineTo(6, 4)
+        ..lineTo(8.2, 12)
+        ..lineTo(9.7, 8)
+        ..lineTo(14.2, 8);
+      canvas.drawPath(ecg, icon);
     }
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_ButtonPainter old) => old.opened != opened;
+  bool shouldRepaint(_ButtonPainter old) => old.t != t || old.open != open;
 }

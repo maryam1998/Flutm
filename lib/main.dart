@@ -44,6 +44,7 @@ Future<void> main() async {
   await gratitude.load();
   await beliefs.load();
   await abundance.load();
+  await emotions.load();
 
   runApp(MultiProvider(
     providers: [

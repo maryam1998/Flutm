@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 class Emotion {
   final String id;
   final String fa;
@@ -45,4 +47,11 @@ Emotion? dominantEmotion(Iterable<String> ids) {
     if (e != null && (dom == null || e.freq > dom.freq)) dom = e;
   }
   return dom;
+}
+
+/// '#rrggbb' -> Color
+Color hexToColor(String hex) {
+  var h = hex.replaceFirst('#', '');
+  if (h.length == 6) h = 'FF$h';
+  return Color(int.parse(h, radix: 16));
 }
