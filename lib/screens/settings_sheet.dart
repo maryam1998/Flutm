@@ -92,13 +92,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         .toLowerCase();
   }
 
+  /// انتخاب چندتایی تصویر برای angels.
+  /// بدون resize تا GIF انیمیت‌شده دست‌نخورده بماند.
   Future<List<XFile>> _pickAngelImages() async {
     final picker = ImagePicker();
-    return picker.pickMultiImage(
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 85,
-    );
+    return picker.pickMultiImage();
   }
 
   @override
