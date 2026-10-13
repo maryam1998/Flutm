@@ -6,7 +6,7 @@ import '../models/constants.dart';
 import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
-import '../widgets/hsv_color_picker.dart';
+import '../widgets/web_color_picker.dart';
 import 'motivation_sheet.dart';
 
 const _kCream = Color(0xFFFBF6EA);
@@ -193,7 +193,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: _kInk,
                                     side: const BorderSide(color: _kBorder),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -201,12 +202,14 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                   onPressed: () async {
                                     final ok = await bg.pickImage();
                                     if (ok && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('تصویر پس‌زمینه ثبت شد')),
-                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(const SnackBar(
+                                              content:
+                                                  Text('تصویر پس‌زمینه ثبت شد')));
                                     }
                                   },
-                                  icon: const Icon(Icons.image_outlined, size: 18),
+                                  icon: const Icon(Icons.image_outlined,
+                                      size: 18),
                                   label: const Text('تصویر (jpg/png/gif)',
                                       style: TextStyle(fontSize: 12)),
                                 ),
@@ -217,7 +220,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: _kInk,
                                     side: const BorderSide(color: _kBorder),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -225,12 +229,14 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                   onPressed: () async {
                                     final ok = await bg.pickVideo();
                                     if (ok && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('ویدیو پس‌زمینه ثبت شد')),
-                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(const SnackBar(
+                                              content:
+                                                  Text('ویدیو پس‌زمینه ثبت شد')));
                                     }
                                   },
-                                  icon: const Icon(Icons.videocam_outlined, size: 18),
+                                  icon: const Icon(Icons.videocam_outlined,
+                                      size: 18),
                                   label: const Text('ویدیو (بی‌صدا)',
                                       style: TextStyle(fontSize: 12)),
                                 ),
@@ -238,7 +244,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                               if (bg.hasBackground) ...[
                                 const SizedBox(width: 6),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: _kDanger),
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: _kDanger),
                                   onPressed: () => bg.clear(),
                                 ),
                               ],
@@ -247,14 +254,18 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                           if (bg.hasBackground) ...[
                             const SizedBox(height: 6),
                             Text(
-                              bg.kind == BgKind.image ? 'تصویر فعال' : 'ویدیو فعال',
-                              style: const TextStyle(fontSize: 11, color: _kMuted),
+                              bg.kind == BgKind.image
+                                  ? 'تصویر فعال'
+                                  : 'ویدیو فعال',
+                              style: const TextStyle(
+                                  fontSize: 11, color: _kMuted),
                             ),
                             const SizedBox(height: 10),
                             Row(
                               children: [
                                 const Text('محو (blur)',
-                                    style: TextStyle(fontSize: 12, color: _kMuted)),
+                                    style: TextStyle(
+                                        fontSize: 12, color: _kMuted)),
                                 Expanded(
                                   child: Slider(
                                     min: 0,
@@ -271,7 +282,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                             Row(
                               children: [
                                 const Text('شفافیت',
-                                    style: TextStyle(fontSize: 12, color: _kMuted)),
+                                    style: TextStyle(
+                                        fontSize: 12, color: _kMuted)),
                                 Expanded(
                                   child: Slider(
                                     min: 0.1,
@@ -292,62 +304,33 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
                     // ---------- رنگ نوشته‌ها ----------
                     _sectionTitle('رنگ نوشته‌ها'),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        for (final hex in [
-                          ...kPalette,
-                          '#eef0fa',
-                          '#ffffff',
-                          '#000000',
-                        ])
-                          _colorSwatch(hex),
-                      ],
+                    const SizedBox(height: 10),
+                    WebColorPicker(
+                      value: _textColor,
+                      onChanged: (c) => setState(() => _textColor = c),
                     ),
-                    const SizedBox(height: 14),
-
-                    // پیش‌نمایش رنگ + sliders RGB
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Container(
-                          width: 44,
-                          height: 44,
+                          width: 26,
+                          height: 26,
                           decoration: BoxDecoration(
                             color: _textColor,
                             shape: BoxShape.circle,
-                            border: Border.all(color: _kBorder, width: 2),
+                            border:
+                                Border.all(color: _kBorder, width: 1.5),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _hexFromColor(_textColor),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: _kInk,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              const Text(
-                                'برای رنگ دلخواه، اسلایدرهای زیر را جابه‌جا کن',
-                                style: TextStyle(
-                                    fontSize: 10.5, color: _kMuted),
-                              ),
-                            ],
+                        const SizedBox(width: 8),
+                        Text(
+                          'رنگ انتخابی: ${_hexFromColor(_textColor)}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: _kMuted,
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    HsvColorPicker(
-                      initial: _textColor,
-                      onChanged: (c) => setState(() => _textColor = c),
                     ),
                     const _SectionDivider(),
 
@@ -428,8 +411,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                           ),
                         ),
                         onPressed: () => showMotivationSheet(context),
-                        icon: const Icon(Icons.auto_awesome, size: 18, color: _kGold),
-                        label: const Text('مدیریت جمله‌های انگیزه‌بخش',
+                        icon: const Icon(Icons.auto_awesome,
+                            size: 18, color: _kGold),
+                        label: const Text(
+                            'مدیریت جمله‌های انگیزه‌بخش',
                             style: TextStyle(fontSize: 12.5)),
                       ),
                     ),
@@ -481,26 +466,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _colorSwatch(String hex) {
-    final c = hexColor(hex, Colors.white);
-    final active = _hexFromColor(_textColor) == hex.toLowerCase();
-    return GestureDetector(
-      onTap: () => setState(() => _textColor = c),
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: c,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: active ? _kGold : _kBorder,
-            width: active ? 3 : 1.5,
-          ),
         ),
       ),
     );
