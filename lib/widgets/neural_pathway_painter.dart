@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../data/neural_tiers.dart';
+import '../models/emotion.dart';
 import '../models/neural_container.dart';
 
-/// نقاشِ مسیر عصبی — دو نورون (رفتار/عادت) + رشته‌های نازک بینشون
+/// نقاشِ مسیر عصبی — دو نورون (رفتار/عادت) + رشته‌های نازک بینشون.
+/// هر رشته رنگِ ترکیبیِ همه‌ی احساساتِ همان رشته را دارد.
+/// اگر رشته‌ای احساس نداشته باشد، رنگ پیش‌فرض سبز-فیروزه‌ای (kEmerald500).
 class NeuralPathwayPainter extends CustomPainter {
   final int fiberCount;
   final NeuralContainer container;
   final Color textColor;
-  final double pulseValue; // ۰..۱ — برای پالسِ نورون عادت
+  final double pulseValue;
 
   NeuralPathwayPainter({
     required this.fiberCount,
@@ -20,7 +23,6 @@ class NeuralPathwayPainter extends CustomPainter {
   static const double _vbW = 380;
   static const double _vbH = 175;
 
-  // موقعیت دو نورون (در مختصات viewBox)
   static const double _behX = 55;
   static const double _habX = 325;
   static const double _nodeY = 90;
@@ -56,18 +58,10 @@ class NeuralPathwayPainter extends CustomPainter {
   void _drawFibers(Canvas canvas) {
     if (fiberCount <= 0) return;
 
-    // آخرین احساس ثبت‌شده — بر اساس timestamp کلید رشته.
-    // همه‌ی رشته‌ها با همین رنگ کشیده می‌شوند.
-    // اگر هیچ حسی ثبت نشده باشد، رنگ پیش‌فرض سبز-فیروزه‌ای است.
-    String? latestKey;
-    int latestTs = 0;
-    for (final k in container.fiberEmotions.keys) {
-      if (container.logs[k] != true) continue;
-      final ts = _keyTs(k);
-      if (ts >= latestTs) {
-        latestTs = ts;
-        latestKey = k;
-      }
+    // رشته‌های «true» به ترتیب درج در `logs`
+    final trueKeys = <String>[];
+    for (final k in container.logs.keys) {
+      if (container.logs[k] == true) trueKeys.add(k);
     }
 
     const defaultColor = kEmerald500;
@@ -76,20 +70,6 @@ class NeuralPathwayPainter extends CustomPainter {
     const feltOpacity = 0.88;
     const feltWidth = 2.2;
     const spreadCycle = 9;
-
-    // تعیین رنگ نهایی
-    Color fColor = defaultColor;
-    double fWidth = defaultWidth;
-    double fOpacity = defaultOpacity;
-
-    if (latestKey != null) {
-      final felt = container.fiberEmotions[latestKey];
-      if (felt != null) {
-        fColor = _parseHex(felt.color);
-        fWidth = feltWidth;
-        fOpacity = feltOpacity;
-      }
-    }
 
     for (int i = 0; i < fiberCount; i++) {
       final pairIdx = (i ~/ 2) % spreadCycle;
@@ -100,25 +80,55 @@ class NeuralPathwayPainter extends CustomPainter {
       final mY = _nodeY + off;
       final eY = _nodeY + off * 0.4;
 
+      Color fColor = defaultColor;
+      double fWidth = defaultWidth;
+      double fOpacity = defaultOpacity;
+
+      if (i < trueKeys.length) {
+        final felt = container.fiberEmotions[trueKeys[i]];
+        if (felt != null && felt.ids.isNotEmpty) {
+          fColor = blendEmotionColors(felt.ids);
+          fWidth = feltWidth;
+          fOpacity = feltOpacity;
+        }
+      }
+
       final path = Path()
         ..moveTo(_behX + _nodeR + 1, sY)
         ..quadraticBezierTo(190, mY, _habX - _nodeR - 1, eY);
 
-      final paint = Paint()
-        ..color = fColor.withValues(alpha: fOpacity)
-        ..strokeWidth = fWidth
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-
-      canvas.drawPath(path, paint);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = fColor.withValues(alpha: fOpacity)
+          ..strokeWidth = fWidth
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke,
+      );
     }
   }
 
-  /// استخراج timestamp از کلید رشته (`f<ts>-xxx`)
-  static int _keyTs(String key) {
-    final m = RegExp(r'^f(\d{10,})-').firstMatch(key);
-    if (m == null) return 0;
-    return int.tryParse(m.group(1) ?? '0') ?? 0;
+  /// ترکیبِ رنگِ همه‌ی احساساتِ یک لیست (میانگین RGB).
+  /// اگر خالی بود، پیش‌فرض kEmerald500.
+  static Color blendEmotionColors(List<String> ids) {
+    final list = ids.map(emotionById).whereType<Emotion>().toList();
+    if (list.isEmpty) return kEmerald500;
+    if (list.length == 1) return _parseHex(list.first.color);
+
+    double r = 0, g = 0, b = 0;
+    for (final e in list) {
+      final c = _parseHex(e.color);
+      r += c.r;
+      g += c.g;
+      b += c.b;
+    }
+    final n = list.length;
+    return Color.fromARGB(
+      255,
+      (r / n * 255).round().clamp(0, 255),
+      (g / n * 255).round().clamp(0, 255),
+      (b / n * 255).round().clamp(0, 255),
+    );
   }
 
   // ---------------- neuron ----------------
@@ -134,14 +144,12 @@ class NeuralPathwayPainter extends CustomPainter {
     double r = _nodeR;
     double opacity = 1.0;
 
-    // پالسِ آرام برای نورونِ عادتِ بالغ
     if (style.glow) {
       final p = 0.9 + pulseValue * 0.15;
       r = _nodeR * p;
       opacity = 0.85 + pulseValue * 0.15;
     }
 
-    // هاله‌ی نورانیِ اطراف
     if (style.glow) {
       canvas.drawCircle(
         Offset(cx, _nodeY),
@@ -152,7 +160,6 @@ class NeuralPathwayPainter extends CustomPainter {
       );
     }
 
-    // دایره‌ی اصلی
     canvas.drawCircle(
       Offset(cx, _nodeY),
       r,
@@ -161,7 +168,6 @@ class NeuralPathwayPainter extends CustomPainter {
         ..style = PaintingStyle.fill,
     );
 
-    // حلقه
     canvas.drawCircle(
       Offset(cx, _nodeY),
       r,
@@ -171,7 +177,6 @@ class NeuralPathwayPainter extends CustomPainter {
         ..style = PaintingStyle.stroke,
     );
 
-    // کاراکتر
     _drawText(
       canvas,
       text: style.char,
