@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/emotion_widget_prefs.dart';
 import '../state/emotion_store.dart';
+import '../state/map_store.dart';
 import 'emotion_floating_button.dart';
 import 'emotion_panel.dart';
 
@@ -135,6 +136,10 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
   @override
   Widget build(BuildContext context) {
     if (!_loaded) return const SizedBox.shrink();
+
+    // مخفی‌کردن کل ویجت اگر کاربر در تنظیمات خاموش کرده باشد
+    final showWidget = context.watch<MapStore>().state.showEmotionWidget;
+    if (!showWidget) return const SizedBox.shrink();
 
     final screen = MediaQuery.of(context).size;
     final store = context.watch<EmotionStore>();
