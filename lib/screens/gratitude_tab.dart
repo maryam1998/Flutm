@@ -52,17 +52,52 @@ class _GratitudeTabState extends State<GratitudeTab> {
     });
   }
 
+  Future<void> _pickVideo() async {
+    final src = await ImageService.pickVideo();
+    if (!mounted) return;
+    if (src == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('ویدیو انتخاب نشد یا حجمش بیشتر از ۸ مگابایت بود')),
+      );
+      return;
+    }
+    setState(() {
+      _pendingImages.add(GratitudeImage(src: src));
+    });
+  }
+
+  Future<void> _pickAudio() async {
+    final src = await ImageService.pickAudio();
+    if (!mounted) return;
+    if (src == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('صوت انتخاب نشد یا حجمش بیشتر از ۵ مگابایت بود')),
+      );
+      return;
+    }
+    setState(() {
+      _pendingAudios.add(GratitudeAudio(src: src, name: 'صوت'));
+    });
+  }
+
   void _removePending(int i) {
     setState(() => _pendingImages.removeAt(i));
+  }
+
+  void _removePendingAudio(int i) {
+    setState(() => _pendingAudios.removeAt(i));
   }
 
   Future<void> _submit() async {
     final store = context.read<GratitudeStore>();
     final emotions = context.read<EmotionStore>();
     final text = _text.text.trim();
-    if (text.isEmpty && _pendingImages.isEmpty) {
+    if (text.isEmpty && _pendingImages.isEmpty && _pendingAudios.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('یه متن یا عکس وارد کن 🌱')),
+        const SnackBar(content: Text('یه متن، عکس، ویدیو یا صوت وارد کن 🌱')),
       );
       return;
     }
@@ -72,12 +107,14 @@ class _GratitudeTabState extends State<GratitudeTab> {
       await store.add(
         text: text,
         images: List.of(_pendingImages),
+        audios: List.of(_pendingAudios),
         shared: _shared,
         emotions: emotions,
       );
       _text.clear();
       setState(() {
         _pendingImages.clear();
+        _pendingAudios.clear();
         _shared = false;
       });
       if (mounted) {
@@ -307,28 +344,42 @@ class _GratitudeTabState extends State<GratitudeTab> {
 
           Row(
             children: [
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _kMuted,
-                  side: const BorderSide(color: _kBorder),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: _pickImages,
-                icon: const Icon(Icons.image_outlined, size: 18),
-                label:
-                    const Text('افزودن عکس', style: TextStyle(fontSize: 12.5)),
+              _iconBtn(
+                icon: Icons.mic_none,
+                tooltip: 'صوت',
+                onTap: _pickAudio,
+              ),
+              const SizedBox(width: 6),
+              _iconBtn(
+                icon: Icons.videocam_outlined,
+                tooltip: 'ویدیو',
+                onTap: _pickVideo,
+              ),
+              const SizedBox(width: 6),
+              _iconBtn(
+                icon: Icons.image_outlined,
+                tooltip: 'عکس',
+                onTap: _pickImages,
               ),
               const Spacer(),
               _visRadio('فقط خودم', !_shared,
                   () => setState(() => _shared = false)),
               const SizedBox(width: 8),
-              _visRadio('اشتراک', _shared, () => setState(() => _shared = true)),
+              _visRadio('اشتراک', _shared,
+                  () => setState(() => _shared = true)),
             ],
           ),
+          if (_pendingAudios.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < _pendingAudios.length; i++)
+                  _audioThumb(_pendingAudios[i], () => _removePendingAudio(i)),
+              ],
+            ),
+          ],
           if (_pendingImages.isNotEmpty) ...[
             const SizedBox(height: 10),
             Wrap(
@@ -403,6 +454,77 @@ class _GratitudeTabState extends State<GratitudeTab> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _iconBtn({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _kBorder),
+              color: _kCard,
+            ),
+            child: Icon(icon, size: 20, color: _kGold),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _audioThumb(GratitudeAudio a, VoidCallback onRemove) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: _kCard,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _kBorder),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.audiotrack, size: 16, color: _kGold),
+              const SizedBox(width: 6),
+              Text(
+                a.name.isEmpty ? 'صوت' : a.name,
+                style: const TextStyle(fontSize: 11.5, color: _kInk),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: const BoxDecoration(
+                color: _kDanger,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -525,6 +647,38 @@ class _GratitudeTabState extends State<GratitudeTab> {
                       children: [
                         for (final im in e.images.take(6))
                           _imgThumbReadonly(im.src),
+                      ],
+                    ),
+                  ],
+                  if (e.audios.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final a in e.audios)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: _kCream,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: _kBorder),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.audiotrack,
+                                    size: 13, color: _kGold),
+                                const SizedBox(width: 5),
+                                Text(
+                                  a.name.isEmpty ? 'صوت' : a.name,
+                                  style: const TextStyle(
+                                      fontSize: 10.5, color: _kInk),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -917,6 +1071,7 @@ class _GratitudeEditor extends StatefulWidget {
 class _GratitudeEditorState extends State<_GratitudeEditor> {
   late final TextEditingController _text;
   late List<GratitudeImage> _images;
+  late List<GratitudeAudio> _audios;
   late bool _shared;
 
   @override
@@ -924,6 +1079,7 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
     super.initState();
     _text = TextEditingController(text: widget.entry.text);
     _images = List.of(widget.entry.images);
+    _audios = List.of(widget.entry.audios);
     _shared = widget.entry.shared;
   }
 
@@ -939,6 +1095,7 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
       widget.entry.id,
       text: text,
       images: _images,
+      audios: _audios,
       shared: _shared,
     );
     if (!mounted) return;
@@ -958,6 +1115,36 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
       for (final s in srcs) {
         _images.add(GratitudeImage(src: s));
       }
+    });
+  }
+
+  Future<void> _pickVideo() async {
+    final src = await ImageService.pickVideo();
+    if (!mounted) return;
+    if (src == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('ویدیو انتخاب نشد یا حجمش بیشتر از ۸ مگابایت بود')),
+      );
+      return;
+    }
+    setState(() {
+      _images.add(GratitudeImage(src: src));
+    });
+  }
+
+  Future<void> _pickAudio() async {
+    final src = await ImageService.pickAudio();
+    if (!mounted) return;
+    if (src == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('صوت انتخاب نشد یا حجمش بیشتر از ۵ مگابایت بود')),
+      );
+      return;
+    }
+    setState(() {
+      _audios.add(GratitudeAudio(src: src, name: 'صوت'));
     });
   }
 
@@ -1021,20 +1208,22 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _kMuted,
-                        side: const BorderSide(color: _kBorder),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: _pickImages,
-                      icon: const Icon(Icons.image_outlined, size: 18),
-                      label: const Text('افزودن عکس',
-                          style: TextStyle(fontSize: 12.5)),
+                    _editorIconBtn(
+                      icon: Icons.mic_none,
+                      tooltip: 'صوت',
+                      onTap: _pickAudio,
+                    ),
+                    const SizedBox(width: 6),
+                    _editorIconBtn(
+                      icon: Icons.videocam_outlined,
+                      tooltip: 'ویدیو',
+                      onTap: _pickVideo,
+                    ),
+                    const SizedBox(width: 6),
+                    _editorIconBtn(
+                      icon: Icons.image_outlined,
+                      tooltip: 'عکس',
+                      onTap: _pickImages,
                     ),
                     const Spacer(),
                     Switch(
@@ -1046,6 +1235,63 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
                         style: TextStyle(fontSize: 12, color: _kInk)),
                   ],
                 ),
+                if (_audios.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (var i = 0; i < _audios.length; i++)
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _kCard,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: _kBorder),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.audiotrack,
+                                      size: 16, color: _kGold),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _audios[i].name.isEmpty
+                                        ? 'صوت'
+                                        : _audios[i].name,
+                                    style: const TextStyle(
+                                        fontSize: 11.5, color: _kInk),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              top: -6,
+                              right: -6,
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                    () => _audios.removeAt(i)),
+                                child: Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: const BoxDecoration(
+                                    color: _kDanger,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close,
+                                      size: 14, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
                 if (_images.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Wrap(
@@ -1137,6 +1383,34 @@ class _GratitudeEditorState extends State<_GratitudeEditor> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _editorIconBtn({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _kBorder),
+              color: _kCard,
+            ),
+            child: Icon(icon, size: 20, color: _kGold),
           ),
         ),
       ),
