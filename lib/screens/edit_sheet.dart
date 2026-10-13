@@ -161,7 +161,6 @@ class _EditSheetState extends State<EditSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // دستگیره
             const SizedBox(height: 10),
             Container(
               width: 40,
@@ -172,8 +171,6 @@ class _EditSheetState extends State<EditSheet> {
               ),
             ),
             const SizedBox(height: 8),
-
-            // هدر
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
@@ -209,8 +206,6 @@ class _EditSheetState extends State<EditSheet> {
                 ],
               ),
             ),
-
-            // بدنه
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
@@ -325,7 +320,6 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  // دایره‌های رنگ
   Widget _swatches(
     String? current,
     void Function(String) onPick, {
@@ -383,7 +377,6 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  // گرید شکل شاخه (۸ گزینه)
   Widget _shapeGrid(String current, void Function(String) onPick,
       {bool inherit = false}) {
     const _icons = {
@@ -446,7 +439,6 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  // اسلایدر
   Widget _slider({
     required String label,
     required double value,
@@ -501,7 +493,6 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  // سوییچ
   Widget _switchTile({
     required String title,
     String? subtitle,
@@ -547,7 +538,6 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  // ردیف دکمه‌های پایین
   Widget _bottomActions({
     required String saveLabel,
     required VoidCallback onSave,
@@ -690,7 +680,6 @@ class _EditSheetState extends State<EditSheet> {
     ];
   }
 
-  // گرید تنه
   Widget _trunkGrid(Goal g) {
     final keys = <String>['', ...kTrunkStyles.keys];
     final current = g.trunkStyle;
@@ -799,9 +788,10 @@ class _EditSheetState extends State<EditSheet> {
   }
 
   // ============================================================
-  // شاخه (اکشن) — صفحه‌ی وسط اسکرین‌شات
+  // شاخه (اکشن)
   // ============================================================
   List<Widget> _actionBody(MapHost host, ActionNode a) {
+    final footPlaying = a.footPlaying;
     return [
       _sectionLabel('عکس روی شاخه'),
       IconPhotoEditor(
@@ -839,6 +829,65 @@ class _EditSheetState extends State<EditSheet> {
       ),
       _sectionLabel('شکل این شاخه'),
       _shapeGrid(a.style, (v) => a.style = v, inherit: true),
+
+      // ═══════════ قدم روی مسیر 👣 ═══════════
+      _sectionLabel('قدم روی مسیر 👣'),
+      _slider(
+        label: 'اندازه‌ی قدم',
+        value: (a.footSize ?? 1.0).clamp(0.4, 2.5),
+        min: 0.4,
+        max: 2.5,
+        divisions: 21,
+        valueText: '${((a.footSize ?? 1.0) * 100).round()}٪',
+        onChanged: (v) => _edit(() => a.footSize = v),
+      ),
+      _slider(
+        label: 'سرعت قدم زدن',
+        value: (a.footSpeed ?? 3.2).clamp(1.0, 10.0),
+        min: 1,
+        max: 10,
+        divisions: 18,
+        valueText: '${(a.footSpeed ?? 3.2).toStringAsFixed(1)} ثانیه',
+        onChanged: (v) => _edit(() => a.footSpeed = v),
+      ),
+      Container(
+        margin: const EdgeInsets.only(top: 6, bottom: 4),
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: footPlaying
+                ? const Color(0xFFE5484D)
+                : const Color(0xFF0F5B53),
+            side: BorderSide(
+              color: footPlaying
+                  ? const Color(0xFFE5484D)
+                  : const Color(0xFF63D6A8),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: () => _edit(() => a.footPlaying = !a.footPlaying),
+          icon: Icon(
+            footPlaying
+                ? Icons.pause_circle_outline
+                : Icons.play_circle_outline,
+            size: 20,
+          ),
+          label: Text(
+            footPlaying ? 'توقف قدم' : 'شروع حرکت قدم',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+      const Padding(
+        padding: EdgeInsets.only(top: 4, bottom: 4),
+        child: Text(
+          'می‌تونی قدم رو با انگشت روی نقشه بگیری و بکشی. با یک تپ روی قدم، حرکت/توقف می‌شه.',
+          style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
+        ),
+      ),
+
       _slider(
         label: 'اندازه‌ی نوشته روی نقشه',
         value: a.labelSize ?? 14,
@@ -957,7 +1006,6 @@ class _EditSheetState extends State<EditSheet> {
     ];
   }
 
-  // درخت شاخه‌ها
   List<Widget> _tree(MapHost host, List<ActionNode> list, int depth) {
     final out = <Widget>[];
     for (final a in list) {
@@ -972,7 +1020,6 @@ class _EditSheetState extends State<EditSheet> {
           ),
           child: Row(
             children: [
-              // نشانگر رنگ
               Container(
                 width: 10,
                 height: 10,
