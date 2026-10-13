@@ -842,12 +842,12 @@ class _EditSheetState extends State<EditSheet> {
         onChanged: (v) => _edit(() => a.footSize = v),
       ),
       _slider(
-        label: 'سرعت قدم زدن',
-        value: (a.footSpeed ?? 3.2).clamp(1.0, 10.0),
-        min: 1,
-        max: 10,
-        divisions: 18,
-        valueText: '${(a.footSpeed ?? 3.2).toStringAsFixed(1)} ثانیه',
+        label: 'سرعت قدم زدن (بالاتر = سریع‌تر)',
+        value: (a.footSpeed ?? 1.0).clamp(0.2, 3.0),
+        min: 0.2,
+        max: 3.0,
+        divisions: 28,
+        valueText: '${(a.footSpeed ?? 1.0).toStringAsFixed(1)}×',
         onChanged: (v) => _edit(() => a.footSpeed = v),
       ),
       Container(
