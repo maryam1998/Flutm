@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../data/neural_tiers.dart';
@@ -57,10 +56,19 @@ class NeuralPathwayPainter extends CustomPainter {
   void _drawFibers(Canvas canvas) {
     if (fiberCount <= 0) return;
 
-    // کلیدهای احساس‌دار (رشته‌هایی که موقع ساخت با یک حس ثبت شده بودن)
-    final feltKeys = container.fiberEmotions.keys
-        .where((k) => container.logs[k] == true)
-        .toList();
+    // آخرین احساس ثبت‌شده — بر اساس timestamp کلید رشته.
+    // همه‌ی رشته‌ها با همین رنگ کشیده می‌شوند.
+    // اگر هیچ حسی ثبت نشده باشد، رنگ پیش‌فرض سبز-فیروزه‌ای است.
+    String? latestKey;
+    int latestTs = 0;
+    for (final k in container.fiberEmotions.keys) {
+      if (container.logs[k] != true) continue;
+      final ts = _keyTs(k);
+      if (ts >= latestTs) {
+        latestTs = ts;
+        latestKey = k;
+      }
+    }
 
     const defaultColor = kEmerald500;
     const defaultOpacity = 0.55;
@@ -68,6 +76,20 @@ class NeuralPathwayPainter extends CustomPainter {
     const feltOpacity = 0.88;
     const feltWidth = 2.2;
     const spreadCycle = 9;
+
+    // تعیین رنگ نهایی
+    Color fColor = defaultColor;
+    double fWidth = defaultWidth;
+    double fOpacity = defaultOpacity;
+
+    if (latestKey != null) {
+      final felt = container.fiberEmotions[latestKey];
+      if (felt != null) {
+        fColor = _parseHex(felt.color);
+        fWidth = feltWidth;
+        fOpacity = feltOpacity;
+      }
+    }
 
     for (int i = 0; i < fiberCount; i++) {
       final pairIdx = (i ~/ 2) % spreadCycle;
@@ -77,19 +99,6 @@ class NeuralPathwayPainter extends CustomPainter {
       final sY = _nodeY + off * 0.4;
       final mY = _nodeY + off;
       final eY = _nodeY + off * 0.4;
-
-      Color fColor = defaultColor;
-      double fWidth = defaultWidth;
-      double fOpacity = defaultOpacity;
-
-      if (i < feltKeys.length) {
-        final felt = container.fiberEmotions[feltKeys[i]];
-        if (felt != null) {
-          fColor = _parseHex(felt.color);
-          fWidth = feltWidth;
-          fOpacity = feltOpacity;
-        }
-      }
 
       final path = Path()
         ..moveTo(_behX + _nodeR + 1, sY)
@@ -103,6 +112,13 @@ class NeuralPathwayPainter extends CustomPainter {
 
       canvas.drawPath(path, paint);
     }
+  }
+
+  /// استخراج timestamp از کلید رشته (`f<ts>-xxx`)
+  static int _keyTs(String key) {
+    final m = RegExp(r'^f(\d{10,})-').firstMatch(key);
+    if (m == null) return 0;
+    return int.tryParse(m.group(1) ?? '0') ?? 0;
   }
 
   // ---------------- neuron ----------------
