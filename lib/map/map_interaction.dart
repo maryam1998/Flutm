@@ -57,6 +57,7 @@ class MapInteraction {
     required this.onEditRing,
     required this.onEditAction,
     this.onTimeBranch,
+    this.onShowBranchMenu,
   });
 
   final CameraController cam;
@@ -68,6 +69,9 @@ class MapInteraction {
   final void Function(String id) onEditRing;
   final void Function(String hostId, String actionId) onEditAction;
   final void Function(String hostId, String actionId)? onTimeBranch;
+  // نگه داشته شده برای سازگاری با map_canvas.dart.
+  // در این نسخه استفاده نمی‌شود.
+  final void Function(String hostId, String actionId)? onShowBranchMenu;
 
   static const double _slop = 6;
 
@@ -194,20 +198,6 @@ class MapInteraction {
         _ => Offset.zero,
       };
 
-  void _setPos(Object n, double x, double y) {
-    switch (n) {
-      case MeNode m:
-        m.x = x;
-        m.y = y;
-      case Goal g:
-        g.x = x;
-        g.y = y;
-      case Ring r:
-        r.x = x;
-        r.y = y;
-    }
-  }
-
   double _radiusOf(Object n) => switch (n) {
         MeNode m => m.radius,
         Goal g => g.radius,
@@ -270,14 +260,14 @@ class MapInteraction {
       return;
     }
 
-    // ─── قدم‌زن روی تنه (walker) ───
+    // ─── قدم‌زن روی تنه ───
     if (hit.type == 'walker') {
       _pending = _Pending(hit.id, '', null, false, pos, isWalker: true);
       _slopPassed = false;
       return;
     }
 
-    // ─── جام روی هدف (trophy) ───
+    // ─── جام روی هدف ───
     if (hit.type == 'trophy') {
       _pending = _Pending(hit.id, '', null, false, pos, isTrophy: true);
       _slopPassed = false;
@@ -458,7 +448,6 @@ class MapInteraction {
   }
 
   void _beginFromPending(_Pending p, Offset cur) {
-    // ─── قدم‌زن روی تنه ───
     if (p.isWalker) {
       _mode = _Mode.dragWalker;
       _dType = 'walker';
@@ -470,12 +459,10 @@ class MapInteraction {
       return;
     }
 
-    // ─── جام: نمی‌شود کشید ───
     if (p.isTrophy) {
       return;
     }
 
-    // ─── قدم روی شاخه ───
     if (p.isFoot) {
       _mode = _Mode.dragFoot;
       _dType = 'foot';
@@ -628,29 +615,28 @@ class MapInteraction {
   }
 
   /// کشیدن قدم‌زن روی تنه‌ی هدف.
-  /// پروجکشن روی منحنی بزیه‌ی تنه.
+  /// پروجکشن روی منحنی بزیه‌ی تنه با ریز‌یابی ternary search.
   void _doDragWalker(Offset w) {
     final s = store.state;
     final g = s.findHost(_dHost);
     if (g is! Goal) return;
 
     final cp = trunkControlPoints(g, s.me);
-    final res = nearestOnCubic(cp, w);
-    // مسیر روی منحنی از t=0 تا t=1؛ res.pt نزدیک‌ترین نقطه است.
-    // برای پیدا کردن t، از نسبت فاصله تا p0 به کل طول استفاده می‌کنیم.
+
+    // درشت: نزدیک‌ترین نقطه روی نمونه‌های ۴۰گانه
     double bestT = 0.5;
     double bestD = double.infinity;
     for (var i = 0; i <= 40; i++) {
       final t = i / 40.0;
-      final pt = cp.at(t);
-      final d = (pt - w).distance;
+      final d = (cp.at(t) - w).distance;
       if (d < bestD) {
         bestD = d;
         bestT = t;
       }
     }
-    // پروجکشن دقیق‌تر
+    // ریز: جست‌وجوی سه‌تایی در فاصله‌ی کوچک
     final refined = _refineT(cp, w, bestT);
+
     g.extra['walkerPos'] = refined.clamp(0.06, 0.94);
     g.extra['walkerPlaying'] = false;
     _mark();
@@ -766,7 +752,8 @@ class MapInteraction {
               }
             }
             walk(g.actions);
-            final pct = ((totalLogs / 30.0).clamp(0.0, 1.0) * 100).round();
+            final pct =
+                ((totalLogs / 30.0).clamp(0.0, 1.0) * 100).round();
             store.toast?.call(
                 'رشد $pct٪ — $totalLogs از ۳۰ قدم در این هدف');
           }
@@ -857,7 +844,8 @@ class MapInteraction {
   void scroll(PointerScrollEvent e) {
     final hit = hits.hitTest(cam.screenToWorld(e.localPosition), cam.scale);
     final f = math.exp(-e.scrollDelta.dy * 0.0018);
-    if (hit != null && (hit.kind == HitKind.image || hit.kind == HitKind.label)) {
+    if (hit != null &&
+        (hit.kind == HitKind.image || hit.kind == HitKind.label)) {
       final node = _nodeRef(hit.type, hit.id, hit.hostId);
       if (node != null) {
         if (hit.kind == HitKind.image && node is ActionNode) {
