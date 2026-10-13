@@ -18,15 +18,9 @@ class _Pending {
   final String hostId, actionId;
   final int? imgIdx;
   final bool isLabel;
-  final Offset start; // مختصات صفحه
+  final Offset start;
 }
 
-/// ماشین حالت لمس نقشه؛ پورت pointerdown/move/up نسخه‌ی وب.
-/// - یک انگشت روی خالی: جابجایی. دو انگشت: زوم + جابجایی
-/// - کشیدن «من» / هدف / نشانه: جابجا میشن (نشانه نزدیک مسیر هدف می‌چسبه)
-/// - کشیدن نوک شاخه: جهت و طول عوض میشه. نگه‌داشتن ۶۰۰ms بعد کشیدن: شاخه جدا/وصل میشه
-/// - کشیدن نوشته یا عکس شاخه: جابجا میشن
-/// - تپ: پنل ویرایش. تپ روی دکمه‌ی گرد زیر هدف: جمع/باز
 class MapInteraction {
   MapInteraction({
     required this.cam,
@@ -38,6 +32,7 @@ class MapInteraction {
     required this.onEditRing,
     required this.onEditAction,
     this.onTimeBranch,
+    this.onShowBranchMenu,
   });
 
   final CameraController cam;
@@ -49,6 +44,9 @@ class MapInteraction {
   final void Function(String id) onEditRing;
   final void Function(String hostId, String actionId) onEditAction;
   final void Function(String hostId, String actionId)? onTimeBranch;
+
+  /// نگه‌داشتن طولانی روی نوک شاخه (بدون حرکت) → منوی زمینه
+  final void Function(String hostId, String actionId)? onShowBranchMenu;
 
   static const double _slop = 6;
 
@@ -69,12 +67,12 @@ class MapInteraction {
 
   // drag
   String _dType = '', _dId = '', _dHost = '';
-  Offset _dOff = Offset.zero; // فاصله‌ی انگشت تا مرجع گره (دنیا)
+  Offset _dOff = Offset.zero;
   int _dImg = 0;
-  double _dStartA = 0, _dStartB = 0; // مقدار اولیه‌ی labelDX/DY یا dx/dy عکس
+  double _dStartA = 0, _dStartB = 0;
   Offset _dStartWorld = Offset.zero;
 
-  // long press روی شاخه
+  // long press
   Timer? _lp;
   bool _holdArmed = false;
   _Pending? _pending;
@@ -218,7 +216,6 @@ class MapInteraction {
       return;
     }
 
-    // ردپا → پنل زمان
     if (_ptrs.isEmpty && hit != null && hit.type == 'actionTime') {
       onTimeBranch?.call(hit.hostId, hit.id);
       return;
@@ -246,7 +243,8 @@ class MapInteraction {
     final world = cam.screenToWorld(pos);
 
     if (hit.type == 'action') {
-      _pending = _Pending(hit.hostId, hit.id, hit.kind == HitKind.image ? hit.imgIdx : null, hit.kind == HitKind.label, pos);
+      _pending = _Pending(hit.hostId, hit.id,
+          hit.kind == HitKind.image ? hit.imgIdx : null, hit.kind == HitKind.label, pos);
       _slopPassed = false;
       _lp = Timer(const Duration(milliseconds: 600), () {
         _holdArmed = true;
@@ -255,7 +253,6 @@ class MapInteraction {
       return;
     }
 
-    // me / goal / ring
     final node = _nodeRef(hit.type, hit.id, hit.hostId);
     if (node == null) {
       _startPan(pos);
@@ -357,7 +354,6 @@ class MapInteraction {
         break;
     }
 
-    // شاخه: هنوز معلوم نیست تپه، درگ، یا نگه‌داشتن
     final p = _pending;
     if (p != null) {
       final moved = (cur - p.start).distance;
@@ -449,7 +445,6 @@ class MapInteraction {
     _tap = null;
   }
 
-  /// نگه‌داشتن شاخه: اگه وصل بود جدا میشه (پایه‌اش آزادانه جابجا میشه)، اگه جدا بود دوباره وصل میشه
   void _holdToggle(MapHost host, ActionNode node, Offset ws) {
     if (node.detached) {
       resetBranchPos(node);
@@ -518,7 +513,6 @@ class MapInteraction {
     _mark();
   }
 
-  /// پایه‌ی شاخه‌ی جداشده وقتی نزدیک مسیر شد، می‌چسبه
   void _snapOriginToTrunk(MapHost host, ActionNode node) {
     final cp = trunkControlPoints(host, store.state.me);
     final res = nearestOnCubic(cp, Offset(node.originX ?? 0, node.originY ?? 0));
@@ -569,12 +563,18 @@ class MapInteraction {
 
     final p = _pending;
     if (p != null && _ptrs.length == 1) {
-      // تپ روی شاخه
+      // نگه‌داشتن بدون حرکت → منوی زمینه؛ تپ → پنل ویرایش
+      final wasHold = _holdArmed;
       _cancelLongPress();
       _pending = null;
       _ptrs.remove(e.pointer);
+      _holdArmed = false;
       _finish();
-      onEditAction(p.hostId, p.actionId);
+      if (wasHold && onShowBranchMenu != null) {
+        onShowBranchMenu!(p.hostId, p.actionId);
+      } else {
+        onEditAction(p.hostId, p.actionId);
+      }
       return;
     }
     final t = _tap;
@@ -609,7 +609,6 @@ class MapInteraction {
     if (_ptrs.isEmpty) {
       _finish();
     } else if (_ptrs.length == 1) {
-      // یک انگشت مونده: ادامه به صورت جابجایی نقشه
       _tap = null;
       _startPan(_ptrs.values.first);
     }
@@ -628,7 +627,6 @@ class MapInteraction {
     }
   }
 
-  /// وقتی اپ به پس‌زمینه میره یا ویجت از بین میره
   void reset() {
     _ptrs.clear();
     _finish();
@@ -650,7 +648,7 @@ class MapInteraction {
           }
         } else if (hit.kind == HitKind.label) {
           final cur = _labelSizeOf(node) ?? _defaultLabelSize(hit.type, hit.id);
-          _setLabelSize(node, math.max(8.0, math.min(60.0, cur * f)));
+          _setLabelSize(node, math.max(8.0, Math.min(60.0, cur * f)));
           store.touch();
         }
         return;
