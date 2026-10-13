@@ -234,7 +234,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                   if (_open) {
                     store.fireCommitClose();
                   }
-                  _setOpen(!_open);
+                  _setOpen(newOpen);
                 },
               ),
             ),
