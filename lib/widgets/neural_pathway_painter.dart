@@ -4,9 +4,8 @@ import '../data/neural_tiers.dart';
 import '../models/emotion.dart';
 import '../models/neural_container.dart';
 
-/// نقاشِ مسیر عصبی — دو نورون (رفتار/عادت) + رشته‌های نازک بینشون.
-/// هر رشته رنگِ ترکیبیِ همه‌ی احساساتِ همان رشته را دارد.
-/// اگر رشته‌ای احساس نداشته باشد، رنگ پیش‌فرض سبز-فیروزه‌ای (kEmerald500).
+/// نقاشِ مسیر عصبی — هر رشته رنگِ ترکیبی احساساتِ خودش را دارد.
+/// رشته‌های رنگی ضخیم‌ترند، و با هر احساسِ اضافه ضخیم‌تر می‌شوند.
 class NeuralPathwayPainter extends CustomPainter {
   final int fiberCount;
   final NeuralContainer container;
@@ -58,7 +57,6 @@ class NeuralPathwayPainter extends CustomPainter {
   void _drawFibers(Canvas canvas) {
     if (fiberCount <= 0) return;
 
-    // رشته‌های «true» به ترتیب درج در `logs`
     final trueKeys = <String>[];
     for (final k in container.logs.keys) {
       if (container.logs[k] == true) trueKeys.add(k);
@@ -68,7 +66,6 @@ class NeuralPathwayPainter extends CustomPainter {
     const defaultOpacity = 0.55;
     const defaultWidth = 1.0;
     const feltOpacity = 0.88;
-    const feltWidth = 2.2;
     const spreadCycle = 9;
 
     for (int i = 0; i < fiberCount; i++) {
@@ -88,7 +85,8 @@ class NeuralPathwayPainter extends CustomPainter {
         final felt = container.fiberEmotions[trueKeys[i]];
         if (felt != null && felt.ids.isNotEmpty) {
           fColor = blendEmotionColors(felt.ids);
-          fWidth = feltWidth;
+          // پایه ۲.۴، هر احساس اضافه ۰.۴، حداکثر ۴.۰
+          fWidth = (2.4 + (felt.ids.length - 1) * 0.4).clamp(2.4, 4.0);
           fOpacity = feltOpacity;
         }
       }
@@ -109,7 +107,6 @@ class NeuralPathwayPainter extends CustomPainter {
   }
 
   /// ترکیبِ رنگِ همه‌ی احساساتِ یک لیست (میانگین RGB).
-  /// اگر خالی بود، پیش‌فرض kEmerald500.
   static Color blendEmotionColors(List<String> ids) {
     final list = ids.map(emotionById).whereType<Emotion>().toList();
     if (list.isEmpty) return kEmerald500;
@@ -207,8 +204,6 @@ class NeuralPathwayPainter extends CustomPainter {
         color: kNeuralMuted,
         align: TextAlign.center);
   }
-
-  // ---------------- text helper ----------------
 
   void _drawText(
     Canvas canvas, {
