@@ -4,15 +4,30 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// یک تصویر angels. id یکتا برای ردیابی موقعیتش روی صفحه.
+import '../services/angel_blob_store.dart';
+
+/// یک عکس (کم‌حجم) — bytes داخل SharedPreferences base64 ذخیره میشه
 class AngelImage {
   final String id;
   final Uint8List bytes;
   AngelImage({required this.id, required this.bytes});
 }
 
-/// تنظیمات و لیست تصاویر متحرک شناور (angels).
-/// معادل `appAngels` در localStorage نسخه‌ی وب.
+/// یک ویدیو — bytes در IndexedDB، فقط metadata اینجا
+class AngelVideo {
+  final String id;
+  final String name;
+  final String mime;
+  final int size;
+  AngelVideo({
+    required this.id,
+    required this.name,
+    required this.mime,
+    required this.size,
+  });
+}
+
+/// تنظیمات و لیست موارد شناور (عکس + ویدیو).
 class AngelsStore extends ChangeNotifier {
   static const _kOn = 'angels_on';
   static const _kSize = 'angels_size';
@@ -22,8 +37,10 @@ class AngelsStore extends ChangeNotifier {
   static const _kBlend = 'angels_blend';
   static const _kFs = 'angels_fs';
   static const _kImages = 'angels_images_v1';
+  static const _kVideos = 'angels_videos_v1';
 
-  static const int maxImageBytes = 10 * 1024 * 1024;
+  static const int maxImageBytes = 10 * 1024 * 1024;    // ۱۰ مگ
+  static const int maxVideoBytes = 300 * 1024 * 1024;   // ۳۰۰ مگ
 
   bool _on = false;
   double _size = 140;
@@ -33,6 +50,7 @@ class AngelsStore extends ChangeNotifier {
   String _blend = 'normal';
   bool _fs = true;
   final List<AngelImage> _images = [];
+  final List<AngelVideo> _videos = [];
 
   bool get on => _on;
   double get size => _size;
@@ -42,10 +60,14 @@ class AngelsStore extends ChangeNotifier {
   String get blend => _blend;
   bool get fs => _fs;
   List<AngelImage> get images => List.unmodifiable(_images);
-  bool get hasImages => _images.isNotEmpty;
+  List<AngelVideo> get videos => List.unmodifiable(_videos);
+  bool get hasAssets => _images.isNotEmpty || _videos.isNotEmpty;
+  int get count => _images.length + _videos.length;
 
   Future<void> load() async {
     try {
+      await AngelBlobStore.init();
+
       final sp = await SharedPreferences.getInstance();
       _on = sp.getBool(_kOn) ?? false;
       _size = (sp.getDouble(_kSize) ?? 140).clamp(60, 320);
@@ -55,23 +77,50 @@ class AngelsStore extends ChangeNotifier {
       _blend = sp.getString(_kBlend) ?? 'normal';
       _fs = sp.getBool(_kFs) ?? true;
 
-      final raw = sp.getString(_kImages);
-      if (raw != null && raw.isNotEmpty) {
-        final list = jsonDecode(raw);
-        if (list is List) {
-          _images.clear();
-          for (final e in list) {
-            if (e is Map) {
-              final id = e['id'] as String? ?? '';
-              final b64 = e['b64'] as String? ?? '';
-              if (id.isNotEmpty && b64.isNotEmpty) {
-                try {
-                  _images.add(AngelImage(id: id, bytes: base64Decode(b64)));
-                } catch (_) {}
+      // images
+      final rawImgs = sp.getString(_kImages);
+      if (rawImgs != null && rawImgs.isNotEmpty) {
+        try {
+          final list = jsonDecode(rawImgs);
+          if (list is List) {
+            _images.clear();
+            for (final e in list) {
+              if (e is Map) {
+                final id = e['id'] as String? ?? '';
+                final b64 = e['b64'] as String? ?? '';
+                if (id.isNotEmpty && b64.isNotEmpty) {
+                  try {
+                    _images.add(
+                        AngelImage(id: id, bytes: base64Decode(b64)));
+                  } catch (_) {}
+                }
               }
             }
           }
-        }
+        } catch (_) {}
+      }
+
+      // videos (metadata)
+      final rawVids = sp.getString(_kVideos);
+      if (rawVids != null && rawVids.isNotEmpty) {
+        try {
+          final list = jsonDecode(rawVids);
+          if (list is List) {
+            _videos.clear();
+            for (final e in list) {
+              if (e is Map) {
+                final id = e['id'] as String? ?? '';
+                if (id.isEmpty) continue;
+                _videos.add(AngelVideo(
+                  id: id,
+                  name: e['name'] as String? ?? 'video',
+                  mime: e['mime'] as String? ?? 'video/mp4',
+                  size: (e['size'] as num?)?.toInt() ?? 0,
+                ));
+              }
+            }
+          }
+        } catch (_) {}
       }
     } catch (_) {}
     notifyListeners();
@@ -88,12 +137,24 @@ class AngelsStore extends ChangeNotifier {
       await sp.setString(_kBlend, _blend);
       await sp.setBool(_kFs, _fs);
 
-      final list = _images
+      final imgsJson = _images
           .map((im) => {'id': im.id, 'b64': base64Encode(im.bytes)})
           .toList();
-      await sp.setString(_kImages, jsonEncode(list));
+      await sp.setString(_kImages, jsonEncode(imgsJson));
+
+      final vidsJson = _videos
+          .map((v) => {
+                'id': v.id,
+                'name': v.name,
+                'mime': v.mime,
+                'size': v.size,
+              })
+          .toList();
+      await sp.setString(_kVideos, jsonEncode(vidsJson));
     } catch (_) {}
   }
+
+  // ─────── تنظیمات ───────
 
   Future<void> setOn(bool v) async {
     _on = v;
@@ -137,12 +198,39 @@ class AngelsStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// اضافه‌کردن یک تصویر. اگر حجم بیش از ۱۰MB باشد false برمی‌گرداند.
+  // ─────── افزودن / حذف ───────
+
   Future<bool> addImage(Uint8List bytes) async {
     if (bytes.isEmpty) return false;
     if (bytes.length > maxImageBytes) return false;
-    final id = 'a${DateTime.now().millisecondsSinceEpoch}_${_images.length}';
+    final id = 'ai${DateTime.now().millisecondsSinceEpoch}';
     _images.add(AngelImage(id: id, bytes: bytes));
+    await _persist();
+    notifyListeners();
+    return true;
+  }
+
+  /// افزودن ویدیو — bytes در IndexedDB ذخیره می‌شه.
+  /// اگر از ۳۰۰ مگ بزرگ‌تر یا ذخیره ناموفق بود، false برمی‌گردونه.
+  Future<bool> addVideo({
+    required String name,
+    required String mime,
+    required Uint8List bytes,
+  }) async {
+    if (bytes.isEmpty) return false;
+    if (bytes.length > maxVideoBytes) return false;
+    final id = 'av${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      await AngelBlobStore.put(id, bytes, mime);
+    } catch (_) {
+      return false;
+    }
+    _videos.add(AngelVideo(
+      id: id,
+      name: name,
+      mime: mime,
+      size: bytes.length,
+    ));
     await _persist();
     notifyListeners();
     return true;
@@ -154,10 +242,39 @@ class AngelsStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> clearAll() async {
-    if (_images.isEmpty) return;
-    _images.clear();
+  Future<void> removeVideo(String id) async {
+    _videos.removeWhere((v) => v.id == id);
+    try {
+      await AngelBlobStore.delete(id);
+    } catch (_) {}
     await _persist();
     notifyListeners();
   }
+
+  Future<void> clearAll() async {
+    _images.clear();
+    for (final v in _videos) {
+      try {
+        await AngelBlobStore.delete(v.id);
+      } catch (_) {}
+    }
+    _videos.clear();
+    await _persist();
+    notifyListeners();
+  }
+
+  /// بارگذاری bytes یک ویدیو + ساخت blob URL
+  Future<AngelBlob?> loadVideoBlob(String id) async {
+    try {
+      return await AngelBlobStore.get(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> videoBlobUrl(Uint8List bytes, String mime) =>
+      AngelBlobStore.createBlobUrl(bytes, mime);
+
+  Future<void> revokeBlobUrl(String url) =>
+      AngelBlobStore.revokeBlobUrl(url);
 }
