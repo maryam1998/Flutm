@@ -1,64 +1,34 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/emotion.dart';
 
 /// انتخاب فعلی توی ویجت شناور «آدم و احساسات».
 /// بعد از اینکه یک رشته‌ی عصبی ازش مصرف کرد، ریست می‌شه.
-/// انتخاب مثل وب (کلید echwSelectedEmotions_v5) ذخیره می‌شه.
 class EmotionStore extends ChangeNotifier {
-  static const _key = 'echwSelectedEmotions_v5';
-
   final Set<String> _selected = {};
 
   /// فاز بعدی «قبل / بعد» (وقتی از یه تمرین می‌آییم اینجا)
-  String? capturePhase; // 'before' | 'after' | null
+  String? capturePhase;   // 'before' | 'after' | null
   String? capturePracticeKey;
   String? captureLabel;
 
   /// کال‌بکی که وقتی کاربر «ثبت» رو زد صدا زده می‌شه
   void Function(List<String> ids)? _onCaptureSave;
 
-  List<String> get selectedIds => _selected.toList();
+  /// کال‌بکی که وقتی کاربر پنل رو با یک انتخاب بست صدا زده می‌شه.
+  /// این معادل رویداد `echw:commit` در نسخه‌ی وب است.
+  void Function(List<String> ids)? onCommitClose;
 
-  /// انتخاب‌شده‌ها به ترتیب فرکانس (دقیقاً مثل EMOTIONS.filter در وب)
-  List<Emotion> get selectedEmotions =>
-      kEmotions.where((e) => _selected.contains(e.id)).toList();
+  List<String> get selectedIds => _selected.toList();
 
   bool get hasSelection => _selected.isNotEmpty;
   bool get isCapturing => capturePhase != null;
 
-  Future<void> load() async {
-    try {
-      final sp = await SharedPreferences.getInstance();
-      final raw = sp.getString(_key);
-      if (raw == null || raw.isEmpty) return;
-      final j = jsonDecode(raw);
-      if (j is List) {
-        _selected
-          ..clear()
-          ..addAll(j.whereType<String>().where((id) => emotionById(id) != null));
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _save() async {
-    try {
-      final sp = await SharedPreferences.getInstance();
-      await sp.setString(_key, jsonEncode(_selected.toList()));
-    } catch (_) {}
-  }
-
   void toggle(String id) {
-    if (emotionById(id) == null) return;
     if (_selected.contains(id)) {
       _selected.remove(id);
     } else {
       _selected.add(id);
     }
-    _save();
     notifyListeners();
   }
 
@@ -66,14 +36,12 @@ class EmotionStore extends ChangeNotifier {
     _selected
       ..clear()
       ..addAll(ids.where((id) => emotionById(id) != null));
-    _save();
     notifyListeners();
   }
 
   void reset() {
     if (_selected.isEmpty) return;
     _selected.clear();
-    _save();
     notifyListeners();
   }
 
@@ -92,7 +60,6 @@ class EmotionStore extends ChangeNotifier {
       _selected
         ..clear()
         ..addAll(initial.where((id) => emotionById(id) != null));
-      _save();
     }
     notifyListeners();
   }
@@ -118,5 +85,21 @@ class EmotionStore extends ChangeNotifier {
   void cancelCapture() {
     _onCaptureSave = null;
     endCapture();
+  }
+
+  /// کاربر پنل رو با یک انتخاب بست (نه در حالت capture):
+  /// رشته‌ی عصبی ساخته می‌شه و انتخاب ریست می‌شه.
+  /// این معادل `dispatchEvent(echw:commit)` در نسخه‌ی وب است.
+  void fireCommitClose() {
+    if (_selected.isEmpty) return;
+    if (isCapturing) return;
+    final cb = onCommitClose;
+    if (cb == null) {
+      reset();
+      return;
+    }
+    final ids = selectedIds;
+    cb(ids);
+    reset();
   }
 }
