@@ -22,6 +22,7 @@ enum _Mode {
   resizeLabel,
   resizeImage,
   dragFoot,
+  dragWalker,
 }
 
 class _Pending {
@@ -32,11 +33,16 @@ class _Pending {
     this.isLabel,
     this.start, {
     this.isFoot = false,
+    this.isWalker = false,
+    this.isTrophy = false,
   });
-  final String hostId, actionId;
+  final String hostId;
+  final String actionId;
   final int? imgIdx;
   final bool isLabel;
   final bool isFoot;
+  final bool isWalker;
+  final bool isTrophy;
   final Offset start;
 }
 
@@ -51,7 +57,6 @@ class MapInteraction {
     required this.onEditRing,
     required this.onEditAction,
     this.onTimeBranch,
-    this.onShowBranchMenu,
   });
 
   final CameraController cam;
@@ -63,7 +68,6 @@ class MapInteraction {
   final void Function(String id) onEditRing;
   final void Function(String hostId, String actionId) onEditAction;
   final void Function(String hostId, String actionId)? onTimeBranch;
-  final void Function(String hostId, String actionId)? onShowBranchMenu;
 
   static const double _slop = 6;
 
@@ -104,7 +108,7 @@ class MapInteraction {
     _lp = null;
   }
 
-  // ------------------------------------------------------------------ دسترسی به گره‌ها
+  // ───────────────────────── دسترسی به گره‌ها ─────────────────────────
 
   Object? _nodeRef(String type, String id, String hostId) {
     final s = store.state;
@@ -222,7 +226,7 @@ class MapInteraction {
     }
   }
 
-  // ------------------------------------------------------------------ pointer down
+  // ───────────────────────── pointer down ─────────────────────────
 
   void pointerDown(PointerDownEvent e) {
     final pos = e.localPosition;
@@ -259,9 +263,23 @@ class MapInteraction {
 
     final world = cam.screenToWorld(pos);
 
-    // ─────── قدم متحرک ───────
+    // ─── قدم روی شاخه ───
     if (hit.type == 'foot') {
       _pending = _Pending(hit.hostId, hit.id, null, false, pos, isFoot: true);
+      _slopPassed = false;
+      return;
+    }
+
+    // ─── قدم‌زن روی تنه (walker) ───
+    if (hit.type == 'walker') {
+      _pending = _Pending(hit.id, '', null, false, pos, isWalker: true);
+      _slopPassed = false;
+      return;
+    }
+
+    // ─── جام روی هدف (trophy) ───
+    if (hit.type == 'trophy') {
+      _pending = _Pending(hit.id, '', null, false, pos, isTrophy: true);
       _slopPassed = false;
       return;
     }
@@ -367,7 +385,7 @@ class MapInteraction {
     _pinchCamY = cam.y;
   }
 
-  // ------------------------------------------------------------------ pointer move
+  // ───────────────────────── pointer move ─────────────────────────
 
   void pointerMove(PointerMoveEvent e) {
     if (!_ptrs.containsKey(e.pointer)) return;
@@ -427,6 +445,8 @@ class MapInteraction {
         _doDragNode(w);
       case _Mode.dragFoot:
         _doDragFoot(w);
+      case _Mode.dragWalker:
+        _doDragWalker(w);
       default:
         break;
     }
@@ -438,6 +458,24 @@ class MapInteraction {
   }
 
   void _beginFromPending(_Pending p, Offset cur) {
+    // ─── قدم‌زن روی تنه ───
+    if (p.isWalker) {
+      _mode = _Mode.dragWalker;
+      _dType = 'walker';
+      _dHost = p.hostId;
+      _dId = p.hostId;
+      _dStartWorld = cam.screenToWorld(p.start);
+      _slopPassed = true;
+      _tap = null;
+      return;
+    }
+
+    // ─── جام: نمی‌شود کشید ───
+    if (p.isTrophy) {
+      return;
+    }
+
+    // ─── قدم روی شاخه ───
     if (p.isFoot) {
       _mode = _Mode.dragFoot;
       _dType = 'foot';
@@ -564,7 +602,7 @@ class MapInteraction {
     _mark();
   }
 
-  /// کشیدن قدم روی مسیر شاخه.
+  /// کشیدن قدم روی شاخه.
   /// پروجکشن نقطه روی پاره‌خط (origin → end) و clamp به [0.06, 0.94].
   void _doDragFoot(Offset w) {
     final host = store.state.findHost(_dHost);
@@ -587,6 +625,52 @@ class MapInteraction {
     node.footPos = t.clamp(0.06, 0.94);
     node.footPlaying = false;
     _mark();
+  }
+
+  /// کشیدن قدم‌زن روی تنه‌ی هدف.
+  /// پروجکشن روی منحنی بزیه‌ی تنه.
+  void _doDragWalker(Offset w) {
+    final s = store.state;
+    final g = s.findHost(_dHost);
+    if (g is! Goal) return;
+
+    final cp = trunkControlPoints(g, s.me);
+    final res = nearestOnCubic(cp, w);
+    // مسیر روی منحنی از t=0 تا t=1؛ res.pt نزدیک‌ترین نقطه است.
+    // برای پیدا کردن t، از نسبت فاصله تا p0 به کل طول استفاده می‌کنیم.
+    double bestT = 0.5;
+    double bestD = double.infinity;
+    for (var i = 0; i <= 40; i++) {
+      final t = i / 40.0;
+      final pt = cp.at(t);
+      final d = (pt - w).distance;
+      if (d < bestD) {
+        bestD = d;
+        bestT = t;
+      }
+    }
+    // پروجکشن دقیق‌تر
+    final refined = _refineT(cp, w, bestT);
+    g.extra['walkerPos'] = refined.clamp(0.06, 0.94);
+    g.extra['walkerPlaying'] = false;
+    _mark();
+  }
+
+  double _refineT(Cubic cp, Offset w, double near) {
+    var lo = math.max(0.0, near - 0.05);
+    var hi = math.min(1.0, near + 0.05);
+    for (var i = 0; i < 12; i++) {
+      final t1 = lo + (hi - lo) / 3;
+      final t2 = hi - (hi - lo) / 3;
+      final d1 = (cp.at(t1) - w).distance;
+      final d2 = (cp.at(t2) - w).distance;
+      if (d1 < d2) {
+        hi = t2;
+      } else {
+        lo = t1;
+      }
+    }
+    return (lo + hi) / 2;
   }
 
   void _snapOriginToTrunk(MapHost host, ActionNode node) {
@@ -632,7 +716,7 @@ class MapInteraction {
     _mark();
   }
 
-  // ------------------------------------------------------------------ up / cancel
+  // ───────────────────────── pointer up ─────────────────────────
 
   void pointerUp(PointerUpEvent e) {
     if (!_ptrs.containsKey(e.pointer)) return;
@@ -646,8 +730,52 @@ class MapInteraction {
       final wasDrag = _slopPassed;
       _finish();
 
+      // ─── قدم‌زن: تپ = toggle حرکت/توقف ───
+      if (p.isWalker) {
+        if (!wasDrag) {
+          final g = store.state.findHost(p.hostId);
+          if (g is Goal) {
+            final playing = g.extra['walkerPlaying'] as bool? ?? true;
+            g.extra['walkerPlaying'] = !playing;
+            store.changed();
+            store.toast?.call(
+                !playing ? 'قدم‌زن به راه افتاد 👣' : 'قدم‌زن متوقف شد');
+          }
+        }
+        return;
+      }
+
+      // ─── جام: تپ = نمایش درصد پیشرفت ───
+      if (p.isTrophy) {
+        if (!wasDrag) {
+          final g = store.state.findHost(p.hostId);
+          if (g is Goal) {
+            var totalLogs = 0;
+            var branches = 0;
+            void walk(List<ActionNode> list) {
+              for (final a in list) {
+                branches++;
+                for (final v in a.logs.values) {
+                  if (v == true ||
+                      v == 'انجام شد ✓' ||
+                      (v is String && v.isNotEmpty)) {
+                    totalLogs++;
+                  }
+                }
+                walk(a.children);
+              }
+            }
+            walk(g.actions);
+            final pct = ((totalLogs / 30.0).clamp(0.0, 1.0) * 100).round();
+            store.toast?.call(
+                'رشد $pct٪ — $totalLogs از ۳۰ قدم در این هدف');
+          }
+        }
+        return;
+      }
+
+      // ─── قدم روی شاخه: تپ = toggle ───
       if (p.isFoot) {
-        // تپ روی قدم (بدون حرکت) → toggle حرکت/توقف
         if (!wasDrag) {
           final host = store.state.findHost(p.hostId);
           if (host is MapHost) {
@@ -664,7 +792,7 @@ class MapInteraction {
         return;
       }
 
-      // تپ روی شاخه → کادر ویرایش باز شود
+      // تپ روی شاخه → کادر ویرایش
       onEditAction(p.hostId, p.actionId);
       return;
     }
@@ -724,7 +852,7 @@ class MapInteraction {
     _finish();
   }
 
-  // ------------------------------------------------------------------ چرخ موس
+  // ───────────────────────── چرخ موس ─────────────────────────
 
   void scroll(PointerScrollEvent e) {
     final hit = hits.hitTest(cam.screenToWorld(e.localPosition), cam.scale);
