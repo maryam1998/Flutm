@@ -20,6 +20,7 @@ dependencies:
   video_player: ^2.9.2
   flutter_svg: ^2.0.10+1
   record: ^5.1.2
+  http: ^1.2.0
 
 # پلاگین lifecycle جدید به compileSdk 36 نیاز داره ولی file_picker با 34 کامپایل میشه؛ نسخه‌ی قدیمی‌تر رو ثابت می‌کنیم
 dependency_overrides:
