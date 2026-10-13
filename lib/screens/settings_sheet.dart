@@ -48,6 +48,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late bool _showRingLinks;
   late bool _showEmotionWidget;
   late String _trunkStyle;
+  late double _footScale;
   late String _userName;
   late TextEditingController _nameCtrl;
   bool _inited = false;
@@ -66,6 +67,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
         kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
+    _footScale = s.footScale.clamp(0.4, 3.0).toDouble();
     _userName = s.userName;
     _nameCtrl = TextEditingController(text: _userName);
   }
@@ -93,6 +95,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.showRingLinks = _showRingLinks;
     s.showEmotionWidget = _showEmotionWidget;
     s.trunkStyle = _trunkStyle;
+    s.footScale = _footScale;
     s.userName = _nameCtrl.text.trim();
     store.changed();
     Navigator.pop(context);
@@ -109,13 +112,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         .toLowerCase();
   }
 
-  // ───── انتخاب عکس angels ─────
   Future<List<XFile>> _pickAngelImages() async {
     final picker = ImagePicker();
     return picker.pickMultiImage();
   }
 
-  // ───── انتخاب ویدیو angels ─────
   Future<List<XFile>> _pickAngelVideos() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -169,7 +170,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             ),
             const SizedBox(height: 10),
 
-            // هدر
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
@@ -216,7 +216,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ═══════════ ۱) تم تاریک ═══════════
+                    // ═══════════ تم ═══════════
                     Consumer<ThemeStore>(
                       builder: (_, theme, __) => _tile(
                         title: 'تم تاریک',
@@ -232,7 +232,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۲) ایمیل ورود ═══════════
+                    // ═══════════ ایمیل ورود ═══════════
                     _sectionTitle('ایمیل ورود'),
                     const SizedBox(height: 6),
                     Container(
@@ -255,7 +255,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۳) نام شما ═══════════
+                    // ═══════════ نام شما ═══════════
                     _sectionTitle(
                         'نام شما (در بخش دوستان با همین نام نمایش داده می‌شود)'),
                     const SizedBox(height: 6),
@@ -288,7 +288,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۴) رنگ نوشته‌ها ═══════════
+                    // ═══════════ رنگ نوشته‌ها ═══════════
                     _sectionTitle('رنگ نوشته‌ها'),
                     const SizedBox(height: 10),
                     WebColorPicker(
@@ -318,7 +318,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۵) اندازه فونت ═══════════
+                    // ═══════════ اندازه فونت ═══════════
                     Row(
                       children: [
                         _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)'),
@@ -359,7 +359,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۶) چک‌باکس‌ها ═══════════
+                    // ═══════════ چک‌باکس‌ها ═══════════
                     _checkTile(
                       title:
                           'نمایش «تاریخ» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
@@ -380,14 +380,55 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۷) نوع خط پیش‌فرض ═══════════
+                    // ═══════════ نوع خط پیش‌فرض ═══════════
                     _sectionTitle(
                         'نوع خط پیش‌فرض مسیر اهداف (برای هر هدف جداگانه هم می‌شه عوضش کرد)'),
                     const SizedBox(height: 10),
                     _trunkPicker(),
                     const _SectionDivider(),
 
-                    // ═══════════ ۸) ویجت شناور احساسات ═══════════
+                    // ═══════════ اندازه‌ی رد پا ═══════════
+                    Row(
+                      children: [
+                        _sectionTitle('اندازه‌ی رد پا 👣'),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _kGold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${(_footScale * 100).round()}٪',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _kGold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: _kGold,
+                        thumbColor: _kGold,
+                        inactiveTrackColor: _kBorder,
+                        overlayColor: _kGold.withValues(alpha: 0.15),
+                      ),
+                      child: Slider(
+                        min: 0.4,
+                        max: 3.0,
+                        divisions: 26,
+                        value: _footScale,
+                        label: '${(_footScale * 100).round()}٪',
+                        onChanged: (v) => setState(() => _footScale = v),
+                      ),
+                    ),
+                    const _SectionDivider(),
+
+                    // ═══════════ ویجت شناور احساسات ═══════════
                     _checkTile(
                       title:
                           'نمایش ویجت شناور «آدم و احساسات» روی صفحه (در تمام تب‌ها)',
@@ -397,7 +438,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۹) پس‌زمینه ═══════════
+                    // ═══════════ پس‌زمینه ═══════════
                     _sectionTitle('پس‌زمینه'),
                     const SizedBox(height: 10),
                     Consumer<BackgroundStore>(
@@ -520,7 +561,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۱۰) angels ═══════════
+                    // ═══════════ angels ═══════════
                     _sectionTitle('افزودن موارد بیشتر به پیش‌زمینه'),
                     const SizedBox(height: 10),
                     Consumer<AngelsStore>(
@@ -718,7 +759,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                     const _SectionDivider(),
 
-                    // ═══════════ ۱۱) جمله‌های انگیزه‌بخش ═══════════
+                    // ═══════════ جمله‌های انگیزه‌بخش ═══════════
                     _sectionTitle('جمله‌های انگیزه‌بخش'),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -823,8 +864,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     );
   }
 
-  // ─────────── thumbnails ───────────
-
   Widget _angelImageThumb({
     required Uint8List bytes,
     required VoidCallback onDelete,
@@ -905,8 +944,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       ],
     );
   }
-
-  // ─────────── helpers ───────────
 
   Widget _sectionTitle(String text) => Text(
         text,
@@ -1080,9 +1117,6 @@ class _SectionDivider extends StatelessWidget {
       );
 }
 
-// ═══════════════════════════════════════════════════════
-// پیش‌نمایش خط
-// ═══════════════════════════════════════════════════════
 class _TrunkPreviewPainter extends CustomPainter {
   _TrunkPreviewPainter({required this.style, required this.color});
   final String style;
