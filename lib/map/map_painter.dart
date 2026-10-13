@@ -15,7 +15,6 @@ import 'hit_registry.dart';
 import 'map_ops.dart';
 import 'user_state.dart';
 
-/// اگه true باشه جای برچسب شاخه‌ها مثل «RTL واقعی» SVG میشه (برچسب روی نوک شاخه می‌افته)
 const kLabelRtlAnchor = false;
 
 double _l(double a, double b, double t) => a + (b - a) * t;
@@ -45,7 +44,8 @@ class MapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant MapPainter old) => true;
 
-  // ---------- رنگ و اندازه‌ی متن ----------
+  // ───────────────────────── رنگ و اندازه ─────────────────────────
+
   Color get _textColor {
     final c = state.textColor.toLowerCase().trim();
     final auto = isDark ? Colors.white : kLightInk;
@@ -117,10 +117,12 @@ class MapPainter extends CustomPainter {
     );
   }
 
-  // ---------- paint ----------
+  // ───────────────────────── paint ─────────────────────────
+
   @override
   void paint(Canvas canvas, Size size) {
-    textCache.setOutline(isDark ? const Color(0xFF0A0C18) : const Color(0xFFF5EFE0));
+    textCache.setOutline(
+        isDark ? const Color(0xFF0A0C18) : const Color(0xFFF5EFE0));
     _pts.clear();
     hits.clear();
     canvas.save();
@@ -135,7 +137,8 @@ class MapPainter extends CustomPainter {
       for (final r in state.rings) {
         if (r.actions.isNotEmpty) {
           final lg = _goalOf(r);
-          _branches(canvas, r, tc, trunkOnly: r.collapsed || (lg?.collapsed ?? false));
+          _branches(canvas, r, tc,
+              trunkOnly: r.collapsed || (lg?.collapsed ?? false));
         }
       }
     }
@@ -187,8 +190,10 @@ class MapPainter extends CustomPainter {
     _pts..add(c.translate(-r, -r))..add(c.translate(r, r));
   }
 
-  // ---------- هاله و آئورا ----------
-  void _halo(Canvas canvas, Offset c, Color color, double r, double pf, String? freqKey) {
+  // ───────────────────────── هاله و آئورا ─────────────────────────
+
+  void _halo(Canvas canvas, Offset c, Color color, double r, double pf,
+      String? freqKey) {
     final f = kFreqBands[freqKey] ?? kFreqBands['alpha']!;
     final base = f.speed;
     double tri(double dur) {
@@ -196,13 +201,18 @@ class MapPainter extends CustomPainter {
       return p < 0.5 ? p * 2 : (1 - p) * 2;
     }
 
-    final blur = cam.scale < 0.3 ? null : const MaskFilter.blur(BlurStyle.normal, 4);
+    final blur =
+        cam.scale < 0.3 ? null : const MaskFilter.blur(BlurStyle.normal, 4);
     final to = tri(base * 1.35);
     canvas.drawCircle(c, _l(r * 1.7 * pf, r * 2.2 * pf, to),
-        Paint()..color = withOp(color, _l(0.07, 0.16, to))..maskFilter = blur);
+        Paint()
+          ..color = withOp(color, _l(0.07, 0.16, to))
+          ..maskFilter = blur);
     final tm = tri(base);
     canvas.drawCircle(c, _l(r * 1.25 * pf, r * 1.55 * pf, tm),
-        Paint()..color = withOp(color, _l(0.13, 0.24, tm))..maskFilter = blur);
+        Paint()
+          ..color = withOp(color, _l(0.13, 0.24, tm))
+          ..maskFilter = blur);
     final ti = tri(base * 0.8);
     canvas.drawCircle(
         c,
@@ -219,7 +229,8 @@ class MapPainter extends CustomPainter {
     final glowR = r * (1.6 + u.progress * 0.9);
     final glowOp = 0.15 + u.progress * 0.25;
     canvas.drawCircle(c, glowR, Paint()..color = withOp(col, glowOp));
-    canvas.drawCircle(c, glowR * 0.6, Paint()..color = withOp(Colors.white, glowOp * 0.55));
+    canvas.drawCircle(c, glowR * 0.6,
+        Paint()..color = withOp(Colors.white, glowOp * 0.55));
     final dur = band.speed * 1.4;
     final op = 0.35 + u.progress * 0.45;
     for (var i = 0; i < 3; i++) {
@@ -236,15 +247,19 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  // ---------- تصویر ----------
   void _circleImage(Canvas canvas, Offset c, double r, ui.Image im) {
     canvas.save();
     canvas.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: r)));
-    paintImage(canvas: canvas, rect: Rect.fromCircle(center: c, radius: r), image: im, fit: BoxFit.cover);
+    paintImage(
+        canvas: canvas,
+        rect: Rect.fromCircle(center: c, radius: r),
+        image: im,
+        fit: BoxFit.cover);
     canvas.restore();
   }
 
-  // ---------- گره «من» ----------
+  // ───────────────────────── گره من ─────────────────────────
+
   void _drawMe(Canvas canvas, Color tc) {
     final me = state.me;
     final c = Offset(me.x, me.y);
@@ -255,26 +270,41 @@ class MapPainter extends CustomPainter {
     _halo(canvas, c, hexColor(band.color), r, 1, u.band);
     final meColor = hexColor(me.color.isEmpty ? band.color : me.color);
     _addCircleBounds(c, r);
-    hits.add(HitEntry(type: 'me', id: '', kind: HitKind.node, center: c, radius: r));
+    hits.add(HitEntry(
+        type: 'me', id: '', kind: HitKind.node, center: c, radius: r));
 
     if (me.images.isEmpty) {
       canvas.drawCircle(c, r, Paint()..color = meColor);
-      canvas.drawCircle(c, r, Paint()..style = PaintingStyle.stroke..strokeWidth = 3.5..color = meColor);
+      canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.5
+            ..color = meColor);
       final s = r * 0.42, cy2 = c.dy - r * 0.12;
       final pp = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
         ..color = withOp(tc, 0.85);
-      drawDashed(canvas, Path()..addOval(Rect.fromCircle(center: Offset(c.dx, cy2), radius: s)), pp, [4, 3]);
+      drawDashed(
+          canvas,
+          Path()..addOval(Rect.fromCircle(center: Offset(c.dx, cy2), radius: s)),
+          pp,
+          [4, 3]);
       final lp = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.4
         ..strokeCap = StrokeCap.round
         ..color = withOp(tc, 0.85);
-      canvas.drawLine(Offset(c.dx - s * 0.5, cy2), Offset(c.dx + s * 0.5, cy2), lp);
-      canvas.drawLine(Offset(c.dx, cy2 - s * 0.5), Offset(c.dx, cy2 + s * 0.5), lp);
+      canvas.drawLine(
+          Offset(c.dx - s * 0.5, cy2), Offset(c.dx + s * 0.5, cy2), lp);
+      canvas.drawLine(
+          Offset(c.dx, cy2 - s * 0.5), Offset(c.dx, cy2 + s * 0.5), lp);
       drawText(canvas, me.name, c.dx, c.dy + r * 0.62,
-          size: math.max(9, state.fontSize - 4), color: tc, weight: FontWeight.w700);
+          size: math.max(9, state.fontSize - 4),
+          color: tc,
+          weight: FontWeight.w700);
     } else {
       final im = images.get(me.images.first.src);
       if (im != null) {
@@ -282,21 +312,40 @@ class MapPainter extends CustomPainter {
       } else {
         canvas.drawCircle(c, r, Paint()..color = withOp(meColor, 0.4));
       }
-      canvas.drawCircle(c, r, Paint()..style = PaintingStyle.stroke..strokeWidth = 3.5..color = meColor);
-      final lr = drawText(canvas, me.name, c.dx + me.labelDX, c.dy + 6 + me.labelDY,
-          size: me.labelSize ?? _labelSize('me'), color: tc, weight: FontWeight.w700, outline: 3);
-      if (me.name.isNotEmpty) hits.add(HitEntry(type: 'me', id: '', kind: HitKind.label, rect: lr));
+      canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.5
+            ..color = meColor);
+      final lr = drawText(canvas, me.name, c.dx + me.labelDX,
+          c.dy + 6 + me.labelDY,
+          size: me.labelSize ?? _labelSize('me'),
+          color: tc,
+          weight: FontWeight.w700,
+          outline: 3);
+      if (me.name.isNotEmpty) {
+        hits.add(HitEntry(
+            type: 'me', id: '', kind: HitKind.label, rect: lr));
+      }
     }
   }
 
-  // ---------- آیکون گره (هدف/حلقه) ----------
-  void _nodeIcon(Canvas canvas, Offset c, double r0, List<ImageItem> imgs, String icon, Color color, double iconScale, Color tc) {
+  void _nodeIcon(Canvas canvas, Offset c, double r0, List<ImageItem> imgs,
+      String icon, Color color, double iconScale, Color tc) {
     final r = r0 * iconScale;
     if (imgs.isNotEmpty && imgs.first.src.isNotEmpty) {
       final im = images.get(imgs.first.src);
       if (im != null) {
         _circleImage(canvas, c, r, im);
-        canvas.drawCircle(c, r, Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = withOp(color, 0.55));
+        canvas.drawCircle(
+            c,
+            r,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2
+              ..color = withOp(color, 0.55));
       } else {
         canvas.drawCircle(c, r, Paint()..color = withOp(color, 0.4));
       }
@@ -307,7 +356,8 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  // ---------- هدف ----------
+  // ───────────────────────── هدف ─────────────────────────
+
   void _drawGoal(Canvas canvas, Goal g, Color tc) {
     final r0 = g.radius;
     final c = Offset(g.x, g.y);
@@ -316,20 +366,34 @@ class MapPainter extends CustomPainter {
     _nodeIcon(canvas, c, r0, g.images, g.icon, col, g.iconScale, tc);
     final r = r0 * g.iconScale;
     _addCircleBounds(c, r);
-    hits.add(HitEntry(type: 'goal', id: g.id, kind: HitKind.node, center: c, radius: math.max(r, r0) + 8));
+    hits.add(HitEntry(
+        type: 'goal',
+        id: g.id,
+        kind: HitKind.node,
+        center: c,
+        radius: math.max(r, r0) + 8));
 
     var off = -(r0 + 22);
     if (r > r0) off += (off < 0 ? -1 : 1) * (r - r0);
     final lr = drawText(canvas, g.name, c.dx + g.labelDX, c.dy + off + g.labelDY,
-        size: g.labelSize ?? _labelSize('goal'), color: tc, weight: FontWeight.w600, outline: 3);
-    if (g.name.isNotEmpty) hits.add(HitEntry(type: 'goal', id: g.id, kind: HitKind.label, rect: lr));
+        size: g.labelSize ?? _labelSize('goal'),
+        color: tc,
+        weight: FontWeight.w600,
+        outline: 3);
+    if (g.name.isNotEmpty) {
+      hits.add(HitEntry(
+          type: 'goal', id: g.id, kind: HitKind.label, rect: lr));
+    }
 
     if ((state.showDateStamps || state.showTimeStamps) &&
         g.createdAt != null &&
         g.createdAt! > 0) {
       final stamp = _formatStamp(g.createdAt!);
       if (stamp.isNotEmpty) {
-        drawText(canvas, stamp, c.dx + g.labelDX,
+        drawText(
+            canvas,
+            stamp,
+            c.dx + g.labelDX,
             c.dy + off + g.labelDY + (g.labelSize ?? _labelSize('goal')) * 1.15,
             size: math.max(9, (g.labelSize ?? _labelSize('goal')) * 0.62),
             color: withOp(tc, 0.6),
@@ -339,11 +403,15 @@ class MapPainter extends CustomPainter {
     }
 
     final freq = kFreqBands[g.freq] ?? kFreqBands['alpha']!;
-    double sumW(List<ActionNode> l) => l.fold(0.0, (s, a) => s + a.weight + sumW(a.children));
+    double sumW(List<ActionNode> l) =>
+        l.fold(0.0, (s, a) => s + a.weight + sumW(a.children));
     final power = math.min(100, (sumW(g.actions) * 3).round());
     final has = g.actions.isNotEmpty;
-    final hud = (g.collapsed && has) ? 'رشد $power٪' : '${freq.label} — ${freq.desc} · رشد $power٪';
-    drawText(canvas, hud, c.dx, c.dy + r0 + (has ? 46 : 42), size: 11, color: withOp(tc, 0.6), weight: FontWeight.w400);
+    final hud = (g.collapsed && has)
+        ? 'رشد $power٪'
+        : '${freq.label} — ${freq.desc} · رشد $power٪';
+    drawText(canvas, hud, c.dx, c.dy + r0 + (has ? 46 : 42),
+        size: 11, color: withOp(tc, 0.6), weight: FontWeight.w400);
     _goalShutter(canvas, g, col, tc);
   }
 
@@ -353,8 +421,12 @@ class MapPainter extends CustomPainter {
     final cx = g.x, cy = g.y + g.radius + 15;
     final open = !g.collapsed;
     hits.add(HitEntry(
-        type: 'goalToggle', id: g.id, kind: HitKind.handle, rect: Rect.fromLTWH(cx - 34, cy - 19, 68, 38)));
-    final pill = RRect.fromRectAndRadius(Rect.fromLTWH(cx - 27, cy - 11, 54, 22), const Radius.circular(11));
+        type: 'goalToggle',
+        id: g.id,
+        kind: HitKind.handle,
+        rect: Rect.fromLTWH(cx - 34, cy - 19, 68, 38)));
+    final pill = RRect.fromRectAndRadius(
+        Rect.fromLTWH(cx - 27, cy - 11, 54, 22), const Radius.circular(11));
     final ink = open ? tc : const Color(0xFF1B1400);
     if (!open) canvas.drawRRect(pill, Paint()..color = withOp(col, 0.92));
     canvas.drawRRect(
@@ -384,10 +456,11 @@ class MapPainter extends CustomPainter {
           ..strokeJoin = StrokeJoin.round
           ..color = withOp(ink, open ? 0.75 : 0.95));
     drawText(canvas, toFa(n), cx + 7, cy + 4.3,
-        size: 12, color: withOp(ink, open ? 0.8 : 1.0), weight: FontWeight.w700);
+        size: 12,
+        color: withOp(ink, open ? 0.8 : 1.0),
+        weight: FontWeight.w700);
   }
 
-  // ---------- حلقه ----------
   void _drawRing(Canvas canvas, Ring r, Color tc) {
     final c = Offset(r.x, r.y);
     final rad = r.radius;
@@ -396,7 +469,12 @@ class MapPainter extends CustomPainter {
     _halo(canvas, c, col, big, 1.2, null);
     _nodeIcon(canvas, c, rad, r.images, r.icon, col, r.iconScale, tc);
     _addCircleBounds(c, rad * r.iconScale);
-    hits.add(HitEntry(type: 'ring', id: r.id, kind: HitKind.node, center: c, radius: math.max(big, rad) + 8));
+    hits.add(HitEntry(
+        type: 'ring',
+        id: r.id,
+        kind: HitKind.node,
+        center: c,
+        radius: math.max(big, rad) + 8));
 
     if (r.label.isNotEmpty) {
       final lines = wrapText(r.label, 16);
@@ -405,45 +483,72 @@ class MapPainter extends CustomPainter {
       Rect? lr;
       for (var i = 0; i < lines.length; i++) {
         final b = drawText(canvas, lines[i], lx, ly + i * 16,
-            size: r.labelSize ?? _labelSize('ring'), color: col, weight: FontWeight.w700, outline: 3);
+            size: r.labelSize ?? _labelSize('ring'),
+            color: col,
+            weight: FontWeight.w700,
+            outline: 3);
         lr = lr == null ? b : lr.expandToInclude(b);
       }
-      if (lr != null) hits.add(HitEntry(type: 'ring', id: r.id, kind: HitKind.label, rect: lr));
+      if (lr != null) {
+        hits.add(HitEntry(
+            type: 'ring', id: r.id, kind: HitKind.label, rect: lr));
+      }
     }
     if (r.note.isNotEmpty) {
       final lines = wrapText(r.note, 22);
       final ly = c.dy + big + 18;
       for (var i = 0; i < lines.length; i++) {
-        drawText(canvas, lines[i], c.dx, ly + i * 16, size: _fs() - 3, color: tc, weight: FontWeight.w400, outline: 2.5);
+        drawText(canvas, lines[i], c.dx, ly + i * 16,
+            size: _fs() - 3,
+            color: tc,
+            weight: FontWeight.w400,
+            outline: 2.5);
       }
     }
   }
 
-  // ---------- تنه و شاخه‌ها ----------
-  void _branches(Canvas canvas, MapHost h, Color tc, {required bool trunkOnly}) {
+  // ───────────────────────── تنه و شاخه ─────────────────────────
+
+  void _branches(Canvas canvas, MapHost h, Color tc,
+      {required bool trunkOnly}) {
     final cp = geo.trunkControlPoints(h, state.me);
-    final col = hexColor(h.color, hexColor(h.isRing ? kRingColor : kPalette[0]));
+    final col =
+        hexColor(h.color, hexColor(h.isRing ? kRingColor : kPalette[0]));
     if (h.isRing) {
       _taperedBezier(canvas, cp, col, 3.2, 1.6, 0.6);
     } else {
-      final ts = (h is Goal && h.trunkStyle.isNotEmpty) ? h.trunkStyle : state.trunkStyle;
+      final ts =
+          (h is Goal && h.trunkStyle.isNotEmpty) ? h.trunkStyle : state.trunkStyle;
       _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : 'dashed');
     }
     _pts..add(cp.p0)..add(cp.p3);
+
+    // ─── روی تنه‌ی هدف: قدم‌های نامرئی + قدم‌زن + جام ───
+    if (h is Goal) {
+      _trunkWalkway(canvas, h, cp, col);
+      if (!h.collapsed || h.actions.isEmpty) {
+        _walker(canvas, h, cp, col);
+      }
+      _goalTrophy(canvas, h, col);
+    }
+
     if (trunkOnly) return;
     final acts = _visibleActs(h.actions);
     for (var i = 0; i < acts.length; i++) {
       final t = math.min(0.9, 0.15 + i * 0.09);
-      _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i], i.isEven ? 1 : -1, 1.0, tc);
+      _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i],
+          i.isEven ? 1 : -1, 1.0, tc);
     }
   }
 
-  Paint _stroke(Color col, double w, double op, {StrokeCap cap = StrokeCap.round}) => Paint()
-    ..style = PaintingStyle.stroke
-    ..color = withOp(col, op)
-    ..strokeWidth = w
-    ..strokeCap = cap
-    ..strokeJoin = StrokeJoin.round;
+  Paint _stroke(Color col, double w, double op,
+          {StrokeCap cap = StrokeCap.round}) =>
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..color = withOp(col, op)
+        ..strokeWidth = w
+        ..strokeCap = cap
+        ..strokeJoin = StrokeJoin.round;
 
   Path _pathOf(geo.Cubic k) => Path()
     ..moveTo(k.p0.dx, k.p0.dy)
@@ -456,9 +561,11 @@ class MapPainter extends CustomPainter {
       case 'dotted':
         drawDashed(c, _pathOf(cp), _stroke(col, 3.6, 0.9), [0.1, 8]);
       case 'dashdot':
-        drawDashed(c, _pathOf(cp), _stroke(col, 3, 0.9, cap: StrokeCap.butt), [14, 7, 2, 7]);
+        drawDashed(c, _pathOf(cp),
+            _stroke(col, 3, 0.9, cap: StrokeCap.butt), [14, 7, 2, 7]);
       case 'long':
-        drawDashed(c, _pathOf(cp), _stroke(col, 3, 0.9, cap: StrokeCap.butt), [26, 13]);
+        drawDashed(c, _pathOf(cp),
+            _stroke(col, 3, 0.9, cap: StrokeCap.butt), [26, 13]);
       case 'double':
         {
           final d = cp.p3 - cp.p0;
@@ -477,11 +584,13 @@ class MapPainter extends CustomPainter {
       case 'taper':
         _taperedBezier(c, cp, col, 5.2, 1.6, 0.9);
       default:
-        drawDashed(c, _pathOf(cp), _stroke(col, 3, 0.9, cap: StrokeCap.butt), [9, 9]);
+        drawDashed(c, _pathOf(cp),
+            _stroke(col, 3, 0.9, cap: StrokeCap.butt), [9, 9]);
     }
   }
 
-  void _taperedBezier(Canvas c, geo.Cubic cp, Color col, double w0, double w1, double op) {
+  void _taperedBezier(
+      Canvas c, geo.Cubic cp, Color col, double w0, double w1, double op) {
     const seg = 7;
     final p = _stroke(col, w0, op);
     for (var s = 0; s < seg; s++) {
@@ -490,7 +599,8 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  void _taperedPoly(Canvas c, List<Offset> pts, Color col, double w0, double w1, double op) {
+  void _taperedPoly(
+      Canvas c, List<Offset> pts, Color col, double w0, double w1, double op) {
     final cum = geo.polyCum(pts);
     final tot = cum.last == 0 ? 1.0 : cum.last;
     final p = _stroke(col, w0, op);
@@ -501,38 +611,382 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  // ---------- ردپا 👣 ----------
+  // ───────────────────────── شمارش لاگ ─────────────────────────
+
+  static int _jalaliDayNum(String jk) {
+    final p = jk.split('-').map((e) => int.tryParse(e) ?? 0).toList();
+    if (p.length != 3) return 0;
+    const cum = [0, 31, 62, 93, 124, 155, 186, 216, 246, 276, 306, 336];
+    final jy = p[0];
+    final jm = p[1].clamp(1, 12);
+    final jd = p[2];
+    return jy * 365 + cum[jm - 1] + jd;
+  }
+
+  static bool _isDoneLog(dynamic v) =>
+      v == true ||
+      v == 'انجام شد ✓' ||
+      (v is String && v.isNotEmpty);
+
   int _logCount(ActionNode a) {
     var n = 0;
     for (final v in a.logs.values) {
-      if (v == true || v == 'انجام شد ✓' || (v is String && v.isNotEmpty)) n++;
+      if (_isDoneLog(v)) n++;
     }
     return n;
   }
 
+  int _goalTotalLogs(Goal g) {
+    var n = 0;
+    void walk(List<ActionNode> list) {
+      for (final a in list) {
+        n += _logCount(a);
+        walk(a.children);
+      }
+    }
+    walk(g.actions);
+    return n;
+  }
+
+  int _goalBranches(Goal g) {
+    var n = 0;
+    void walk(List<ActionNode> list) {
+      for (final a in list) {
+        n++;
+        walk(a.children);
+      }
+    }
+    walk(g.actions);
+    return n;
+  }
+
+  // ───────────────────────── شکل قدم (Path) ─────────────────────────
+
+  /// شکل یک جای پای پیاده: کف، پاشنه، ۵ انگشت.
+  /// مختصات داخلش با اندازه‌ی `size` مقیاس می‌شود.
+  Path _footPath(double size) {
+    final s = size / 16.0;
+    final p = Path();
+
+    // کف پا (بخش جلویی و بزرگ) — بیضی عمودی
+    p.addOval(Rect.fromCenter(
+      center: Offset(0, -3 * s),
+      width: 8 * s,
+      height: 11 * s,
+    ));
+
+    // پاشنه — بیضی کوچک‌تر
+    p.addOval(Rect.fromCenter(
+      center: Offset(0, 5.5 * s),
+      width: 6 * s,
+      height: 4.5 * s,
+    ));
+
+    // ۵ انگشت
+    const toesX = [-3.2, -1.6, 0.0, 1.5, 2.8];
+    const toesY = [-8.5, -9.5, -9.8, -9.3, -8.3];
+    const toesR = [1.15, 1.30, 1.35, 1.25, 1.05];
+    for (var i = 0; i < 5; i++) {
+      p.addOval(Rect.fromCircle(
+        center: Offset(toesX[i] * s, toesY[i] * s),
+        radius: toesR[i] * s,
+      ));
+    }
+
+    return p;
+  }
+
+  /// رسم یک قدم. outline=true فقط ضخامت خط را می‌کشد (برای قدم‌های نامرئی).
+  void _drawFoot(
+    Canvas canvas,
+    Offset pos,
+    double angle,
+    double size,
+    Color color, {
+    bool outline = false,
+    double strokeW = 1.4,
+  }) {
+    canvas.save();
+    canvas.translate(pos.dx, pos.dy);
+    canvas.rotate(angle);
+    final path = _footPath(size);
+    if (outline) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeW
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round
+          ..color = color,
+      );
+    } else {
+      canvas.drawPath(path, Paint()..color = color);
+    }
+    canvas.restore();
+  }
+
+  // ───────────────────────── مسیر هدف: قدم‌ها و جام ─────────────────────────
+
+  /// سری قدم‌ها روی تنه: پرشده‌ها واضح، نامرئی‌ها خط‌چین.
+  /// هر ۳۰ لاگ = یک قدم پر می‌شود.
+  void _trunkWalkway(Canvas canvas, Goal g, geo.Cubic cp, Color col) {
+    const totalSteps = 10;
+    final totalLogs = _goalTotalLogs(g);
+    final branches = _goalBranches(g);
+    if (branches == 0) return;
+
+    // نسبت پیشرفت: ۳۰ لاگ = تکمیل
+    final progress = (totalLogs / 30.0).clamp(0.0, 1.0);
+    final doneSteps = (progress * totalSteps).round();
+
+    for (var i = 0; i < totalSteps; i++) {
+      final t = (i + 1) / (totalSteps + 1);
+      final pt = cp.at(t);
+      final ang = cp.tangent(t);
+
+      final isDone = i < doneSteps;
+      final size = 15.0;
+
+      // چپ/راست، مثل پیاده‌رو
+      final side = (i % 2 == 0) ? 1.0 : -1.0;
+      final off = size * 0.35 * side;
+      final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
+
+      if (isDone) {
+        _drawFoot(canvas, pos, ang + math.pi / 2, size, withOp(col, 0.9));
+      } else {
+        // قدم نامرئی — خط‌چین خیلی کم‌رنگ
+        _drawFoot(
+          canvas,
+          pos,
+          ang + math.pi / 2,
+          size,
+          withOp(col, 0.16),
+          outline: true,
+          strokeW: 1.0,
+        );
+      }
+    }
+  }
+
+  /// قدم‌زن: یک قدم که بین «من» و «هدف» حرکت رفت و برگشتی دارد.
+  /// کاربر می‌تواند با تپ متوقف/راه‌انداز کند و با انگشت جایش را عوض کند.
+  void _walker(Canvas canvas, Goal g, geo.Cubic cp, Color col) {
+    if (_goalTotalLogs(g) == 0) return;
+
+    final playing = g.extra['walkerPlaying'] as bool? ?? true;
+    final speed = (g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.0;
+    final manual = (g.extra['walkerPos'] as num?)?.toDouble();
+
+    double t;
+    if (playing) {
+      final secondsPerCycle = 4.6 / speed.clamp(0.2, 3.0);
+      final cycle = (_t / secondsPerCycle) % 1.0;
+
+      // رفت (ease-out) → توقف → برگشت (ease-out) → توقف
+      double pingPong(double c) {
+        if (c < 0.38) {
+          final p = c / 0.38;
+          return 1.0 - math.pow(1 - p, 3).toDouble();
+        } else if (c < 0.5) {
+          return 1.0;
+        } else if (c < 0.88) {
+          final p = (c - 0.5) / 0.38;
+          return 1.0 - math.pow(p, 3).toDouble();
+        } else {
+          return 0.0;
+        }
+      }
+
+      final journey = pingPong(cycle);
+      t = 0.06 + journey * 0.88;
+    } else {
+      t = (manual ?? 0.5).clamp(0.06, 0.94);
+    }
+
+    final pt = cp.at(t);
+    final ang = cp.tangent(t);
+
+    final size = 22.0 * state.footScale.clamp(0.4, 3.0);
+
+    // هاله‌ی نورانی زیر
+    canvas.drawCircle(
+      pt,
+      size * 1.5,
+      Paint()
+        ..color = withOp(col, 0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+    );
+    canvas.drawCircle(
+      pt,
+      size * 0.9,
+      Paint()
+        ..color = withOp(Colors.white, 0.15)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+    );
+
+    // اگر متوقف است، حلقه‌ی نشانگر
+    if (!playing) {
+      canvas.drawCircle(
+        pt,
+        size * 1.15,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..color = withOp(col, 0.8),
+      );
+      canvas.drawCircle(
+        pt,
+        size * 1.4,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          ..color = withOp(col, 0.4),
+      );
+    }
+
+    // خود قدم — بزرگ، پررنگ
+    _drawFoot(canvas, pt, ang + math.pi / 2, size, col);
+
+    // ثبت hit برای لمس
+    hits.add(HitEntry(
+      type: 'walker',
+      id: g.id,
+      hostId: g.id,
+      kind: HitKind.handle,
+      center: pt,
+      radius: size * 1.5,
+    ));
+  }
+
+  /// جام شاین نزدیک هدف. با پیشرفت پرنورتر می‌شود.
+  /// از تنظیمات می‌شود نامرئی‌اش کرد.
+  void _goalTrophy(Canvas canvas, Goal g, Color col) {
+    if (g.extra['trophyVisible'] == false) return;
+
+    final totalLogs = _goalTotalLogs(g);
+    final branches = _goalBranches(g);
+    if (branches == 0 || totalLogs == 0) return;
+
+    final progress = (totalLogs / 30.0).clamp(0.0, 1.0);
+
+    // موقعیت: بالای سمت راست هدف
+    final cx = g.x + g.radius + 34;
+    final cy = g.y - g.radius - 34;
+
+    final pulse = 0.9 + math.sin(_t * 2.2) * 0.1;
+    final size = 26.0 * pulse;
+
+    // هاله‌ی بیرونی
+    canvas.drawCircle(
+      Offset(cx, cy),
+      size * 1.7,
+      Paint()
+        ..color = withOp(col, 0.15 + 0.35 * progress)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+
+    // هاله‌ی درونی
+    canvas.drawCircle(
+      Offset(cx, cy),
+      size * 0.95,
+      Paint()
+        ..color = withOp(col, 0.35 + 0.5 * progress)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+
+    // شعاع‌های چرخان
+    final rayPaint = Paint()
+      ..color = withOp(col, 0.7)
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 8; i++) {
+      final a = (i / 8) * math.pi * 2 + _t * 0.5;
+      final r1 = size * 1.1;
+      final r2 = size * (1.3 + math.sin(_t * 3 + i) * 0.15);
+      canvas.drawLine(
+        Offset(cx + math.cos(a) * r1, cy + math.sin(a) * r1),
+        Offset(cx + math.cos(a) * r2, cy + math.sin(a) * r2),
+        rayPaint,
+      );
+    }
+
+    // خود جام (ایموجی)
+    _drawEmoji(canvas, Offset(cx, cy), 0, size, col, '🏆');
+
+    // درصد پیشرفت زیر جام
+    drawText(
+      canvas,
+      '${(progress * 100).round()}٪',
+      cx,
+      cy + size * 0.95,
+      size: 11,
+      color: withOp(col, 0.85),
+      weight: FontWeight.w700,
+      outline: 2,
+    );
+
+    // ثبت hit
+    hits.add(HitEntry(
+      type: 'trophy',
+      id: g.id,
+      hostId: g.id,
+      kind: HitKind.handle,
+      center: Offset(cx, cy),
+      radius: size * 1.2,
+    ));
+  }
+
+  // ───────────────────────── ردپای روی شاخه (به تعداد روزها) ─────────────────────────
+
   void _footprints(Canvas canvas, geo.TwigGeom geom, geo.Cubic cub,
       ActionNode a, Color color, double scale) {
-    final count = _logCount(a);
-    if (count == 0) return;
     final length = (geom.end - geom.originPt).distance;
     if (length < 22) return;
 
+    // همه‌ی لاگ‌ها (شامل روزهای جاافتاده)
+    final entries = a.logs.entries.toList();
+    if (entries.isEmpty) return;
+
+    final days = <String, int>{};
+    for (final e in entries) {
+      days[e.key] = _jalaliDayNum(e.key);
+    }
+    entries.sort((x, y) => days[x.key]!.compareTo(days[y.key]!));
+
+    final firstDay = days[entries.first.key]!;
+    final lastDay = days[entries.last.key]!;
+    final span = (lastDay - firstDay).abs() + 1;
+
     final sizeMul = state.footScale.clamp(0.4, 3.0);
     final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
-
     final fs = math.max(11.0, 15.0 * scale) * sizeMul * footMul;
-    var spacing = math.max(fs * 0.95, 14.0 * scale * sizeMul * footMul);
-    final usable = length * 0.86;
-    if (count * spacing > usable) spacing = usable / count;
-    final span = spacing / length;
 
-    final todayJK = jKey(DateTime.now());
-    final todayDone = a.logs[todayJK] == true ||
-        a.logs[todayJK] == 'انجام شد ✓' ||
-        (a.logs[todayJK] is String && (a.logs[todayJK] as String).isNotEmpty);
+    if (span <= 1) {
+      // همه در یک روز
+      final e = entries.first;
+      if (_isDoneLog(e.value)) {
+        _drawFoot(canvas, geom.end, cub.tangent(1.0) + math.pi / 2, fs,
+            withOp(color, 0.85));
+      }
+      return;
+    }
 
-    for (var i = 0; i < count; i++) {
-      final t = math.max(0.05, math.min(0.97, 0.95 - i * span));
+    final doneCount = entries.where((e) => _isDoneLog(e.value)).length;
+    if (doneCount == 0) return;
+    final baseProgress = (doneCount / 30.0).clamp(0.25, 1.0);
+
+    final todayDay = _jalaliDayNum(jKey(DateTime.now()));
+
+    for (var i = 0; i < entries.length; i++) {
+      final e = entries[i];
+      final day = days[e.key]!;
+      final isDone = _isDoneLog(e.value);
+      final isMissed = e.value == false;
+
+      final t = 0.06 + (day - firstDay) / span * 0.88;
+
       Offset pt;
       double ang;
       if (geom.poly != null) {
@@ -544,31 +998,51 @@ class MapPainter extends CustomPainter {
         ang = cub.tangent(t);
       }
 
-      final isNewest = i == count - 1;
-      final opacity = isNewest && todayDone
-          ? 1.0
-          : 0.4 + 0.55 * (count > 1 ? i / (count - 1) : 1.0);
+      final daysFromToday = (todayDay - day).abs();
+      double recency;
+      if (daysFromToday <= 2) {
+        recency = 1.0;
+      } else if (daysFromToday <= 10) {
+        recency = 0.75;
+      } else {
+        recency = 0.45;
+      }
+      final opacity = baseProgress * recency;
 
       final side = (i % 2 == 0) ? 1.0 : -1.0;
       final off = fs * 0.4 * side;
-      final ox = -math.sin(ang) * off;
-      final oy = math.cos(ang) * off;
+      final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
 
-      _drawEmoji(
-        canvas,
-        pt + Offset(ox, oy),
-        ang + math.pi / 2,
-        fs,
-        color.withAlpha((opacity * 255).round()),
-        '👣',
-      );
+      if (isDone) {
+        _drawFoot(canvas, pos, ang + math.pi / 2, fs,
+            color.withAlpha((opacity * 255).round()));
+
+        if (daysFromToday == 0) {
+          canvas.drawCircle(
+            pos,
+            fs * 0.9,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.6
+              ..color = withOp(color, 0.75),
+          );
+        }
+      } else if (isMissed) {
+        // روز جاافتاده — حلقه‌ی خالی
+        canvas.drawCircle(
+          pos,
+          fs * 0.34,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2
+            ..color = withOp(color, opacity * 0.6),
+        );
+      }
     }
   }
 
-  /// قدم متحرک: از نوک شاخه به سمت هدف و برمی‌گردد.
-  /// - اگر `a.footPlaying == false`، در `a.footPos` ثابت می‌ماند
-  /// - می‌شود با انگشت کشید و جابجا کرد
-  /// - با تپ، حرکت/توقف toggle می‌شود
+  // ───────────────────────── قدم متحرک روی شاخه ─────────────────────────
+
   void _walkingFoot({
     required Canvas canvas,
     required geo.Cubic cub,
@@ -578,22 +1052,75 @@ class MapPainter extends CustomPainter {
     required ActionNode a,
     required String hostId,
   }) {
-    if (_logCount(a) == 0) return;
+    final count = _logCount(a);
+    if (count == 0) return;
 
     final sizeMul = state.footScale.clamp(0.4, 3.0);
     final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
     final size = baseSize * sizeMul * footMul;
 
+    final progress = (count / 30.0).clamp(0.25, 1.0);
+
     double t;
     if (a.footPlaying) {
-      final speed = (a.footSpeed ?? 3.2).clamp(1.0, 10.0);
-      final cycle = (_t / speed) % 1.0;
-      final journey = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2;
-      t = 0.06 + journey * (0.94 - 0.06);
+      final speedVal = (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
+      final secondsPerCycle = 4.6 / speedVal;
+      final cycle = (_t / secondsPerCycle) % 1.0;
+
+      double pingPong(double c) {
+        if (c < 0.38) {
+          final p = c / 0.38;
+          return 1.0 - math.pow(1 - p, 3).toDouble();
+        } else if (c < 0.5) {
+          return 1.0;
+        } else if (c < 0.88) {
+          final p = (c - 0.5) / 0.38;
+          return 1.0 - math.pow(p, 3).toDouble();
+        } else {
+          return 0.0;
+        }
+      }
+
+      final journey = pingPong(cycle);
+      t = 0.08 + journey * 0.84;
     } else {
-      t = (a.footPos ?? 0.5).clamp(0.06, 0.94);
+      t = (a.footPos ?? 0.5).clamp(0.08, 0.92);
     }
 
+    final stepPhase = a.footPlaying ? (_t / 0.5) % 1.0 : 0.25;
+    final rightLeads = stepPhase < 0.5;
+
+    const strideLen = 0.07;
+    final tFront = t;
+    final tBack = (t - strideLen).clamp(0.05, 0.95);
+
+    final tRight = rightLeads ? tFront : tBack;
+    final tLeft = rightLeads ? tBack : tFront;
+
+    _drawFootAt(canvas, cub, poly, tRight, 1.0, size * 0.95, color, progress,
+        a.footPlaying);
+    _drawFootAt(canvas, cub, poly, tLeft, -1.0, size * 0.95, color,
+        progress * 0.85, a.footPlaying);
+
+    final mid = (tRight + tLeft) / 2;
+    Offset hitPt;
+    if (poly != null) {
+      hitPt = geo.polyPointAt(poly, mid).pt;
+    } else {
+      hitPt = cub.at(mid);
+    }
+    hits.add(HitEntry(
+      type: 'foot',
+      id: a.id,
+      hostId: hostId,
+      kind: HitKind.handle,
+      center: hitPt,
+      radius: size * 1.4,
+    ));
+  }
+
+  void _drawFootAt(Canvas canvas, geo.Cubic cub, List<Offset>? poly, double t,
+      double side, double size, Color color, double opacity, bool playing) {
     Offset pt;
     double ang;
     if (poly != null) {
@@ -605,57 +1132,31 @@ class MapPainter extends CustomPainter {
       ang = cub.tangent(t);
     }
 
-    final stepPhase = a.footPlaying ? (_t / 0.55) % 1.0 : 0.5;
-    final side = stepPhase < 0.5 ? 1.0 : -1.0;
-    final off = size * 0.42 * side;
+    final off = size * 0.4 * side;
     final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
 
-    final glowAlpha = a.footPlaying ? 110 : 50;
-    final glowBlur = a.footPlaying ? 8.0 : 5.0;
+    final glowAlpha = ((playing ? 110 : 50) * opacity).round();
     canvas.drawCircle(
       pos,
-      size * 0.9,
+      size * 0.85,
       Paint()
         ..color = color.withAlpha(glowAlpha)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowBlur),
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, playing ? 8 : 5),
     );
 
-    canvas.drawCircle(
-      pos,
-      size * 0.5,
-      Paint()
-        ..color = Colors.white.withAlpha(45)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
-
-    if (!a.footPlaying) {
+    if (!playing) {
       canvas.drawCircle(
         pos,
-        size * 1.05,
+        size * 1.0,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.4
-          ..color = withOp(color, 0.7),
+          ..color = withOp(color, 0.7 * opacity),
       );
     }
 
-    _drawEmoji(
-      canvas,
-      pos,
-      ang + math.pi / 2,
-      size * 1.2,
-      color,
-      '👣',
-    );
-
-    hits.add(HitEntry(
-      type: 'foot',
-      id: a.id,
-      hostId: hostId,
-      kind: HitKind.handle,
-      center: pos,
-      radius: size * 1.2,
-    ));
+    _drawFoot(canvas, pos, ang + math.pi / 2, size * 1.1,
+        color.withAlpha((255 * opacity).round()));
   }
 
   void _drawEmoji(Canvas canvas, Offset at, double angle, double size,
@@ -674,56 +1175,6 @@ class MapPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _trophyBadge(Canvas canvas, Offset center, double scale) {
-    final r = 16.0 * math.max(0.8, scale);
-    final pos = center.translate(0, -r * 0.9);
-
-    final glowPaint = Paint()
-      ..color = const Color(0xFFF4C542).withAlpha(80)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    canvas.drawCircle(pos, r * 1.4, glowPaint);
-
-    canvas.drawCircle(
-      pos,
-      r,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xFFFFE38A), Color(0xFFC9972B)],
-        ).createShader(Rect.fromCircle(center: pos, radius: r)),
-    );
-
-    canvas.drawCircle(
-      pos,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = const Color(0xFFFFFFFF).withAlpha(200),
-    );
-
-    _drawEmoji(
-      canvas,
-      pos.translate(0, 0.5),
-      0,
-      r * 1.15,
-      const Color(0xFF3A2600),
-      '🏆',
-    );
-
-    final rayPaint = Paint()
-      ..color = const Color(0xFFF4C542).withAlpha(120)
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-    for (var i = 0; i < 8; i++) {
-      final a = (i / 8) * math.pi * 2 + _t * 0.4;
-      final p1 = pos + Offset(math.cos(a) * (r + 3), math.sin(a) * (r + 3));
-      final p2 = pos +
-          Offset(math.cos(a) * (r + 6 + math.sin(_t * 2 + i) * 1.2),
-              math.sin(a) * (r + 6 + math.sin(_t * 2 + i) * 1.2));
-      canvas.drawLine(p1, p2, rayPaint);
-    }
-  }
-
   List<ActionNode> _visibleActs(List<ActionNode> list) {
     final out = <ActionNode>[];
     for (final n in list) {
@@ -736,7 +1187,6 @@ class MapPainter extends CustomPainter {
     return out;
   }
 
-  // ---------- نوار هفتگی روتین ----------
   void _routineRing(Canvas canvas, Offset center, double tipR, Color color,
       double scale, ActionNode a) {
     final R = tipR + 5.5 * math.max(0.8, scale);
@@ -771,22 +1221,17 @@ class MapPainter extends CustomPainter {
     final streak = routineStreak(a);
     if (streak >= 2) {
       final fs = 8.5 * math.max(0.9, scale);
-      drawText(
-        canvas,
-        toFa(streak),
-        center.dx,
-        center.dy - R - 3.5,
-        size: fs,
-        color: color,
-        weight: FontWeight.w700,
-        outline: 2,
-      );
+      drawText(canvas, toFa(streak), center.dx, center.dy - R - 3.5,
+          size: fs, color: color, weight: FontWeight.w700, outline: 2);
     }
   }
 
-  void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt, double originDir, ActionNode a, int side, double scale, Color tc) {
+  void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt,
+      double originDir, ActionNode a, int side, double scale, Color tc) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
-    final color = (a.color != null && a.color!.isNotEmpty) ? hexColor(a.color, hostColor) : hostColor;
+    final color = (a.color != null && a.color!.isNotEmpty)
+        ? hexColor(a.color, hostColor)
+        : hostColor;
     final isRoutine = a.isRoutine;
     final geom = geo.computeTwigGeom(h, a, originPt, originDir, side, scale);
     geo.applyBranchStyle(geom, geo.effBranchStyle(h, a), side);
@@ -794,7 +1239,12 @@ class MapPainter extends CustomPainter {
     _pts.add(end);
     hits.geom[a.id] = ActionGeomEntry(h.id, geom.originPt, end, scale);
     hits.add(HitEntry(
-        type: 'action', id: a.id, hostId: h.id, kind: HitKind.handle, center: end, radius: math.max(15.0, 18 * scale)));
+        type: 'action',
+        id: a.id,
+        hostId: h.id,
+        kind: HitKind.handle,
+        center: end,
+        radius: math.max(15.0, 18 * scale)));
 
     final baseW = math.max(1.0, (1.9 + weight * 1.05) * scale);
     final tipW = math.max(0.7, baseW * 0.38);
@@ -805,10 +1255,8 @@ class MapPainter extends CustomPainter {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
     }
 
-    // ردپاهای ثابت (به تعداد روزهای لاگ‌شده)
     _footprints(canvas, geom, cub, a, color, scale);
 
-    // قدم متحرک قابل تنظیم
     _walkingFoot(
       canvas: canvas,
       cub: cub,
@@ -821,7 +1269,8 @@ class MapPainter extends CustomPainter {
 
     final kids = _visibleActs(a.children);
     if (kids.isNotEmpty) {
-      canvas.drawCircle(end, math.max(2.0, 2.6 * scale), _stroke(color, 1.2, 0.55));
+      canvas.drawCircle(end, math.max(2.0, 2.6 * scale),
+          _stroke(color, 1.2, 0.55));
       for (var i = 0; i < kids.length; i++) {
         final tt = 0.5 + ((i + 1) / (kids.length + 1)) * 0.45;
         Offset co;
@@ -834,7 +1283,8 @@ class MapPainter extends CustomPainter {
           co = cub.at(tt);
           cd = cub.tangent(tt);
         }
-        _twig(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1, scale * 0.72, tc);
+        _twig(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
+            scale * 0.72, tc);
       }
     } else if (a.images.isNotEmpty) {
       final radius = math.max(1.8, 2 + weight * 0.28 * scale);
@@ -842,22 +1292,30 @@ class MapPainter extends CustomPainter {
       for (var i = 0; i < cnt; i++) {
         final e = a.images[i];
         final ang = (i / cnt) * math.pi * 2 - math.pi / 2;
-        final off = Offset(math.cos(ang) * radius * 0.7 + e.dx, math.sin(ang) * radius * 0.7 + e.dy);
-        final rect = Rect.fromCenter(center: end + off, width: e.size, height: e.size);
+        final off = Offset(math.cos(ang) * radius * 0.7 + e.dx,
+            math.sin(ang) * radius * 0.7 + e.dy);
+        final rect = Rect.fromCenter(
+            center: end + off, width: e.size, height: e.size);
         final im = images.get(e.src);
-        if (im != null) paintImage(canvas: canvas, rect: rect, image: im, fit: BoxFit.contain);
-        hits.add(HitEntry(type: 'action', id: a.id, hostId: h.id, kind: HitKind.image, imgIdx: i, rect: rect));
+        if (im != null) {
+          paintImage(canvas: canvas, rect: rect, image: im, fit: BoxFit.contain);
+        }
+        hits.add(HitEntry(
+            type: 'action',
+            id: a.id,
+            hostId: h.id,
+            kind: HitKind.image,
+            imgIdx: i,
+            rect: rect));
       }
       if (a.images.length > 3) {
-        drawText(canvas, '+${a.images.length - 3}', end.dx + radius * 0.7, end.dy + radius * 0.7 + 4,
+        drawText(canvas, '+${a.images.length - 3}', end.dx + radius * 0.7,
+            end.dy + radius * 0.7 + 4,
             size: 10, color: tc, outline: 2);
       }
     } else {
-      canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale), Paint()..color = color);
-    }
-
-    if (a.extra['achieved'] == true) {
-      _trophyBadge(canvas, end, scale);
+      canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale),
+          Paint()..color = color);
     }
 
     if (isRoutine) {
@@ -866,7 +1324,8 @@ class MapPainter extends CustomPainter {
     }
 
     if (a.text.isNotEmpty) {
-      final lines = wrapText(a.text, math.max(10, (18 * math.min(1.0, scale + 0.35)).round()));
+      final lines = wrapText(a.text,
+          math.max(10, (18 * math.min(1.0, scale + 0.35)).round()));
       final right = kLabelRtlAnchor ? side > 0 : side < 0;
       final lx = end.dx + (side > 0 ? 8 : -8) + a.labelDX;
       final ly = end.dy + 4 + a.labelDY;
@@ -874,14 +1333,26 @@ class MapPainter extends CustomPainter {
       Rect? lr;
       for (var i = 0; i < lines.length; i++) {
         final b = drawText(canvas, lines[i], lx, ly + i * 16,
-            size: fs, color: tc, weight: FontWeight.w400,
-            align: right ? LabelAlign.right : LabelAlign.left, outline: 2.5);
+            size: fs,
+            color: tc,
+            weight: FontWeight.w400,
+            align: right ? LabelAlign.right : LabelAlign.left,
+            outline: 2.5);
         lr = lr == null ? b : lr.expandToInclude(b);
       }
-      if (lr != null) hits.add(HitEntry(type: 'action', id: a.id, hostId: h.id, kind: HitKind.label, rect: lr));
+      if (lr != null) {
+        hits.add(HitEntry(
+            type: 'action',
+            id: a.id,
+            hostId: h.id,
+            kind: HitKind.label,
+            rect: lr));
+      }
 
       final cAt = a.extra['createdAt'];
-      if ((state.showDateStamps || state.showTimeStamps) && cAt is num && cAt > 0) {
+      if ((state.showDateStamps || state.showTimeStamps) &&
+          cAt is num &&
+          cAt > 0) {
         final stamp = _formatStamp(cAt.toInt());
         if (stamp.isNotEmpty) {
           drawText(canvas, stamp, lx, ly + lines.length * 16,
