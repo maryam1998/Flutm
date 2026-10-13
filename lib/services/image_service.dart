@@ -1,13 +1,12 @@
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ImageService {
   static final _picker = ImagePicker();
 
-  /// چند عکس از گالری/دوربین می‌گیرد و به data URL تبدیل می‌کند.
-  /// ابعاد حداکثر ۸۰۰ پیکسل، کیفیت ۸۵٪ — تا حجم JSON سبک بمونه.
   static Future<List<String>> pickImages() async {
     try {
       final files = await _picker.pickMultiImage(
@@ -29,11 +28,63 @@ class ImageService {
     }
   }
 
+  static Future<String?> pickVideo() async {
+    try {
+      final f = await _picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 3),
+      );
+      if (f == null) return null;
+      final bytes = await f.readAsBytes();
+      if (bytes.length > 8 * 1024 * 1024) return null;
+      final mime = _mimeOfVideo(f.name);
+      return 'data:$mime;base64,${base64Encode(bytes)}';
+    } catch (e) {
+      debugPrint('pickVideo failed: $e');
+      return null;
+    }
+  }
+
+  static Future<String?> pickAudio() async {
+    try {
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.audio,
+        withData: true,
+      );
+      if (res == null || res.files.isEmpty) return null;
+      final f = res.files.first;
+      if (f.bytes == null) return null;
+      if (f.bytes!.length > 5 * 1024 * 1024) return null;
+      final mime = _mimeOfAudio(f.name);
+      return 'data:$mime;base64,${base64Encode(f.bytes!)}';
+    } catch (e) {
+      debugPrint('pickAudio failed: $e');
+      return null;
+    }
+  }
+
   static String _mimeOf(String name) {
     final l = name.toLowerCase();
     if (l.endsWith('.png')) return 'image/png';
     if (l.endsWith('.gif')) return 'image/gif';
     if (l.endsWith('.webp')) return 'image/webp';
     return 'image/jpeg';
+  }
+
+  static String _mimeOfVideo(String name) {
+    final l = name.toLowerCase();
+    if (l.endsWith('.mov')) return 'video/quicktime';
+    if (l.endsWith('.webm')) return 'video/webm';
+    if (l.endsWith('.m4v')) return 'video/x-m4v';
+    return 'video/mp4';
+  }
+
+  static String _mimeOfAudio(String name) {
+    final l = name.toLowerCase();
+    if (l.endsWith('.mp3')) return 'audio/mpeg';
+    if (l.endsWith('.wav')) return 'audio/wav';
+    if (l.endsWith('.m4a')) return 'audio/mp4';
+    if (l.endsWith('.ogg')) return 'audio/ogg';
+    return 'audio/mpeg';
   }
 }
