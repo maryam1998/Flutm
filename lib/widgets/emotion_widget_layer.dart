@@ -140,7 +140,6 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     final store = context.watch<EmotionStore>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // در حالت capture، پنل باید همیشه باز باشد
     final effectiveOpen = _open || store.isCapturing;
     if (store.isCapturing && _openCtrl.value < 1) {
       _openCtrl.value = 1;
@@ -230,12 +229,12 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                   setState(() => _btnPos = _clampBtn(_btnPos, screen));
                   _persist();
                 },
-                onTap: (bool willOpen) {
+                onTap: () {
                   if (store.isCapturing) return;
                   if (_open) {
                     store.fireCommitClose();
                   }
-                  _setOpen(willOpen);
+                  _setOpen(!_open);
                 },
               ),
             ),
