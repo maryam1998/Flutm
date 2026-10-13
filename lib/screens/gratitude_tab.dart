@@ -47,19 +47,19 @@ class _GratitudeTabState extends State<GratitudeTab> {
 
   /// مبلغ با جداکننده‌ی هزارگان و ارقام فارسی
   static String _fmtMoney(double amount) {
-    final n = amount.toInt();
-    final s = n.abs().toString();
-    final buf = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write('٬');
-      buf.write(s[i]);
-    }
-    final withSep = (n < 0 ? '-' : '') + buf.toString();
-    return withSep.replaceAllMapped(
-      RegExp(r'\d'),
-      (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
-    );
+  final n = amount.toInt();
+  final s = n.abs().toString();
+  final buf = StringBuffer();
+  for (int i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
   }
+  final withSep = (n < 0 ? '-' : '') + buf.toString();
+  return withSep.replaceAllMapped(
+    RegExp(r'\d'),
+    (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
+  );
+}
 
   // ─────────── pickers ───────────
 
