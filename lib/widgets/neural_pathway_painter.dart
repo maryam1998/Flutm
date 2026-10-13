@@ -5,7 +5,7 @@ import '../models/emotion.dart';
 import '../models/neural_container.dart';
 
 /// نقاشِ مسیر عصبی — همه‌ی رشته‌های `true` رنگ احساسِ خودشان را دارند.
-/// تعداد رشته‌های رسم‌شده دقیقاً همان fiberCount است.
+/// ضخامت رشته‌های رنگی ثابت است (مستقل از تعداد احساسات).
 class NeuralPathwayPainter extends CustomPainter {
   final int fiberCount;
   final NeuralContainer container;
@@ -57,14 +57,12 @@ class NeuralPathwayPainter extends CustomPainter {
   void _drawFibers(Canvas canvas) {
     if (fiberCount <= 0) return;
 
-    // همه‌ی رشته‌های true به ترتیب درج
     final trueKeys = <String>[];
     for (final k in container.logs.keys) {
       if (container.logs[k] == true) trueKeys.add(k);
     }
     if (trueKeys.isEmpty) return;
 
-    // تعداد رشته‌های رسم‌شده = همان fiberCount
     final drawCount =
         fiberCount < trueKeys.length ? fiberCount : trueKeys.length;
 
@@ -72,6 +70,7 @@ class NeuralPathwayPainter extends CustomPainter {
     const defaultOpacity = 0.55;
     const defaultWidth = 1.0;
     const feltOpacity = 0.9;
+    const feltWidth = 2.4;
     const spreadCycle = 9;
 
     for (int i = 0; i < drawCount; i++) {
@@ -91,7 +90,7 @@ class NeuralPathwayPainter extends CustomPainter {
       final felt = container.fiberEmotions[key];
       if (felt != null && felt.ids.isNotEmpty) {
         fColor = blendEmotionColors(felt.ids);
-        fWidth = (2.4 + (felt.ids.length - 1) * 0.4).clamp(2.4, 4.0);
+        fWidth = feltWidth;
         fOpacity = feltOpacity;
       }
 
