@@ -1,9 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/emotion.dart';
 
 /// انتخاب فعلی توی ویجت شناور «آدم و احساسات».
 /// بعد از اینکه یک رشته‌ی عصبی ازش مصرف کرد، ریست می‌شه.
 class EmotionStore extends ChangeNotifier {
+  static const _kSelected = 'echwSelectedEmotions_v5';
+
   final Set<String> _selected = {};
 
   /// فاز بعدی «قبل / بعد» (وقتی از یه تمرین می‌آییم اینجا)
@@ -18,10 +24,39 @@ class EmotionStore extends ChangeNotifier {
   /// این معادل رویداد `echw:commit` در نسخه‌ی وب است.
   void Function(List<String> ids)? onCommitClose;
 
+  bool loaded = false;
+
   List<String> get selectedIds => _selected.toList();
 
   bool get hasSelection => _selected.isNotEmpty;
   bool get isCapturing => capturePhase != null;
+
+  /// لود انتخاب ذخیره‌شده از SharedPreferences (معادل localStorage در وب)
+  Future<void> load() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final raw = sp.getString(_kSelected);
+      if (raw != null && raw.isNotEmpty) {
+        final list = jsonDecode(raw);
+        if (list is List) {
+          _selected
+            ..clear()
+            ..addAll(list
+                .map((e) => e.toString())
+                .where((id) => emotionById(id) != null));
+        }
+      }
+    } catch (_) {}
+    loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(_kSelected, jsonEncode(_selected.toList()));
+    } catch (_) {}
+  }
 
   void toggle(String id) {
     if (_selected.contains(id)) {
@@ -29,6 +64,7 @@ class EmotionStore extends ChangeNotifier {
     } else {
       _selected.add(id);
     }
+    _persist();
     notifyListeners();
   }
 
@@ -36,12 +72,14 @@ class EmotionStore extends ChangeNotifier {
     _selected
       ..clear()
       ..addAll(ids.where((id) => emotionById(id) != null));
+    _persist();
     notifyListeners();
   }
 
   void reset() {
     if (_selected.isEmpty) return;
     _selected.clear();
+    _persist();
     notifyListeners();
   }
 
@@ -60,6 +98,7 @@ class EmotionStore extends ChangeNotifier {
       _selected
         ..clear()
         ..addAll(initial.where((id) => emotionById(id) != null));
+      _persist();
     }
     notifyListeners();
   }
