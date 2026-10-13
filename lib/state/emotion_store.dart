@@ -5,33 +5,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/emotion.dart';
 
-/// انتخاب فعلی توی ویجت شناور «آدم و احساسات».
-/// بعد از اینکه یک رشته‌ی عصبی ازش مصرف کرد، ریست می‌شه.
 class EmotionStore extends ChangeNotifier {
   static const _kSelected = 'echwSelectedEmotions_v5';
 
   final Set<String> _selected = {};
 
-  /// فاز بعدی «قبل / بعد» (وقتی از یه تمرین می‌آییم اینجا)
-  String? capturePhase;   // 'before' | 'after' | null
+  /// 'before' | 'after' | 'entry' | null
+  String? capturePhase;
   String? capturePracticeKey;
   String? captureLabel;
 
-  /// کال‌بکی که وقتی کاربر «ثبت» رو زد صدا زده می‌شه
-  void Function(List<String> ids)? _onCaptureSave;
+  /// در فاز 'entry': شناسه‌ی GratitudeEntry که داریم ویرایش می‌کنیم
+  String? editingEntryId;
 
-  /// کال‌بکی که وقتی کاربر پنل رو با یک انتخاب بست صدا زده می‌شه.
-  /// این معادل رویداد `echw:commit` در نسخه‌ی وب است.
+  void Function(List<String> ids)? _onCaptureSave;
   void Function(List<String> ids)? onCommitClose;
 
   bool loaded = false;
 
   List<String> get selectedIds => _selected.toList();
-
   bool get hasSelection => _selected.isNotEmpty;
   bool get isCapturing => capturePhase != null;
+  bool get isEditingEntry => capturePhase == 'entry';
 
-  /// لود انتخاب ذخیره‌شده از SharedPreferences (معادل localStorage در وب)
   Future<void> load() async {
     try {
       final sp = await SharedPreferences.getInstance();
@@ -88,18 +84,19 @@ class EmotionStore extends ChangeNotifier {
     required String practiceKey,
     required String label,
     List<String>? initial,
+    String? entryId,
     void Function(List<String> ids)? onSave,
   }) {
     capturePhase = phase;
     capturePracticeKey = practiceKey;
     captureLabel = label;
+    editingEntryId = entryId;
     _onCaptureSave = onSave;
-    if (initial != null) {
-      _selected
-        ..clear()
-        ..addAll(initial.where((id) => emotionById(id) != null));
-      _persist();
-    }
+    _selected
+      ..clear()
+      ..addAll((initial ?? const [])
+          .where((id) => emotionById(id) != null));
+    _persist();
     notifyListeners();
   }
 
@@ -107,11 +104,11 @@ class EmotionStore extends ChangeNotifier {
     capturePhase = null;
     capturePracticeKey = null;
     captureLabel = null;
+    editingEntryId = null;
     _onCaptureSave = null;
     notifyListeners();
   }
 
-  /// کاربر «ثبت» رو زد: کال‌بک رو صدا می‌زنیم، بعد capture رو می‌بندیم.
   void saveCapture() {
     final ids = selectedIds;
     final cb = _onCaptureSave;
@@ -120,15 +117,12 @@ class EmotionStore extends ChangeNotifier {
     cb?.call(ids);
   }
 
-  /// کاربر «انصراف» رو زد: بدون صدا زدن کال‌بک، فقط capture رو می‌بندیم.
   void cancelCapture() {
     _onCaptureSave = null;
     endCapture();
   }
 
-  /// کاربر پنل رو با یک انتخاب بست (نه در حالت capture):
-  /// رشته‌ی عصبی ساخته می‌شه و انتخاب ریست می‌شه.
-  /// این معادل `dispatchEvent(echw:commit)` در نسخه‌ی وب است.
+  /// بستن پنل با انتخاب (معادل رویداد `echw:commit` در وب)
   void fireCommitClose() {
     if (_selected.isEmpty) return;
     if (isCapturing) return;
