@@ -243,13 +243,6 @@ class _MapTabState extends State<MapTab> {
                       ink,
                       () => showSettingsSheet(context),
                     ),
-                    _toolBtn(
-                      Icons.add,
-                      'هدف جدید',
-                      Colors.white,
-                      () => showAddGoalDialog(context),
-                      primary: true,
-                    ),
                   ],
                 ),
               ),

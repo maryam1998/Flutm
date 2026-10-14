@@ -7,6 +7,7 @@ import '../models/constants.dart';
 import '../models/map_models.dart';
 import '../state/map_store.dart';
 import '../widgets/icon_photo_editor.dart';
+import '../widgets/web_color_picker.dart';
 
 // ============================================================
 // رنگ‌های ثابت (هماهنگ با تم وب)
@@ -320,6 +321,13 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
+  String _hexOf(Color c) {
+    int v(double x) => (x * 255).round().clamp(0, 255);
+    return '#${v(c.r).toRadixString(16).padLeft(2, '0')}'
+        '${v(c.g).toRadixString(16).padLeft(2, '0')}'
+        '${v(c.b).toRadixString(16).padLeft(2, '0')}';
+  }
+
   Widget _swatches(
     String? current,
     void Function(String) onPick, {
@@ -357,20 +365,22 @@ class _EditSheetState extends State<EditSheet> {
               ),
             ),
           ),
-        for (final hex in [...kPalette, ...extra])
-          GestureDetector(
-            onTap: () => _edit(() => onPick(hex)),
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: hexColor(hex),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: cur == hex.toLowerCase() ? _kGold : Colors.transparent,
-                  width: 3,
-                ),
-              ),
+        // همان پالت و دیالوگ رنگ بخش «تنظیمات»
+        WebColorPicker(
+          value: hexColor(current, kWebPalette.first),
+          palette: [
+            ...kWebPalette,
+            for (final hex in extra) hexColor(hex),
+          ],
+          onChanged: (c) => _edit(() => onPick(_hexOf(c))),
+        ),
+        if (current != null && current.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              'رنگ انتخابی: ${current.toLowerCase()}',
+              textDirection: TextDirection.ltr,
+              style: const TextStyle(fontSize: 11.5, color: _kMuted),
             ),
           ),
       ],

@@ -664,20 +664,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
                           style: const TextStyle(
                               fontSize: 10.5, color: _kMuted),
                         ),
-                        if (e.editedAt != null) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: _kBorder),
-                            ),
-                            child: const Text('✏️ ویرایش‌شده',
-                                style: TextStyle(
-                                    fontSize: 9.5, color: _kMuted)),
-                          ),
-                        ],
                         if (e.shared) ...[
                           const SizedBox(width: 6),
                           const Icon(Icons.public,
