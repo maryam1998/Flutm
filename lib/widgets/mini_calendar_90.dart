@@ -83,7 +83,7 @@ class MiniCalendar90 extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: kBeliefsCard,
+        color: kBeliefsCream,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: kBeliefsBorder),
       ),
@@ -193,21 +193,27 @@ class MiniCalendar90 extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: Opacity(
+       opacity: isFuture ? 0.3 : 1.0,
+       child: Container(
         width: 22,
         height: 22,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(5),
-          color: has
-              ? kBeliefsGold
-              : (isFuture
-                  ? kBeliefsCream.withValues(alpha: 0.5)
-                  : kBeliefsCream),
+          gradient: has
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0F5B53), Color(0xFF178A7C)],
+                )
+              : null,
           border: Border.all(
             color: isSelected
                 ? kBeliefsInk
-                : (isToday ? kBeliefsGold : kBeliefsBorder),
+                : (isToday
+                    ? const Color(0xFF178A7C)
+                    : (has ? Colors.transparent : kBeliefsBorder)),
             width: isSelected ? 2 : (isToday ? 1.6 : 1),
           ),
           boxShadow: monthEnd
@@ -232,6 +238,7 @@ class MiniCalendar90 extends StatelessWidget {
                       : kBeliefsInk,
                 ),
               ),
+      ),
       ),
     );
   }

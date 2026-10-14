@@ -13,13 +13,13 @@ import '../utils/money_format.dart';
 import '../widgets/receipt_sheet.dart';
 import '../widgets/shop_history_sheet.dart';
 
-const _kCream = Color(0xFFFBF6EA);
+const _kCream = Color(0xFFF7F6F1);
 const _kCard = Colors.white;
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
-const _kDanger = Color(0xFFE5484D);
+const _kGold = Color(0xFFC9A24B);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF7C8B87);
+const _kBorder = Color(0xFFE7E5DB);
+const _kDanger = Color(0xFFB3452F);
 
 class StoreTab extends StatefulWidget {
   const StoreTab({super.key});
@@ -290,7 +290,7 @@ class _StoreTabState extends State<StoreTab> {
           height: 42,
           child: FilledButton.icon(
             style: FilledButton.styleFrom(
-              backgroundColor: _kGold,
+              backgroundColor: const Color(0xFF0F5B53),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
@@ -342,7 +342,7 @@ class _StoreTabState extends State<StoreTab> {
             height: 42,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: _kGold,
+                backgroundColor: const Color(0xFF0F5B53),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -473,7 +473,7 @@ class _StoreTabState extends State<StoreTab> {
             height: 46,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: _kGold,
+                backgroundColor: const Color(0xFF0F5B53),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),

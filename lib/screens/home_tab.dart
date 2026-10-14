@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/web_theme_banner.dart';
 import 'package:provider/provider.dart';
 
 import '../data/gratitude_journey.dart';
@@ -9,13 +10,13 @@ import '../widgets/abundance_card.dart';
 import '../widgets/abundance_settings_sheet.dart';
 import '../widgets/card_edit_sheet.dart';
 
-const _kCream = Color(0xFFFBF6EA);
+const _kCream = Color(0xFFF7F6F1);
 const _kCard = Colors.white;
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
-const _kEmerald = Color(0xFF2BBFAB);
+const _kGold = Color(0xFFC9A24B);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF7C8B87);
+const _kBorder = Color(0xFFE7E5DB);
+const _kEmerald = Color(0xFF178A7C);
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -204,34 +205,20 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _journeyBanner(GratitudePhaseInfo phase, GratitudeStore grat) {
     final pct = (phase.day / phase.totalDays).clamp(0.0, 1.0);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            _kGold.withValues(alpha: 0.12),
-            _kEmerald.withValues(alpha: 0.06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kGold.withValues(alpha: 0.35)),
-      ),
+    return WebThemeBanner(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               const Text('🧭 مسیر ۲۸ روزه شکرگذاری',
-                  style: TextStyle(fontSize: 12.5, color: _kMuted)),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xD9FFFFFF))),
               const Spacer(),
               Text(
                 'روز ${toFaDigits(phase.day.toString())} / ${toFaDigits(phase.totalDays.toString())}',
                 style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _kInk),
+                    fontSize: 10.5,
+                    color: Color(0xBFFFFFFF)),
               ),
             ],
           ),
@@ -239,24 +226,16 @@ class _HomeTabState extends State<HomeTab> {
           Text(
             'فاز ${toFaDigits((phase.phaseIndex + 1).toString())} — ${phase.phaseName}',
             style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w800, color: _kInk),
+                fontSize: 15.5, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 4),
           Text(
             '🎯 ${phase.prompt}',
             style: const TextStyle(
-                fontSize: 12, color: _kMuted, height: 1.7),
+                fontSize: 12, color: Color(0xD9FFFFFF), height: 1.7),
           ),
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: pct,
-              minHeight: 5,
-              color: _kGold,
-              backgroundColor: _kGold.withValues(alpha: 0.12),
-            ),
-          ),
+          WebBannerBar(value: pct),
         ],
       ),
     );

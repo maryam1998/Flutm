@@ -4,12 +4,12 @@ import '../models/abundance_models.dart';
 import '../utils/money_format.dart';
 
 const Map<String, List<Color>> kCardThemes = {
-  'emerald':  [Color(0xFF0A3D38), Color(0xFF63D6A8)],
-  'navy':     [Color(0xFF0B1D3A), Color(0xFF6FB3FF)],
-  'plum':     [Color(0xFF2C0F3A), Color(0xFFC07BE0)],
-  'rose':     [Color(0xFF3A0F16), Color(0xFFE8748C)],
-  'charcoal': [Color(0xFF14161C), Color(0xFF9AA0B2)],
-  'gold':     [Color(0xFF6B4A12), Color(0xFFF3D98A)],
+  'emerald':  [Color(0xFF0A3D38), Color(0xFF0F5B53), Color(0xFF178A7C)],
+  'navy':     [Color(0xFF0B1D3A), Color(0xFF16386B), Color(0xFF2F5FA8)],
+  'plum':     [Color(0xFF2C0F3A), Color(0xFF5C1F70), Color(0xFF8A3AA8)],
+  'rose':     [Color(0xFF3A0F16), Color(0xFF7A1F2E), Color(0xFFC8425A)],
+  'charcoal': [Color(0xFF14161C), Color(0xFF2A2D38), Color(0xFF454A5C)],
+  'gold':     [Color(0xFF6B4A12), Color(0xFFA97A1F), Color(0xFFE0B64A)],
 };
 
 class AbundanceCard extends StatelessWidget {
@@ -32,18 +32,32 @@ class AbundanceCard extends StatelessWidget {
       onTap: onEdit,
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+        clipBehavior: Clip.antiAlias,
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: RadialGradient(
+            center: Alignment.topRight,
+            radius: 1.2,
+            colors: [
+              const Color(0xFFE6CD8E).withValues(alpha: 0.35),
+              const Color(0xFFE6CD8E).withValues(alpha: 0.0),
+            ],
+            stops: const [0.0, 0.55],
+          ),
+        ),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: colors,
+            stops: const [0.0, 0.52, 1.0],
           ),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: colors[0].withValues(alpha: 0.35),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+              color: const Color(0xFF0A2823).withValues(alpha: 0.16),
+              blurRadius: 45,
+              offset: const Offset(0, 20),
             ),
           ],
         ),

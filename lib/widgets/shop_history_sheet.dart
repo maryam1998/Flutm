@@ -5,12 +5,12 @@ import '../state/abundance_store.dart';
 import '../utils/money_format.dart';
 import 'receipt_sheet.dart';
 
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
+const _kGold = Color(0xFFC9A24B);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF7C8B87);
+const _kBorder = Color(0xFFE7E5DB);
 const _kCard = Colors.white;
-const _kCream = Color(0xFFFBF6EA);
+const _kCream = Color(0xFFF7F6F1);
 
 class ShopHistorySheet extends StatelessWidget {
   const ShopHistorySheet({super.key});

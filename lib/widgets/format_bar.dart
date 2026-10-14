@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../models/future_text_format.dart';
 
-const Color kBeliefsGold = Color(0xFFC9972B);
-const Color kBeliefsInk = Color(0xFF2A2218);
-const Color kBeliefsMuted = Color(0xFF7A6B57);
-const Color kBeliefsBorder = Color(0xFFE0D5C0);
-const Color kBeliefsCream = Color(0xFFFBF6EA);
+const Color kBeliefsGold = Color(0xFFC9A24B);
+const Color kBeliefsInk = Color(0xFF000000);
+const Color kBeliefsMuted = Color(0xFF7C8B87);
+const Color kBeliefsBorder = Color(0xFFE7E5DB);
+const Color kBeliefsCream = Color(0xFFF7F6F1);
 const Color kBeliefsCard = Colors.white;
 
 class FormatBar extends StatelessWidget {

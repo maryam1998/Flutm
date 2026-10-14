@@ -16,11 +16,11 @@ import '../widgets/nothing_scene.dart';
 import '../widgets/quantum_connect.dart';
 import '../widgets/ras_mission.dart';
 
-const Color _kEmerald = Color(0xFF2BBFAB);
-const Color _kEmerald300 = Color(0xFF54C9B8);
+const Color _kEmerald = Color(0xFF178A7C);
+const Color _kEmerald300 = Color(0xFF54B3A4);
 const Color _kEmerald700 = Color(0xFF0F5B53);
 const Color _kSky = Color(0xFF5EC8F0);
-const Color _kInkSoft = Color(0xFF4A3F30);
+const Color _kInkSoft = Color(0xFF3D5551);
 const Color _kYellow = Color(0xFFF4C542);
 
 /// مدت تایمر تمرین (۱۵ دقیقه)

@@ -8,10 +8,10 @@ import 'package:video_player/video_player.dart';
 
 import '../state/gratitude_store.dart';
 
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
+const _kGold = Color(0xFFC9A24B);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF7C8B87);
+const _kBorder = Color(0xFFE7E5DB);
 const _kCard = Colors.white;
 
 // ───────────────────── config ─────────────────────
@@ -727,7 +727,7 @@ class _ProgressBarState extends State<_ProgressBar>
           ),
           FractionallySizedBox(
             widthFactor: _c.value,
-            child: const ColoredBox(color: Color(0xFFC9962B)),
+            child: const ColoredBox(color: Color(0xFFC9A24B)),
           ),
         ],
       ),
