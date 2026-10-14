@@ -8,6 +8,7 @@ import '../models/map_models.dart';
 import '../services/storage.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
+import '../theme/web_palette.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
@@ -65,8 +66,8 @@ class _MapTabState extends State<MapTab> {
     final store = context.watch<MapStore>();
     final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
     final anyOpen = store.anyOpen;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ink = isDark ? Colors.white : const Color(0xFF2A2218);
+    final wp = WebPalette.of(context);
+    final ink = wp.textMain;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -159,10 +160,9 @@ class _MapTabState extends State<MapTab> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.black38
-                            : Colors.white.withValues(alpha: 0.7),
+                        color: wp.panelBg,
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: wp.panelBorder),
                       ),
                       child: ListenableBuilder(
                         listenable: cam,
@@ -208,18 +208,14 @@ class _MapTabState extends State<MapTab> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1A1E3A) : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.10)
-                        : const Color(0xFFE0D5C0),
-                  ),
+                  color: wp.panelBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: wp.panelBorder),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.10),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 30,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
@@ -254,9 +250,10 @@ class _MapTabState extends State<MapTab> {
   }
 
   Widget _roundBtn(IconData icon, Color color, VoidCallback onTap) {
+    final wp = WebPalette.of(context);
     return Material(
-      color: Colors.black.withValues(alpha: 0.06),
-      shape: const CircleBorder(),
+      color: wp.panelBg,
+      shape: CircleBorder(side: BorderSide(color: wp.panelBorder)),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,

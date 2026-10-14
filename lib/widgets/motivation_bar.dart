@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/motivation_store.dart';
+import '../theme/web_palette.dart';
 
 class MotivationBar extends StatefulWidget {
   const MotivationBar({super.key});
@@ -39,12 +40,11 @@ class _MotivationBarState extends State<MotivationBar> {
     final item = store.current;
     if (item == null) return const SizedBox.shrink();
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark
-        ? const Color(0xFF1A1E3A)
-        : const Color(0xFFFBF6EA);
-    final fg = isDark ? Colors.white : const Color(0xFF2A2218);
-    final gold = isDark ? const Color(0xFF5EC8F0) : const Color(0xFFC9972B);
+    // وب: #motiv-bar → پس‌زمینه‌ی panel-bg و خط پایین panel-border
+    final wp = WebPalette.of(context);
+    final bg = wp.panelBg;
+    final fg = wp.textMain;
+    final gold = wp.accent;
 
     return SafeArea(
       top: true,
@@ -60,14 +60,7 @@ class _MotivationBarState extends State<MotivationBar> {
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(
-                  color: gold.withValues(alpha: 0.35),
-                  width: 1,
-                ),
-                bottom: BorderSide(
-                  color: gold.withValues(alpha: 0.15),
-                  width: 1,
-                ),
+                bottom: BorderSide(color: wp.panelBorder, width: 1),
               ),
             ),
             child: Row(

@@ -59,7 +59,7 @@ class _HomeTabState extends State<HomeTab> {
     final phase = computeGratitudePhase(grat.journeyDay, grat.journeyDays);
 
     return Scaffold(
-      backgroundColor: _kCream,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),

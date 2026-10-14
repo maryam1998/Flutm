@@ -11,6 +11,7 @@ import 'widgets/angels_layer.dart';
 import 'widgets/background_layer.dart';
 import 'widgets/emotion_widget_layer.dart';
 import 'widgets/motivation_bar.dart';
+import 'widgets/web_tab_bars.dart';
 
 class MaghzApp extends StatelessWidget {
   const MaghzApp({super.key});
@@ -65,8 +66,8 @@ final _light = ThemeData(
     ),
   ),
   navigationBarTheme: NavigationBarThemeData(
-    backgroundColor: const Color(0xFFF5EFE0).withValues(alpha: 0.96),
-    indicatorColor: const Color(0xFFC9972B).withValues(alpha: 0.28),
+    backgroundColor: const Color.fromRGBO(255, 255, 255, 0.92),
+    indicatorColor: const Color.fromRGBO(244, 197, 66, 0.12),
     labelTextStyle: WidgetStatePropertyAll(
       GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.w600),
     ),
@@ -98,8 +99,8 @@ final _dark = ThemeData(
     ),
   ),
   navigationBarTheme: NavigationBarThemeData(
-    backgroundColor: const Color(0xFF0B0D1E).withValues(alpha: 0.96),
-    indicatorColor: const Color(0xFF5EC8F0).withValues(alpha: 0.28),
+    backgroundColor: const Color.fromRGBO(18, 20, 38, 0.92),
+    indicatorColor: const Color.fromRGBO(244, 197, 66, 0.12),
     labelTextStyle: WidgetStatePropertyAll(
       GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.w600),
     ),
@@ -157,23 +158,23 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             ),
           ],
         ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.psychology_outlined),
-              selectedIcon: Icon(Icons.psychology),
+        bottomNavigationBar: WebMainTabBar(
+          index: _index,
+          onTap: (i) => setState(() => _index = i),
+          items: const [
+            WebTabItem(
+              icon: Icons.psychology_outlined,
+              selectedIcon: Icons.psychology,
               label: 'شناخت',
             ),
-            NavigationDestination(
-              icon: Icon(Icons.hub_outlined),
-              selectedIcon: Icon(Icons.hub),
-              label: 'هدف‌گذاری',
+            WebTabItem(
+              icon: Icons.hub_outlined,
+              selectedIcon: Icons.hub,
+              label: 'هدف گذاری',
             ),
-            NavigationDestination(
-              icon: Icon(Icons.favorite_border),
-              selectedIcon: Icon(Icons.favorite),
+            WebTabItem(
+              icon: Icons.favorite_border,
+              selectedIcon: Icons.favorite,
               label: 'تمرین',
             ),
           ],

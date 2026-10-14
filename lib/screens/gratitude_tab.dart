@@ -182,7 +182,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final phase = computeGratitudePhase(store.journeyDay, store.journeyDays);
 
     return Scaffold(
-      backgroundColor: _kCream,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),

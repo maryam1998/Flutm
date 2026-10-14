@@ -7,7 +7,6 @@ import '../models/constants.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/goal_ops.dart';
-import '../theme/app_theme.dart' show kLightInk;
 import 'camera.dart';
 import 'draw_utils.dart';
 import 'foot_shape.dart';
@@ -115,7 +114,7 @@ class MapPainter extends CustomPainter {
 
   Color get _textColor {
     final c = state.textColor.toLowerCase().trim();
-    final auto = isDark ? Colors.white : kLightInk;
+    final auto = isDark ? Colors.white : Colors.black;
     if (c == '#000000' || c == '#000') return Colors.black;
     if (c.isEmpty || c == '#eef0fa' || c == '#ffffff' || c == '#fff') {
       return auto;
@@ -191,7 +190,7 @@ class MapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     textCache.setOutline(
-        isDark ? const Color(0xFF0A0C18) : const Color(0xFFF5EFE0));
+        isDark ? const Color(0xFF0A0C18) : const Color(0xFFF4F6FB));
     _pts.clear();
     _walkerPts.clear();
     hits.clear();

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../state/background_store.dart';
+import '../widgets/web_tab_bars.dart';
 
 import 'beliefs_tab.dart';
 import 'gratitude_tab.dart';
@@ -21,46 +25,58 @@ class _PracticeTabState extends State<PracticeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: IndexedStack(
-        index: _sub,
-        children: const [
-          // 0 = خانه
-          HomeTab(),
-          // 1 = بازی فراوانی
-          StoreTab(),
-          // 2 = شکرگذاری
-          GratitudeTab(),
-          // 3 = باورها
-          BeliefsTab(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _sub,
-        onDestinationSelected: (i) => setState(() => _sub = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'خانه',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shopping_bag_outlined),
-            selectedIcon: Icon(Icons.shopping_bag),
-            label: 'بازی فراوانی',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.volunteer_activism_outlined),
-            selectedIcon: Icon(Icons.volunteer_activism),
-            label: 'شکرگذاری',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.psychology_outlined),
-            selectedIcon: Icon(Icons.psychology),
-            label: 'باورها',
-          ),
-        ],
+    // وب: #grat-root پس‌زمینه‌ی --paper دارد (سفید)، ولی وقتی پس‌زمینه‌ی
+    // دلخواه (تصویر/ویدیو) فعاله شفاف می‌شه (body.bg-mode-image #grat-root).
+    // محتوای زیرتب‌ها فعلاً روشنه، پس در تم تاریک همون کرم قبلی می‌مونه.
+    final hasBg = context.watch<BackgroundStore>().hasBackground;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final paper = hasBg
+        ? Colors.transparent
+        : (isDark ? const Color(0xFFFBF6EA) : Colors.white);
+
+    return ColoredBox(
+      color: paper,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: IndexedStack(
+          index: _sub,
+          children: const [
+            // 0 = خانه
+            HomeTab(),
+            // 1 = بازی فراوانی
+            StoreTab(),
+            // 2 = شکرگذاری
+            GratitudeTab(),
+            // 3 = باورها
+            BeliefsTab(),
+          ],
+        ),
+        bottomNavigationBar: WebSubTabBar(
+          index: _sub,
+          onTap: (i) => setState(() => _sub = i),
+          items: const [
+            WebTabItem(
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home,
+              label: 'خانه',
+            ),
+            WebTabItem(
+              icon: Icons.shopping_bag_outlined,
+              selectedIcon: Icons.shopping_bag,
+              label: 'بازی فراوانی',
+            ),
+            WebTabItem(
+              icon: Icons.volunteer_activism_outlined,
+              selectedIcon: Icons.volunteer_activism,
+              label: 'شکرگذاری',
+            ),
+            WebTabItem(
+              icon: Icons.psychology_outlined,
+              selectedIcon: Icons.psychology,
+              label: 'باورها',
+            ),
+          ],
+        ),
       ),
     );
   }

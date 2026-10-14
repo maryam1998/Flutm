@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../state/background_store.dart';
+import 'web_background.dart';
 
 /// لایه‌ی پس‌زمینه‌ی مشترک که روی همه‌ی تب‌ها نمایش داده می‌شه.
 /// اگه پس‌زمینه‌ای تنظیم نشده باشه، گرادیان پیش‌فرض برمی‌گردونه.
@@ -77,17 +78,7 @@ class _BackgroundLayerState extends State<BackgroundLayer> {
     } else if (bg.kind == BgKind.video && _videoCtl != null && _videoCtl!.value.isInitialized) {
       bgWidget = _bgVideo(bg);
     } else {
-      bgWidget = DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: isDark
-                ? const [Color(0xFF0B0D1E), Color(0xFF151933)]
-                : const [Color(0xFFF5EFE0), Color(0xFFEDE5D5)],
-          ),
-        ),
-      );
+      bgWidget = WebBackground(isDark: isDark);
     }
 
     return Stack(
