@@ -700,26 +700,97 @@ class MapPainter extends CustomPainter {
 
   // ───────────────────────── قدم‌زن روی تنه ─────────────────────────
 
-  /// قدم‌زن: بدنه‌ی گرد + دو پا + دنباله‌ی پاهای محو.
-  /// - بدنه بین من و هدف با سرعت طبیعی حرکت رفت و برگشتی دارد.
-  /// - دو پا با فاز نصف جابجا می‌شوند.
-  /// - پایی که می‌رود جلو از زمین کنده می‌شود (lift).
-  /// - دنباله‌ی ۵ قدم پشت سرش محو می‌شوند.
+  /// قدم‌زن هدف (آبی): کل تنه، رفت و برگشتی.
   void _walker(Canvas canvas, Goal g, geo.Cubic cp, Color col) {
     if (_goalTotalLogs(g) == 0) return;
-
     final playing = g.extra['walkerPlaying'] as bool? ?? true;
     final speed =
         ((g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.5).clamp(0.3, 4.0);
     final manualT = (g.extra['walkerPos'] as num?)?.toDouble();
+    _walkerCore(
+      canvas,
+      cp,
+      col,
+      tMin: 0.06,
+      tMax: 0.94,
+      stepLen: 1.0 / 20,
+      totalSteps: 20,
+      playing: playing,
+      speed: speed.toDouble(),
+      manualT: manualT,
+      baseSize: 20.0 * state.footScale.clamp(0.4, 3.0),
+      trailCount: 5,
+      hitType: 'walker',
+      hitId: g.id,
+      hostId: g.id,
+    );
+  }
 
-    const totalSteps = 20;
-    const stepLen = 1.0 / totalSteps;
+  /// قدم‌زن شاخه/زیرشاخه: از ابتدای شاخه روی تنه تا هدف، رفت و برگشتی.
+  void _trunkSteps(Canvas canvas, geo.Cubic trunk, double t0, int lane,
+      ActionNode a, Color color, double baseSize, String hostId) {
+    final n = _logCount(a);
+    if (n == 0) return;
+    final tMin = t0.clamp(0.05, 0.85);
+    const tMax = 0.94;
+    final range = tMax - tMin;
+    final stepLen = math.min(0.05, range / 8);
+    final totalSteps = math.max(4, (range / stepLen).round());
+    final sizeMul = state.footScale.clamp(0.4, 3.0);
+    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
+    final size = baseSize * 1.2 * sizeMul * footMul;
+    final speed = 1.5 * (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
+    final stagger = (a.id.hashCode & 0xFF) / 255.0 * 10.0;
+    _walkerCore(
+      canvas,
+      trunk,
+      color,
+      tMin: tMin,
+      tMax: tMax,
+      stepLen: stepLen,
+      totalSteps: totalSteps,
+      playing: a.footPlaying,
+      speed: speed.toDouble(),
+      manualT: a.footPos == null ? null : tMin + a.footPos!.clamp(0.0, 1.0) * range,
+      baseSize: size,
+      trailCount: math.min(n - 1, 5),
+      timeOffset: stagger,
+      laneOff: lane * size * 0.9,
+      hitType: 'foot',
+      hitId: a.id,
+      hostId: hostId,
+      withBody: false,
+    );
+  }
 
-    // ─── موقعیت بدنه ───
+  void _walkerCore(
+    Canvas canvas,
+    geo.Cubic cp,
+    Color col, {
+    required double tMin,
+    required double tMax,
+    required double stepLen,
+    required int totalSteps,
+    required bool playing,
+    required double speed,
+    double? manualT,
+    required double baseSize,
+    required int trailCount,
+    double timeOffset = 0,
+    double laneOff = 0,
+    required String hitType,
+    required String hitId,
+    required String hostId,
+    bool withBody = true,
+  }) {
+    final range = tMax - tMin;
+    final tt = _t + timeOffset;
+
+    // ─── موقعیت بدنه + جهت (رفت / برگشت) ───
     double bodyT;
+    bool returning = false;
     if (playing) {
-      final tSteps = _t * speed;
+      final tSteps = tt * speed;
       final cycleLen = totalSteps * 2.0;
       final cycle = tSteps % cycleLen;
       double stepNum;
@@ -727,24 +798,25 @@ class MapPainter extends CustomPainter {
         stepNum = cycle;
       } else {
         stepNum = cycleLen - cycle;
+        returning = true;
       }
-      final norm = (stepNum / totalSteps).clamp(0.0, 1.0);
-      bodyT = 0.06 + norm * 0.88;
+      bodyT = tMin + (stepNum / totalSteps).clamp(0.0, 1.0) * range;
     } else {
-      bodyT = (manualT ?? 0.5).clamp(0.06, 0.94);
+      bodyT = (manualT ?? (tMin + range / 2)).clamp(tMin, tMax);
     }
+    final dir = returning ? -1.0 : 1.0;
 
     // ─── فاز قدم ───
-    final stepPhase = playing ? (_t * speed) % 1.0 : 0.0;
+    final stepPhase = playing ? (tt * speed) % 1.0 : 0.0;
     final leftSwinging = stepPhase < 0.5;
     final swingPhase = leftSwinging ? stepPhase * 2 : (stepPhase - 0.5) * 2;
     final swingEase = _easeInOut(swingPhase);
 
-    // ─── موقعیت پاها ───
+    // ─── موقعیت پاها (نسبت به جهت حرکت) ───
     final footGap = stepLen * 0.45;
-    final plantedT = (bodyT - footGap).clamp(0.05, 0.95);
-    final swingStart = (bodyT - footGap).clamp(0.05, 0.95);
-    final swingEnd = (bodyT + footGap).clamp(0.05, 0.95);
+    final plantedT = (bodyT - dir * footGap).clamp(0.02, 0.98);
+    final swingStart = plantedT;
+    final swingEnd = (bodyT + dir * footGap).clamp(0.02, 0.98);
     final swingingT = swingStart + (swingEnd - swingStart) * swingEase;
 
     final leftT = leftSwinging ? swingingT : plantedT;
@@ -756,78 +828,83 @@ class MapPainter extends CustomPainter {
     final rightLift =
         leftSwinging ? 0.0 : math.sin(swingPhase * math.pi) * maxLift;
 
-    final baseSize = 20.0 * state.footScale.clamp(0.4, 3.0);
-
-    // ─── دنباله ───
-    for (var i = 1; i <= 5; i++) {
-      final trailT = (bodyT - i * stepLen).clamp(0.02, 0.98);
-      if (trailT <= 0.03) continue;
-      final trailSize = baseSize * (0.5 - i * 0.06);
-      final trailOpacity = (1.0 - i / 6.0) * 0.42;
+    // ─── دنباله (پشت سر، نسبت به جهت حرکت) ───
+    for (var i = 1; i <= trailCount; i++) {
+      final trailT = (bodyT - dir * i * stepLen).clamp(0.02, 0.98);
+      if (trailT < tMin - 0.001 || trailT > tMax + 0.001) continue;
+      final trailSize = baseSize * math.max(0.2, 0.5 - i * 0.06);
+      final trailOpacity = (1.0 - i / (trailCount + 1)) * 0.42;
       final trailIsLeft = (i + (leftSwinging ? 0 : 1)) % 2 == 0;
-      _drawWalkerFoot(canvas, cp, trailT, trailIsLeft ? -1.0 : 1.0,
-          trailSize, withOp(col, trailOpacity),
-          lift: 0, outline: true);
+      _drawWalkerFoot(canvas, cp, trailT, trailIsLeft ? -1.0 : 1.0, trailSize,
+          withOp(col, trailOpacity),
+          lift: 0, outline: true, returning: returning, laneOff: laneOff);
     }
 
     // ─── دو پا ───
     _drawWalkerFoot(canvas, cp, leftT, -1.0, baseSize, withOp(col, 0.92),
-        lift: leftLift);
+        lift: leftLift, returning: returning, laneOff: laneOff);
     _drawWalkerFoot(canvas, cp, rightT, 1.0, baseSize, withOp(col, 0.92),
-        lift: rightLift);
+        lift: rightLift, returning: returning, laneOff: laneOff);
 
     // ─── بدنه ───
     final bodyPt = cp.at(bodyT);
     final bodyAng = cp.tangent(bodyT);
-
-    final bobFreq = speed * 2;
-    final bobPhase = (_t * bobFreq * math.pi * 2) % (math.pi * 2);
-    final bob = playing ? math.sin(bobPhase) * 1.5 : 0.0;
     final nx = -math.sin(bodyAng);
     final ny = math.cos(bodyAng);
-    final bodyPos = Offset(bodyPt.dx + nx * bob, bodyPt.dy + ny * bob);
 
-    final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
-    final pulse = 0.9 + math.sin(_t * pulseRate * 2 * math.pi) * 0.1;
-    final bodyR = 8.0 * pulse;
+    final bobFreq = speed * 2;
+    final bobPhase = (tt * bobFreq * math.pi * 2) % (math.pi * 2);
+    final bob = playing ? math.sin(bobPhase) * 1.5 : 0.0;
+    final bodyPos = Offset(bodyPt.dx + nx * (bob + laneOff),
+        bodyPt.dy + ny * (bob + laneOff));
 
-    canvas.drawCircle(
-        bodyPos,
-        bodyR * 2.6,
-        Paint()
-          ..color = withOp(col, 0.20)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
+    if (withBody) {
+      final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
+      final pulse = 0.9 + math.sin(tt * pulseRate * 2 * math.pi) * 0.1;
+      final bodyR = 8.0 * pulse;
 
-    canvas.drawCircle(
-        bodyPos,
-        bodyR * 1.35,
-        Paint()
-          ..color = withOp(col, 0.18)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+      canvas.drawCircle(
+          bodyPos,
+          bodyR * 2.6,
+          Paint()
+            ..color = withOp(col, 0.20)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
+      canvas.drawCircle(
+          bodyPos,
+          bodyR * 1.35,
+          Paint()
+            ..color = withOp(col, 0.18)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+      canvas.drawCircle(
+          bodyPos,
+          bodyR,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0
+            ..color = withOp(col, 0.92));
+      canvas.drawCircle(
+          bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.92));
 
-    canvas.drawCircle(
-        bodyPos,
-        bodyR,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0
-          ..color = withOp(col, 0.92));
-
-    canvas.drawCircle(
-        bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.92));
-
-    if (!playing) {
-      final r = bodyR * 0.32;
-      canvas.drawRect(
-        Rect.fromCenter(center: bodyPos, width: r, height: r),
-        Paint()..color = withOp(col, 0.92),
-      );
+      if (!playing) {
+        final r = bodyR * 0.32;
+        canvas.drawRect(
+          Rect.fromCenter(center: bodyPos, width: r, height: r),
+          Paint()..color = withOp(col, 0.92),
+        );
+      }
+    } else {
+      canvas.drawCircle(
+          bodyPos,
+          baseSize * 1.3,
+          Paint()
+            ..color = withOp(col, playing ? 0.16 : 0.10)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
     }
 
     hits.add(HitEntry(
-      type: 'walker',
-      id: g.id,
-      hostId: g.id,
+      type: hitType,
+      id: hitId,
+      hostId: hostId,
       kind: HitKind.handle,
       center: bodyPos,
       radius: baseSize * 1.4,
@@ -843,15 +920,22 @@ class MapPainter extends CustomPainter {
     Color color, {
     double lift = 0,
     bool outline = false,
+    bool returning = false,
+    double laneOff = 0,
   }) {
     final pt = cp.at(t);
-    final ang = cp.tangent(t);
-    final nx = -math.sin(ang);
-    final ny = math.cos(ang);
+    final tang = cp.tangent(t);
+    // جهت پا: در برگشت ۱۸۰ درجه می‌چرخد تا پنجه رو به جهت حرکت باشد
+    final heading = returning ? tang + math.pi : tang;
+    final nx = -math.sin(heading);
+    final ny = math.cos(heading);
     final sideOffset = size * 0.32 * side;
     final total = sideOffset + lift;
-    final pos = Offset(pt.dx + nx * total, pt.dy + ny * total);
-    _drawFoot(canvas, pos, ang + math.pi / 2, size, color,
+    final lnx = -math.sin(tang);
+    final lny = math.cos(tang);
+    final pos = Offset(pt.dx + nx * total + lnx * laneOff,
+        pt.dy + ny * total + lny * laneOff);
+    _drawFoot(canvas, pos, heading + math.pi / 2, size, color,
         outline: outline, strokeW: outline ? 1.2 : 1.4, left: side < 0);
   }
 
@@ -923,297 +1007,6 @@ class MapPainter extends CustomPainter {
       center: Offset(cx, cy),
       radius: size * 1.2,
     ));
-  }
-
-  // ───────────────────────── ردپای شاخه ─────────────────────────
-
-  void _footprints(Canvas canvas, geo.TwigGeom geom, geo.Cubic cub,
-      ActionNode a, Color color, double scale) {
-    final length = (geom.end - geom.originPt).distance;
-    if (length < 22) return;
-
-    final entries = a.logs.entries.toList();
-    if (entries.isEmpty) return;
-
-    final days = <String, int>{};
-    for (final e in entries) {
-      days[e.key] = _jalaliDayNum(e.key);
-    }
-    entries.sort((x, y) => days[x.key]!.compareTo(days[y.key]!));
-
-    final firstDay = days[entries.first.key]!;
-    final lastDay = days[entries.last.key]!;
-    final span = (lastDay - firstDay).abs() + 1;
-
-    final sizeMul = state.footScale.clamp(0.4, 3.0);
-    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
-    final fs = math.max(11.0, 15.0 * scale) * sizeMul * footMul;
-
-    if (span <= 1) {
-      final e = entries.first;
-      if (_isDoneLog(e.value)) {
-        _drawFoot(canvas, geom.end, cub.tangent(1.0) + math.pi / 2, fs,
-            withOp(color, 0.85));
-      }
-      return;
-    }
-
-    final doneCount = entries.where((e) => _isDoneLog(e.value)).length;
-    if (doneCount == 0) return;
-    final baseProgress = (doneCount / 30.0).clamp(0.25, 1.0);
-
-    final todayDay = _jalaliDayNum(jKey(DateTime.now()));
-
-    for (var i = 0; i < entries.length; i++) {
-      final e = entries[i];
-      final day = days[e.key]!;
-      final isDone = _isDoneLog(e.value);
-      final isMissed = e.value == false;
-
-      final t = 0.06 + (day - firstDay) / span * 0.88;
-
-      Offset pt;
-      double ang;
-      if (geom.poly != null) {
-        final q = geo.polyPointAt(geom.poly!, t);
-        pt = q.pt;
-        ang = q.angle;
-      } else {
-        pt = cub.at(t);
-        ang = cub.tangent(t);
-      }
-
-      final daysFromToday = (todayDay - day).abs();
-      double recency;
-      if (daysFromToday <= 2) {
-        recency = 1.0;
-      } else if (daysFromToday <= 10) {
-        recency = 0.75;
-      } else {
-        recency = 0.45;
-      }
-      final opacity = baseProgress * recency;
-
-      final side = (i % 2 == 0) ? 1.0 : -1.0;
-      final off = fs * 0.4 * side;
-      final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
-
-      if (isDone) {
-        _drawFoot(canvas, pos, ang + math.pi / 2, fs,
-            color.withAlpha((opacity * 255).round()));
-
-        if (daysFromToday == 0) {
-          canvas.drawCircle(
-            pos,
-            fs * 0.9,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.6
-              ..color = withOp(color, 0.75),
-          );
-        }
-      } else if (isMissed) {
-        canvas.drawCircle(
-          pos,
-          fs * 0.34,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2
-            ..color = withOp(color, opacity * 0.6),
-        );
-      }
-    }
-  }
-
-  // ───────────────────────── قدم متحرک روی شاخه ─────────────────────────
-
-  void _walkingFoot({
-    required Canvas canvas,
-    required geo.Cubic cub,
-    List<Offset>? poly,
-    required Color color,
-    required double baseSize,
-    required ActionNode a,
-    required String hostId,
-  }) {
-    final count = _logCount(a);
-    if (count == 0) return;
-
-    final sizeMul = state.footScale.clamp(0.4, 3.0);
-    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
-    final size = baseSize * sizeMul * footMul;
-    final progress = (count / 30.0).clamp(0.25, 1.0);
-
-    double t;
-    if (a.footPlaying) {
-      final speedVal = (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
-      final secondsPerCycle = 4.6 / speedVal;
-      final cycle = (_t / secondsPerCycle) % 1.0;
-
-      double pingPong(double c) {
-        if (c < 0.38) {
-          final p = c / 0.38;
-          return 1.0 - math.pow(1 - p, 3).toDouble();
-        } else if (c < 0.5) {
-          return 1.0;
-        } else if (c < 0.88) {
-          final p = (c - 0.5) / 0.38;
-          return 1.0 - math.pow(p, 3).toDouble();
-        } else {
-          return 0.0;
-        }
-      }
-
-      final journey = pingPong(cycle);
-      t = 0.08 + journey * 0.84;
-    } else {
-      t = (a.footPos ?? 0.5).clamp(0.08, 0.92);
-    }
-
-    final stepPhase = a.footPlaying ? (_t / 0.5) % 1.0 : 0.25;
-    final rightLeads = stepPhase < 0.5;
-    const strideLen = 0.07;
-    final tFront = t;
-    final tBack = (t - strideLen).clamp(0.05, 0.95);
-    final tRight = rightLeads ? tFront : tBack;
-    final tLeft = rightLeads ? tBack : tFront;
-
-    _drawFootAt(canvas, cub, poly, tRight, 1.0, size * 0.95, color, progress,
-        a.footPlaying);
-    _drawFootAt(canvas, cub, poly, tLeft, -1.0, size * 0.95, color,
-        progress * 0.85, a.footPlaying);
-
-    final mid = (tRight + tLeft) / 2;
-    Offset hitPt;
-    if (poly != null) {
-      hitPt = geo.polyPointAt(poly, mid).pt;
-    } else {
-      hitPt = cub.at(mid);
-    }
-    hits.add(HitEntry(
-      type: 'foot',
-      id: a.id,
-      hostId: hostId,
-      kind: HitKind.handle,
-      center: hitPt,
-      radius: size * 1.4,
-    ));
-  }
-
-  // ─────────────── صف قدم‌ها روی مسیر اصلی هدف ───────────────
-  // هر ثبت در تقویم = یک قدم. همه‌ی قدم‌های یک شاخه از نقطه‌ی شروع شاخه
-  // روی تنه، پشت سر هم و با فاصله‌ی یکسان به سمت هدف می‌روند (بدون تداخل).
-  // اگر تعداد زیاد باشد، فقط به اندازه‌ای که جا دارد قدم نمایش داده می‌شود.
-  void _trunkSteps(Canvas canvas, geo.Cubic trunk, double t0, int lane,
-      ActionNode a, Color color, double baseSize, String hostId) {
-    final n = _logCount(a);
-    if (n == 0) return;
-
-    final sizeMul = state.footScale.clamp(0.4, 3.0);
-    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
-    final size = baseSize * sizeMul * footMul;
-    final progress = (n / 30.0).clamp(0.35, 1.0);
-
-    const tEnd = 0.93;
-    final tStart = t0.clamp(0.05, 0.85);
-    final range = tEnd - tStart;
-    final trunkLen = (trunk.p3 - trunk.p0).distance;
-    final rangePx = range * trunkLen;
-
-    // حداقل فاصله بین دو قدم پشت سر هم
-    final minGapPx = size * 2.3;
-    final fit = math.max(1, (rangePx / minGapPx).floor());
-    final m = math.min(math.min(n, fit), 14);
-
-    final playing = a.footPlaying;
-    final speedVal = (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
-    final cycleSec = 10.0 / speedVal;
-    final stagger = (a.id.hashCode & 0xFF) / 255.0;
-    final phase = playing ? ((_t / cycleSec) + stagger) % 1.0 : 0.0;
-
-    final laneOff = lane * size * 0.95;
-    Offset? firstPos;
-
-    for (var i = 0; i < m; i++) {
-      final u = (phase + i / m) % 1.0;
-      final t = tStart + u * range;
-      final pt = trunk.at(t);
-      final ang = trunk.tangent(t);
-      final side = i.isEven ? 1.0 : -1.0;
-      final off = size * 0.4 * side + laneOff;
-      final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
-      firstPos ??= pos;
-
-      // محو شدن در شروع و رسیدن به هدف
-      double fade = 1.0;
-      if (u < 0.1) fade = u / 0.1;
-      if (u > 0.88) fade = (1.0 - u) / 0.12;
-      final op = (progress * fade).clamp(0.0, 1.0);
-      if (op <= 0.02) continue;
-
-      canvas.drawCircle(
-        pos,
-        size * 0.8,
-        Paint()
-          ..color = color.withAlpha((70 * op).round())
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-      );
-      _drawFoot(canvas, pos, ang + math.pi / 2, size * 1.05,
-          color.withAlpha((255 * op).round()),
-          left: side < 0);
-    }
-
-    if (firstPos != null) {
-      hits.add(HitEntry(
-        type: 'foot',
-        id: a.id,
-        hostId: hostId,
-        kind: HitKind.handle,
-        center: firstPos,
-        radius: size * 1.4,
-      ));
-    }
-  }
-
-  void _drawFootAt(Canvas canvas, geo.Cubic cub, List<Offset>? poly, double t,
-      double side, double size, Color color, double opacity, bool playing) {
-    Offset pt;
-    double ang;
-    if (poly != null) {
-      final q = geo.polyPointAt(poly, t);
-      pt = q.pt;
-      ang = q.angle;
-    } else {
-      pt = cub.at(t);
-      ang = cub.tangent(t);
-    }
-
-    final off = size * 0.4 * side;
-    final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
-
-    final glowAlpha = ((playing ? 110 : 50) * opacity).round();
-    canvas.drawCircle(
-      pos,
-      size * 0.85,
-      Paint()
-        ..color = color.withAlpha(glowAlpha)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, playing ? 8 : 5),
-    );
-
-    if (!playing) {
-      canvas.drawCircle(
-        pos,
-        size * 1.0,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4
-          ..color = withOp(color, 0.7 * opacity),
-      );
-    }
-
-    _drawFoot(canvas, pos, ang + math.pi / 2, size * 1.1,
-        color.withAlpha((255 * opacity).round()),
-        left: side < 0);
   }
 
   // ───────────────────────── کمکی ─────────────────────────
