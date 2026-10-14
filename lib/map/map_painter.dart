@@ -10,6 +10,7 @@ import '../state/goal_ops.dart';
 import '../theme/app_theme.dart' show kLightInk;
 import 'camera.dart';
 import 'draw_utils.dart';
+import 'foot_shape.dart';
 import 'geometry.dart' as geo;
 import 'hit_registry.dart';
 import 'map_ops.dart';
@@ -661,29 +662,10 @@ class MapPainter extends CustomPainter {
 
   // ───────────────────────── شکل قدم ─────────────────────────
 
-  Path _footPath(double size) {
-    final s = size / 16.0;
-    final p = Path();
-    p.addOval(Rect.fromCenter(
-      center: Offset(0, -3 * s),
-      width: 8 * s,
-      height: 11 * s,
-    ));
-    p.addOval(Rect.fromCenter(
-      center: Offset(0, 5.5 * s),
-      width: 6 * s,
-      height: 4.5 * s,
-    ));
-    const toesX = [-3.2, -1.6, 0.0, 1.5, 2.8];
-    const toesY = [-8.5, -9.5, -9.8, -9.3, -8.3];
-    const toesR = [1.15, 1.30, 1.35, 1.25, 1.05];
-    for (var i = 0; i < 5; i++) {
-      p.addOval(Rect.fromCircle(
-        center: Offset(toesX[i] * s, toesY[i] * s),
-        radius: toesR[i] * s,
-      ));
-    }
-    return p;
+  Path _footPath(double size, {bool left = false}) {
+    final k = size / 16.0 * 20.0;
+    final m = Matrix4.identity()..scale(left ? -k : k, k);
+    return footBasePath().transform(m.storage);
   }
 
   void _drawFoot(
@@ -694,11 +676,12 @@ class MapPainter extends CustomPainter {
     Color color, {
     bool outline = false,
     double strokeW = 1.4,
+    bool left = false,
   }) {
     canvas.save();
     canvas.translate(pos.dx, pos.dy);
     canvas.rotate(angle);
-    final path = _footPath(size);
+    final path = _footPath(size, left: left);
     if (outline) {
       canvas.drawPath(
         path,
@@ -869,7 +852,7 @@ class MapPainter extends CustomPainter {
     final total = sideOffset + lift;
     final pos = Offset(pt.dx + nx * total, pt.dy + ny * total);
     _drawFoot(canvas, pos, ang + math.pi / 2, size, color,
-        outline: outline, strokeW: outline ? 1.2 : 1.4);
+        outline: outline, strokeW: outline ? 1.2 : 1.4, left: side < 0);
   }
 
   // ───────────────────────── جام ─────────────────────────
@@ -1176,7 +1159,8 @@ class MapPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
       );
       _drawFoot(canvas, pos, ang + math.pi / 2, size * 1.05,
-          color.withAlpha((255 * op).round()));
+          color.withAlpha((255 * op).round()),
+          left: side < 0);
     }
 
     if (firstPos != null) {
@@ -1228,7 +1212,8 @@ class MapPainter extends CustomPainter {
     }
 
     _drawFoot(canvas, pos, ang + math.pi / 2, size * 1.1,
-        color.withAlpha((255 * opacity).round()));
+        color.withAlpha((255 * opacity).round()),
+        left: side < 0);
   }
 
   // ───────────────────────── کمکی ─────────────────────────
