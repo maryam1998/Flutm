@@ -548,7 +548,7 @@ class MapPainter extends CustomPainter {
       final t = math.min(0.9, 0.15 + i * 0.09);
       _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i],
           i.isEven ? 1 : -1, 1.0, tc,
-          trunk: cp, trunkT: t);
+          trunk: cp, trunkT: t, trunkLane: (i % 3) - 1);
     }
   }
 
@@ -1117,72 +1117,78 @@ class MapPainter extends CustomPainter {
     ));
   }
 
-  // ─────────────── قدم‌ها روی مسیر اصلی هدف ───────────────
-  // n ثبت = (n-1) قدم ثابت از ابتدای شاخه روی تنه‌ی هدف + یک قدم متحرک
-  // که در ادامه‌ی مسیر هدف راه می‌رود.
-  void _trunkSteps(Canvas canvas, geo.Cubic trunk, double t0, ActionNode a,
-      Color color, double baseSize, String hostId) {
+  // ─────────────── صف قدم‌ها روی مسیر اصلی هدف ───────────────
+  // هر ثبت در تقویم = یک قدم. همه‌ی قدم‌های یک شاخه از نقطه‌ی شروع شاخه
+  // روی تنه، پشت سر هم و با فاصله‌ی یکسان به سمت هدف می‌روند (بدون تداخل).
+  // اگر تعداد زیاد باشد، فقط به اندازه‌ای که جا دارد قدم نمایش داده می‌شود.
+  void _trunkSteps(Canvas canvas, geo.Cubic trunk, double t0, int lane,
+      ActionNode a, Color color, double baseSize, String hostId) {
     final n = _logCount(a);
     if (n == 0) return;
 
     final sizeMul = state.footScale.clamp(0.4, 3.0);
     final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
     final size = baseSize * sizeMul * footMul;
-    final progress = (n / 30.0).clamp(0.25, 1.0);
+    final progress = (n / 30.0).clamp(0.35, 1.0);
 
-    final fixed = n - 1;
-    final stride = math.min(0.04, math.max(0.008, (0.80 - t0) / (fixed + 2)));
+    const tEnd = 0.93;
+    final tStart = t0.clamp(0.05, 0.85);
+    final range = tEnd - tStart;
+    final trunkLen = (trunk.p3 - trunk.p0).distance;
+    final rangePx = range * trunkLen;
 
-    // قدم‌های ثابت
-    for (var k = 0; k < fixed; k++) {
-      final t = (t0 + k * stride).clamp(0.02, 0.94);
-      _drawFootAt(canvas, trunk, null, t, k.isEven ? 1.0 : -1.0, size * 0.95,
-          color, progress * 0.8, false);
+    // حداقل فاصله بین دو قدم پشت سر هم
+    final minGapPx = size * 2.3;
+    final fit = math.max(1, (rangePx / minGapPx).floor());
+    final m = math.min(math.min(n, fit), 14);
+
+    final playing = a.footPlaying;
+    final speedVal = (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
+    final cycleSec = 10.0 / speedVal;
+    final stagger = (a.id.hashCode & 0xFF) / 255.0;
+    final phase = playing ? ((_t / cycleSec) + stagger) % 1.0 : 0.0;
+
+    final laneOff = lane * size * 0.95;
+    Offset? firstPos;
+
+    for (var i = 0; i < m; i++) {
+      final u = (phase + i / m) % 1.0;
+      final t = tStart + u * range;
+      final pt = trunk.at(t);
+      final ang = trunk.tangent(t);
+      final side = i.isEven ? 1.0 : -1.0;
+      final off = size * 0.4 * side + laneOff;
+      final pos = pt + Offset(-math.sin(ang) * off, math.cos(ang) * off);
+      firstPos ??= pos;
+
+      // محو شدن در شروع و رسیدن به هدف
+      double fade = 1.0;
+      if (u < 0.1) fade = u / 0.1;
+      if (u > 0.88) fade = (1.0 - u) / 0.12;
+      final op = (progress * fade).clamp(0.0, 1.0);
+      if (op <= 0.02) continue;
+
+      canvas.drawCircle(
+        pos,
+        size * 0.8,
+        Paint()
+          ..color = color.withAlpha((70 * op).round())
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+      _drawFoot(canvas, pos, ang + math.pi / 2, size * 1.05,
+          color.withAlpha((255 * op).round()));
     }
 
-    // قدم متحرک: از آخرین قدم ثابت تا نزدیک هدف
-    final tMin = (t0 + fixed * stride).clamp(0.05, 0.9);
-    final tMax = 0.94;
-    double t;
-    if (a.footPlaying) {
-      final speedVal = (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
-      final secondsPerCycle = 4.6 / speedVal;
-      final cycle = (_t / secondsPerCycle) % 1.0;
-      double journey;
-      if (cycle < 0.38) {
-        journey = 1.0 - math.pow(1 - cycle / 0.38, 3).toDouble();
-      } else if (cycle < 0.5) {
-        journey = 1.0;
-      } else if (cycle < 0.88) {
-        journey = 1.0 - math.pow((cycle - 0.5) / 0.38, 3).toDouble();
-      } else {
-        journey = 0.0;
-      }
-      t = tMin + journey * (tMax - tMin);
-    } else {
-      t = tMin + (a.footPos ?? 0.5).clamp(0.0, 1.0) * (tMax - tMin);
+    if (firstPos != null) {
+      hits.add(HitEntry(
+        type: 'foot',
+        id: a.id,
+        hostId: hostId,
+        kind: HitKind.handle,
+        center: firstPos,
+        radius: size * 1.4,
+      ));
     }
-
-    final stepPhase = a.footPlaying ? (_t / 0.5) % 1.0 : 0.25;
-    final rightLeads = stepPhase < 0.5;
-    const strideLen = 0.04;
-    final tFront = t;
-    final tBack = (t - strideLen).clamp(0.02, 0.95);
-    final tRight = rightLeads ? tFront : tBack;
-    final tLeft = rightLeads ? tBack : tFront;
-    _drawFootAt(canvas, trunk, null, tRight, 1.0, size * 0.95, color, progress,
-        a.footPlaying);
-    _drawFootAt(canvas, trunk, null, tLeft, -1.0, size * 0.95, color,
-        progress * 0.85, a.footPlaying);
-
-    hits.add(HitEntry(
-      type: 'foot',
-      id: a.id,
-      hostId: hostId,
-      kind: HitKind.handle,
-      center: trunk.at((tRight + tLeft) / 2),
-      radius: size * 1.4,
-    ));
   }
 
   void _drawFootAt(Canvas canvas, geo.Cubic cub, List<Offset>? poly, double t,
@@ -1296,7 +1302,7 @@ class MapPainter extends CustomPainter {
 
   void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt,
       double originDir, ActionNode a, int side, double scale, Color tc,
-      {geo.Cubic? trunk, double trunkT = 0.15}) {
+      {geo.Cubic? trunk, double trunkT = 0.15, int trunkLane = 0}) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
     final color = (a.color != null && a.color!.isNotEmpty)
         ? hexColor(a.color, hostColor)
@@ -1325,7 +1331,7 @@ class MapPainter extends CustomPainter {
     }
 
     if (trunk != null) {
-      _trunkSteps(canvas, trunk, trunkT, a, color, 15.0 * scale, h.id);
+      _trunkSteps(canvas, trunk, trunkT, trunkLane, a, color, 15.0 * scale, h.id);
     }
 
     final kids = _visibleActs(a.children);
@@ -1346,7 +1352,7 @@ class MapPainter extends CustomPainter {
         }
         _twig(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
             scale * 0.72, tc,
-            trunk: trunk, trunkT: trunkT);
+            trunk: trunk, trunkT: trunkT, trunkLane: trunkLane);
       }
     } else if (a.images.isNotEmpty) {
       final radius = math.max(1.8, 2 + weight * 0.28 * scale);
