@@ -792,14 +792,47 @@ class MapPainter extends CustomPainter {
   /// و بعد روی تنه تا هدف اصلی؛ رفت و برگشتی.
   void _branchWalker(Canvas canvas, List<Offset> routePts, int lane,
       ActionNode a, Color color, double baseSize, String hostId) {
+    if (routePts.length < 2) return;
     final n = _logCount(a);
-    if (n == 0 || routePts.length < 2) return;
     final route = _RouteCurve(routePts);
     final sizeMul = state.footScale.clamp(0.4, 3.0);
     final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
     final size = baseSize * 1.2 * sizeMul * footMul;
+    final len = math.max(route.length, 1.0);
 
-    final stepLen = (size * 1.4 / math.max(route.length, 1.0)).clamp(0.01, 0.12);
+    // ─── بدون ثبت: فقط علامت کم‌رنگ پا کنار شاخه (شروع مسیر) ───
+    if (n == 0) {
+      const u0 = 0.03;
+      _drawWalkerFoot(canvas, route, u0, -1.0, size, withOp(color, 0.32));
+      _drawWalkerFoot(canvas, route, u0, 1.0, size, withOp(color, 0.32));
+      hits.add(HitEntry(
+        type: 'foot',
+        id: a.id,
+        hostId: hostId,
+        kind: HitKind.handle,
+        center: route.at(u0),
+        radius: size * 1.4,
+      ));
+      return;
+    }
+
+    // ─── روزهای قبل: قدم‌های ثابت و کم‌رنگ، پشت سر هم از شروع مسیر ───
+    final fixed = n - 1;
+    if (fixed > 0) {
+      final stride =
+          math.min(size * 1.5 / len, 0.85 / math.max(1, fixed)).toDouble();
+      for (var k = 0; k < fixed; k++) {
+        final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
+        // هر روز یک جفت پا، کمی جلوتر از روز قبل
+        _drawWalkerFoot(canvas, route, u, -1.0, size * 0.9,
+            withOp(color, 0.30));
+        _drawWalkerFoot(canvas, route, u, 1.0, size * 0.9,
+            withOp(color, 0.30));
+      }
+    }
+
+    // ─── امروز: پاها در مسیر هدف قدم می‌زنند (رفت و برگشت) ───
+    final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
     final totalSteps = math.max(4, (1.0 / stepLen).round());
     final speed = 1.5 * (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
     final stagger = (a.id.hashCode & 0xFF) / 255.0 * 10.0;
@@ -815,7 +848,7 @@ class MapPainter extends CustomPainter {
       speed: speed.toDouble(),
       manualT: a.footPos?.clamp(0.0, 1.0).toDouble(),
       baseSize: size,
-      trailCount: math.min(n - 1, 5),
+      trailCount: 0,
       timeOffset: stagger,
       pref: (a.id.hashCode & 1) == 0 ? 1.0 : -1.0,
       hitType: 'foot',
