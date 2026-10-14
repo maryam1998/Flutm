@@ -761,7 +761,6 @@ class MapPainter extends CustomPainter {
 
   /// قدم‌زن هدف (آبی): کل تنه، رفت و برگشتی.
   void _walker(Canvas canvas, Goal g, geo.Cubic cp, Color col) {
-    if (_goalTotalLogs(g) == 0) return;
     final playing = g.extra['walkerPlaying'] as bool? ?? true;
     final speed =
         ((g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.5).clamp(0.3, 4.0);
@@ -1168,8 +1167,18 @@ class MapPainter extends CustomPainter {
     }
 
     if (route != null) {
-      _branchWalker(
-          canvas, route, trunkLane, a, color, 15.0 * scale, h.id);
+      // مسیر قدم‌ها: از نوک شاخه → ابتدای شاخه (برگشت روی خود شاخه) →
+      // شاخه‌های پدر → تنه → هدف اصلی؛ و دوباره برعکس.
+      final own = <Offset>[];
+      if (geom.poly != null) {
+        own.addAll(geom.poly!.reversed);
+      } else {
+        for (var k = 0; k <= 16; k++) {
+          own.add(cub.at(1.0 - k / 16));
+        }
+      }
+      own.addAll(route);
+      _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id);
     }
 
     final kids = _visibleActs(a.children);
