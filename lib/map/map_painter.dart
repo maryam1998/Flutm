@@ -547,7 +547,8 @@ class MapPainter extends CustomPainter {
     for (var i = 0; i < acts.length; i++) {
       final t = math.min(0.9, 0.15 + i * 0.09);
       _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i],
-          i.isEven ? 1 : -1, 1.0, tc);
+          i.isEven ? 1 : -1, 1.0, tc,
+          trunk: cp, trunkT: t);
     }
   }
 
@@ -1116,6 +1117,74 @@ class MapPainter extends CustomPainter {
     ));
   }
 
+  // ─────────────── قدم‌ها روی مسیر اصلی هدف ───────────────
+  // n ثبت = (n-1) قدم ثابت از ابتدای شاخه روی تنه‌ی هدف + یک قدم متحرک
+  // که در ادامه‌ی مسیر هدف راه می‌رود.
+  void _trunkSteps(Canvas canvas, geo.Cubic trunk, double t0, ActionNode a,
+      Color color, double baseSize, String hostId) {
+    final n = _logCount(a);
+    if (n == 0) return;
+
+    final sizeMul = state.footScale.clamp(0.4, 3.0);
+    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
+    final size = baseSize * sizeMul * footMul;
+    final progress = (n / 30.0).clamp(0.25, 1.0);
+
+    final fixed = n - 1;
+    final stride = math.min(0.04, math.max(0.008, (0.80 - t0) / (fixed + 2)));
+
+    // قدم‌های ثابت
+    for (var k = 0; k < fixed; k++) {
+      final t = (t0 + k * stride).clamp(0.02, 0.94);
+      _drawFootAt(canvas, trunk, null, t, k.isEven ? 1.0 : -1.0, size * 0.95,
+          color, progress * 0.8, false);
+    }
+
+    // قدم متحرک: از آخرین قدم ثابت تا نزدیک هدف
+    final tMin = (t0 + fixed * stride).clamp(0.05, 0.9);
+    final tMax = 0.94;
+    double t;
+    if (a.footPlaying) {
+      final speedVal = (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
+      final secondsPerCycle = 4.6 / speedVal;
+      final cycle = (_t / secondsPerCycle) % 1.0;
+      double journey;
+      if (cycle < 0.38) {
+        journey = 1.0 - math.pow(1 - cycle / 0.38, 3).toDouble();
+      } else if (cycle < 0.5) {
+        journey = 1.0;
+      } else if (cycle < 0.88) {
+        journey = 1.0 - math.pow((cycle - 0.5) / 0.38, 3).toDouble();
+      } else {
+        journey = 0.0;
+      }
+      t = tMin + journey * (tMax - tMin);
+    } else {
+      t = tMin + (a.footPos ?? 0.5).clamp(0.0, 1.0) * (tMax - tMin);
+    }
+
+    final stepPhase = a.footPlaying ? (_t / 0.5) % 1.0 : 0.25;
+    final rightLeads = stepPhase < 0.5;
+    const strideLen = 0.04;
+    final tFront = t;
+    final tBack = (t - strideLen).clamp(0.02, 0.95);
+    final tRight = rightLeads ? tFront : tBack;
+    final tLeft = rightLeads ? tBack : tFront;
+    _drawFootAt(canvas, trunk, null, tRight, 1.0, size * 0.95, color, progress,
+        a.footPlaying);
+    _drawFootAt(canvas, trunk, null, tLeft, -1.0, size * 0.95, color,
+        progress * 0.85, a.footPlaying);
+
+    hits.add(HitEntry(
+      type: 'foot',
+      id: a.id,
+      hostId: hostId,
+      kind: HitKind.handle,
+      center: trunk.at((tRight + tLeft) / 2),
+      radius: size * 1.4,
+    ));
+  }
+
   void _drawFootAt(Canvas canvas, geo.Cubic cub, List<Offset>? poly, double t,
       double side, double size, Color color, double opacity, bool playing) {
     Offset pt;
@@ -1226,7 +1295,8 @@ class MapPainter extends CustomPainter {
   }
 
   void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt,
-      double originDir, ActionNode a, int side, double scale, Color tc) {
+      double originDir, ActionNode a, int side, double scale, Color tc,
+      {geo.Cubic? trunk, double trunkT = 0.15}) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
     final color = (a.color != null && a.color!.isNotEmpty)
         ? hexColor(a.color, hostColor)
@@ -1254,17 +1324,9 @@ class MapPainter extends CustomPainter {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
     }
 
-    _footprints(canvas, geom, cub, a, color, scale);
-
-    _walkingFoot(
-      canvas: canvas,
-      cub: cub,
-      poly: geom.poly,
-      color: color,
-      baseSize: 15.0 * scale,
-      a: a,
-      hostId: h.id,
-    );
+    if (trunk != null) {
+      _trunkSteps(canvas, trunk, trunkT, a, color, 15.0 * scale, h.id);
+    }
 
     final kids = _visibleActs(a.children);
     if (kids.isNotEmpty) {
@@ -1283,7 +1345,8 @@ class MapPainter extends CustomPainter {
           cd = cub.tangent(tt);
         }
         _twig(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
-            scale * 0.72, tc);
+            scale * 0.72, tc,
+            trunk: trunk, trunkT: trunkT);
       }
     } else if (a.images.isNotEmpty) {
       final radius = math.max(1.8, 2 + weight * 0.28 * scale);
