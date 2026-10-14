@@ -27,6 +27,62 @@ double _easeInOut(double t) {
   return 1 - u * u / 2;
 }
 
+/// منحنی عمومی برای قدم‌زن: t بین ۰ و ۱
+abstract class _Curve {
+  Offset at(double t);
+  double tangent(double t);
+}
+
+class _CubicCurve implements _Curve {
+  _CubicCurve(this.c);
+  final geo.Cubic c;
+  @override
+  Offset at(double t) => c.at(t);
+  @override
+  double tangent(double t) => c.tangent(t);
+}
+
+/// مسیر چندپاره (از ابتدای شاخه، روی شاخه‌های پدر، تا تنه و هدف)
+class _RouteCurve implements _Curve {
+  _RouteCurve(List<Offset> raw) {
+    for (final p in raw) {
+      if (pts.isEmpty || (p - pts.last).distance > 0.5) pts.add(p);
+    }
+    if (pts.length < 2) pts.add(pts.first + const Offset(1, 0));
+    cum.add(0);
+    for (var i = 1; i < pts.length; i++) {
+      cum.add(cum.last + (pts[i] - pts[i - 1]).distance);
+    }
+    length = cum.last;
+  }
+  final List<Offset> pts = [];
+  final List<double> cum = [];
+  late final double length;
+
+  @override
+  Offset at(double t) {
+    final d = length * t.clamp(0.0, 1.0);
+    for (var i = 1; i < pts.length; i++) {
+      if (d <= cum[i] || i == pts.length - 1) {
+        final seg = (cum[i] - cum[i - 1]);
+        final f = seg == 0 ? 0.0 : ((d - cum[i - 1]) / seg).clamp(0.0, 1.0);
+        return Offset.lerp(pts[i - 1], pts[i], f)!;
+      }
+    }
+    return pts.first;
+  }
+
+  /// جهت به سمت هدف؛ با پنجره‌ی کوچک نرم می‌شود تا در پیچ‌ها ناگهانی نچرخد
+  @override
+  double tangent(double t) {
+    final w = math.min(0.25, 14.0 / math.max(length, 1.0));
+    final a = at((t - w).clamp(0.0, 1.0));
+    final b = at((t + w).clamp(0.0, 1.0));
+    final d = b - a;
+    return math.atan2(d.dy, d.dx);
+  }
+}
+
 class MapPainter extends CustomPainter {
   MapPainter({
     required this.state,
@@ -549,7 +605,10 @@ class MapPainter extends CustomPainter {
       final t = math.min(0.9, 0.15 + i * 0.09);
       _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i],
           i.isEven ? 1 : -1, 1.0, tc,
-          trunk: cp, trunkT: t, trunkLane: (i % 3) - 1);
+          route: [
+            for (var k = 0; k <= 16; k++) cp.at(t + (0.94 - t) * k / 16)
+          ],
+          trunkLane: (i % 3) - 1);
     }
   }
 
@@ -709,7 +768,7 @@ class MapPainter extends CustomPainter {
     final manualT = (g.extra['walkerPos'] as num?)?.toDouble();
     _walkerCore(
       canvas,
-      cp,
+      _CubicCurve(cp),
       col,
       tMin: 0.06,
       tMax: 0.94,
@@ -726,32 +785,32 @@ class MapPainter extends CustomPainter {
     );
   }
 
-  /// قدم‌زن شاخه/زیرشاخه: از ابتدای شاخه روی تنه تا هدف، رفت و برگشتی.
-  void _trunkSteps(Canvas canvas, geo.Cubic trunk, double t0, int lane,
+  /// قدم‌زن شاخه/زیرشاخه: از نقطه‌ی ساخته شدن شاخه، روی شاخه‌های پدر تا تنه،
+  /// و بعد روی تنه تا هدف اصلی؛ رفت و برگشتی.
+  void _branchWalker(Canvas canvas, List<Offset> routePts, int lane,
       ActionNode a, Color color, double baseSize, String hostId) {
     final n = _logCount(a);
-    if (n == 0) return;
-    final tMin = t0.clamp(0.05, 0.85);
-    const tMax = 0.94;
-    final range = tMax - tMin;
-    final stepLen = math.min(0.05, range / 8);
-    final totalSteps = math.max(4, (range / stepLen).round());
+    if (n == 0 || routePts.length < 2) return;
+    final route = _RouteCurve(routePts);
     final sizeMul = state.footScale.clamp(0.4, 3.0);
     final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
     final size = baseSize * 1.2 * sizeMul * footMul;
+
+    final stepLen = (size * 1.4 / math.max(route.length, 1.0)).clamp(0.01, 0.12);
+    final totalSteps = math.max(4, (1.0 / stepLen).round());
     final speed = 1.5 * (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
     final stagger = (a.id.hashCode & 0xFF) / 255.0 * 10.0;
     _walkerCore(
       canvas,
-      trunk,
+      route,
       color,
-      tMin: tMin,
-      tMax: tMax,
-      stepLen: stepLen,
+      tMin: 0.0,
+      tMax: 1.0,
+      stepLen: stepLen.toDouble(),
       totalSteps: totalSteps,
       playing: a.footPlaying,
       speed: speed.toDouble(),
-      manualT: a.footPos == null ? null : tMin + a.footPos!.clamp(0.0, 1.0) * range,
+      manualT: a.footPos?.clamp(0.0, 1.0).toDouble(),
       baseSize: size,
       trailCount: math.min(n - 1, 5),
       timeOffset: stagger,
@@ -765,7 +824,7 @@ class MapPainter extends CustomPainter {
 
   void _walkerCore(
     Canvas canvas,
-    geo.Cubic cp,
+    _Curve cp,
     Color col, {
     required double tMin,
     required double tMax,
@@ -913,7 +972,7 @@ class MapPainter extends CustomPainter {
 
   void _drawWalkerFoot(
     Canvas canvas,
-    geo.Cubic cp,
+    _Curve cp,
     double t,
     double side,
     double size,
@@ -1080,7 +1139,7 @@ class MapPainter extends CustomPainter {
 
   void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt,
       double originDir, ActionNode a, int side, double scale, Color tc,
-      {geo.Cubic? trunk, double trunkT = 0.15, int trunkLane = 0}) {
+      {List<Offset>? route, int trunkLane = 0}) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
     final color = (a.color != null && a.color!.isNotEmpty)
         ? hexColor(a.color, hostColor)
@@ -1108,8 +1167,9 @@ class MapPainter extends CustomPainter {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
     }
 
-    if (trunk != null) {
-      _trunkSteps(canvas, trunk, trunkT, trunkLane, a, color, 15.0 * scale, h.id);
+    if (route != null) {
+      _branchWalker(
+          canvas, route, trunkLane, a, color, 15.0 * scale, h.id);
     }
 
     final kids = _visibleActs(a.children);
@@ -1128,9 +1188,20 @@ class MapPainter extends CustomPainter {
           co = cub.at(tt);
           cd = cub.tangent(tt);
         }
+        // مسیر بچه: از نقطه‌ی اتصال، برگشت روی همین شاخه تا ابتدایش، بعد مسیر خود شاخه
+        final childRoute = <Offset>[];
+        if (route != null) {
+          for (var k = 0; k <= 12; k++) {
+            final u = tt * (1 - k / 12);
+            childRoute.add(geom.poly != null
+                ? geo.polyPointAt(geom.poly!, u).pt
+                : cub.at(u));
+          }
+          childRoute.addAll(route);
+        }
         _twig(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
             scale * 0.72, tc,
-            trunk: trunk, trunkT: trunkT, trunkLane: trunkLane);
+            route: route == null ? null : childRoute, trunkLane: trunkLane);
       }
     } else if (a.images.isNotEmpty) {
       final radius = math.max(1.8, 2 + weight * 0.28 * scale);
