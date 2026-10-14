@@ -105,6 +105,9 @@ class MapPainter extends CustomPainter {
 
   double get _t => time.value;
 
+  /// موقعیت پاهای قدم‌زن‌های رسم‌شده در این فریم (برای دوری از تداخل)
+  final List<Offset> _walkerPts = [];
+
   @override
   bool shouldRepaint(covariant MapPainter old) => true;
 
@@ -190,6 +193,7 @@ class MapPainter extends CustomPainter {
     textCache.setOutline(
         isDark ? const Color(0xFF0A0C18) : const Color(0xFFF5EFE0));
     _pts.clear();
+    _walkerPts.clear();
     hits.clear();
     canvas.save();
     canvas.translate(cam.x, cam.y);
@@ -813,7 +817,7 @@ class MapPainter extends CustomPainter {
       baseSize: size,
       trailCount: math.min(n - 1, 5),
       timeOffset: stagger,
-      laneOff: lane * size * 0.9,
+      pref: (a.id.hashCode & 1) == 0 ? 1.0 : -1.0,
       hitType: 'foot',
       hitId: a.id,
       hostId: hostId,
@@ -836,6 +840,7 @@ class MapPainter extends CustomPainter {
     required int trailCount,
     double timeOffset = 0,
     double laneOff = 0,
+    double pref = 1.0,
     required String hitType,
     required String hitId,
     required String hostId,
@@ -843,6 +848,7 @@ class MapPainter extends CustomPainter {
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
+    final mine = <Offset>[];
 
     // ─── موقعیت بدنه + جهت (رفت / برگشت) ───
     double bodyT;
@@ -895,14 +901,30 @@ class MapPainter extends CustomPainter {
       final trailIsLeft = (i + (leftSwinging ? 0 : 1)) % 2 == 0;
       _drawWalkerFoot(canvas, cp, trailT, trailIsLeft ? -1.0 : 1.0, trailSize,
           withOp(col, trailOpacity),
-          lift: 0, outline: true, returning: returning, laneOff: laneOff);
+          lift: 0,
+          outline: true,
+          returning: returning,
+          laneOff: laneOff,
+          others: _walkerPts,
+          pref: pref);
     }
 
     // ─── دو پا ───
     _drawWalkerFoot(canvas, cp, leftT, -1.0, baseSize, withOp(col, 0.92),
-        lift: leftLift, returning: returning, laneOff: laneOff);
+        lift: leftLift,
+        returning: returning,
+        laneOff: laneOff,
+        others: _walkerPts,
+        mine: mine,
+        pref: pref);
     _drawWalkerFoot(canvas, cp, rightT, 1.0, baseSize, withOp(col, 0.92),
-        lift: rightLift, returning: returning, laneOff: laneOff);
+        lift: rightLift,
+        returning: returning,
+        laneOff: laneOff,
+        others: _walkerPts,
+        mine: mine,
+        pref: pref);
+    _walkerPts.addAll(mine);
 
     // ─── بدنه ───
     final bodyPt = cp.at(bodyT);
@@ -980,6 +1002,9 @@ class MapPainter extends CustomPainter {
     bool outline = false,
     bool returning = false,
     double laneOff = 0,
+    List<Offset>? others,
+    List<Offset>? mine,
+    double pref = 1.0,
   }) {
     final pt = cp.at(t);
     final tang = cp.tangent(t);
@@ -991,8 +1016,28 @@ class MapPainter extends CustomPainter {
     final total = sideOffset + lift;
     final lnx = -math.sin(tang);
     final lny = math.cos(tang);
-    final pos = Offset(pt.dx + nx * total + lnx * laneOff,
+    var pos = Offset(pt.dx + nx * total + lnx * laneOff,
         pt.dy + ny * total + lny * laneOff);
+
+    // فقط وقتی به پای دیگری نزدیک شد، کمی از خط هدف کنار می‌رود
+    // و بعد از دور شدن دوباره روی خط برمی‌گردد.
+    if (others != null && others.isNotEmpty) {
+      final r = size * 1.7;
+      var dev = 0.0;
+      for (final q in others) {
+        final dd = pos - q;
+        final d = dd.distance;
+        if (d >= r) continue;
+        var w = 1 - d / r;
+        w = w * w * (3 - 2 * w);
+        final proj = dd.dx * lnx + dd.dy * lny;
+        final sgn = proj.abs() < size * 0.2 ? pref : (proj > 0 ? 1.0 : -1.0);
+        dev += sgn * w * r * 0.8;
+      }
+      dev = dev.clamp(-size * 1.6, size * 1.6).toDouble();
+      pos = Offset(pos.dx + lnx * dev, pos.dy + lny * dev);
+    }
+    mine?.add(pos);
     _drawFoot(canvas, pos, heading + math.pi / 2, size, color,
         outline: outline, strokeW: outline ? 1.2 : 1.4, left: side < 0);
   }
