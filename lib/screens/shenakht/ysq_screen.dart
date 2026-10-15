@@ -28,6 +28,25 @@ class _YsqScreenState extends State<YsqScreen> {
   bool get _isLast => _index == ysqQuestions.length - 1;
   YsqValidation get _check => validateAnswers(_answers);
 
+  // ── کمکی: اولین سؤال بی‌جواب ──────────────────────────
+  int? get _firstUnanswered {
+    for (int i = 0; i < ysqQuestions.length; i++) {
+      if (!_answers.containsKey(ysqQuestions[i].id)) return i;
+    }
+    return null;
+  }
+
+  int? get _nextUnansweredAfterCurrent {
+    for (int i = _index + 1; i < ysqQuestions.length; i++) {
+      if (!_answers.containsKey(ysqQuestions[i].id)) return i;
+    }
+    // اگه بعد از این نبود، از اول بگرد
+    for (int i = 0; i < _index; i++) {
+      if (!_answers.containsKey(ysqQuestions[i].id)) return i;
+    }
+    return null;
+  }
+
   void _select(int v) {
     setState(() => _answers[_q.id] = v);
     if (!_isLast) {
@@ -35,6 +54,43 @@ class _YsqScreenState extends State<YsqScreen> {
         if (mounted) setState(() => _index++);
       });
     }
+  }
+
+  // ── کلیک روی دکمه‌ی سبز ─────────────────────────────
+  void _onFinishTap() {
+    final check = _check;
+    if (check.valid) {
+      _submit();
+      return;
+    }
+    // اگه کامل نبود → پرش به اولین بی‌جواب + پیام
+    final target = _firstUnanswered ?? 0;
+    setState(() => _index = target);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(
+          '${_faNum(check.missing.length)} سؤال بی‌جواب مونده — از این‌جا ادامه بده',
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ));
+  }
+
+  void _skipToNext() {
+    final next = _nextUnansweredAfterCurrent;
+    if (next == null) {
+      // همه جواب داده شدن
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('همه‌ی سؤال‌ها جواب داده شدن ✅'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ));
+      return;
+    }
+    setState(() => _index = next);
   }
 
   Future<void> _submit() async {
@@ -46,6 +102,8 @@ class _YsqScreenState extends State<YsqScreen> {
   @override
   Widget build(BuildContext context) {
     final check = _check;
+    final answered = _answers.containsKey(_q.id);
+
     return ShenakhtShell(
       title: 'ارزیابی',
       onBack: widget.onBack,
@@ -91,12 +149,29 @@ class _YsqScreenState extends State<YsqScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFFF0F0F0)),
+                    border: Border.all(
+                      color: answered
+                          ? const Color(0xFFF0F0F0)
+                          : const Color(0xFFF59E0B),
+                      width: answered ? 1 : 2,
+                    ),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (!answered)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            '⚠️ این سؤال بی‌جواب مونده',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF92400E),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       Text(
                         _q.text,
                         style: const TextStyle(
@@ -147,30 +222,52 @@ class _YsqScreenState extends State<YsqScreen> {
                     ),
                   ],
                 ),
-                if (check.valid) ...[
-                  const SizedBox(height: 12),
-                  Material(
-                    color: SK.primary,
+                if (!check.valid) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _skipToNext,
+                    icon: const Icon(Icons.skip_next,
+                        size: 18, color: Color(0xFF92400E)),
+                    label: Text(
+                      'پرش به سؤال بی‌جواب بعدی (${_faNum(check.missing.length)} مونده)',
+                      style: const TextStyle(
+                          color: Color(0xFF92400E), fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Color(0xFFF59E0B)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Material(
+                  color: check.valid
+                      ? SK.primary
+                      : const Color(0xFFD1C4B5),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: _onFinishTap,
                     borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: _submit,
-                      borderRadius: BorderRadius.circular(12),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(
-                          child: Text(
-                            'دیدن پروفایل من',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: Text(
+                          check.valid
+                              ? 'دیدن پروفایل من'
+                              : 'دیدن پروفایل من (${_faNum(check.missing.length)} بی‌جواب)',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
                   ),
-                ],
+                ),
                 const SizedBox(height: 30),
               ],
             ),
