@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/background_store.dart';
 import '../../state/shenakht_store.dart';
+import 'ysq_screen.dart';
 
 // ═══════════════════════════════════════════════════════════
 // رنگ‌های تب شناخت
@@ -403,7 +404,6 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
   String _route = 'welcome';
 
   void _go(String r) => setState(() => _route = r);
-  void _back() => setState(() => _route = 'welcome');
 
   @override
   Widget build(BuildContext context) {
@@ -411,6 +411,33 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
 
     Widget screen;
     switch (_route) {
+      case 'ysq':
+        screen = YsqScreen(
+          onBack: () => _go('welcome'),
+          onDone: () => _go('profile'),
+        );
+        break;
+      case 'profile':
+        screen = ShenakhtShell(
+          title: 'پروفایل',
+          onBack: () => _go('welcome'),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🎉 ارزیابی انجام شد!',
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 16),
+                Text(
+                  'پروفایل واقعی رو در مرحله‌ی بعد می‌سازیم.',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        );
+        break;
       case 'welcome':
       default:
         screen = WelcomeScreen(
