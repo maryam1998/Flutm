@@ -1,6 +1,5 @@
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/emotion.dart';
@@ -13,20 +12,25 @@ class GratitudeStore extends ChangeNotifier {
   static const _kJourneyDays = 'gratitude_journey_days';
   static const _kJourneyStart = 'gratitude_journey_start';
   static const _kNeural = 'gratitude_neural';
+  static const _kSeeded = 'gratitude_neural_seeded_v1';
+  static const _kDayAfter = 'gratitude_day_after';
   static const _kJourneyPast = 'gratitude_journey_past';
+
   NeuralContainer neural = NeuralContainer();
+
+  /// حسِ «ثبت‌شده» برای هر روز (practiceEmotions[day].gratitude.after در وب)
+  final Map<String, List<String>> dayAfter = {};
+
+  /// دوره‌های تمام‌شده‌ی قبلی: [{days: int, startDate: 'yyyy-MM-dd'}]
+  final List<Map<String, dynamic>> pastPeriods = [];
 
   final List<GratitudeEntry> entries = [];
   int journeyDays = 28;
   String journeyStart = '';
-
-  /// دوره‌های تمام‌شده‌ی قبلی — مثل gratitudePeriod.past در وب
-  /// هر مورد: {'days': int, 'startDate': 'YYYY-MM-DD'}
-  final List<Map<String, dynamic>> journeyPast = [];
   bool loaded = false;
 
-  /// سقف منطقی تعداد روز یک دوره (وب سقف ندارد؛ این فقط جلوی هنگ کردن UI را می‌گیرد)
-  static const int maxPeriodDays = 3650;
+  /// آخرین ذخیره‌سازی موفق بود؟ (حافظه‌ی مرورگر ~۵MB است؛ عکس/صدای زیاد می‌تونه پرش کنه)
+  bool lastPersistOk = true;
 
   int homeLimit = 40;
   int histLimit = 40;
@@ -47,24 +51,6 @@ class GratitudeStore extends ChangeNotifier {
       if (journeyDays < 1) journeyDays = 28;
       journeyStart = sp.getString(_kJourneyStart) ?? '';
       if (journeyStart.isEmpty) journeyStart = _todayKey();
-      final pRaw = sp.getString(_kJourneyPast);
-      journeyPast.clear();
-      if (pRaw != null && pRaw.isNotEmpty) {
-        try {
-          final pl = jsonDecode(pRaw);
-          if (pl is List) {
-            for (final it in pl) {
-              if (it is Map) {
-                final d = (it['days'] as num?)?.toInt() ?? 0;
-                final st = it['startDate']?.toString() ?? '';
-                if (d > 0 && st.isNotEmpty) {
-                  journeyPast.add({'days': d, 'startDate': st});
-                }
-              }
-            }
-          }
-        } catch (_) {}
-      }
       final nRaw = sp.getString(_kNeural);
       if (nRaw != null && nRaw.isNotEmpty) {
         try {
@@ -73,6 +59,35 @@ class GratitudeStore extends ChangeNotifier {
           );
         } catch (_) {}
       }
+      final daRaw = sp.getString(_kDayAfter);
+      if (daRaw != null && daRaw.isNotEmpty) {
+        try {
+          final m = jsonDecode(daRaw);
+          if (m is Map) {
+            dayAfter.clear();
+            m.forEach((k, v) {
+              if (v is List) {
+                dayAfter[k.toString()] = v.map((e) => e.toString()).toList();
+              }
+            });
+          }
+        } catch (_) {}
+      }
+      final pRaw = sp.getString(_kJourneyPast);
+      if (pRaw != null && pRaw.isNotEmpty) {
+        try {
+          final l = jsonDecode(pRaw);
+          if (l is List) {
+            pastPeriods
+              ..clear()
+              ..addAll(l.whereType<Map>().map((m) => {
+                    'days': (m['days'] as num?)?.toInt() ?? 28,
+                    'startDate': m['startDate']?.toString() ?? '',
+                  }));
+          }
+        } catch (_) {}
+      }
+      await _seedFibersFromEntries(sp);
       neural.autoSync();
       await _persist();
     } catch (_) {}
@@ -80,18 +95,81 @@ class GratitudeStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// هر کلید جدا و در try/catch خودش ذخیره می‌شه تا اگه «entries» (که عکس/صدای
+  /// base64 داره) از سهمیه‌ی مرورگر بزرگ‌تر شد، مسیر عصبی و بقیه‌ی state گم نشن.
+  /// اول چیزهای کوچک (عصبی، دوره‌ها، حس روز)، آخر لیست ثبت‌ها.
   Future<void> _persist() async {
+    var ok = true;
+    SharedPreferences sp;
     try {
-      final sp = await SharedPreferences.getInstance();
-      await sp.setString(
-        _kEntries,
-        jsonEncode(entries.map((e) => e.toJson()).toList()),
-      );
+      sp = await SharedPreferences.getInstance();
+    } catch (e) {
+      debugPrint('GratitudeStore: prefs unavailable: $e');
+      lastPersistOk = false;
+      return;
+    }
+    Future<void> put(String key, String value) async {
+      try {
+        final r = await sp.setString(key, value);
+        if (!r) ok = false;
+      } catch (e) {
+        ok = false;
+        debugPrint('GratitudeStore: persist $key failed: $e');
+      }
+    }
+
+    try {
       await sp.setInt(_kJourneyDays, journeyDays);
       await sp.setString(_kJourneyStart, journeyStart);
-      await sp.setString(_kJourneyPast, jsonEncode(journeyPast));
-      await sp.setString(_kNeural, jsonEncode(neural.toJson()));
-    } catch (_) {}
+    } catch (e) {
+      ok = false;
+    }
+    await put(_kNeural, jsonEncode(neural.toJson()));
+    await put(_kDayAfter, jsonEncode(dayAfter));
+    await put(_kJourneyPast, jsonEncode(pastPeriods));
+    await put(_kEntries, jsonEncode(entries.map((e) => e.toJson()).toList()));
+    lastPersistOk = ok;
+  }
+
+  /// یک‌بار: ثبت‌هایی که قبل از سیم‌کشی مسیر عصبی ساخته شدن، رشته ندارن.
+  /// برای هر «ثبت» که رشته‌ای براش نیست (قدیمی‌ترین‌ها اول) یک رشته‌ی انجام‌شده
+  /// با زمان خودِ ثبت و رنگِ حسِ همون ثبت ساخته می‌شه.
+  Future<void> _seedFibersFromEntries(SharedPreferences sp) async {
+    try {
+      if (sp.getBool(_kSeeded) == true) return;
+      final real = entries.where((e) => e.source != 'purchase').toList()
+        ..sort((a, b) => a.iso.compareTo(b.iso));
+      var have = 0;
+      for (final v in neural.logs.values) {
+        if (v == true) have++;
+      }
+      final missing = real.length - have;
+      if (missing > 0) {
+        for (var i = 0; i < missing && i < real.length; i++) {
+          final e = real[i];
+          DateTime t;
+          try {
+            t = DateTime.parse(e.iso).toLocal();
+          } catch (_) {
+            continue;
+          }
+          final key =
+              'f${t.millisecondsSinceEpoch}-s${i.toString().padLeft(5, '0')}';
+          if (neural.logs.containsKey(key)) continue;
+          neural.logs[key] = true;
+          final valid =
+              e.emotionIds.where((id) => emotionById(id) != null).toList();
+          final dom = valid.isEmpty ? null : dominantEmotion(valid);
+          if (dom != null) {
+            neural.fiberEmotions[key] = NeuralFiberEmotion(
+                ids: valid, color: dom.color, freq: dom.freq);
+          }
+        }
+      }
+      await sp.setBool(_kSeeded, true);
+    } catch (e) {
+      debugPrint('GratitudeStore: seed failed: $e');
+    }
   }
 
   int get totalCount => entries.length;
@@ -105,11 +183,9 @@ class GratitudeStore extends ChangeNotifier {
 
   List<GratitudeEntry> get allReversed => entries.reversed.toList();
 
-  List<GratitudeEntry> get homeSlice =>
-      allReversed.take(homeLimit).toList();
+  List<GratitudeEntry> get homeSlice => allReversed.take(homeLimit).toList();
 
-  List<GratitudeEntry> get histSlice =>
-      allReversed.take(histLimit).toList();
+  List<GratitudeEntry> get histSlice => allReversed.take(histLimit).toList();
 
   bool get hasMoreHome => entries.length > homeLimit;
   bool get hasMoreHist => entries.length > histLimit;
@@ -147,7 +223,7 @@ class GratitudeStore extends ChangeNotifier {
 
     NeuralFiberEmotion? felt;
     if (emotions.hasSelection) {
-      final ids = emotions.selectedIds;
+      final ids = emotions.selectedIds.toList();
       final dom = dominantEmotion(ids);
       if (dom != null) {
         felt = NeuralFiberEmotion(
@@ -159,13 +235,13 @@ class GratitudeStore extends ChangeNotifier {
     }
 
     neural.addAutoFiber(emotion: felt);
-
     await _persist();
     notifyListeners();
   }
 
   Future<void> saveNeural() async {
     await _persist();
+    notifyListeners();
   }
 
   Future<GratitudeEntry> add({
@@ -173,6 +249,7 @@ class GratitudeStore extends ChangeNotifier {
     String icon = '🙏',
     List<GratitudeImage>? images,
     List<GratitudeAudio>? audios,
+    List<GratitudeVideo>? videos,
     bool shared = false,
     double? amount,
     String source = 'manual',
@@ -193,6 +270,7 @@ class GratitudeStore extends ChangeNotifier {
       image: (images != null && images.isNotEmpty) ? images.first.src : null,
       images: images ?? [],
       audios: audios ?? [],
+      videos: videos ?? [],
       amount: amount,
       date: _faDate(now),
       day: _faWeekday(now),
@@ -205,9 +283,10 @@ class GratitudeStore extends ChangeNotifier {
     );
     entries.add(e);
 
-    // منطق وب (neuralAutoAddFiber): هر ثبتِ شکرگذاری دقیقاً یک رشته‌ی تازه می‌سازد.
-    // اگر همین الان حسی انتخاب شده باشد، رشته به رنگِ فرکانسِ قوی‌ترین حس
-    // (dominant) چسبانده می‌شود و بعد انتخاب ریست می‌شود (ادمک برای دفعه‌ی بعد خالی).
+    // ─── ثبت خودکار مسیر عصبی (neuralAutoAddFiber در وب) ───
+    // هر ثبتِ شکرگذاری همیشه یک رشته‌ی «جدید» می‌سازه. اگه روی ادمک حسی
+    // انتخاب شده باشه، رشته به رنگِ قوی‌ترین حس (بالاترین فرکانس) ساخته می‌شه و
+    // بعدش ادمک ریست می‌شه تا برای دفعه‌ی بعد آماده باشه.
     NeuralFiberEmotion? felt;
     if (emoIds.isNotEmpty) {
       final dom = dominantEmotion(emoIds);
@@ -220,7 +299,7 @@ class GratitudeStore extends ChangeNotifier {
       }
     }
     neural.addAutoFiber(emotion: felt);
-    if (felt != null) emotions?.reset();
+    if (felt != null) emotions?.clear();
 
     await _persist();
     notifyListeners();
@@ -232,6 +311,7 @@ class GratitudeStore extends ChangeNotifier {
     String? text,
     List<GratitudeImage>? images,
     List<GratitudeAudio>? audios,
+    List<GratitudeVideo>? videos,
     bool? shared,
   }) async {
     final e = byId(id);
@@ -242,6 +322,7 @@ class GratitudeStore extends ChangeNotifier {
       e.image = images.isNotEmpty ? images.first.src : null;
     }
     if (audios != null) e.audios = audios;
+    if (videos != null) e.videos = videos;
     if (shared != null) e.shared = shared;
     e.editedAt = DateTime.now().millisecondsSinceEpoch;
     await _persist();
@@ -255,26 +336,81 @@ class GratitudeStore extends ChangeNotifier {
   }
 
   // ───────── احساسات روز ─────────
+  /// کیفیت حس امروز (بالاترین فرکانسِ حسِ ثبت‌شده) — برای بج مسیر عصبی.
+  /// مثل وب فقط بعد از «ثبت حس» (بستن ادمک یا ویرایش حس روز) مقدار دارد.
+  int? get emotionQualityToday {
+    final ids = dayAfter[_todayKey()];
+    if (ids == null || ids.isEmpty) return null;
+    int max = 0;
+    for (final id in ids) {
+      final e = emotionById(id);
+      if (e != null && e.freq > max) max = e.freq;
+    }
+    return max;
+  }
+
+  /// «ثبت حس» از ادمک (رویداد echw:commit وب) برای شکرگذاری.
+  Future<FeelingApply> applyCommittedFeeling(List<String> ids) async {
+    final valid = ids.where((id) => emotionById(id) != null).toList();
+    final dom = dominantEmotion(valid);
+    if (dom == null) return FeelingApply.skipped;
+    final felt = NeuralFiberEmotion(ids: valid, color: dom.color, freq: dom.freq);
+    final today = _todayKey();
+    final confirmed = entries
+        .any((e) => e.source != 'purchase' && isoToKey(e.iso) == today);
+    final r = neural.applyFeelingToToday(felt, createIfConfirmed: confirmed);
+    if (r == FeelingApply.skipped) return r;
+    dayAfter[today] = valid;
+    await _persist();
+    notifyListeners();
+    return r;
+  }
 
   Set<String> emotionIdsForDay(String dayKey) {
     final norm = _normDayKey(dayKey);
+    final after = dayAfter[norm];
+    if (after != null && after.isNotEmpty) return after.toSet();
     final out = <String>{};
     for (final e in entries) {
       if (e.source == 'purchase') continue;
       if (isoToKey(e.iso) != norm) continue;
       out.addAll(e.emotionIds);
     }
-    if (out.isEmpty) {
-      out.addAll(neural.emotionIdsForDay(norm));
+    if (out.isEmpty) out.addAll(neural.emotionIdsForDay(norm));
+    return out;
+  }
+
+  /// ⭐️ متد جدید: لیست رنگ‌های یکتای احساسات یک روز
+  /// مرتب‌شده از پرفرکانس به کم‌فرکانس — برای رسم حلقه‌ی گرادیان روی تقویم
+  List<Color> emotionColorsForDay(String dayKey) {
+    final ids = emotionIdsForDay(dayKey);
+    if (ids.isEmpty) return const [];
+
+    final emos = ids.map(emotionById).whereType<Emotion>().toList()
+      ..sort((a, b) => b.freq.compareTo(a.freq));
+
+    final seen = <String>{};
+    final out = <Color>[];
+    for (final e in emos) {
+      final hex = e.color.toLowerCase();
+      if (seen.add(hex)) out.add(_hexToColor(hex));
     }
     return out;
+  }
+
+  static Color _hexToColor(String hex) {
+    try {
+      final h = hex.replaceFirst('#', '');
+      return Color(int.parse('FF$h', radix: 16));
+    } catch (_) {
+      return const Color(0xFF2BBFAB);
+    }
   }
 
   String? dominantEmotionColorForDay(String dayKey) {
     final ids = emotionIdsForDay(dayKey);
     if (ids.isEmpty) return null;
-    final dom = dominantEmotion(ids);
-    return dom?.color;
+    return dominantEmotion(ids)?.color;
   }
 
   Future<void> updateDayEmotions(
@@ -304,6 +440,11 @@ class GratitudeStore extends ChangeNotifier {
       }
     }
     neural.recolorFibersForDay(norm, felt);
+    if (valid.isEmpty) {
+      dayAfter.remove(norm);
+    } else {
+      dayAfter[norm] = valid;
+    }
 
     await _persist();
     notifyListeners();
@@ -316,7 +457,6 @@ class GratitudeStore extends ChangeNotifier {
   }
 
   // ───────── صفحه‌بندی ─────────
-
   Future<void> showMoreHome() async {
     homeLimit += 40;
     notifyListeners();
@@ -327,53 +467,39 @@ class GratitudeStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// تعداد روزهای دوره‌ی جاری (setGratitudePeriodDays وب)
   Future<void> setJourneyDays(int days) async {
-    if (days < 1) return;
-    journeyDays = days > maxPeriodDays ? maxPeriodDays : days;
+    if (days < 1) days = 28;
+    journeyDays = days;
     await _persist();
     notifyListeners();
   }
 
-  /// شروع دوره‌ی بعدی (periodStartNext وب):
-  /// دوره‌ی جاری به past اضافه می‌شود و دوره‌ی تازه از «امروز» با [days] روز شروع می‌شود.
+  /// شروع دوره‌ی بعدی (periodStartNext وب): دوره‌ی فعلی می‌ره توی لیست
+  /// دوره‌های قبلی و دوره‌ی تازه از امروز با [days] روز شروع می‌شه.
   Future<void> startNewJourney({int? days}) async {
-    var n = days ?? journeyDays;
-    if (n < 1) n = journeyDays;
-    if (n > maxPeriodDays) n = maxPeriodDays;
-    journeyPast.add({'days': journeyDays, 'startDate': journeyStart});
-    journeyDays = n;
+    pastPeriods.add({'days': journeyDays, 'startDate': journeyStart});
+    if (days != null && days >= 1) journeyDays = days;
     journeyStart = _todayKey();
     await _persist();
     notifyListeners();
   }
 
-  /// روزهایی که حداقل یک شکرگذاری (غیر خرید) دارند — gratitudeDoneDaySet وب
+  /// روزهایی که حداقل یک شکرگذاری (غیر از خرید) ثبت شده — gratitudeDoneDaySet وب
   Set<String> get doneDayKeys {
     final out = <String>{};
     for (final e in entries) {
       if (e.source == 'purchase') continue;
-      final k = isoToKey(e.iso);
+      var k = isoToKey(e.iso);
+      if (k.isEmpty) k = _normDayKey(e.date);
       if (k.isNotEmpty) out.add(k);
     }
     return out;
   }
 
-  /// کیفیت حس امروز برای بج مسیر عصبی — getTodayEmotionQualityFor('gratitude') وب:
-  /// بیشینه‌ی فرکانس حس‌های ثبت‌شده‌ی امروز؛ اگر حسی نبود null
-  int? get todayEmotionQuality {
-    final ids = emotionIdsForDay(_todayKey());
-    if (ids.isEmpty) return null;
-    var maxFreq = 0;
-    for (final id in ids) {
-      final e = emotionById(id);
-      if (e != null && e.freq > maxFreq) maxFreq = e.freq;
-    }
-    return maxFreq;
-  }
+  /// رنگ حلقه‌ی روز در تقویم = قوی‌ترین حسِ آن روز (مثل وب)
+  String? dayRingColor(String dayKey) => dominantEmotionColorForDay(dayKey);
 
-  // ---------- helpers ----------
-
+  // ───────── helpers ─────────
   static String _todayKey() {
     final d = DateTime.now();
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -397,12 +523,11 @@ class GratitudeStore extends ChangeNotifier {
 
   static const _faWeekdays = [
     'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه',
-    'جمعه', 'شنبه', 'یکشنبه'
+    'جمعه', 'شنبه', 'یکشنبه',
   ];
 
-  static String _faDate(DateTime d) {
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  }
+  static String _faDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   static String _faWeekday(DateTime d) => _faWeekdays[d.weekday - 1];
 
