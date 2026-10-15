@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../models/shenakht/progress_entry.dart';
 import '../../state/background_store.dart';
 import '../../state/shenakht_store.dart';
+import 'acceptance_screen.dart';
 import 'calendar_screen.dart';
+import 'checkin_screen.dart';
 import 'cycle_screen.dart';
 import 'cycle_summary_screen.dart';
 import 'exercise_screen.dart';
@@ -14,12 +16,11 @@ import 'mission_screen.dart';
 import 'origin_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
+import 'search_screen.dart';
+import 'sos_screen.dart';
 import 'wins_screen.dart';
 import 'ysq_screen.dart';
 
-// ═══════════════════════════════════════════════════════════
-// رنگ‌های تب شناخت
-// ═══════════════════════════════════════════════════════════
 class SK {
   static const primary = Color(0xFF1A3D2C);
   static const grad1 = Color(0xFF0A3D38);
@@ -38,13 +39,11 @@ class SK {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// Shell
-// ═══════════════════════════════════════════════════════════
 class ShenakhtShell extends StatelessWidget {
   final String title;
   final VoidCallback? onBack;
   final VoidCallback? onSOS;
+  final VoidCallback? onSearch;
   final Widget child;
 
   const ShenakhtShell({
@@ -52,6 +51,7 @@ class ShenakhtShell extends StatelessWidget {
     required this.title,
     this.onBack,
     this.onSOS,
+    this.onSearch,
     required this.child,
   });
 
@@ -92,7 +92,23 @@ class ShenakhtShell extends StatelessWidget {
                       fontWeight: FontWeight.w700, fontSize: 15),
                 ),
               ),
-              if (onSOS != null)
+              if (onSearch != null)
+                InkWell(
+                  onTap: onSearch,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFEEEEEE)),
+                      color: Colors.white,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('🔍', style: TextStyle(fontSize: 14)),
+                  ),
+                )
+              else if (onSOS != null)
                 InkWell(
                   onTap: onSOS,
                   borderRadius: BorderRadius.circular(8),
@@ -120,9 +136,6 @@ class ShenakhtShell extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// Welcome Screen
-// ═══════════════════════════════════════════════════════════
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onStart;
   final VoidCallback onProfile;
@@ -131,6 +144,7 @@ class WelcomeScreen extends StatelessWidget {
   final VoidCallback onRelationships;
   final VoidCallback onAcceptance;
   final VoidCallback onSOS;
+  final VoidCallback onSearch;
 
   const WelcomeScreen({
     super.key,
@@ -141,6 +155,7 @@ class WelcomeScreen extends StatelessWidget {
     required this.onRelationships,
     required this.onAcceptance,
     required this.onSOS,
+    required this.onSearch,
   });
 
   @override
@@ -150,6 +165,7 @@ class WelcomeScreen extends StatelessWidget {
     return ShenakhtShell(
       title: 'الگوهای من',
       onSOS: onSOS,
+      onSearch: onSearch,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -374,9 +390,6 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// ShenakhtTab
-// ═══════════════════════════════════════════════════════════
 class ShenakhtTab extends StatefulWidget {
   const ShenakhtTab({super.key});
   @override
@@ -405,11 +418,12 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
   Widget _fallback() => WelcomeScreen(
         onStart: () => _go('ysq'),
         onProfile: () => _go('profile'),
-        onLifeCycles: () {},
-        onSituations: () {},
-        onRelationships: () {},
-        onAcceptance: () {},
-        onSOS: () {},
+        onLifeCycles: () => _go('life_cycles'),
+        onSituations: () => _go('situations'),
+        onRelationships: () => _go('relationships'),
+        onAcceptance: () => _go('acceptance'),
+        onSOS: () => _go('sos'),
+        onSearch: () => _go('search'),
       );
 
   Future<void> _saveEntry({
@@ -568,6 +582,36 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
 
       case 'calendar':
         screen = CalendarScreen(onBack: () => _go('profile'));
+        break;
+
+      case 'sos':
+        screen = SosScreen(onBack: () => _go('welcome'));
+        break;
+
+      case 'checkin':
+        screen = CheckinScreen(
+          onBack: () => _go('welcome'),
+          onSkip: () => _go('welcome'),
+          onDone: () => _go('profile'),
+        );
+        break;
+
+      case 'search':
+        screen = SearchScreen(
+          onBack: () => _go('welcome'),
+          onPickSchema: _openCycle,
+        );
+        break;
+
+      case 'acceptance':
+        screen = AcceptanceScreen(onBack: () => _go('welcome'));
+        break;
+
+      // این‌ها در پیام بعدی می‌آن:
+      case 'life_cycles':
+      case 'situations':
+      case 'relationships':
+        screen = _fallback();
         break;
 
       case 'welcome':
