@@ -13,6 +13,7 @@ class GratitudeStore extends ChangeNotifier {
   static const _kJourneyDays = 'gratitude_journey_days';
   static const _kJourneyStart = 'gratitude_journey_start';
   static const _kNeural = 'gratitude_neural';
+
   NeuralContainer neural = NeuralContainer();
 
   final List<GratitudeEntry> entries = [];
@@ -78,11 +79,9 @@ class GratitudeStore extends ChangeNotifier {
 
   List<GratitudeEntry> get allReversed => entries.reversed.toList();
 
-  List<GratitudeEntry> get homeSlice =>
-      allReversed.take(homeLimit).toList();
+  List<GratitudeEntry> get homeSlice => allReversed.take(homeLimit).toList();
 
-  List<GratitudeEntry> get histSlice =>
-      allReversed.take(histLimit).toList();
+  List<GratitudeEntry> get histSlice => allReversed.take(histLimit).toList();
 
   bool get hasMoreHome => entries.length > homeLimit;
   bool get hasMoreHist => entries.length > histLimit;
@@ -146,6 +145,7 @@ class GratitudeStore extends ChangeNotifier {
     String icon = '🙏',
     List<GratitudeImage>? images,
     List<GratitudeAudio>? audios,
+    List<GratitudeVideo>? videos,
     bool shared = false,
     double? amount,
     String source = 'manual',
@@ -166,6 +166,7 @@ class GratitudeStore extends ChangeNotifier {
       image: (images != null && images.isNotEmpty) ? images.first.src : null,
       images: images ?? [],
       audios: audios ?? [],
+      videos: videos ?? [],
       amount: amount,
       date: _faDate(now),
       day: _faWeekday(now),
@@ -182,22 +183,12 @@ class GratitudeStore extends ChangeNotifier {
     if (emoIds.isNotEmpty) {
       final dom = dominantEmotion(emoIds);
       if (dom != null) {
-        felt = NeuralFiberEmotion(
-          ids: emoIds,
-          color: dom.color,
-          freq: dom.freq,
-        );
+        felt = NeuralFiberEmotion(ids: emoIds, color: dom.color, freq: dom.freq);
       }
-      // توجه: emotions?.reset() حذف شد تا انتخاب بین ثبت‌های روز حفظ شود.
     }
-
-    // اگر حس داشت، آخرین رشته‌ی بدون‌احساس را رنگ کن
-    // وگرنه یک رشته‌ی جدید بدون‌رنگ بساز
     if (felt != null) {
       final colored = neural.colorLatestUncolored(felt);
-      if (!colored) {
-        neural.addAutoFiber(emotion: felt);
-      }
+      if (!colored) neural.addAutoFiber(emotion: felt);
     } else {
       neural.addAutoFiber();
     }
@@ -212,6 +203,7 @@ class GratitudeStore extends ChangeNotifier {
     String? text,
     List<GratitudeImage>? images,
     List<GratitudeAudio>? audios,
+    List<GratitudeVideo>? videos,
     bool? shared,
   }) async {
     final e = byId(id);
@@ -222,6 +214,7 @@ class GratitudeStore extends ChangeNotifier {
       e.image = images.isNotEmpty ? images.first.src : null;
     }
     if (audios != null) e.audios = audios;
+    if (videos != null) e.videos = videos;
     if (shared != null) e.shared = shared;
     e.editedAt = DateTime.now().millisecondsSinceEpoch;
     await _persist();
@@ -235,7 +228,6 @@ class GratitudeStore extends ChangeNotifier {
   }
 
   // ───────── احساسات روز ─────────
-
   Set<String> emotionIdsForDay(String dayKey) {
     final norm = _normDayKey(dayKey);
     final out = <String>{};
@@ -244,23 +236,17 @@ class GratitudeStore extends ChangeNotifier {
       if (isoToKey(e.iso) != norm) continue;
       out.addAll(e.emotionIds);
     }
-    if (out.isEmpty) {
-      out.addAll(neural.emotionIdsForDay(norm));
-    }
+    if (out.isEmpty) out.addAll(neural.emotionIdsForDay(norm));
     return out;
   }
 
   String? dominantEmotionColorForDay(String dayKey) {
     final ids = emotionIdsForDay(dayKey);
     if (ids.isEmpty) return null;
-    final dom = dominantEmotion(ids);
-    return dom?.color;
+    return dominantEmotion(ids)?.color;
   }
 
-  Future<void> updateDayEmotions(
-    String dayKey,
-    List<String> emotionIds,
-  ) async {
+  Future<void> updateDayEmotions(String dayKey, List<String> emotionIds) async {
     final norm = _normDayKey(dayKey);
     final valid =
         emotionIds.where((id) => emotionById(id) != null).toSet().toList();
@@ -276,11 +262,7 @@ class GratitudeStore extends ChangeNotifier {
     if (valid.isNotEmpty) {
       final dom = dominantEmotion(valid);
       if (dom != null) {
-        felt = NeuralFiberEmotion(
-          ids: valid,
-          color: dom.color,
-          freq: dom.freq,
-        );
+        felt = NeuralFiberEmotion(ids: valid, color: dom.color, freq: dom.freq);
       }
     }
     neural.recolorFibersForDay(norm, felt);
@@ -296,7 +278,6 @@ class GratitudeStore extends ChangeNotifier {
   }
 
   // ───────── صفحه‌بندی ─────────
-
   Future<void> showMoreHome() async {
     homeLimit += 40;
     notifyListeners();
@@ -320,8 +301,7 @@ class GratitudeStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---------- helpers ----------
-
+  // ───────── helpers ─────────
   static String _todayKey() {
     final d = DateTime.now();
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -348,9 +328,8 @@ class GratitudeStore extends ChangeNotifier {
     'جمعه', 'شنبه', 'یکشنبه'
   ];
 
-  static String _faDate(DateTime d) {
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  }
+  static String _faDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   static String _faWeekday(DateTime d) => _faWeekdays[d.weekday - 1];
 
