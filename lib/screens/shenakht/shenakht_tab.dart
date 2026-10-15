@@ -11,12 +11,19 @@ import 'checkin_screen.dart';
 import 'cycle_screen.dart';
 import 'cycle_summary_screen.dart';
 import 'exercise_screen.dart';
+import 'life_cycle_detail_screen.dart';
+import 'life_cycles_screen.dart';
 import 'log_result_screen.dart';
 import 'mission_screen.dart';
 import 'origin_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
+import 'relationship_detail_screen.dart';
+import 'relationships_screen.dart';
+import 'response_guide_screen.dart';
 import 'search_screen.dart';
+import 'situation_detail_screen.dart';
+import 'situations_screen.dart';
 import 'sos_screen.dart';
 import 'wins_screen.dart';
 import 'ysq_screen.dart';
@@ -399,6 +406,10 @@ class ShenakhtTab extends StatefulWidget {
 class _ShenakhtTabState extends State<ShenakhtTab> {
   String _route = 'welcome';
   String? _activeSchemaId;
+  String? _activeCycleId;
+  String? _activeSituationId;
+  String? _activePatternId;
+  String? _activeGuideSchemaId;
   CycleSelection? _cycleSelection;
   Map<String, dynamic>? _exerciseRecord;
   MissionRecord? _missionRecord;
@@ -412,6 +423,34 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
       _exerciseRecord = null;
       _missionRecord = null;
       _route = 'cycle';
+    });
+  }
+
+  void _openLifeCycle(String cycleId) {
+    setState(() {
+      _activeCycleId = cycleId;
+      _route = 'life_cycle_detail';
+    });
+  }
+
+  void _openSituation(String situationId) {
+    setState(() {
+      _activeSituationId = situationId;
+      _route = 'situation_detail';
+    });
+  }
+
+  void _openPattern(String patternId) {
+    setState(() {
+      _activePatternId = patternId;
+      _route = 'relationship_detail';
+    });
+  }
+
+  void _openGuide(String schemaId) {
+    setState(() {
+      _activeGuideSchemaId = schemaId;
+      _route = 'response_guide';
     });
   }
 
@@ -607,11 +646,65 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
         screen = AcceptanceScreen(onBack: () => _go('welcome'));
         break;
 
-      // این‌ها در پیام بعدی می‌آن:
       case 'life_cycles':
+        screen = LifeCyclesScreen(
+          onBack: () => _go('welcome'),
+          onPickCycle: _openLifeCycle,
+        );
+        break;
+
+      case 'life_cycle_detail':
+        screen = _activeCycleId == null
+            ? _fallback()
+            : LifeCycleDetailScreen(
+                cycleId: _activeCycleId!,
+                onBack: () => _go('life_cycles'),
+                onPickSchema: _openCycle,
+              );
+        break;
+
       case 'situations':
+        screen = SituationsScreen(
+          onBack: () => _go('welcome'),
+          onPickSituation: _openSituation,
+        );
+        break;
+
+      case 'situation_detail':
+        screen = _activeSituationId == null
+            ? _fallback()
+            : SituationDetailScreen(
+                situationId: _activeSituationId!,
+                onBack: () => _go('situations'),
+                onPickSchema: _openCycle,
+              );
+        break;
+
       case 'relationships':
-        screen = _fallback();
+        screen = RelationshipsScreen(
+          onBack: () => _go('welcome'),
+          onPickPattern: _openPattern,
+          onPickResponseGuide: _openGuide,
+        );
+        break;
+
+      case 'relationship_detail':
+        screen = _activePatternId == null
+            ? _fallback()
+            : RelationshipDetailScreen(
+                patternId: _activePatternId!,
+                onBack: () => _go('relationships'),
+                onPickSchema: _openCycle,
+              );
+        break;
+
+      case 'response_guide':
+        screen = _activeGuideSchemaId == null
+            ? _fallback()
+            : ResponseGuideScreen(
+                schemaId: _activeGuideSchemaId!,
+                onBack: () => _go('relationships'),
+              );
         break;
 
       case 'welcome':
