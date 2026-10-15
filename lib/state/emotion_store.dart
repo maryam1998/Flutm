@@ -1,65 +1,51 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/emotion.dart';
 
-/// انتخاب فعلی توی ویجت شناور «آدم و احساسات».
-/// - انتخاب بین باز/بسته شدن پنل حفظ می‌شود.
-/// - فقط با شروع روز جدید ریست می‌شود.
 class EmotionStore extends ChangeNotifier {
-  static const _kSelected = 'echwSelectedEmotions_v5';
-  static const _kDayKey = 'echwSelectedDay_v1';
+  static const _kSelected = 'emotion_selected_v5';
 
   final Set<String> _selected = {};
-
-  String? capturePhase;
-  String? capturePracticeKey;
-  String? captureLabel;
-  String? editingEntryId;
-
-  void Function(List<String> ids)? _onCaptureSave;
-  void Function(List<String> ids)? onCommitClose;
-
-  bool loaded = false;
-
-  List<String> get selectedIds => _selected.toList();
+  Set<String> get selectedIds => Set.unmodifiable(_selected);
   bool get hasSelection => _selected.isNotEmpty;
-  bool get isCapturing => capturePhase != null;
-  bool get isEditingEntry => capturePhase == 'entry';
+  int get selectedCount => _selected.length;
 
-  static String _todayKey() {
-    final d = DateTime.now();
-    return '${d.year}-${d.month}-${d.day}';
+  // ─── capture ───
+  bool _capturing = false;
+  bool get isCapturing => _capturing;
+
+  String? _capturePhase; // 'before' | 'after' | 'entry'
+  String? get capturePhase => _capturePhase;
+
+  String? _captureLabel;
+  String? get captureLabel => _captureLabel;
+
+  String? _capturePracticeKey;
+  String? get capturePracticeKey => _capturePracticeKey;
+
+  String? _captureDayKey;
+  String? get captureDayKey => _captureDayKey;
+
+  /// کال‌بکِ ثبت — از `main.dart` ست می‌شود.
+  Future<void> Function(List<String> ids, String dayKey)? onEmotionsCommitted;
+
+  EmotionStore() {
+    _load();
   }
 
-  Future<void> load() async {
+  Future<void> _load() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final storedDay = sp.getString(_kDayKey);
-      final today = _todayKey();
-
-      if (storedDay != today) {
-        // روز جدید → انتخاب پاک می‌شود
-        _selected.clear();
-        await sp.remove(_kSelected);
-        await sp.setString(_kDayKey, today);
-      } else {
-        final raw = sp.getString(_kSelected);
-        if (raw != null && raw.isNotEmpty) {
-          final list = jsonDecode(raw);
-          if (list is List) {
-            _selected
-              ..clear()
-              ..addAll(list
-                  .map((e) => e.toString())
-                  .where((id) => emotionById(id) != null));
-          }
+      final raw = sp.getString(_kSelected);
+      if (raw != null && raw.isNotEmpty) {
+        final list = jsonDecode(raw);
+        if (list is List) {
+          _selected.addAll(list.map((e) => e.toString()));
         }
       }
     } catch (_) {}
-    loaded = true;
     notifyListeners();
   }
 
@@ -67,11 +53,11 @@ class EmotionStore extends ChangeNotifier {
     try {
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kSelected, jsonEncode(_selected.toList()));
-      await sp.setString(_kDayKey, _todayKey());
     } catch (_) {}
   }
 
   void toggle(String id) {
+    if (emotionById(id) == null) return;
     if (_selected.contains(id)) {
       _selected.remove(id);
     } else {
@@ -81,7 +67,7 @@ class EmotionStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSelection(List<String> ids) {
+  void setSelected(Iterable<String> ids) {
     _selected
       ..clear()
       ..addAll(ids.where((id) => emotionById(id) != null));
@@ -89,61 +75,94 @@ class EmotionStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void reset() {
+  void clear() {
     if (_selected.isEmpty) return;
     _selected.clear();
     _persist();
     notifyListeners();
   }
 
-  void beginCapture({
-    required String phase,
+  void reset() => clear();
+
+  /// شروع یک sessionِ ثبت (قبل/بعد/ویرایش)
+  Future<void> beginCapture({
     required String practiceKey,
-    required String label,
-    List<String>? initial,
-    String? entryId,
-    void Function(List<String> ids)? onSave,
-  }) {
-    capturePhase = phase;
-    capturePracticeKey = practiceKey;
-    captureLabel = label;
-    editingEntryId = entryId;
-    _onCaptureSave = onSave;
+    required String phase,
+    String? label,
+    List<String> initial = const [],
+    String? dayKey,
+  }) async {
+    _capturing = true;
+    _capturePracticeKey = practiceKey;
+    _capturePhase = phase;
+    _captureLabel = label;
+    _captureDayKey = dayKey ?? _todayKey();
     _selected
       ..clear()
-      ..addAll((initial ?? const [])
-          .where((id) => emotionById(id) != null));
+      ..addAll(initial.where((id) => emotionById(id) != null));
     _persist();
     notifyListeners();
   }
 
-  void endCapture() {
-    capturePhase = null;
-    capturePracticeKey = null;
-    captureLabel = null;
-    editingEntryId = null;
-    _onCaptureSave = null;
+  /// ذخیره‌ی captureِ فعلی و پاک کردن state
+  Future<void> saveCapture() async {
+    if (!_capturing) return;
+    final ids = _selected.toList();
+    final dayKey = _captureDayKey ?? _todayKey();
+
+    _capturing = false;
+    _capturePhase = null;
+    _captureLabel = null;
+    _capturePracticeKey = null;
+    _captureDayKey = null;
+
+    if (ids.isNotEmpty && onEmotionsCommitted != null) {
+      await onEmotionsCommitted!(ids, dayKey);
+    }
+
+    _persist();
     notifyListeners();
   }
 
-  void saveCapture() {
-    final ids = selectedIds;
-    final cb = _onCaptureSave;
-    _onCaptureSave = null;
-    endCapture();
-    cb?.call(ids);
+  Future<void> cancelCapture() async {
+    _capturing = false;
+    _capturePhase = null;
+    _captureLabel = null;
+    _capturePracticeKey = null;
+    _captureDayKey = null;
+    notifyListeners();
   }
 
-  void cancelCapture() {
-    _onCaptureSave = null;
-    endCapture();
-  }
-
-  /// بستن پنل با یک انتخاب: یک رشته‌ی عصبی رنگ می‌گیرد.
-  /// **انتخاب حفظ می‌شود** (ریست نمی‌شود).
-  void fireCommitClose() {
-    if (isCapturing) return;
+  /// وقتی کاربر دکمه‌ی شناور رو می‌بندد و انتخاب دارد، این صدا زده می‌شود.
+  Future<void> fireCommitClose() async {
     if (_selected.isEmpty) return;
-    onCommitClose?.call(_selected.toList());
+    if (_capturing) {
+      await saveCapture();
+      return;
+    }
+    final ids = _selected.toList();
+    final dayKey = _todayKey();
+    if (onEmotionsCommitted != null) {
+      await onEmotionsCommitted!(ids, dayKey);
+    }
+    // طبق رفتار وب، بعد از commit، انتخاب پاک می‌شود
+    _selected.clear();
+    _persist();
+    notifyListeners();
+  }
+
+  static String _todayKey() {
+    final d = DateTime.now();
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  int get emotionQuality {
+    if (_selected.isEmpty) return 0;
+    int max = 0;
+    for (final id in _selected) {
+      final e = emotionById(id);
+      if (e != null && e.freq > max) max = e.freq;
+    }
+    return max;
   }
 }
