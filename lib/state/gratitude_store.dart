@@ -12,8 +12,12 @@ class GratitudeStore extends ChangeNotifier {
   static const _kJourneyDays = 'gratitude_journey_days';
   static const _kJourneyStart = 'gratitude_journey_start';
   static const _kNeural = 'gratitude_neural';
+  static const _kDayAfter = 'gratitude_day_after';
 
   NeuralContainer neural = NeuralContainer();
+
+  /// حسِ «ثبت‌شده» برای هر روز (practiceEmotions[day].gratitude.after در وب)
+  final Map<String, List<String>> dayAfter = {};
 
   final List<GratitudeEntry> entries = [];
   int journeyDays = 28;
@@ -47,6 +51,20 @@ class GratitudeStore extends ChangeNotifier {
           );
         } catch (_) {}
       }
+      final daRaw = sp.getString(_kDayAfter);
+      if (daRaw != null && daRaw.isNotEmpty) {
+        try {
+          final m = jsonDecode(daRaw);
+          if (m is Map) {
+            dayAfter.clear();
+            m.forEach((k, v) {
+              if (v is List) {
+                dayAfter[k.toString()] = v.map((e) => e.toString()).toList();
+              }
+            });
+          }
+        } catch (_) {}
+      }
       neural.autoSync();
       await _persist();
     } catch (_) {}
@@ -64,6 +82,7 @@ class GratitudeStore extends ChangeNotifier {
       await sp.setInt(_kJourneyDays, journeyDays);
       await sp.setString(_kJourneyStart, journeyStart);
       await sp.setString(_kNeural, jsonEncode(neural.toJson()));
+      await sp.setString(_kDayAfter, jsonEncode(dayAfter));
     } catch (_) {}
   }
 
@@ -178,24 +197,23 @@ class GratitudeStore extends ChangeNotifier {
     );
     entries.add(e);
 
-    // ─── ثبت خودکار یک رشته‌ی عصبی ───
+    // ─── ثبت خودکار مسیر عصبی (neuralAutoAddFiber در وب) ───
+    // هر ثبتِ شکرگذاری همیشه یک رشته‌ی «جدید» می‌سازه. اگه روی ادمک حسی
+    // انتخاب شده باشه، رشته به رنگِ قوی‌ترین حس (بالاترین فرکانس) ساخته می‌شه و
+    // بعدش ادمک ریست می‌شه تا برای دفعه‌ی بعد آماده باشه.
     NeuralFiberEmotion? felt;
     if (emoIds.isNotEmpty) {
       final dom = dominantEmotion(emoIds);
       if (dom != null) {
         felt = NeuralFiberEmotion(
-          ids: emoIds,
+          ids: List.of(emoIds),
           color: dom.color,
           freq: dom.freq,
         );
       }
     }
-    if (felt != null) {
-      final colored = neural.colorLatestUncolored(felt);
-      if (!colored) neural.addAutoFiber(emotion: felt);
-    } else {
-      neural.addAutoFiber();
-    }
+    neural.addAutoFiber(emotion: felt);
+    if (felt != null) emotions?.clear();
 
     await _persist();
     notifyListeners();
@@ -232,8 +250,40 @@ class GratitudeStore extends ChangeNotifier {
   }
 
   // ───────── احساسات روز ─────────
+  /// کیفیت حس امروز (بالاترین فرکانسِ حسِ ثبت‌شده) — برای بج مسیر عصبی.
+  /// مثل وب فقط بعد از «ثبت حس» (بستن ادمک یا ویرایش حس روز) مقدار دارد.
+  int? get emotionQualityToday {
+    final ids = dayAfter[_todayKey()];
+    if (ids == null || ids.isEmpty) return null;
+    int max = 0;
+    for (final id in ids) {
+      final e = emotionById(id);
+      if (e != null && e.freq > max) max = e.freq;
+    }
+    return max;
+  }
+
+  /// «ثبت حس» از ادمک (رویداد echw:commit وب) برای شکرگذاری.
+  Future<FeelingApply> applyCommittedFeeling(List<String> ids) async {
+    final valid = ids.where((id) => emotionById(id) != null).toList();
+    final dom = dominantEmotion(valid);
+    if (dom == null) return FeelingApply.skipped;
+    final felt = NeuralFiberEmotion(ids: valid, color: dom.color, freq: dom.freq);
+    final today = _todayKey();
+    final confirmed = entries
+        .any((e) => e.source != 'purchase' && isoToKey(e.iso) == today);
+    final r = neural.applyFeelingToToday(felt, createIfConfirmed: confirmed);
+    if (r == FeelingApply.skipped) return r;
+    dayAfter[today] = valid;
+    await _persist();
+    notifyListeners();
+    return r;
+  }
+
   Set<String> emotionIdsForDay(String dayKey) {
     final norm = _normDayKey(dayKey);
+    final after = dayAfter[norm];
+    if (after != null && after.isNotEmpty) return after.toSet();
     final out = <String>{};
     for (final e in entries) {
       if (e.source == 'purchase') continue;
@@ -304,6 +354,11 @@ class GratitudeStore extends ChangeNotifier {
       }
     }
     neural.recolorFibersForDay(norm, felt);
+    if (valid.isEmpty) {
+      dayAfter.remove(norm);
+    } else {
+      dayAfter[norm] = valid;
+    }
 
     await _persist();
     notifyListeners();

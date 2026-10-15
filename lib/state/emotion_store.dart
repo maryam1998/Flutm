@@ -31,6 +31,11 @@ class EmotionStore extends ChangeNotifier {
   /// کال‌بکِ ثبت — از `main.dart` ست می‌شود.
   Future<void> Function(List<String> ids, String dayKey)? onEmotionsCommitted;
 
+  /// «ثبت حس» هنگام بستنِ ادمک با حسِ انتخاب‌شده (echw:commit وب).
+  /// اگه حداقل یک تمرین حس رو گرفت `true` برمی‌گرده و انتخاب ریست می‌شه؛
+  /// وگرنه (هیچ تمرینی امروز انجام نشده) انتخاب می‌مونه تا ثبت بعدی مصرفش کنه.
+  Future<bool> Function(List<String> ids)? onCommitClose;
+
   EmotionStore() {
     _load();
   }
@@ -141,14 +146,18 @@ class EmotionStore extends ChangeNotifier {
       return;
     }
     final ids = _selected.toList();
-    final dayKey = _todayKey();
-    if (onEmotionsCommitted != null) {
-      await onEmotionsCommitted!(ids, dayKey);
+    var consumed = false;
+    if (onCommitClose != null) {
+      consumed = await onCommitClose!(ids);
+    } else if (onEmotionsCommitted != null) {
+      await onEmotionsCommitted!(ids, _todayKey());
+      consumed = true;
     }
-    // طبق رفتار وب، بعد از commit، انتخاب پاک می‌شود
-    _selected.clear();
-    _persist();
-    notifyListeners();
+    if (consumed) {
+      _selected.clear();
+      _persist();
+      notifyListeners();
+    }
   }
 
   static String _todayKey() {

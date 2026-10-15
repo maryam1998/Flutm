@@ -1,5 +1,8 @@
 import 'dart:math';
 
+/// نتیجه‌ی اعمال «حس ثبت‌شده» روی یک مسیر عصبی (echwApplyFeelingToContainer وب)
+enum FeelingApply { skipped, doneNoChange, applied }
+
 /// احساسِ همراهِ یک رشته‌ی عصبی
 class NeuralFiberEmotion {
   final List<String> ids;
@@ -95,6 +98,36 @@ class NeuralContainer {
 
   String addAutoFiber({NeuralFiberEmotion? emotion}) =>
       addFiber(calendarLinked: false, emotion: emotion);
+
+  /// وقتی کاربر ادمک رو با حس انتخاب‌شده می‌بنده («ثبت حس»):
+  ///  • اگه امروز رشته‌ای هست، فقط رشته‌های امروزِ بدون‌حس رنگ حس می‌گیرن
+  ///  • اگه رشته‌ای نیست و تمرین امروز واقعاً انجام شده ([createIfConfirmed])،
+  ///    یک رشته‌ی جدید با همون حس ساخته می‌شه
+  ///  • وگرنه تمرین انجام نشده و [FeelingApply.skipped] برمی‌گرده
+  FeelingApply applyFeelingToToday(
+    NeuralFiberEmotion felt, {
+    bool createIfConfirmed = false,
+  }) {
+    final today = todayKey();
+    final keys = logs.keys
+        .where((k) => logs[k] == true && (k == today || _isFiberFromToday(k)))
+        .toList();
+    if (keys.isEmpty) {
+      if (!createIfConfirmed) return FeelingApply.skipped;
+      final nk = _newFiberKey();
+      logs[nk] = true;
+      fiberEmotions[nk] = felt;
+      return FeelingApply.applied;
+    }
+    var applied = false;
+    for (final k in keys) {
+      if (!fiberEmotions.containsKey(k)) {
+        fiberEmotions[k] = felt;
+        applied = true;
+      }
+    }
+    return applied ? FeelingApply.applied : FeelingApply.doneNoChange;
+  }
 
   void markDay(String key, bool done) {
     if (logs[key] == done) {

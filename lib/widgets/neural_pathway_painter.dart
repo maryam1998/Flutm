@@ -66,6 +66,12 @@ class NeuralPathwayPainter extends CustomPainter {
     final drawCount =
         fiberCount < trueKeys.length ? fiberCount : trueKeys.length;
 
+    // مثل وب: رشته‌های «با حس» همون ترتیبِ ثبتشون رو دارن و i‌امین رشته‌ی
+    // کشیده‌شده رنگِ i‌امین حسِ ثبت‌شده رو می‌گیره (رنگ = قوی‌ترین حس)
+    final feltKeys = container.fiberEmotions.keys
+        .where((k) => container.logs[k] == true)
+        .toList();
+
     const defaultColor = kEmerald500;
     const defaultOpacity = 0.55;
     const defaultWidth = 1.0;
@@ -74,7 +80,6 @@ class NeuralPathwayPainter extends CustomPainter {
     const spreadCycle = 9;
 
     for (int i = 0; i < drawCount; i++) {
-      final key = trueKeys[i];
       final pairIdx = (i ~/ 2) % spreadCycle;
       final mag = 3.0 + 6.0 * pairIdx;
       final off = (i % 2 == 0 ? -1 : 1) * mag;
@@ -87,9 +92,10 @@ class NeuralPathwayPainter extends CustomPainter {
       double fWidth = defaultWidth;
       double fOpacity = defaultOpacity;
 
-      final felt = container.fiberEmotions[key];
-      if (felt != null && felt.ids.isNotEmpty) {
-        fColor = blendEmotionColors(felt.ids);
+      final felt =
+          feltKeys.length > i ? container.fiberEmotions[feltKeys[i]] : null;
+      if (felt != null) {
+        fColor = _parseHex(felt.color);
         fWidth = feltWidth;
         fOpacity = feltOpacity;
       }

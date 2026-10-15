@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'models/neural_container.dart';
 import 'services/storage.dart';
 import 'state/abundance_store.dart';
 import 'state/angels_store.dart';
@@ -47,6 +48,25 @@ Future<void> main() async {
   await beliefs.load();
   await abundance.load();
   await angels.load();
+
+  // «ثبت حس» با بستن ادمک (echw:commit در وب): همه‌ی تمرین‌های امروز که
+  // انجام شده‌ن رنگ حس می‌گیرن؛ اگه هیچ تمرینی نبود انتخاب نگه داشته می‌شه.
+  emotions.onCommitClose = (ids) async {
+    final g = await gratitude.applyCommittedFeeling(ids);
+    final b = await beliefs.applyCommittedFeeling(ids);
+    final done =
+        g != FeelingApply.skipped || b != FeelingApply.skipped;
+    if (done) {
+      kMessengerKey.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('حس ثبت شد و رشته‌ی عصبی ساخته شد 🧠'),
+          duration: Duration(milliseconds: 1800),
+          behavior: SnackBarBehavior.floating,
+        ));
+    }
+    return done;
+  };
 
   runApp(MultiProvider(
     providers: [

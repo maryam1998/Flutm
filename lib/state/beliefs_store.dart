@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/future_text_format.dart';
 import '../models/future_version.dart';
+import '../models/emotion.dart';
 import '../models/neural_container.dart';
 
 const int kFutureDefaultDays = 90;
@@ -121,6 +122,25 @@ class BeliefsStore extends ChangeNotifier {
   void setSeedNote(String key, String value) {
     seedNotes[key] = value;
     _persist();
+  }
+
+  /// «ثبت حس» از ادمک برای مسیرهای عصبیِ این تب:
+  /// تمرین باور (اگه امروز خونده شده باشه رشته‌ی جدید هم می‌سازه) و ردیابی RAS.
+  Future<FeelingApply> applyCommittedFeeling(List<String> ids) async {
+    final valid = ids.where((id) => emotionById(id) != null).toList();
+    final dom = dominantEmotion(valid);
+    if (dom == null) return FeelingApply.skipped;
+    final felt = NeuralFiberEmotion(ids: valid, color: dom.color, freq: dom.freq);
+    final r1 = neural.applyFeelingToToday(felt, createIfConfirmed: hasReadToday);
+    final r2 = missionNeural.applyFeelingToToday(felt);
+    if (r1 == FeelingApply.skipped && r2 == FeelingApply.skipped) {
+      return FeelingApply.skipped;
+    }
+    await _persist();
+    notifyListeners();
+    return (r1 == FeelingApply.applied || r2 == FeelingApply.applied)
+        ? FeelingApply.applied
+        : FeelingApply.doneNoChange;
   }
 
   Future<void> saveNeural() async {

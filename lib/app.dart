@@ -13,6 +13,10 @@ import 'widgets/emotion_widget_layer.dart';
 import 'widgets/motivation_bar.dart';
 import 'widgets/web_tab_bars.dart';
 
+/// برای نمایش پیام (SnackBar) از بیرون از درخت ویجت‌ها
+final GlobalKey<ScaffoldMessengerState> kMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 class MaghzApp extends StatelessWidget {
   const MaghzApp({super.key});
 
@@ -20,6 +24,7 @@ class MaghzApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeStore>();
     return MaterialApp(
+      scaffoldMessengerKey: kMessengerKey,
       title: 'بی‌نهایت راه',
       debugShowCheckedModeBanner: false,
       locale: const Locale('fa'),

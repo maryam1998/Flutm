@@ -92,6 +92,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
               child: NeuralPathway(
                 container: store.neural,
                 label: 'شکرگذاری',
+                showDayButtons: false,
                 onChange: () => store.saveNeural(),
                 emotionQualityToday: _emotionQualityToday(store),
               ),
@@ -118,17 +119,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
   }
 
-  int? _emotionQualityToday(GratitudeStore store) {
-    final dk = GratitudeStore.isoToKey(DateTime.now().toIso8601String());
-    final ids = store.emotionIdsForDay(dk);
-    if (ids.isEmpty) return null;
-    int max = 0;
-    for (final id in ids) {
-      final e = emotionById(id);
-      if (e != null && e.freq > max) max = e.freq;
-    }
-    return max;
-  }
+  int? _emotionQualityToday(GratitudeStore store) => store.emotionQualityToday;
 
   Widget _buildList(GratitudeStore store, GratPalette pal) {
     final all = store.allReversed;
@@ -185,7 +176,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final store = context.read<GratitudeStore>();
     final emotions = context.read<EmotionStore>();
 
-    // 🔑 ثبت خودکار رشته‌ی عصبی + رنگ احساسات روز
+    // 🔑 ثبت خودکار رشته‌ی عصبی (با رنگ حسِ انتخاب‌شده روی ادمک؛ بعدش ادمک ریست می‌شه)
     await store.add(
       text: text,
       images: List.of(_pendingImages),
@@ -194,13 +185,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
       shared: _pendingShare,
       emotions: emotions,
     );
-
-    // ✅ اگر ویجت آدم احساس انتخاب کرده بود، همان‌ها روی روز ثبت می‌شوند
-    if (emotions.hasSelection) {
-      final todayKey = GratitudeStore.isoToKey(DateTime.now().toIso8601String());
-      await store.updateDayEmotions(todayKey, emotions.selectedIds.toList());
-      emotions.clear();
-    }
 
     final wasShared = _pendingShare;
     setState(() {
