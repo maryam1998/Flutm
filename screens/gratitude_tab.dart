@@ -10,8 +10,10 @@ import '../models/gratitude_entry.dart';
 import '../state/emotion_store.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
+import '../widgets/audio_player_box.dart';
 import '../widgets/gratitude_slideshow.dart';
 import '../widgets/neural_pathway.dart';
+import '../widgets/voice_recorder_sheet.dart';
 import '../services/media_db.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -69,6 +71,9 @@ class _GratitudeTabState extends State<GratitudeTab> {
             const SizedBox(height: 14),
             _Composer(
               pal: pal,
+              prompt: info.prompt,
+              number: store.totalCount + 1,
+              onRecord: _recordVoice,
               textCtrl: _textCtrl,
               images: _pendingImages,
               audios: _pendingAudios,
@@ -91,6 +96,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: NeuralPathway(
+                webStyle: true,
                 container: store.neural,
                 label: 'شکرگذاری',
                 showDayButtons: false,
@@ -188,6 +194,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
 
     final wasShared = _pendingShare;
+    final saved = store.lastPersistOk;
     setState(() {
       _textCtrl.clear();
       _pendingImages.clear();
@@ -195,9 +202,20 @@ class _GratitudeTabState extends State<GratitudeTab> {
       _pendingVideos.clear();
       _pendingShare = false;
     });
-    _toast(wasShared
-        ? 'ثبت شد و با بقیه به اشتراک گذاشته شد 🌍'
-        : 'ثبت شد — فقط برای خودم 🤫');
+    _toast(!saved
+        ? 'ثبت شد، ولی حافظه‌ی مرورگر پر شده — با بستن صفحه ممکنه از دست بره. عکس/صدای قدیمی رو پاک کن'
+        : (wasShared
+            ? 'ثبت شد و با بقیه به اشتراک گذاشته شد 🌍'
+            : 'ثبت شد — فقط برای خودم 🤫'));
+  }
+
+  /// ضبط ویس برای شکرگذاری (دکمه‌ی میکروفون وب)
+  Future<void> _recordVoice() async {
+    final src =
+        await VoiceRecorderSheet.show(context, title: 'ضبط ویس شکرگذاری');
+    if (!mounted || src == null) return;
+    setState(() => _pendingAudios
+        .add(GratitudeAudio(src: src, name: 'ویس ضبط‌شده')));
   }
 
   Future<void> _pickImages() async {
@@ -375,6 +393,14 @@ class _GratitudeTabState extends State<GratitudeTab> {
                               ],
                             );
                           }).toList(),
+                        ),
+                      ],
+                      for (var i = 0; i < audios.length; i++) ...[
+                        const SizedBox(height: 10),
+                        AudioPlayerBox(
+                          src: audios[i].src,
+                          name: audios[i].name,
+                          onRemove: () => setSheet(() => audios.removeAt(i)),
                         ),
                       ],
                       const SizedBox(height: 14),
@@ -940,6 +966,18 @@ class _PeriodGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // اندازه‌ی سلول از عرض واقعی ساخته می‌شه (۱۵ ستون + ۱۴ فاصله) تا هیچ‌وقت
+    // از کادر بیرون نزنه.
+    return LayoutBuilder(builder: (ctx, box) {
+      final avail = box.maxWidth.isFinite ? box.maxWidth : 300.0;
+      final cell = ((avail - gap * (cols - 1) - 0.5) / cols)
+          .clamp(8.0, 60.0)
+          .toDouble();
+      return _buildGrid(context, cell);
+    });
+  }
+
+  Widget _buildGrid(BuildContext context, double cell) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final todayKey = _MiniCalendar._key(today);
@@ -950,7 +988,7 @@ class _PeriodGrid extends StatelessWidget {
     void flush() {
       if (row.isEmpty) return;
       while (row.length < cols) {
-        row.add(const Expanded(child: SizedBox()));
+        row.add(SizedBox(width: cell, height: cell));
       }
       children.add(Padding(
         padding: const EdgeInsets.only(bottom: gap),
@@ -1008,7 +1046,9 @@ class _PeriodGrid extends StatelessWidget {
         }
       }
 
-      row.add(Expanded(
+      row.add(SizedBox(
+        width: cell,
+        height: cell,
         child: _DayCell(
           pal: pal,
           done: done,
@@ -1403,6 +1443,9 @@ Color _hex(String hex) {
 // ════════════════════════════════════════════════════════════════
 class _Composer extends StatelessWidget {
   final GratPalette pal;
+  final String prompt;
+  final int number;
+  final VoidCallback onRecord;
   final TextEditingController textCtrl;
   final List<GratitudeImage> images;
   final List<GratitudeAudio> audios;
@@ -1418,6 +1461,9 @@ class _Composer extends StatelessWidget {
 
   const _Composer({
     required this.pal,
+    required this.prompt,
+    required this.number,
+    required this.onRecord,
     required this.textCtrl,
     required this.images,
     required this.audios,
@@ -1453,8 +1499,8 @@ class _Composer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text.rich(
-              const TextSpan(children: [
-                TextSpan(text: 'خدایا شکرت که:'),
+              TextSpan(children: [
+                TextSpan(text: '${_toFa(number)} - خدایا شکرت که:'),
               ]),
               style: TextStyle(
                 fontSize: 14.5,
@@ -1471,7 +1517,7 @@ class _Composer extends StatelessWidget {
               textDirection: TextDirection.rtl,
               style: TextStyle(fontSize: 14, color: pal.ink, height: 1.7),
               decoration: InputDecoration(
-                hintText: 'نعمت امروزت رو بنویس...',
+                hintText: '🎯 $prompt',
                 hintStyle: TextStyle(color: pal.muted, fontSize: 13),
                 filled: true,
                 fillColor: pal.surface,
@@ -1496,7 +1542,7 @@ class _Composer extends StatelessWidget {
                 _MediaBtn(
                     pal: pal,
                     icon: Icons.mic_none_outlined,
-                    onTap: () {}),
+                    onTap: onRecord),
                 const SizedBox(width: 8),
                 _MediaBtn(
                     pal: pal,
@@ -1550,6 +1596,22 @@ class _Composer extends StatelessWidget {
                     ],
                   );
                 }).toList(),
+              ),
+            ],
+            for (var i = 0; i < audios.length; i++) ...[
+              const SizedBox(height: 10),
+              AudioPlayerBox(
+                src: audios[i].src,
+                name: audios[i].name,
+                onRemove: () => onRemoveAudio(i),
+              ),
+            ],
+            for (var i = 0; i < videos.length; i++) ...[
+              const SizedBox(height: 10),
+              _VideoChip(
+                pal: pal,
+                name: videos[i].name,
+                onRemove: () => onRemoveVideo(i),
               ),
             ],
             const SizedBox(height: 10),
@@ -1759,6 +1821,17 @@ class _EntryRow extends StatelessWidget {
                           }).toList(),
                         ),
                       ],
+                      for (final a in entry.audios)
+                        if (a.src.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: AudioPlayerBox(src: a.src, name: a.name),
+                          ),
+                      for (final v in entry.videos)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: _VideoChip(pal: pal, name: v.name),
+                        ),
                     ],
                   ),
                 ),
@@ -1936,3 +2009,47 @@ String _toFa(int n) => n.toString().replaceAllMapped(
       RegExp(r'\d'),
       (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
     );
+
+
+/// چیپ ویدیو (پیش‌نمایش ساده؛ ویدیو داخل اسلایدشو/ثبت ذخیره می‌شه)
+class _VideoChip extends StatelessWidget {
+  final GratPalette pal;
+  final String name;
+  final VoidCallback? onRemove;
+  const _VideoChip({required this.pal, required this.name, this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: pal.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: pal.line),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.videocam_outlined, size: 16, color: pal.emerald700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(name.isEmpty ? 'ویدیو' : name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11.5, color: pal.muted)),
+          ),
+          if (onRemove != null)
+            GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration:
+                    BoxDecoration(color: pal.danger, shape: BoxShape.circle),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

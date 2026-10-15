@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/media_db.dart';
 import '../theme/grat_palette.dart';
 
 /// پخش‌کننده‌ی صوتِ شکرگذاری — معادل `.audio-player-box` وب (تگ <audio controls>).
@@ -52,7 +53,7 @@ class _AudioPlayerBoxState extends State<AudioPlayerBox> {
   }
 
   Future<VideoPlayerController> _make() async {
-    final src = _normalize(widget.src);
+    final src = _normalize(MediaDb.toDataUrl(widget.src) ?? widget.src);
     if (src.startsWith('data:') && !kIsWeb) {
       final comma = src.indexOf(',');
       final bytes = base64Decode(src.substring(comma + 1));
