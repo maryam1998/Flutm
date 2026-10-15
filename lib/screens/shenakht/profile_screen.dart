@@ -11,7 +11,7 @@ import 'shenakht_tab.dart';
 class ProfileScreen extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onRetake;
-  final VoidCallback onPickSchema;
+  final void Function(String schemaId) onPickSchema;
 
   const ProfileScreen({
     super.key,
@@ -94,7 +94,8 @@ class ProfileScreen extends StatelessWidget {
           const Text(
             'این نتایج یک ارزیابی خودگزارشی است و تشخیص بالینی نیست.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10, color: Color(0xFF999999), height: 1.8),
+            style: TextStyle(
+                fontSize: 10, color: Color(0xFF999999), height: 1.8),
           ),
           const SizedBox(height: 20),
         ],
@@ -102,12 +103,10 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // ── کارت پیشنهاد شروع ──────────────────────────────
   Widget _recommendedCard(SchemaScore rec) {
     final plain = getPlainName(rec.schemaId) ?? rec.name;
     final schema = findSchemaById(rec.schemaId);
     final pct = rec.percentage;
-    final color = rec.priority.color;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -121,7 +120,8 @@ class ProfileScreen extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -151,10 +151,7 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               schema.nameFa,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 11),
             ),
           ],
           const SizedBox(height: 14),
@@ -167,8 +164,7 @@ class ProfileScreen extends StatelessWidget {
                     value: pct / 100,
                     minHeight: 6,
                     backgroundColor: Colors.white24,
-                    valueColor:
-                        const AlwaysStoppedAnimation(Colors.white),
+                    valueColor: const AlwaysStoppedAnimation(Colors.white),
                   ),
                 ),
               ),
@@ -197,9 +193,9 @@ class ProfileScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white30),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'شروع کار روی این الگو',
                         style: TextStyle(
@@ -209,7 +205,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const Icon(Icons.arrow_back,
+                    Icon(Icons.arrow_back,
                         color: Colors.white70, size: 18),
                   ],
                 ),
@@ -221,7 +217,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // ── سه آمار بالا ─────────────────────────────────
   Widget _statsRow(YsqAnalysis analysis) {
     return Row(
       children: [
@@ -283,21 +278,17 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: color),
-          ),
+          Text(label, style: TextStyle(fontSize: 11, color: color)),
         ],
       ),
     );
   }
 
-  // ── کارت الگوی فعال ────────────────────────────────
   Widget _activeCard(BuildContext context, SchemaScore r) {
     final schema = findSchemaById(r.schemaId);
     final plain = getPlainName(r.schemaId) ?? schema?.nameFa ?? r.name;
     final oneLiner = getOneLiner(r.schemaId);
-    final color = r.priority.color;
+    final color = _hexToColor(r.priority.color);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -412,7 +403,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // ── آیتم الگوی پایین ───────────────────────────────
   Widget _lowItem(BuildContext context, SchemaScore r) {
     final schema = findSchemaById(r.schemaId);
     final plain = getPlainName(r.schemaId) ?? schema?.nameFa ?? r.name;
@@ -425,7 +415,8 @@ class ProfileScreen extends StatelessWidget {
           onTap: () => onPickSchema(r.schemaId),
           borderRadius: BorderRadius.circular(10),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               border: Border.all(color: const Color(0xFFF0F0F0)),
               borderRadius: BorderRadius.circular(10),
@@ -433,10 +424,7 @@ class ProfileScreen extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    plain,
-                    style: const TextStyle(fontSize: 13),
-                  ),
+                  child: Text(plain, style: const TextStyle(fontSize: 13)),
                 ),
                 Text(
                   '${_faNum(r.percentage)}%',
@@ -450,6 +438,12 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Color _hexToColor(String hex) {
+  var h = hex.replaceAll('#', '');
+  if (h.length == 6) h = 'FF$h';
+  return Color(int.parse(h, radix: 16));
 }
 
 String _faNum(int n) => String.fromCharCodes(
