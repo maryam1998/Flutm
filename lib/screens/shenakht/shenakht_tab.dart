@@ -2,12 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/shenakht/progress_entry.dart';
 import '../../state/background_store.dart';
 import '../../state/shenakht_store.dart';
 import 'cycle_screen.dart';
 import 'cycle_summary_screen.dart';
+import 'exercise_screen.dart';
+import 'log_result_screen.dart';
+import 'mission_screen.dart';
 import 'origin_screen.dart';
 import 'profile_screen.dart';
+import 'progress_screen.dart';
 import 'ysq_screen.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -32,7 +37,7 @@ class SK {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Shell — هدر مشترک همه صفحه‌ها
+// Shell
 // ═══════════════════════════════════════════════════════════
 class ShenakhtShell extends StatelessWidget {
   final String title;
@@ -61,7 +66,20 @@ class ShenakhtShell extends StatelessWidget {
           child: Row(
             children: [
               if (onBack != null)
-                _circleBtn(icon: Icons.arrow_back, onTap: onBack!)
+                InkWell(
+                  onTap: onBack,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFEEEEEE)),
+                      color: Colors.white,
+                    ),
+                    child: const Icon(Icons.arrow_back, size: 16),
+                  ),
+                )
               else
                 const SizedBox(width: 32),
               Expanded(
@@ -73,7 +91,22 @@ class ShenakhtShell extends StatelessWidget {
                 ),
               ),
               if (onSOS != null)
-                _sosBtn(onSOS!)
+                InkWell(
+                  onTap: onSOS,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE74C3C)),
+                      color: Colors.white,
+                    ),
+                    child: const Text('SOS',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                )
               else
                 const SizedBox(width: 40),
             ],
@@ -81,40 +114,6 @@ class ShenakhtShell extends StatelessWidget {
         ),
         Expanded(child: child),
       ],
-    );
-  }
-
-  Widget _circleBtn({required IconData icon, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFEEEEEE)),
-          color: Colors.white,
-        ),
-        child: Icon(icon, size: 16),
-      ),
-    );
-  }
-
-  Widget _sosBtn(VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE74C3C)),
-          color: Colors.white,
-        ),
-        child: const Text('SOS',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      ),
     );
   }
 }
@@ -152,173 +151,191 @@ class WelcomeScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _hero(),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: SK.grad,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('شناخت الگوهای تکرارشونده',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.w500)),
+                SizedBox(height: 8),
+                Text('چه چیزی در من\nتکرار می‌شود؟',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        height: 1.5,
+                        fontWeight: FontWeight.w700)),
+                SizedBox(height: 12),
+                Text(
+                  'اینجا قرار نیست برچسبی به تو بزنیم. با هم می‌بینیم کجا فعال می‌شوی و چطور می‌توانی این بار جور دیگری پاسخ بدهی.',
+                  style: TextStyle(
+                      color: Colors.white, fontSize: 13, height: 1.9),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 12),
-          _reminders(),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: SK.yellow,
+              border: Border.all(color: SK.yellowBorder),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text('💡',
+                          style: TextStyle(fontSize: 14)),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('یادآوری‌های امروز',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                for (final r in const [
+                  'خودت رو ببخش. همین امروز.',
+                  'نه گفتن، طرد کردن نیست.',
+                  'استراحت، تنبلی نیست.',
+                ])
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(8),
+                      border: const Border(
+                        right: BorderSide(
+                            color: Color(0xFFF59E0B), width: 3),
+                      ),
+                    ),
+                    child: Text(r,
+                        style: const TextStyle(
+                            fontSize: 13, height: 1.9)),
+                  ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
-          _startBtn(hasProfile ? onProfile : onStart, hasProfile),
+          Material(
+            color: SK.primary,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: hasProfile ? onProfile : onStart,
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 18),
+                child: Row(
+                  children: [
+                    Text(hasProfile ? '🧭' : '✨',
+                        style: const TextStyle(fontSize: 22)),
+                    const SizedBox(width: 12),
+                    Text(
+                      hasProfile ? 'پروفایل الگوهای من' : 'شروع ارزیابی',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.arrow_back,
+                        color: Colors.white70, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           const Padding(
             padding: EdgeInsets.only(right: 4, bottom: 8),
             child: Text('کاوش کن',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                style: TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 13)),
           ),
-          _grid(),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.05,
+            children: [
+              _exploreCard('🔄', 'چرخه‌های زندگی', 'الگوهای عمیق‌تر',
+                  const Color(0xFF8B5CF6), onLifeCycles),
+              _exploreCard('🔍', 'حس الان من', 'موقعیت‌های واقعی',
+                  const Color(0xFF0EA5E9), onSituations),
+              _exploreCard('🕊️', 'پذیرش', 'آنچه انتخاب نکردم',
+                  const Color(0xFF14B8A6), onAcceptance),
+              _exploreCard('💞', 'روابط من', 'چطور برخورد کنم؟',
+                  const Color(0xFFEC4899), onRelationships),
+            ],
+          ),
           const SizedBox(height: 20),
-          _disclaimer(),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF6F6F6),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('این اپ چه چیزی نیست:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 11)),
+                SizedBox(height: 6),
+                Text('• تشخیص پزشکی نمی‌دهد',
+                    style: TextStyle(
+                        fontSize: 11,
+                        height: 1.9,
+                        color: Color(0xBF000000))),
+                Text('• از AI برای قضاوت استفاده نمی‌کند',
+                    style: TextStyle(
+                        fontSize: 11,
+                        height: 1.9,
+                        color: Color(0xBF000000))),
+                Text('• جایگزین درمانگر نیست',
+                    style: TextStyle(
+                        fontSize: 11,
+                        height: 1.9,
+                        color: Color(0xBF000000))),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _hero() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: SK.grad,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text('شناخت الگوهای تکرارشونده',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  letterSpacing: 1,
-                  fontWeight: FontWeight.w500)),
-          SizedBox(height: 8),
-          Text('چه چیزی در من\nتکرار می‌شود؟',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  height: 1.5,
-                  fontWeight: FontWeight.w700)),
-          SizedBox(height: 12),
-          Text(
-            'اینجا قرار نیست برچسبی به تو بزنیم. با هم می‌بینیم کجا فعال می‌شوی و چطور می‌توانی این بار جور دیگری پاسخ بدهی.',
-            style: TextStyle(
-                color: Colors.white, fontSize: 13, height: 1.9),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _reminders() {
-    const reminders = [
-      'خودت رو ببخش. همین امروز.',
-      'نه گفتن، طرد کردن نیست.',
-      'استراحت، تنبلی نیست.',
-    ];
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: SK.yellow,
-        border: Border.all(color: SK.yellowBorder),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: const Text('💡', style: TextStyle(fontSize: 14)),
-              ),
-              const SizedBox(width: 8),
-              const Text('یادآوری‌های امروز',
-                  style:
-                      TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          for (final r in reminders)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(8),
-                border: const Border(
-                  right: BorderSide(color: Color(0xFFF59E0B), width: 3),
-                ),
-              ),
-              child: Text(r,
-                  style: const TextStyle(fontSize: 13, height: 1.9)),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _startBtn(VoidCallback onTap, bool hasProfile) {
-    return Material(
-      color: SK.primary,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Row(
-            children: [
-              Text(hasProfile ? '🧭' : '✨',
-                  style: const TextStyle(fontSize: 22)),
-              const SizedBox(width: 12),
-              Text(
-                hasProfile ? 'پروفایل الگوهای من' : 'شروع ارزیابی',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              const Icon(Icons.arrow_back,
-                  color: Colors.white70, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _grid() {
-    final items = <_ExploreItem>[
-      _ExploreItem('🔄', 'چرخه‌های زندگی', 'الگوهای عمیق‌تر',
-          const Color(0xFF8B5CF6), onLifeCycles),
-      _ExploreItem('🔍', 'حس الان من', 'موقعیت‌های واقعی',
-          const Color(0xFF0EA5E9), onSituations),
-      _ExploreItem('🕊️', 'پذیرش', 'آنچه انتخاب نکردم',
-          const Color(0xFF14B8A6), onAcceptance),
-      _ExploreItem('💞', 'روابط من', 'چطور برخورد کنم؟',
-          const Color(0xFFEC4899), onRelationships),
-    ];
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: 1.05,
-      children: items.map(_exploreCard).toList(),
-    );
-  }
-
-  Widget _exploreCard(_ExploreItem item) {
+  Widget _exploreCard(String emoji, String title, String subtitle,
+      Color color, VoidCallback onTap) {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        onTap: item.onTap,
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -333,19 +350,18 @@ class WelcomeScreen extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: item.color.withOpacity(0.08),
+                  color: color.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
-                child: Text(item.emoji,
-                    style: const TextStyle(fontSize: 20)),
+                child: Text(emoji, style: const TextStyle(fontSize: 20)),
               ),
               const Spacer(),
-              Text(item.title,
+              Text(title,
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(height: 3),
-              Text(item.subtitle,
+              Text(subtitle,
                   style: const TextStyle(
                       fontSize: 11, color: Color(0xFF666666))),
             ],
@@ -354,47 +370,10 @@ class WelcomeScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _disclaimer() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6F6F6),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text('این اپ چه چیزی نیست:',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11)),
-          SizedBox(height: 6),
-          Text('• تشخیص پزشکی نمی‌دهد',
-              style: TextStyle(
-                  fontSize: 11, height: 1.9, color: Color(0xBF000000))),
-          Text('• از AI برای قضاوت استفاده نمی‌کند',
-              style: TextStyle(
-                  fontSize: 11, height: 1.9, color: Color(0xBF000000))),
-          Text('• جایگزین درمانگر نیست',
-              style: TextStyle(
-                  fontSize: 11, height: 1.9, color: Color(0xBF000000))),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExploreItem {
-  final String emoji;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-  const _ExploreItem(
-      this.emoji, this.title, this.subtitle, this.color, this.onTap);
 }
 
 // ═══════════════════════════════════════════════════════════
-// ShenakhtTab — تب شناخت (ناوبری داخلی)
+// ShenakhtTab
 // ═══════════════════════════════════════════════════════════
 class ShenakhtTab extends StatefulWidget {
   const ShenakhtTab({super.key});
@@ -406,6 +385,8 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
   String _route = 'welcome';
   String? _activeSchemaId;
   CycleSelection? _cycleSelection;
+  Map<String, dynamic>? _exerciseRecord;
+  MissionRecord? _missionRecord;
 
   void _go(String r) => setState(() => _route = r);
 
@@ -413,6 +394,8 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
     setState(() {
       _activeSchemaId = schemaId;
       _cycleSelection = null;
+      _exerciseRecord = null;
+      _missionRecord = null;
       _route = 'cycle';
     });
   }
@@ -426,6 +409,33 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
         onAcceptance: () {},
         onSOS: () {},
       );
+
+  Future<void> _saveEntry({
+    required String reactionType,
+    required bool missionDone,
+    required String notes,
+  }) async {
+    final sel = _cycleSelection;
+    if (sel == null || _activeSchemaId == null) return;
+    final store = context.read<ShenakhtStore>();
+    await store.recordCycle(
+      schemaId: _activeSchemaId,
+      triggerId: sel.triggerIds.isNotEmpty ? sel.triggerIds.first : null,
+      thoughtId: sel.thoughtIds.isNotEmpty ? sel.thoughtIds.first : null,
+      emotionId: sel.emotionIds.isNotEmpty ? sel.emotionIds.first : null,
+      behaviorId: sel.behaviorIds.isNotEmpty ? sel.behaviorIds.first : null,
+      triggerIds: sel.triggerIds,
+      thoughtIds: sel.thoughtIds,
+      emotionIds: sel.emotionIds,
+      behaviorIds: sel.behaviorIds,
+      reactionType: reactionType,
+      missionId: _missionRecord?.id,
+      missionDone: missionDone,
+      exerciseId: _exerciseRecord?['exerciseId'] as String?,
+      exerciseResult: _exerciseRecord?['result'] as Map<String, dynamic>?,
+      notes: notes,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -481,15 +491,70 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
                 selection: _cycleSelection!,
                 onBack: () => _go('cycle'),
                 onViewOrigin: () => _go('origin'),
-                onContinue: () {
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(const SnackBar(
-                      content: Text('به‌زودی: صفحه‌ی تمرین 🎯'),
-                      duration: Duration(seconds: 2),
-                      behavior: SnackBarBehavior.floating,
-                    ));
+                onContinue: () => _go('exercise'),
+              );
+        break;
+
+      case 'exercise':
+        screen = (_activeSchemaId == null || _cycleSelection == null)
+            ? _fallback()
+            : ExerciseScreen(
+                schemaId: _activeSchemaId!,
+                selection: _cycleSelection!,
+                onBack: () => _go('cycle_summary'),
+                onSkip: (_) {
+                  _exerciseRecord = null;
+                  _go('mission');
                 },
+                onDone: (record) {
+                  _exerciseRecord = record;
+                  _go('mission');
+                },
+              );
+        break;
+
+      case 'mission':
+        screen = _activeSchemaId == null
+            ? _fallback()
+            : MissionScreen(
+                schemaId: _activeSchemaId!,
+                onBack: () => _go('exercise'),
+                onDone: (mission) {
+                  _missionRecord = mission;
+                  _go('log');
+                },
+              );
+        break;
+
+      case 'log':
+        screen = (_activeSchemaId == null || _cycleSelection == null)
+            ? _fallback()
+            : LogResultScreen(
+                schemaId: _activeSchemaId!,
+                selection: _cycleSelection!,
+                onBack: () => _go('mission'),
+                onDone: ({
+                  required String reactionType,
+                  required bool missionDone,
+                  required String notes,
+                }) async {
+                  await _saveEntry(
+                    reactionType: reactionType,
+                    missionDone: missionDone,
+                    notes: notes,
+                  );
+                  if (mounted) _go('progress');
+                },
+              );
+        break;
+
+      case 'progress':
+        screen = _activeSchemaId == null
+            ? _fallback()
+            : ProgressScreen(
+                schemaId: _activeSchemaId!,
+                onBack: () => _go('profile'),
+                onGoProfile: () => _go('profile'),
               );
         break;
 
@@ -508,3 +573,6 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
     );
   }
 }
+
+String _faNum(int n) => String.fromCharCodes(
+    n.toString().codeUnits.map((c) => (c >= 48 && c <= 57) ? c + 1728 : c));
