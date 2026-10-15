@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../../state/background_store.dart';
 import '../../state/shenakht_store.dart';
+import 'cycle_screen.dart';
+import 'cycle_summary_screen.dart';
+import 'origin_screen.dart';
+import 'profile_screen.dart';
 import 'ysq_screen.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -245,8 +249,7 @@ class WelcomeScreen extends StatelessWidget {
                 color: Colors.white.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(8),
                 border: const Border(
-                  right:
-                      BorderSide(color: Color(0xFFF59E0B), width: 3),
+                  right: BorderSide(color: Color(0xFFF59E0B), width: 3),
                 ),
               ),
               child: Text(r,
@@ -265,8 +268,7 @@ class WelcomeScreen extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           child: Row(
             children: [
               Text(hasProfile ? '🧭' : '✨',
@@ -402,8 +404,35 @@ class ShenakhtTab extends StatefulWidget {
 
 class _ShenakhtTabState extends State<ShenakhtTab> {
   String _route = 'welcome';
+  String? _activeSchemaId;
+  CycleSelection? _cycleSelection;
 
   void _go(String r) => setState(() => _route = r);
+
+  void _openOrigin(String schemaId) {
+    setState(() {
+      _activeSchemaId = schemaId;
+      _route = 'origin';
+    });
+  }
+
+  void _openCycle(String schemaId) {
+    setState(() {
+      _activeSchemaId = schemaId;
+      _cycleSelection = null;
+      _route = 'cycle';
+    });
+  }
+
+  Widget _fallback() => WelcomeScreen(
+        onStart: () => _go('ysq'),
+        onProfile: () => _go('profile'),
+        onLifeCycles: () {},
+        onSituations: () {},
+        onRelationships: () {},
+        onAcceptance: () {},
+        onSOS: () {},
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -417,38 +446,63 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
           onDone: () => _go('profile'),
         );
         break;
+
       case 'profile':
-        screen = ShenakhtShell(
-          title: 'پروفایل',
+        screen = ProfileScreen(
           onBack: () => _go('welcome'),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🎉 ارزیابی انجام شد!',
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 16),
-                Text(
-                  'پروفایل واقعی رو در مرحله‌ی بعد می‌سازیم.',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
+          onRetake: () => _go('ysq'),
+          onPickSchema: _openCycle,
         );
         break;
+
+      case 'origin':
+        screen = _activeSchemaId == null
+            ? _fallback()
+            : OriginScreen(
+                schemaId: _activeSchemaId!,
+                onBack: () => _go('profile'),
+                onStartWork: () => _openCycle(_activeSchemaId!),
+              );
+        break;
+
+      case 'cycle':
+        screen = _activeSchemaId == null
+            ? _fallback()
+            : CycleScreen(
+                schemaId: _activeSchemaId!,
+                onBack: () => _go('origin'),
+                onDone: (selection) {
+                  setState(() {
+                    _cycleSelection = selection;
+                    _route = 'cycle_summary';
+                  });
+                },
+              );
+        break;
+
+      case 'cycle_summary':
+        screen = (_activeSchemaId == null || _cycleSelection == null)
+            ? _fallback()
+            : CycleSummaryScreen(
+                schemaId: _activeSchemaId!,
+                selection: _cycleSelection!,
+                onBack: () => _go('cycle'),
+                onViewOrigin: () => _go('origin'),
+                onContinue: () {
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(const SnackBar(
+                      content: Text('به‌زودی: صفحه‌ی تمرین 🎯'),
+                      duration: Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ));
+                },
+              );
+        break;
+
       case 'welcome':
       default:
-        screen = WelcomeScreen(
-          onStart: () => _go('ysq'),
-          onProfile: () => _go('profile'),
-          onLifeCycles: () {},
-          onSituations: () {},
-          onRelationships: () {},
-          onAcceptance: () {},
-          onSOS: () {},
-        );
+        screen = _fallback();
         break;
     }
 
