@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 
 import '../../data/shenakht/schemas.dart';
-import '../../models/shenakht/schema.dart' show SchemaItem;
 import '../../data/shenakht/simple_language.dart';
+import '../../models/shenakht/schema.dart' show Schema, SchemaItem;
 import 'shenakht_tab.dart';
 
 class CycleSelection {
@@ -38,12 +38,7 @@ class CycleScreen extends StatefulWidget {
 
 class _CycleScreenState extends State<CycleScreen> {
   int _step = 0;
-  final _selected = <int, Set<String>>{
-    0: {},
-    1: {},
-    2: {},
-    3: {},
-  };
+  final _selected = <int, Set<String>>{0: {}, 1: {}, 2: {}, 3: {}};
 
   Schema? get _schema => findSchemaById(widget.schemaId);
 
@@ -51,19 +46,27 @@ class _CycleScreenState extends State<CycleScreen> {
     final s = _schema;
     if (s == null) return const [];
     switch (_step) {
-      case 0: return s.triggers;
-      case 1: return s.automaticThoughts;
-      case 2: return s.emotionalSignals;
-      default: return s.behavioralPatterns;
+      case 0:
+        return s.triggers;
+      case 1:
+        return s.automaticThoughts;
+      case 2:
+        return s.emotionalSignals;
+      default:
+        return s.behavioralPatterns;
     }
   }
 
   String get _stepTitle {
     switch (_step) {
-      case 0: return 'چه چیزی معمولاً این حالت را فعال می‌کند؟';
-      case 1: return 'معمولاً چه فکری از ذهنت می‌گذرد؟';
-      case 2: return 'چه احساسی بالا می‌آید؟';
-      default: return 'معمولاً چه کار می‌کنی؟';
+      case 0:
+        return 'چه چیزی معمولاً این حالت را فعال می‌کند؟';
+      case 1:
+        return 'معمولاً چه فکری از ذهنت می‌گذرد؟';
+      case 2:
+        return 'چه احساسی بالا می‌آید؟';
+      default:
+        return 'معمولاً چه کار می‌کنی؟';
     }
   }
 
@@ -119,7 +122,6 @@ class _CycleScreenState extends State<CycleScreen> {
       onBack: _goBackStep,
       child: Column(
         children: [
-          // ── نوار پیشرفت ۴ مرحله ─────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(
@@ -140,7 +142,6 @@ class _CycleScreenState extends State<CycleScreen> {
               ],
             ),
           ),
-
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -195,9 +196,8 @@ class _CycleScreenState extends State<CycleScreen> {
                 ],
                 const SizedBox(height: 16),
                 Material(
-                  color: selected.isEmpty
-                      ? const Color(0xFFD1C4B5)
-                      : SK.primary,
+                  color:
+                      selected.isEmpty ? const Color(0xFFD1C4B5) : SK.primary,
                   borderRadius: BorderRadius.circular(12),
                   child: InkWell(
                     onTap: selected.isEmpty ? null : _goNext,
