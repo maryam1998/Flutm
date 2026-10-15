@@ -62,7 +62,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
             const SizedBox(height: 14),
             _CounterCard(store: store, pal: pal),
             const SizedBox(height: 8),
-            _ThemeBanner(info: info, pal: pal),
+            _ThemeBanner(info: info, pal: pal, pastCount: store.pastPeriods.length),
             const SizedBox(height: 14),
             _MiniCalendar(store: store, pal: pal),
             const SizedBox(height: 14),
@@ -576,7 +576,9 @@ class _CounterCard extends StatelessWidget {
 class _ThemeBanner extends StatelessWidget {
   final GratitudePhaseInfo info;
   final GratPalette pal;
-  const _ThemeBanner({required this.info, required this.pal});
+  final int pastCount;
+  const _ThemeBanner(
+      {required this.info, required this.pal, this.pastCount = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -619,7 +621,7 @@ class _ThemeBanner extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            '🧭 دوره‌ی ${_toFa(info.totalDays)} روزه — ${info.phaseShort}',
+                            '🧭 دوره‌ی ${pastCount > 0 ? '${_MiniCalendar.ord(pastCount)} — ' : ''}${_toFa(info.totalDays)} روزه — ${info.phaseShort}',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.85),
                               fontSize: 11,
@@ -696,12 +698,15 @@ class _MiniCalendar extends StatelessWidget {
 
   static const _monthOrd = [
     'اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم',
-    'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم', 'سیزدهم',
+    'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم',
   ];
   static const _jalaliMonths = [
     'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
     'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
   ];
+
+  static String ord(int i) =>
+      i >= 0 && i < _monthOrd.length ? _monthOrd[i] : _toFa(i + 1);
 
   @override
   Widget build(BuildContext context) {
@@ -709,121 +714,167 @@ class _MiniCalendar extends StatelessWidget {
     final total = store.journeyDays;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final todayKey = _key(today);
+    final doneSet = store.doneDayKeys;
 
-    final doneSet = <String>{};
-    for (final e in store.entries) {
-      if (e.source == 'purchase') continue;
-      final k = GratitudeStore.isoToKey(e.iso);
-      if (k.isNotEmpty) doneSet.add(k);
-    }
+    final grid = _PeriodGrid(
+      pal: pal,
+      store: store,
+      start: start,
+      total: total,
+      doneSet: doneSet,
+      withEmotions: true,
+      onTapDone: (k) => _openDayEmotions(context, store, k),
+    );
 
-    const cols = 15;
-    const blockSize = 30;
-
-    // سلول‌ها را با نوع مشخص می‌سازیم
-    final cells = <Widget>[];
-
+    // دوره تموم شده؟ (today >= start + total)
+    final end = DateTime(start.year, start.month, start.day + total);
+    final finished = !today.isBefore(end);
+    var doneCount = 0;
     for (var d = 0; d < total; d++) {
-      final date = DateTime(start.year, start.month, start.day + d);
-      final key = _key(date);
-      final has = doneSet.contains(key);
-      final future = date.isAfter(today);
-      final isToday = key == todayKey;
-      final monthEnd = (d % blockSize == blockSize - 1) || (d == total - 1);
-
-      // هدر ماه
-      if (d % blockSize == 0) {
-        final endIdx = (d + blockSize - 1).clamp(0, total - 1);
-        final endDate =
-            DateTime(start.year, start.month, start.day + endIdx);
-        final jF = _toJalali(date.year, date.month, date.day);
-        final jT = _toJalali(endDate.year, endDate.month, endDate.day);
-        final ordIdx = d ~/ blockSize;
-        cells.add(_MonthHeader(
-          pal: pal,
-          label: 'ماه ${ordIdx < _monthOrd.length ? _monthOrd[ordIdx] : _toFa(ordIdx + 1)}',
-          range:
-              '${_toFa(jF.$3)} ${_jalaliMonths[jF.$2 - 1]} تا ${_toFa(jT.$3)} ${_jalaliMonths[jT.$2 - 1]}',
-        ));
+      if (doneSet.contains(_key(DateTime(start.year, start.month, start.day + d)))) {
+        doneCount++;
       }
-
-      // رنگ‌های فرکانس این روز — از Store می‌آید
-      final colors = store.emotionColorsForDay(key);
-
-      cells.add(_DayCell(
-        pal: pal,
-        done: has,
-        today: isToday,
-        future: future,
-        monthEnd: monthEnd,
-        emotionColors: colors,
-        onTap: has ? () => _openDayEmotions(context, store, key) : null,
-      ));
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: pal.surface,
-          border: Border.all(color: pal.line),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: LayoutBuilder(builder: (ctx, box) {
-          const gap = 3.0;
-          final cellW = (box.maxWidth - (cols - 1) * gap) / cols;
-          // فضای سلول پایه: کوچک، چون حلقه‌ها بیرونش کشیده می‌شوند
-          final size = cellW.clamp(14.0, 22.0);
-
-          final rows = <Widget>[];
-          var i = 0;
-          while (i < cells.length) {
-            final row = <Widget>[];
-            while (row.length < cols && i < cells.length) {
-              final c = cells[i];
-              if (c is _MonthHeader) {
-                if (row.isNotEmpty) {
-                  rows.add(_row(row, gap));
-                  row.clear();
-                }
-                rows.add(c);
-                i++;
-              } else {
-                row.add(SizedBox(
-                  // ۶px فضا دور سلول برای حلقه‌های گرادیانی
-                  width: size + 12,
-                  height: size + 12,
-                  child: Center(child: c),
-                ));
-                i++;
-              }
-            }
-            if (row.isNotEmpty) rows.add(_row(row, gap));
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: rows,
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _row(List<Widget> items, double gap) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: gap),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (var j = 0; j < items.length; j++) ...[
-            items[j],
-            if (j < items.length - 1) SizedBox(width: gap),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: pal.surface,
+              border: Border.all(color: pal.line),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: grid,
+          ),
+          const SizedBox(height: 10),
+          if (finished) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE6CD8E).withValues(alpha: 0.25),
+                border: Border.all(color: pal.gold300),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '🎉🥳 دوره‌ی ${ord(store.pastPeriods.length)} رو تموم کردی! '
+                '${_toFa(doneCount < total ? doneCount : total)} روز از ${_toFa(total)} روز شکرگذاری کردی.\n'
+                'برای ادامه دوره‌ی بعدی رو شروع کن — دوره‌های قبلی همین‌جا می‌مونن.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  height: 1.8,
+                  color: pal.ink,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _TinyBtn(
+              pal: pal,
+              gold: true,
+              label: '▶️ شروع دوره‌ی ${ord(store.pastPeriods.length + 1)}',
+              onTap: () => _askDays(
+                context,
+                title: 'دوره‌ی ${ord(store.pastPeriods.length + 1)} چند روزه باشه؟',
+                initial: total,
+                onOk: (n) async {
+                  await store.startNewJourney(days: n);
+                  _snack(context, 'دوره‌ی ${ord(store.pastPeriods.length)} شروع شد 🌱');
+                },
+              ),
+            ),
+          ] else
+            _TinyBtn(
+              pal: pal,
+              icon: Icons.light_mode_outlined,
+              label: 'روزهای دوره (الان ${_toFa(total)} روزه)',
+              onTap: () => _askDays(
+                context,
+                title: 'دوره‌ی ${ord(store.pastPeriods.length)} چند روزه باشه؟',
+                initial: total,
+                onOk: (n) async {
+                  await store.setJourneyDays(n);
+                  _snack(context, 'دوره روی ${_toFa(n)} روز تنظیم شد 🌱');
+                },
+              ),
+            ),
+          if (store.pastPeriods.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            for (var i = store.pastPeriods.length - 1; i >= 0; i--) ...[
+              _PastPeriod(
+                pal: pal,
+                store: store,
+                index: i,
+                doneSet: doneSet,
+              ),
+              if (i > 0) const SizedBox(height: 6),
+            ],
           ],
         ],
       ),
     );
+  }
+
+  static void _snack(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      duration: const Duration(milliseconds: 1600),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  /// معادل window.prompt وب برای تعداد روزهای دوره
+  static Future<void> _askDays(
+    BuildContext context, {
+    required String title,
+    required int initial,
+    required Future<void> Function(int n) onOk,
+  }) async {
+    final ctrl = TextEditingController(text: '$initial');
+    final n = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontSize: 14)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          textDirection: TextDirection.ltr,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          FilledButton(
+            onPressed: () {
+              final v = int.tryParse(_normDigits(ctrl.text.trim()));
+              Navigator.pop(ctx, (v != null && v >= 1) ? v : -1);
+            },
+            child: const Text('تأیید'),
+          ),
+        ],
+      ),
+    );
+    if (n == null) return;
+    if (n < 1) {
+      if (context.mounted) _snack(context, 'یه عدد معتبر بزرگ‌تر از صفر وارد کن');
+      return;
+    }
+    await onOk(n);
+  }
+
+  static String _normDigits(String s) {
+    const fa = '۰۱۲۳۴۵۶۷۸۹';
+    const ar = '٠١٢٣٤٥٦٧٨٩';
+    final b = StringBuffer();
+    for (final c in s.split('')) {
+      final i = fa.indexOf(c);
+      final j = ar.indexOf(c);
+      b.write(i >= 0 ? '$i' : (j >= 0 ? '$j' : c));
+    }
+    return b.toString();
   }
 
   static DateTime _parseKey(String k) {
@@ -861,43 +912,126 @@ class _MiniCalendar extends StatelessWidget {
   }
 }
 
-class _MonthHeader extends StatelessWidget {
-  final String label;
-  final String range;
+/// شبکه‌ی ۱۵ ستونه‌ی یک دوره — periodGridHtml وب
+class _PeriodGrid extends StatelessWidget {
   final GratPalette pal;
-  const _MonthHeader({
-    required this.label,
-    required this.range,
+  final GratitudeStore store;
+  final DateTime start;
+  final int total;
+  final Set<String> doneSet;
+  final bool withEmotions;
+  final void Function(String dayKey)? onTapDone;
+
+  const _PeriodGrid({
     required this.pal,
+    required this.store,
+    required this.start,
+    required this.total,
+    required this.doneSet,
+    this.withEmotions = false,
+    this.onTapDone,
   });
+
+  static const cols = 15;
+  static const gap = 3.0;
+  static const blockSize = 30;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 4),
-      child: Row(
-        children: [
-          Text(label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: pal.ink,
-              )),
-          const Spacer(),
-          Text(range,
-              style: TextStyle(fontSize: 10.5, color: pal.muted)),
-        ],
-      ),
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todayKey = _MiniCalendar._key(today);
+
+    final children = <Widget>[];
+    var row = <Widget>[];
+
+    void flush() {
+      if (row.isEmpty) return;
+      while (row.length < cols) {
+        row.add(const Expanded(child: SizedBox()));
+      }
+      children.add(Padding(
+        padding: const EdgeInsets.only(bottom: gap),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            for (var i = 0; i < row.length; i++) ...[
+              if (i > 0) const SizedBox(width: gap),
+              row[i],
+            ],
+          ],
+        ),
+      ));
+      row = <Widget>[];
+    }
+
+    for (var d = 0; d < total; d++) {
+      final date = DateTime(start.year, start.month, start.day + d);
+      final key = _MiniCalendar._key(date);
+
+      if (d % blockSize == 0) {
+        flush();
+        final endIdx = (d + blockSize - 1) < total ? d + blockSize - 1 : total - 1;
+        final endDate = DateTime(start.year, start.month, start.day + endIdx);
+        final jF = _MiniCalendar._toJalali(date.year, date.month, date.day);
+        final jT = _MiniCalendar._toJalali(endDate.year, endDate.month, endDate.day);
+        children.add(Padding(
+          padding: EdgeInsets.only(top: d == 0 ? 0 : 8, bottom: 3),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('ماه ${_MiniCalendar.ord(d ~/ blockSize)}',
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700, color: pal.ink)),
+              Text(
+                '${_toFa(jF.$3)} ${_MiniCalendar._jalaliMonths[jF.$2 - 1]} تا '
+                '${_toFa(jT.$3)} ${_MiniCalendar._jalaliMonths[jT.$2 - 1]}',
+                style: TextStyle(fontSize: 10.5, color: pal.muted),
+              ),
+            ],
+          ),
+        ));
+      }
+
+      final done = doneSet.contains(key);
+      final monthEnd = (d % blockSize == blockSize - 1) || d == total - 1;
+      Color? ring;
+      if (withEmotions) {
+        final hex = store.dayRingColor(key);
+        if (hex != null) {
+          try {
+            ring = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
+          } catch (_) {}
+        }
+      }
+
+      row.add(Expanded(
+        child: _DayCell(
+          pal: pal,
+          done: done,
+          today: key == todayKey,
+          future: date.isAfter(today),
+          monthEnd: monthEnd,
+          ring: ring,
+          onTap: (done && onTapDone != null) ? () => onTapDone!(key) : null,
+        ),
+      ));
+      if (row.length == cols) flush();
+    }
+    flush();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
     );
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  DayCell — با حلقه‌ی گرادیانی چندرنگ (مجموع رنگ‌های فرکانس)
-// ════════════════════════════════════════════════════════════════
+/// یک روز — .mini-cal-day وب
 class _DayCell extends StatelessWidget {
   final bool done, today, future, monthEnd;
-  final List<Color> emotionColors;
+  final Color? ring;
   final VoidCallback? onTap;
   final GratPalette pal;
 
@@ -907,110 +1041,200 @@ class _DayCell extends StatelessWidget {
     required this.today,
     required this.future,
     required this.monthEnd,
-    required this.emotionColors,
+    this.ring,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    // هسته‌ی داخلی
-    final innerCore = Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        gradient: done
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [pal.emerald700, pal.emerald500],
-              )
-            : null,
-        border: Border.all(
-          color: today
-              ? pal.emerald500
-              : (done ? Colors.transparent : pal.line),
-          width: today ? 1.5 : 1,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: done
-          ? const Icon(Icons.check, size: 10, color: Colors.white)
-          : null,
-    );
-
-    // اگر حلقه‌ی رنگی نداریم، فقط هسته را نشان بده
-    Widget cell;
-    if (emotionColors.isEmpty) {
-      cell = SizedBox(width: 20, height: 20, child: innerCore);
-    } else if (emotionColors.length == 1) {
-      // یک رنگ → حلقه‌ی ساده‌ی رنگ‌دار
-      cell = Container(
-        width: 20,
-        height: 20,
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          color: emotionColors.first,
-        ),
-        child: innerCore,
-      );
-    } else {
-      // چند رنگ → حلقه‌ی گرادیانی چرخشی (SweepGradient)
-      // این دقیقاً «مجموع رنگ‌های فرکانس» را نشان می‌دهد
-      cell = Container(
-        width: 20,
-        height: 20,
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          gradient: SweepGradient(
-            // رنگ‌ها به‌ترتیب فرکانس (پرفرکانس‌ترها اول)
-            colors: emotionColors,
-            // برای زیبایی، دور کامل می‌زنیم به رنگ اول
-            stops: _sweepStops(emotionColors.length),
-            startAngle: 0,
-            endAngle: 6.28318530718, // 2π
-          ),
-        ),
-        child: innerCore,
-      );
-    }
-
+    final hasRing = ring != null;
     return GestureDetector(
       onTap: onTap,
       child: Opacity(
         opacity: future ? 0.3 : 1,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            cell,
-            if (monthEnd)
-              Positioned(
-                bottom: 1,
-                left: 6,
-                right: 6,
-                child: Container(
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: pal.gold500,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: LayoutBuilder(builder: (ctx, box) {
+            final r = BorderRadius.circular(4);
+            return Container(
+              decoration: BoxDecoration(
+                borderRadius: r,
+                gradient: done
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [pal.emerald700, pal.emerald500],
+                      )
+                    : null,
+                // box-shadow: inset 0 0 0 1px line  (فقط وقتی done/حلقه نیست)
+                border: (done || hasRing)
+                    ? null
+                    : Border.all(color: pal.line, width: 1),
+                boxShadow: [
+                  if (today)
+                    BoxShadow(
+                        color: pal.emerald500,
+                        spreadRadius: hasRing ? 3.5 : 1.5,
+                        blurRadius: 0),
+                  if (hasRing)
+                    BoxShadow(color: ring!, spreadRadius: 2, blurRadius: 0),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: r,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (done)
+                      Icon(Icons.check,
+                          size: box.maxWidth * 0.62, color: Colors.white),
+                    if (monthEnd && !hasRing)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 3,
+                        child: ColoredBox(color: pal.gold500),
+                      ),
+                  ],
                 ),
               ),
-          ],
+            );
+          }),
         ),
       ),
     );
   }
+}
 
-  /// اگر n رنگ داریم، stops را طوری می‌چینیم که همه سهم مساوی داشته باشند
-  static List<double> _sweepStops(int n) {
-    if (n <= 1) return const [0.0, 1.0];
-    final stops = <double>[];
-    for (var i = 0; i < n; i++) {
-      stops.add(i / n);
+/// دکمه‌ی .btn.tiny وب
+class _TinyBtn extends StatelessWidget {
+  final GratPalette pal;
+  final String label;
+  final IconData? icon;
+  final bool gold;
+  final VoidCallback onTap;
+  const _TinyBtn({
+    required this.pal,
+    required this.label,
+    required this.onTap,
+    this.icon,
+    this.gold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: gold ? pal.accent : pal.card,
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: gold ? pal.accent : pal.line),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 15, color: pal.ink),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: gold ? FontWeight.w600 : FontWeight.w400,
+                  color: gold ? const Color(0xFF221800) : pal.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// دوره‌ی تمام‌شده‌ی قبلی — details.mini-cal-past وب
+class _PastPeriod extends StatefulWidget {
+  final GratPalette pal;
+  final GratitudeStore store;
+  final int index;
+  final Set<String> doneSet;
+  const _PastPeriod({
+    required this.pal,
+    required this.store,
+    required this.index,
+    required this.doneSet,
+  });
+
+  @override
+  State<_PastPeriod> createState() => _PastPeriodState();
+}
+
+class _PastPeriodState extends State<_PastPeriod> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = widget.pal;
+    final pd = widget.store.pastPeriods[widget.index];
+    final days = (pd['days'] as int?) ?? 28;
+    final start = _MiniCalendar._parseKey(pd['startDate']?.toString() ?? '');
+    var done = 0;
+    for (var d = 0; d < days; d++) {
+      if (widget.doneSet.contains(
+          _MiniCalendar._key(DateTime(start.year, start.month, start.day + d)))) {
+        done++;
+      }
     }
-    stops.add(1.0);
-    return stops;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: pal.surface,
+        border: Border.all(color: pal.line),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _open = !_open),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '✅ دوره‌ی ${_MiniCalendar.ord(widget.index)} — ${_toFa(days)} روزه',
+                  style: TextStyle(
+                      fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.ink),
+                ),
+                Text(
+                  '${_toFa(done)} / ${_toFa(days)}',
+                  style: TextStyle(
+                      fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.ink),
+                ),
+              ],
+            ),
+          ),
+          if (_open) ...[
+            const SizedBox(height: 10),
+            _PeriodGrid(
+              pal: pal,
+              store: widget.store,
+              start: start,
+              total: days,
+              doneSet: widget.doneSet,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

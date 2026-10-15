@@ -13,11 +13,15 @@ class GratitudeStore extends ChangeNotifier {
   static const _kJourneyStart = 'gratitude_journey_start';
   static const _kNeural = 'gratitude_neural';
   static const _kDayAfter = 'gratitude_day_after';
+  static const _kJourneyPast = 'gratitude_journey_past';
 
   NeuralContainer neural = NeuralContainer();
 
   /// حسِ «ثبت‌شده» برای هر روز (practiceEmotions[day].gratitude.after در وب)
   final Map<String, List<String>> dayAfter = {};
+
+  /// دوره‌های تمام‌شده‌ی قبلی: [{days: int, startDate: 'yyyy-MM-dd'}]
+  final List<Map<String, dynamic>> pastPeriods = [];
 
   final List<GratitudeEntry> entries = [];
   int journeyDays = 28;
@@ -65,6 +69,20 @@ class GratitudeStore extends ChangeNotifier {
           }
         } catch (_) {}
       }
+      final pRaw = sp.getString(_kJourneyPast);
+      if (pRaw != null && pRaw.isNotEmpty) {
+        try {
+          final l = jsonDecode(pRaw);
+          if (l is List) {
+            pastPeriods
+              ..clear()
+              ..addAll(l.whereType<Map>().map((m) => {
+                    'days': (m['days'] as num?)?.toInt() ?? 28,
+                    'startDate': m['startDate']?.toString() ?? '',
+                  }));
+          }
+        } catch (_) {}
+      }
       neural.autoSync();
       await _persist();
     } catch (_) {}
@@ -83,6 +101,7 @@ class GratitudeStore extends ChangeNotifier {
       await sp.setString(_kJourneyStart, journeyStart);
       await sp.setString(_kNeural, jsonEncode(neural.toJson()));
       await sp.setString(_kDayAfter, jsonEncode(dayAfter));
+      await sp.setString(_kJourneyPast, jsonEncode(pastPeriods));
     } catch (_) {}
   }
 
@@ -388,11 +407,30 @@ class GratitudeStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> startNewJourney() async {
+  /// شروع دوره‌ی بعدی (periodStartNext وب): دوره‌ی فعلی می‌ره توی لیست
+  /// دوره‌های قبلی و دوره‌ی تازه از امروز با [days] روز شروع می‌شه.
+  Future<void> startNewJourney({int? days}) async {
+    pastPeriods.add({'days': journeyDays, 'startDate': journeyStart});
+    if (days != null && days >= 1) journeyDays = days;
     journeyStart = _todayKey();
     await _persist();
     notifyListeners();
   }
+
+  /// روزهایی که حداقل یک شکرگذاری (غیر از خرید) ثبت شده — gratitudeDoneDaySet وب
+  Set<String> get doneDayKeys {
+    final out = <String>{};
+    for (final e in entries) {
+      if (e.source == 'purchase') continue;
+      var k = isoToKey(e.iso);
+      if (k.isEmpty) k = _normDayKey(e.date);
+      if (k.isNotEmpty) out.add(k);
+    }
+    return out;
+  }
+
+  /// رنگ حلقه‌ی روز در تقویم = قوی‌ترین حسِ آن روز (مثل وب)
+  String? dayRingColor(String dayKey) => dominantEmotionColorForDay(dayKey);
 
   // ───────── helpers ─────────
   static String _todayKey() {

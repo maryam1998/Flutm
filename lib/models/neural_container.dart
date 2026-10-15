@@ -204,15 +204,45 @@ class NeuralContainer {
   bool autoSync({bool noMissPenalty = false}) {
     if (noMissPenalty) return false;
     final yesterday = dayKeyOffset(-1);
+    var changed = false;
+
+    // «انجام‌نشده» فقط بعد از اولین رشته‌ی واقعی معنی داره؛ روزهای قبل از
+    // شروع تمرین نباید رشته‌های ساخته‌شده رو کم کنن (وگرنه ۳ ثبتِ امروز با ۳ روز
+    // «نیومدنِ» قبلی صفر می‌شد).
+    final first = _firstActiveDay();
+    final dayRe = RegExp(r'^\d{4}-\d{1,2}-\d{1,2}$');
+    for (final k in logs.keys.toList()) {
+      if (logs[k] != false || !dayRe.hasMatch(k)) continue;
+      final d = _dayOf(k);
+      if (first == null || d.isBefore(first)) {
+        logs.remove(k);
+        changed = true;
+      }
+    }
 
     if (lastSyncKey == null) {
       lastSyncKey = yesterday;
-      return false;
+      return changed;
     }
-    if (lastSyncKey == yesterday) return false;
+    if (first == null) {
+      if (lastSyncKey != yesterday) {
+        lastSyncKey = yesterday;
+        changed = true;
+      }
+      return changed;
+    }
+
+    // جریمه از روزِ بعد از اولین فعالیت شروع می‌شه
+    final dayBefore = DateTime(first.year, first.month, first.day - 1);
+    final lastSync = _dayOf(lastSyncKey!);
+    if (lastSync.isBefore(dayBefore)) {
+      lastSyncKey = '${dayBefore.year}-${dayBefore.month}-${dayBefore.day}';
+      changed = true;
+    }
+
+    if (lastSyncKey == yesterday) return changed;
 
     String cursor = lastSyncKey!;
-    bool changed = false;
     int guard = 0;
     while (cursor != yesterday && guard < 3650) {
       cursor = ndKeyNext(cursor);
@@ -224,6 +254,36 @@ class NeuralContainer {
     }
     lastSyncKey = yesterday;
     return changed;
+  }
+
+  /// اولین روزی که یک رشته‌ی «انجام‌شده» داشته (تاریخ بدون ساعت)
+  DateTime? _firstActiveDay() {
+    DateTime? best;
+    final dayRe = RegExp(r'^\d{4}-\d{1,2}-\d{1,2}$');
+    for (final e in logs.entries) {
+      if (e.value != true) continue;
+      DateTime? d;
+      if (dayRe.hasMatch(e.key)) {
+        d = _dayOf(e.key);
+      } else {
+        final m = RegExp(r'^f(\d{10,})-').firstMatch(e.key);
+        if (m != null) {
+          final ts = int.tryParse(m.group(1) ?? '');
+          if (ts != null) {
+            final t = DateTime.fromMillisecondsSinceEpoch(ts);
+            d = DateTime(t.year, t.month, t.day);
+          }
+        }
+      }
+      if (d != null && (best == null || d.isBefore(best))) best = d;
+    }
+    return best;
+  }
+
+  static DateTime _dayOf(String key) {
+    final p = key.split('-').map((e) => int.tryParse(e) ?? 1).toList();
+    if (p.length != 3) return DateTime.now();
+    return DateTime(p[0], p[1], p[2]);
   }
 
   bool cleanupPending({
