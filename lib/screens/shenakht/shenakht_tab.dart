@@ -409,13 +409,6 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
 
   void _go(String r) => setState(() => _route = r);
 
-  void _openOrigin(String schemaId) {
-    setState(() {
-      _activeSchemaId = schemaId;
-      _route = 'origin';
-    });
-  }
-
   void _openCycle(String schemaId) {
     setState(() {
       _activeSchemaId = schemaId;
