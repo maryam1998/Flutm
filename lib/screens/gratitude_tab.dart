@@ -1,10 +1,6 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -17,47 +13,29 @@ import '../theme/grat_palette.dart';
 import '../widgets/gratitude_slideshow.dart';
 import '../widgets/neural_pathway.dart';
 
-// ═══════════════════════════════════════════════════════════════
-//                        تب شکرگذاری
-// ═══════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 class GratitudeTab extends StatefulWidget {
   const GratitudeTab({super.key});
-
   @override
   State<GratitudeTab> createState() => _GratitudeTabState();
 }
 
 class _GratitudeTabState extends State<GratitudeTab> {
   final _scrollCtrl = ScrollController();
-
-  // ── کمپوزر ──
   final _textCtrl = TextEditingController();
-  final _textFocus = FocusNode();
   final List<GratitudeImage> _pendingImages = [];
   final List<GratitudeAudio> _pendingAudios = [];
   final List<GratitudeVideo> _pendingVideos = [];
   bool _pendingShare = false;
-
-  // ── ویرایش ──
-  String? _editingId;
-  final _editCtrl = TextEditingController();
-  final List<GratitudeImage> _editImages = [];
-  final List<GratitudeAudio> _editAudios = [];
-  final List<GratitudeVideo> _editVideos = [];
-  bool _editShare = false;
-
   final _picker = ImagePicker();
 
   @override
   void dispose() {
     _scrollCtrl.dispose();
     _textCtrl.dispose();
-    _textFocus.dispose();
-    _editCtrl.dispose();
     super.dispose();
   }
 
-  // ────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final pal = GratPalette.of(context);
@@ -85,13 +63,12 @@ class _GratitudeTabState extends State<GratitudeTab> {
             _CounterCard(store: store, pal: pal),
             const SizedBox(height: 8),
             _ThemeBanner(info: info, pal: pal),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _MiniCalendar(store: store, pal: pal),
             const SizedBox(height: 14),
             _Composer(
               pal: pal,
               textCtrl: _textCtrl,
-              textFocus: _textFocus,
               images: _pendingImages,
               audios: _pendingAudios,
               videos: _pendingVideos,
@@ -99,7 +76,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
               onShareChanged: (v) => setState(() => _pendingShare = v),
               onPickImages: _pickImages,
               onPickVideos: _pickVideos,
-              onRecordAudio: _recordAudio,
               onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),
               onRemoveAudio: (i) => setState(() => _pendingAudios.removeAt(i)),
               onRemoveVideo: (i) => setState(() => _pendingVideos.removeAt(i)),
@@ -154,7 +130,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
     return max;
   }
 
-  // ─────────────────── لیست ───────────────────
   Widget _buildList(GratitudeStore store, GratPalette pal) {
     final all = store.allReversed;
     if (all.isEmpty) {
@@ -180,9 +155,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
       children: [
         ...slice.map((g) => _EntryRow(
               entry: g,
-              store: store,
               pal: pal,
-              onTap: () => _openEditor(g),
+              onTap: () => _openEditor(context, g),
             )),
         if (all.length > slice.length)
           Padding(
@@ -198,7 +172,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
   }
 
-  // ─────────────────── افزودن ───────────────────
+  // ─── افزودن ───
   Future<void> _submit() async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty &&
@@ -211,6 +185,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final store = context.read<GratitudeStore>();
     final emotions = context.read<EmotionStore>();
 
+    // 🔑 ثبت خودکار رشته‌ی عصبی + رنگ احساسات روز
     await store.add(
       text: text,
       images: List.of(_pendingImages),
@@ -220,6 +195,14 @@ class _GratitudeTabState extends State<GratitudeTab> {
       emotions: emotions,
     );
 
+    // ✅ اگر ویجت آدم احساس انتخاب کرده بود، همان‌ها روی روز ثبت می‌شوند
+    if (emotions.hasSelection) {
+      final todayKey = GratitudeStore.isoToKey(DateTime.now().toIso8601String());
+      await store.updateDayEmotions(todayKey, emotions.selectedIds.toList());
+      emotions.clear();
+    }
+
+    final wasShared = _pendingShare;
     setState(() {
       _textCtrl.clear();
       _pendingImages.clear();
@@ -227,24 +210,24 @@ class _GratitudeTabState extends State<GratitudeTab> {
       _pendingVideos.clear();
       _pendingShare = false;
     });
-    _toast(_pendingShare
+    _toast(wasShared
         ? 'ثبت شد و با بقیه به اشتراک گذاشته شد 🌍'
         : 'ثبت شد — فقط برای خودم 🤫');
   }
 
-  // ─────────────────── انتخاب مدیا ───────────────────
   Future<void> _pickImages() async {
     try {
-      final files = await _picker.pickMultiImage(imageQuality: 82, maxWidth: 1400);
+      final files =
+          await _picker.pickMultiImage(imageQuality: 82, maxWidth: 1400);
       if (files.isEmpty) return;
       for (final f in files) {
         final bytes = await f.readAsBytes();
         final b64 = base64Encode(bytes);
-        final src = 'data:image/jpeg;base64,$b64';
-        setState(() => _pendingImages.add(GratitudeImage(src: src)));
+        setState(() =>
+            _pendingImages.add(GratitudeImage(src: 'data:image/jpeg;base64,$b64')));
       }
     } catch (e) {
-      _toast('عکس اضافه نشد: $e');
+      _toast('عکس اضافه نشد');
     }
   }
 
@@ -254,78 +237,46 @@ class _GratitudeTabState extends State<GratitudeTab> {
       if (f == null) return;
       final bytes = await f.readAsBytes();
       if (bytes.length > 8 * 1024 * 1024) {
-        _toast('ویدیو بزرگ‌تر از ۸ مگابایت ذخیره نمی‌شه (نسخهٔ سبک)');
+        _toast('ویدیو بزرگ‌تر از ۸ مگابایت ذخیره نمی‌شه');
         return;
       }
       final b64 = base64Encode(bytes);
-      final src = 'data:video/mp4;base64,$b64';
-      setState(() => _pendingVideos.add(
-            GratitudeVideo(path: src, name: f.name, size: bytes.length),
-          ));
+      setState(() => _pendingVideos.add(GratitudeVideo(
+            path: 'data:video/mp4;base64,$b64',
+            name: f.name,
+            size: bytes.length,
+          )));
     } catch (e) {
-      _toast('ویدیو اضافه نشد: $e');
+      _toast('ویدیو اضافه نشد');
     }
   }
 
-  Future<void> _recordAudio() async {
-    // ادغام با VoiceRecorderSheet اگر موجود باشد
-    try {
-      // ignore: avoid_dynamic_calls
-      final dyn = await _dynamicShowVoice(context);
-      if (dyn is String && dyn.isNotEmpty) {
-        setState(() => _pendingAudios.add(
-              GratitudeAudio(
-                src: dyn,
-                name: 'صدا ${_toFa(_pendingAudios.length + 1)}',
-              ),
-            ));
-      }
-    } catch (_) {
-      _toast('ضبط صدا در دسترس نیست');
-    }
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      duration: const Duration(milliseconds: 1600),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
-  Future<Object?> _dynamicShowVoice(BuildContext ctx) async {
-    // از voice_recorder_sheet استفاده می‌کنیم بدون import مستقیم
-    try {
-      // ignore: avoid_dynamic_calls
-      final result = await showModalBottomSheet<Object?>(
-        context: ctx,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => const _VoiceFallbackSheet(),
-      );
-      return result;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ─────────────────── ویرایش ───────────────────
-  void _openEditor(GratitudeEntry g) {
-    _editingId = g.id;
-    _editCtrl.text = g.text;
-    _editImages
-      ..clear()
-      ..addAll(g.images);
-    _editAudios
-      ..clear()
-      ..addAll(g.audios);
-    _editVideos
-      ..clear()
-      ..addAll(g.videos);
-    _editShare = g.shared;
-
+  // ─── ویرایش ───
+  void _openEditor(BuildContext context, GratitudeEntry g) {
     final pal = GratPalette.of(context);
+    final editCtrl = TextEditingController(text: g.text);
+    final images = List.of(g.images);
+    final audios = List.of(g.audios);
+    final videos = List.of(g.videos);
+    bool share = g.shared;
+    final isPurchase = g.source == 'purchase';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setSheet) {
-          final isPurchase = g.source == 'purchase';
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setSheet) {
           return Container(
             decoration: BoxDecoration(
               color: pal.paper,
@@ -339,12 +290,12 @@ class _GratitudeTabState extends State<GratitudeTab> {
                   left: 16,
                   right: 16,
                   top: 16,
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                  bottom: MediaQuery.of(ctx2).viewInsets.bottom + 20,
                 ),
                 child: SingleChildScrollView(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Center(
                         child: Container(
@@ -368,7 +319,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                       ),
                       const SizedBox(height: 14),
                       TextField(
-                        controller: _editCtrl,
+                        controller: editCtrl,
                         maxLines: null,
                         minLines: 3,
                         textAlign: TextAlign.right,
@@ -396,35 +347,60 @@ class _GratitudeTabState extends State<GratitudeTab> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      if (_editImages.isNotEmpty)
-                        _ThumbGrid(
-                          images: _editImages,
-                          pal: pal,
-                          onRemove: (i) => setSheet(
-                              () => _editImages.removeAt(i)),
+                      if (images.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: images.asMap().entries.map((e) {
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: pal.surface2,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: pal.line),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: _imgFromSrc(e.value.src),
+                                ),
+                                Positioned(
+                                  top: -6,
+                                  right: -6,
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        setSheet(() => images.removeAt(e.key)),
+                                    child: Container(
+                                      width: 22,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        color: pal.danger,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Icon(Icons.close,
+                                          size: 14, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
                         ),
-                      if (_editAudios.isNotEmpty)
-                        ..._editAudios.asMap().entries.map((e) =>
-                            _AudioRow(
-                              audio: e.value,
-                              pal: pal,
-                              onRemove: () => setSheet(
-                                  () => _editAudios.removeAt(e.key)),
-                            )),
-                      if (_editVideos.isNotEmpty)
-                        ..._editVideos.asMap().entries.map((e) => _VideoTile(
-                              video: e.value,
-                              pal: pal,
-                              onRemove: () => setSheet(
-                                  () => _editVideos.removeAt(e.key)),
-                            )),
+                      ],
                       const SizedBox(height: 14),
                       if (!isPurchase)
-                        _VisibilityRow(
-                          value: _editShare,
-                          pal: pal,
-                          onChanged: (v) => setSheet(() => _editShare = v),
+                        Row(
+                          children: [
+                            _radioBtn('فقط برای خودم', Icons.lock_outline,
+                                !share, () => setSheet(() => share = false), pal),
+                            const SizedBox(width: 14),
+                            _radioBtn('اشتراک', Icons.public, share,
+                                () => setSheet(() => share = true), pal),
+                          ],
                         ),
                       const SizedBox(height: 12),
                       SizedBox(
@@ -434,21 +410,19 @@ class _GratitudeTabState extends State<GratitudeTab> {
                             backgroundColor: pal.emerald700,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                                borderRadius: BorderRadius.circular(14)),
                           ),
                           onPressed: () async {
-                            final store = context.read<GratitudeStore>();
-                            await store.update(
-                              g.id,
-                              text: _editCtrl.text.trim(),
-                              images: List.of(_editImages),
-                              audios: List.of(_editAudios),
-                              videos: List.of(_editVideos),
-                              shared: _editShare,
-                            );
-                            if (mounted) Navigator.pop(ctx);
-                            _toast('شکرگذاری ویرایش شد ✏️');
+                            await context.read<GratitudeStore>().update(
+                                  g.id,
+                                  text: editCtrl.text.trim(),
+                                  images: images,
+                                  audios: audios,
+                                  videos: videos,
+                                  shared: share,
+                                );
+                            if (context.mounted) Navigator.pop(ctx);
+                            _toast('ویرایش شد ✏️');
                           },
                           child: const Text('ذخیره تغییرات',
                               style: TextStyle(fontWeight: FontWeight.w800)),
@@ -460,7 +434,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                         pal: pal,
                         onTap: () async {
                           final ok = await showDialog<bool>(
-                            context: ctx,
+                            context: ctx2,
                             builder: (dctx) => AlertDialog(
                               backgroundColor: pal.card,
                               content: Text('این مورد حذف شود؟',
@@ -473,8 +447,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                 ),
                                 FilledButton(
                                   style: FilledButton.styleFrom(
-                                    backgroundColor: pal.danger,
-                                  ),
+                                      backgroundColor: pal.danger),
                                   onPressed: () =>
                                       Navigator.pop(dctx, true),
                                   child: const Text('بله'),
@@ -486,8 +459,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
                             await context
                                 .read<GratitudeStore>()
                                 .remove(g.id);
-                            if (mounted) Navigator.pop(ctx);
-                            _toast('شکرگذاری حذف شد 🗑');
+                            if (context.mounted) Navigator.pop(ctx);
+                            _toast('حذف شد 🗑');
                           }
                         },
                       ),
@@ -508,21 +481,60 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
   }
 
-  void _toast(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        duration: const Duration(milliseconds: 1600),
-        behavior: SnackBarBehavior.floating,
+  static Widget _radioBtn(
+    String label,
+    IconData icon,
+    bool active,
+    VoidCallback onTap,
+    GratPalette pal,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: active ? pal.emerald500 : pal.line,
+                width: 1.5,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: active
+                ? Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: pal.emerald500,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: active ? pal.emerald700 : pal.muted),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: active ? pal.emerald700 : pal.muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//                        کارت شمارنده
-// ═══════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//                       کارت شمارنده
+// ════════════════════════════════════════════════════════════════
 class _CounterCard extends StatelessWidget {
   final GratitudeStore store;
   final GratPalette pal;
@@ -556,9 +568,7 @@ class _CounterCard extends StatelessWidget {
               TextSpan(
                 text: _toFa(store.totalCount),
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
+                    fontSize: 20, fontWeight: FontWeight.w900),
               ),
               const TextSpan(text: ' بار شکر کردم'),
             ],
@@ -576,9 +586,9 @@ class _CounterCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//                        بنر فاز (theme-banner)
-// ═══════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//                       بنر فاز
+// ════════════════════════════════════════════════════════════════
 class _ThemeBanner extends StatelessWidget {
   final GratitudePhaseInfo info;
   final GratPalette pal;
@@ -601,7 +611,6 @@ class _ThemeBanner extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              // درخشش طلایی
               Positioned(
                 right: -30,
                 top: -30,
@@ -610,12 +619,10 @@ class _ThemeBanner extends StatelessWidget {
                   height: 140,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        pal.gold300.withValues(alpha: 0.35),
-                        Colors.transparent,
-                      ],
-                    ),
+                    gradient: RadialGradient(colors: [
+                      pal.gold300.withValues(alpha: 0.35),
+                      Colors.transparent,
+                    ]),
                   ),
                 ),
               ),
@@ -677,8 +684,7 @@ class _ThemeBanner extends StatelessWidget {
                             child: Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [pal.gold300, pal.gold500],
-                                ),
+                                    colors: [pal.gold300, pal.gold500]),
                               ),
                             ),
                           ),
@@ -696,9 +702,9 @@ class _ThemeBanner extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//                        تقویم کوچک (15 ستون)
-// ═══════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//                       تقویم کوچک ۱۵ستونی
+// ════════════════════════════════════════════════════════════════
 class _MiniCalendar extends StatelessWidget {
   final GratitudeStore store;
   final GratPalette pal;
@@ -707,6 +713,10 @@ class _MiniCalendar extends StatelessWidget {
   static const _monthOrd = [
     'اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم',
     'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم', 'سیزدهم',
+  ];
+  static const _jalaliMonths = [
+    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
   ];
 
   @override
@@ -726,6 +736,8 @@ class _MiniCalendar extends StatelessWidget {
 
     const cols = 15;
     const blockSize = 30;
+
+    // سلول‌ها را با نوع مشخص می‌سازیم
     final cells = <Widget>[];
 
     for (var d = 0; d < total; d++) {
@@ -734,33 +746,26 @@ class _MiniCalendar extends StatelessWidget {
       final has = doneSet.contains(key);
       final future = date.isAfter(today);
       final isToday = key == todayKey;
-      final monthEnd =
-          (d % blockSize == blockSize - 1) || (d == total - 1);
+      final monthEnd = (d % blockSize == blockSize - 1) || (d == total - 1);
 
+      // هدر ماه
       if (d % blockSize == 0) {
         final endIdx = (d + blockSize - 1).clamp(0, total - 1);
         final endDate =
             DateTime(start.year, start.month, start.day + endIdx);
-        final jFrom = _toJalali(date.year, date.month, date.day);
-        final jTo = _toJalali(endDate.year, endDate.month, endDate.day);
+        final jF = _toJalali(date.year, date.month, date.day);
+        final jT = _toJalali(endDate.year, endDate.month, endDate.day);
         final ordIdx = d ~/ blockSize;
         cells.add(_MonthHeader(
           pal: pal,
           label: 'ماه ${ordIdx < _monthOrd.length ? _monthOrd[ordIdx] : _toFa(ordIdx + 1)}',
           range:
-              '${_toFa(jFrom.$3)} ${_jalaliMonths[jFrom.$2 - 1]} تا ${_toFa(jTo.$3)} ${_jalaliMonths[jTo.$2 - 1]}',
+              '${_toFa(jF.$3)} ${_jalaliMonths[jF.$2 - 1]} تا ${_toFa(jT.$3)} ${_jalaliMonths[jT.$2 - 1]}',
         ));
       }
 
-      // رنگ احساس غالب روی این روز (حلقهٔ ۲px)
-      final hex = store.dominantEmotionColorForDay(key);
-      Color? ring;
-      if (hex != null) {
-        try {
-          final h = hex.replaceFirst('#', '');
-          ring = Color(int.parse('FF$h', radix: 16));
-        } catch (_) {}
-      }
+      // رنگ‌های فرکانس این روز — از Store می‌آید
+      final colors = store.emotionColorsForDay(key);
 
       cells.add(_DayCell(
         pal: pal,
@@ -768,10 +773,8 @@ class _MiniCalendar extends StatelessWidget {
         today: isToday,
         future: future,
         monthEnd: monthEnd,
-        ring: ring,
-        onTap: has
-            ? () => _openDayEmotions(context, store, key)
-            : null,
+        emotionColors: colors,
+        onTap: has ? () => _openDayEmotions(context, store, key) : null,
       ));
     }
 
@@ -787,7 +790,8 @@ class _MiniCalendar extends StatelessWidget {
         child: LayoutBuilder(builder: (ctx, box) {
           const gap = 3.0;
           final cellW = (box.maxWidth - (cols - 1) * gap) / cols;
-          final size = cellW.clamp(16.0, 26.0);
+          // فضای سلول پایه: کوچک، چون حلقه‌ها بیرونش کشیده می‌شوند
+          final size = cellW.clamp(14.0, 22.0);
 
           final rows = <Widget>[];
           var i = 0;
@@ -796,23 +800,23 @@ class _MiniCalendar extends StatelessWidget {
             while (row.length < cols && i < cells.length) {
               final c = cells[i];
               if (c is _MonthHeader) {
-                // هدر ماه کل ردیف را می‌گیرد
                 if (row.isNotEmpty) {
-                  rows.add(_row(row, gap, size));
+                  rows.add(_row(row, gap));
                   row.clear();
                 }
                 rows.add(c);
                 i++;
               } else {
                 row.add(SizedBox(
-                  width: size,
-                  height: size,
-                  child: c,
+                  // ۶px فضا دور سلول برای حلقه‌های گرادیانی
+                  width: size + 12,
+                  height: size + 12,
+                  child: Center(child: c),
                 ));
                 i++;
               }
             }
-            if (row.isNotEmpty) rows.add(_row(row, gap, size));
+            if (row.isNotEmpty) rows.add(_row(row, gap));
           }
 
           return Column(
@@ -824,7 +828,7 @@ class _MiniCalendar extends StatelessWidget {
     );
   }
 
-  Widget _row(List<Widget> items, double gap, double size) {
+  Widget _row(List<Widget> items, double gap) {
     return Padding(
       padding: EdgeInsets.only(bottom: gap),
       child: Row(
@@ -838,11 +842,6 @@ class _MiniCalendar extends StatelessWidget {
     );
   }
 
-  static const _jalaliMonths = [
-    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
-  ];
-
   static DateTime _parseKey(String k) {
     final p = k.split('-').map((e) => int.tryParse(e) ?? 1).toList();
     if (p.length != 3) return DateTime.now();
@@ -853,7 +852,7 @@ class _MiniCalendar extends StatelessWidget {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   static (int, int, int) _toJalali(int gy, int gm, int gd) {
-    const gDaysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const gDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     final gy2 = (gm > 2) ? gy + 1 : gy;
     var days = 355666 +
         365 * gy +
@@ -862,7 +861,7 @@ class _MiniCalendar extends StatelessWidget {
         ((gy2 + 399) ~/ 400) +
         gd;
     for (var i = 0; i < gm - 1; i++) {
-      days += gDaysInMonth[i];
+      days += gDays[i];
     }
     var jy = -1595 + 33 * (days ~/ 12053);
     days %= 12053;
@@ -882,7 +881,11 @@ class _MonthHeader extends StatelessWidget {
   final String label;
   final String range;
   final GratPalette pal;
-  const _MonthHeader({required this.label, required this.range, required this.pal});
+  const _MonthHeader({
+    required this.label,
+    required this.range,
+    required this.pal,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -905,74 +908,139 @@ class _MonthHeader extends StatelessWidget {
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+//  DayCell — با حلقه‌ی گرادیانی چندرنگ (مجموع رنگ‌های فرکانس)
+// ════════════════════════════════════════════════════════════════
 class _DayCell extends StatelessWidget {
   final bool done, today, future, monthEnd;
-  final Color? ring;
+  final List<Color> emotionColors;
   final VoidCallback? onTap;
   final GratPalette pal;
+
   const _DayCell({
     required this.pal,
     required this.done,
     required this.today,
     required this.future,
     required this.monthEnd,
-    required this.ring,
+    required this.emotionColors,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    // هسته‌ی داخلی
+    final innerCore = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        gradient: done
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [pal.emerald700, pal.emerald500],
+              )
+            : null,
+        border: Border.all(
+          color: today
+              ? pal.emerald500
+              : (done ? Colors.transparent : pal.line),
+          width: today ? 1.5 : 1,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: done
+          ? const Icon(Icons.check, size: 10, color: Colors.white)
+          : null,
+    );
+
+    // اگر حلقه‌ی رنگی نداریم، فقط هسته را نشان بده
+    Widget cell;
+    if (emotionColors.isEmpty) {
+      cell = SizedBox(width: 20, height: 20, child: innerCore);
+    } else if (emotionColors.length == 1) {
+      // یک رنگ → حلقه‌ی ساده‌ی رنگ‌دار
+      cell = Container(
+        width: 20,
+        height: 20,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          color: emotionColors.first,
+        ),
+        child: innerCore,
+      );
+    } else {
+      // چند رنگ → حلقه‌ی گرادیانی چرخشی (SweepGradient)
+      // این دقیقاً «مجموع رنگ‌های فرکانس» را نشان می‌دهد
+      cell = Container(
+        width: 20,
+        height: 20,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          gradient: SweepGradient(
+            // رنگ‌ها به‌ترتیب فرکانس (پرفرکانس‌ترها اول)
+            colors: emotionColors,
+            // برای زیبایی، دور کامل می‌زنیم به رنگ اول
+            stops: _sweepStops(emotionColors.length),
+            startAngle: 0,
+            endAngle: 6.28318530718, // 2π
+          ),
+        ),
+        child: innerCore,
+      );
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Opacity(
         opacity: future ? 0.3 : 1,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            gradient: done
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [pal.emerald700, pal.emerald500],
-                  )
-                : null,
-            border: Border.all(
-              color: today ? pal.emerald500 : pal.line,
-              width: today ? 1.5 : 1,
-            ),
-            boxShadow: [
-              if (ring != null)
-                BoxShadow(
-                  color: ring!,
-                  spreadRadius: 1,
-                  blurRadius: 0,
-                ),
-              if (monthEnd)
-                BoxShadow(
-                  color: pal.gold500,
-                  offset: const Offset(0, 3),
-                  blurRadius: 0,
-                  spreadRadius: -1,
-                ),
-            ],
-          ),
+        child: Stack(
           alignment: Alignment.center,
-          child: done
-              ? const Icon(Icons.check, size: 11, color: Colors.white)
-              : null,
+          children: [
+            cell,
+            if (monthEnd)
+              Positioned(
+                bottom: 1,
+                left: 6,
+                right: 6,
+                child: Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: pal.gold500,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
+
+  /// اگر n رنگ داریم، stops را طوری می‌چینیم که همه سهم مساوی داشته باشند
+  static List<double> _sweepStops(int n) {
+    if (n <= 1) return const [0.0, 1.0];
+    final stops = <double>[];
+    for (var i = 0; i < n; i++) {
+      stops.add(i / n);
+    }
+    stops.add(1.0);
+    return stops;
+  }
 }
 
-// دکمهٔ مشاهده/ویرایش احساسات روز
+// ════════════════════════════════════════════════════════════════
+//                مودال ویرایش احساسات یک روز
+// ════════════════════════════════════════════════════════════════
 void _openDayEmotions(
-    BuildContext context, GratitudeStore store, String dayKey) {
+  BuildContext context,
+  GratitudeStore store,
+  String dayKey,
+) {
   final pal = GratPalette.of(context);
   final current = store.emotionIdsForDay(dayKey).toList();
   final selected = <String>{...current};
-  final emotions = context.read<EmotionStore>();
 
   showModalBottomSheet(
     context: context,
@@ -993,18 +1061,33 @@ void _openDayEmotions(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('💗 حس‌های این روز',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: pal.ink,
-                    )),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: pal.line,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  '💗 حس‌های این روز',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: pal.ink,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(dayKey,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: pal.muted)),
-                const SizedBox(height: 12),
+                Text(
+                  dayKey,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: pal.muted),
+                ),
+                const SizedBox(height: 14),
                 ConstrainedBox(
                   constraints: BoxConstraints(
                     maxHeight: MediaQuery.of(ctx).size.height * 0.45,
@@ -1015,7 +1098,7 @@ void _openDayEmotions(
                       runSpacing: 6,
                       children: kEmotions.map((e) {
                         final on = selected.contains(e.id);
-                        final color = hexToColor(e.color);
+                        final color = _hex(e.color);
                         return GestureDetector(
                           onTap: () => setSheet(() {
                             if (on) {
@@ -1049,12 +1132,14 @@ void _openDayEmotions(
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                Text(e.fa,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: on ? color : pal.ink,
-                                    )),
+                                Text(
+                                  e.fa,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: on ? color : pal.ink,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -1074,9 +1159,12 @@ void _openDayEmotions(
                           borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () async {
-                      await store
-                          .updateDayEmotions(dayKey, selected.toList());
-                      if (mounted_) Navigator.pop(ctx);
+                      // 🔑 این باعث می‌شود رنگ روز فوراً در تقویم عوض شود
+                      await store.updateDayEmotions(
+                        dayKey,
+                        selected.toList(),
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx);
                     },
                     child: const Text('ذخیره',
                         style: TextStyle(fontWeight: FontWeight.w800)),
@@ -1091,16 +1179,21 @@ void _openDayEmotions(
   );
 }
 
-// چون این تابع خارج از State است، برای راحتی
-bool get mounted_ => true;
+Color _hex(String hex) {
+  try {
+    final h = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$h', radix: 16));
+  } catch (_) {
+    return const Color(0xFF2BBFAB);
+  }
+}
 
-// ═══════════════════════════════════════════════════════════════
-//                        کمپوزر (ورودی جدید)
-// ═══════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//                       Composer
+// ════════════════════════════════════════════════════════════════
 class _Composer extends StatelessWidget {
   final GratPalette pal;
   final TextEditingController textCtrl;
-  final FocusNode textFocus;
   final List<GratitudeImage> images;
   final List<GratitudeAudio> audios;
   final List<GratitudeVideo> videos;
@@ -1108,7 +1201,6 @@ class _Composer extends StatelessWidget {
   final ValueChanged<bool> onShareChanged;
   final VoidCallback onPickImages;
   final VoidCallback onPickVideos;
-  final VoidCallback onRecordAudio;
   final ValueChanged<int> onRemoveImage;
   final ValueChanged<int> onRemoveAudio;
   final ValueChanged<int> onRemoveVideo;
@@ -1117,7 +1209,6 @@ class _Composer extends StatelessWidget {
   const _Composer({
     required this.pal,
     required this.textCtrl,
-    required this.textFocus,
     required this.images,
     required this.audios,
     required this.videos,
@@ -1125,7 +1216,6 @@ class _Composer extends StatelessWidget {
     required this.onShareChanged,
     required this.onPickImages,
     required this.onPickVideos,
-    required this.onRecordAudio,
     required this.onRemoveImage,
     required this.onRemoveAudio,
     required this.onRemoveVideo,
@@ -1165,7 +1255,6 @@ class _Composer extends StatelessWidget {
             const SizedBox(height: 8),
             TextField(
               controller: textCtrl,
-              focusNode: textFocus,
               maxLines: null,
               minLines: 3,
               textAlign: TextAlign.right,
@@ -1195,65 +1284,85 @@ class _Composer extends StatelessWidget {
             Row(
               children: [
                 _MediaBtn(
-                  pal: pal,
-                  icon: Icons.image_outlined,
-                  onTap: onPickImages,
-                ),
+                    pal: pal,
+                    icon: Icons.mic_none_outlined,
+                    onTap: () {}),
                 const SizedBox(width: 8),
                 _MediaBtn(
-                  pal: pal,
-                  icon: Icons.videocam_outlined,
-                  onTap: onPickVideos,
-                ),
+                    pal: pal,
+                    icon: Icons.videocam_outlined,
+                    onTap: onPickVideos),
                 const SizedBox(width: 8),
                 _MediaBtn(
-                  pal: pal,
-                  icon: Icons.mic_none_outlined,
-                  onTap: onRecordAudio,
-                ),
+                    pal: pal,
+                    icon: Icons.image_outlined,
+                    onTap: onPickImages),
               ],
             ),
             if (images.isNotEmpty) ...[
               const SizedBox(height: 10),
-              _ThumbGrid(
-                images: images,
-                pal: pal,
-                onRemove: onRemoveImage,
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: images.asMap().entries.map((e) {
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: pal.surface2,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: pal.line),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _imgFromSrc(e.value.src),
+                      ),
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: GestureDetector(
+                          onTap: () => onRemoveImage(e.key),
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: pal.danger,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.close,
+                                size: 14, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
               ),
             ],
-            if (audios.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              ...audios.asMap().entries.map((e) => _AudioRow(
-                    audio: e.value,
-                    pal: pal,
-                    onRemove: () => onRemoveAudio(e.key),
-                  )),
-            ],
-            if (videos.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              ...videos.asMap().entries.map((e) => _VideoTile(
-                    video: e.value,
-                    pal: pal,
-                    onRemove: () => onRemoveVideo(e.key),
-                  )),
-            ],
             const SizedBox(height: 10),
-            _VisibilityRow(
-              value: share,
-              pal: pal,
-              onChanged: onShareChanged,
+            Row(
+              children: [
+                _radioBtn('فقط برای خودم', Icons.lock_outline, !share,
+                    () => onShareChanged(false), pal),
+                const SizedBox(width: 14),
+                _radioBtn('اشتراک‌گذاری با بقیه', Icons.public, share,
+                    () => onShareChanged(true), pal),
+              ],
             ),
             const SizedBox(height: 12),
             SizedBox(
               height: 46,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: pal.emerald700,
-                  foregroundColor: Colors.white,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: pal.ink,
+                  side: BorderSide(color: pal.line),
+                  backgroundColor: pal.card,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 0,
                 ),
                 onPressed: onSubmit,
                 child: const Text('ثبت شکرگذاری',
@@ -1266,226 +1375,14 @@ class _Composer extends StatelessWidget {
       ),
     );
   }
-}
 
-class _MediaBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final GratPalette pal;
-  const _MediaBtn({required this.icon, required this.onTap, required this.pal});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: pal.surface,
-      borderRadius: BorderRadius.circular(50),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(50),
-        onTap: onTap,
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: pal.emerald300),
-          ),
-          child: Icon(icon, color: pal.emerald700, size: 22),
-        ),
-      ),
-    );
-  }
-}
-
-class _ThumbGrid extends StatelessWidget {
-  final List<GratitudeImage> images;
-  final ValueChanged<int> onRemove;
-  final GratPalette pal;
-  const _ThumbGrid({
-    required this.images,
-    required this.onRemove,
-    required this.pal,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: images.asMap().entries.map((e) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: pal.surface2,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: pal.line),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: _imgFromSrc(e.value.src),
-            ),
-            Positioned(
-              top: -6,
-              right: -6,
-              child: GestureDetector(
-                onTap: () => onRemove(e.key),
-                child: Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: pal.danger,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.close,
-                      size: 14, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _AudioRow extends StatelessWidget {
-  final GratitudeAudio audio;
-  final VoidCallback onRemove;
-  final GratPalette pal;
-  const _AudioRow({
-    required this.audio,
-    required this.onRemove,
-    required this.pal,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: pal.card,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: pal.line),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.graphic_eq, size: 16, color: pal.emerald700),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(audio.name.isEmpty ? 'صدا' : audio.name,
-                style: TextStyle(fontSize: 11.5, color: pal.muted)),
-          ),
-          GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: pal.surface2,
-              ),
-              alignment: Alignment.center,
-              child: Icon(Icons.close, size: 13, color: pal.ink),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VideoTile extends StatelessWidget {
-  final GratitudeVideo video;
-  final VoidCallback onRemove;
-  final GratPalette pal;
-  const _VideoTile({
-    required this.video,
-    required this.onRemove,
-    required this.pal,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: pal.card,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: pal.line),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.videocam_outlined, size: 18, color: pal.emerald700),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              video.name.isEmpty ? 'ویدیو' : video.name,
-              style: TextStyle(fontSize: 11.5, color: pal.muted),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: pal.surface2,
-              ),
-              alignment: Alignment.center,
-              child: Icon(Icons.close, size: 13, color: pal.ink),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VisibilityRow extends StatelessWidget {
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final GratPalette pal;
-  const _VisibilityRow({
-    required this.value,
-    required this.onChanged,
-    required this.pal,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _radio(
-          label: 'فقط برای خودم',
-          icon: Icons.lock_outline,
-          active: !value,
-          onTap: () => onChanged(false),
-        ),
-        const SizedBox(width: 14),
-        _radio(
-          label: 'اشتراک با بقیه',
-          icon: Icons.public,
-          active: value,
-          onTap: () => onChanged(true),
-        ),
-      ],
-    );
-  }
-
-  Widget _radio({
-    required String label,
-    required IconData icon,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
+  Widget _radioBtn(
+    String label,
+    IconData icon,
+    bool active,
+    VoidCallback onTap,
+    GratPalette pal,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Row(
@@ -1514,40 +1411,67 @@ class _VisibilityRow extends StatelessWidget {
                 : null,
           ),
           const SizedBox(width: 6),
-          Icon(icon,
-              size: 14, color: active ? pal.emerald700 : pal.muted),
+          Icon(icon, size: 14, color: active ? pal.emerald700 : pal.muted),
           const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: active ? pal.emerald700 : pal.muted,
-                fontWeight: FontWeight.w600,
-              )),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: active ? pal.emerald700 : pal.muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//                        یک ردیف ورودی
-// ═══════════════════════════════════════════════════════════════
+class _MediaBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final GratPalette pal;
+  const _MediaBtn(
+      {required this.icon, required this.onTap, required this.pal});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: pal.surface,
+      borderRadius: BorderRadius.circular(50),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(50),
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: pal.emerald300),
+          ),
+          child: Icon(icon, color: pal.emerald700, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//                       ردیف شکرگذاری
+// ════════════════════════════════════════════════════════════════
 class _EntryRow extends StatelessWidget {
   final GratitudeEntry entry;
-  final GratitudeStore store;
   final GratPalette pal;
   final VoidCallback onTap;
 
   const _EntryRow({
     required this.entry,
-    required this.store,
     required this.pal,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final display = entry.displayText();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
       child: Material(
@@ -1575,7 +1499,12 @@ class _EntryRow extends StatelessWidget {
                   ),
                   clipBehavior: Clip.antiAlias,
                   alignment: Alignment.center,
-                  child: _entryIcon(entry),
+                  child: entry.images.isNotEmpty
+                      ? _imgFromSrc(entry.images.first.src)
+                      : Text(
+                          entry.icon.isEmpty ? '🙏' : entry.icon,
+                          style: const TextStyle(fontSize: 20),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1583,7 +1512,7 @@ class _EntryRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        display,
+                        entry.displayText(),
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
@@ -1598,23 +1527,27 @@ class _EntryRow extends StatelessWidget {
                       ),
                       if (entry.images.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        _EntryImageGrid(images: entry.images, pal: pal),
-                      ],
-                      if (entry.audios.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        ...entry.audios.map((a) => _AudioRow(
-                              audio: a,
-                              pal: pal,
-                              onRemove: () {},
-                            )),
-                      ],
-                      if (entry.videos.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        ...entry.videos.map((v) => _VideoTile(
-                              video: v,
-                              pal: pal,
-                              onRemove: () {},
-                            )),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: entry.images.map((im) {
+                            return GestureDetector(
+                              onTap: () =>
+                                  _openImageViewer(context, entry.images),
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: pal.surface2,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: pal.line),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: _imgFromSrc(im.src),
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ],
                     ],
                   ),
@@ -1639,55 +1572,20 @@ class _EntryRow extends StatelessWidget {
     );
   }
 
-  Widget _entryIcon(GratitudeEntry g) {
-    if (g.images.isNotEmpty) {
-      return _imgFromSrc(g.images.first.src);
-    }
-    return Text(
-      g.icon.isEmpty ? '🙏' : g.icon,
-      style: const TextStyle(fontSize: 20),
-    );
-  }
-
   String _formatMoney(double v) {
-    final rounded = v.round();
-    return '${_toFa3(rounded)} تومان';
+    final s = v.round().toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return '${_toFa(int.parse(s))} تومان';
   }
 }
 
-class _EntryImageGrid extends StatelessWidget {
-  final List<GratitudeImage> images;
-  final GratPalette pal;
-  const _EntryImageGrid({required this.images, required this.pal});
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: images.map((im) {
-        return GestureDetector(
-          onTap: () => _openImageViewer(context, images, images.indexOf(im)),
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: pal.surface2,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: pal.line),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: _imgFromSrc(im.src),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-//                        متفرقه
-// ═══════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//                       اجزای کمکی
+// ════════════════════════════════════════════════════════════════
 class _SectionLabel extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -1774,30 +1672,8 @@ class _GhostButton extends StatelessWidget {
   }
 }
 
-// ─── fallback ضبط صدا (اگر voice_recorder_sheet نبود) ───
-class _VoiceFallbackSheet extends StatelessWidget {
-  const _VoiceFallbackSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      child: const Text(
-        'برای ضبط صدا، voice_recorder_sheet را وصل کن.',
-        textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 13),
-      ),
-    );
-  }
-}
-
-// ─── نمایشگر ساده تصویر ───
-void _openImageViewer(
-    BuildContext context, List<GratitudeImage> images, int initial) {
+// ─── نمایشگر تصویر ───
+void _openImageViewer(BuildContext context, List<GratitudeImage> images) {
   showDialog(
     context: context,
     builder: (_) => Dialog.fullscreen(
@@ -1805,7 +1681,6 @@ void _openImageViewer(
       child: Stack(
         children: [
           PageView.builder(
-            controller: PageController(initialPage: initial),
             itemCount: images.length,
             itemBuilder: (_, i) => InteractiveViewer(
               minScale: 1,
@@ -1827,7 +1702,7 @@ void _openImageViewer(
   );
 }
 
-// ─── decode data URL یا file path به Image ───
+// ─── decode ───
 Widget _imgFromSrc(String src) {
   if (src.isEmpty) return const SizedBox.shrink();
   if (src.startsWith('data:')) {
@@ -1838,21 +1713,13 @@ Widget _imgFromSrc(String src) {
       return const Icon(Icons.broken_image, color: Colors.grey);
     }
   }
-  // file path
-  return Image.asset(src, fit: BoxFit.cover, errorBuilder: (_, __, ___) =>
-      const Icon(Icons.broken_image, color: Colors.grey));
+  return Image.asset(src,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) =>
+          const Icon(Icons.broken_image, color: Colors.grey));
 }
 
-// ─── تبدیل عدد به فارسی ───
 String _toFa(int n) => n.toString().replaceAllMapped(
       RegExp(r'\d'),
       (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
-    );
-
-String _toFa3(num n) => n.round().toString().replaceAllMapped(
-      RegExp(r'\d'),
-      (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
-    ).replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (_) => ',',
     );
