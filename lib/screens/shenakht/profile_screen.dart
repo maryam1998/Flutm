@@ -12,12 +12,16 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onRetake;
   final void Function(String schemaId) onPickSchema;
+  final VoidCallback onWins;
+  final VoidCallback onCalendar;
 
   const ProfileScreen({
     super.key,
     required this.onBack,
     required this.onRetake,
     required this.onPickSchema,
+    required this.onWins,
+    required this.onCalendar,
   });
 
   @override
@@ -46,6 +50,38 @@ class ProfileScreen extends StatelessWidget {
           if (rec != null) _recommendedCard(rec),
           const SizedBox(height: 14),
           _statsRow(analysis),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onWins,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('⭐ لحظه‌های من',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onCalendar,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('📅 تقویم',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           const Padding(
             padding: EdgeInsets.only(right: 4, bottom: 10),
@@ -117,25 +153,20 @@ class ProfileScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${rec.priority.emoji}  پیشنهاد شروع',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${rec.priority.emoji}  پیشنهاد شروع',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
-            ],
+            ),
           ),
           const SizedBox(height: 14),
           Text(
@@ -187,8 +218,8 @@ class ProfileScreen extends StatelessWidget {
               onTap: () => onPickSchema(rec.schemaId),
               borderRadius: BorderRadius.circular(10),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white30),
@@ -269,14 +300,9 @@ class ProfileScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            _faNum(count),
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
+          Text(_faNum(count),
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.w700, color: color)),
           const SizedBox(height: 4),
           Text(label, style: TextStyle(fontSize: 11, color: color)),
         ],
@@ -331,22 +357,16 @@ class ProfileScreen extends StatelessWidget {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      plain,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                      ),
-                                    ),
+                                    Text(plain,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15)),
                                     if (schema != null) ...[
                                       const SizedBox(height: 3),
-                                      Text(
-                                        schema.nameFa,
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFF999999),
-                                        ),
-                                      ),
+                                      Text(schema.nameFa,
+                                          style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xFF999999))),
                                     ],
                                   ],
                                 ),
@@ -381,14 +401,11 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           if (oneLiner != null) ...[
                             const SizedBox(height: 10),
-                            Text(
-                              oneLiner,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF555555),
-                                height: 1.7,
-                              ),
-                            ),
+                            Text(oneLiner,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF555555),
+                                    height: 1.7)),
                           ],
                         ],
                       ),
@@ -426,11 +443,9 @@ class ProfileScreen extends StatelessWidget {
                 Expanded(
                   child: Text(plain, style: const TextStyle(fontSize: 13)),
                 ),
-                Text(
-                  '${_faNum(r.percentage)}%',
-                  style: const TextStyle(
-                      fontSize: 11, color: Color(0xFF999999)),
-                ),
+                Text('${_faNum(r.percentage)}%',
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF999999))),
               ],
             ),
           ),
