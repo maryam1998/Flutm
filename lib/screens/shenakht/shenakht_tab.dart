@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/shenakht/progress_entry.dart';
 import '../../state/background_store.dart';
 import '../../state/shenakht_store.dart';
+import 'calendar_screen.dart';
 import 'cycle_screen.dart';
 import 'cycle_summary_screen.dart';
 import 'exercise_screen.dart';
@@ -13,6 +14,7 @@ import 'mission_screen.dart';
 import 'origin_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
+import 'wins_screen.dart';
 import 'ysq_screen.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -455,6 +457,8 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
           onBack: () => _go('welcome'),
           onRetake: () => _go('ysq'),
           onPickSchema: _openCycle,
+          onWins: () => _go('wins'),
+          onCalendar: () => _go('calendar'),
         );
         break;
 
@@ -558,6 +562,14 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
               );
         break;
 
+      case 'wins':
+        screen = WinsScreen(onBack: () => _go('profile'));
+        break;
+
+      case 'calendar':
+        screen = CalendarScreen(onBack: () => _go('profile'));
+        break;
+
       case 'welcome':
       default:
         screen = _fallback();
@@ -573,6 +585,3 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
     );
   }
 }
-
-String _faNum(int n) => String.fromCharCodes(
-    n.toString().codeUnits.map((c) => (c >= 48 && c <= 57) ? c + 1728 : c));
