@@ -6,57 +6,75 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// کلید ذخیره در مرورگر (نسخه‌ی وب؛ dart:io و path_provider روی وب کار نمی‌کنن)
-const _webKey = 'maghz_map_json';
+/// کلیدهای ذخیره‌سازی
+const String kMapKey         = 'maghz_map_json';       // نقشه (سازگاری با گذشته)
+const String kYsqProfileKey  = 'ysq_profile_v2';       // نتیجه YSQ
+const String kYsqProgressKey = 'ysq_progress_v3';      // entries چرخه‌ها
+const String kYsqCheckinKey  = 'ysq_checkins_v1';      // چک‌این روزانه
 
-/// ذخیره‌سازی روی فایل JSON (جایگزین localStorage / IndexedDB)
+/// ذخیره‌سازی عمومی (فایل JSON روی موبایل/دسکتاپ — SharedPreferences روی وب)
 class StorageService {
-  Future<File> _file() async {
-    final dir = await getApplicationSupportDirectory();
-    await dir.create(recursive: true);
-    return File('${dir.path}${Platform.pathSeparator}maghz_map.json');
-  }
+  // ──────────── سازگاری با گذشته: API بدون کلید برای نقشه ────────────
+  Future<String?> read() => readKey(kMapKey);
+  Future<void> write(String data) => writeKey(kMapKey, data);
 
-  Future<String?> read() async {
-    if (kIsWeb) return (await SharedPreferences.getInstance()).getString(_webKey);
-    final f = await _file();
+  // ──────────── API عمومی کلیددار ────────────
+  Future<String?> readKey(String key) async {
+    if (kIsWeb) return (await SharedPreferences.getInstance()).getString(key);
+    final f = await _fileFor(key);
     return await f.exists() ? f.readAsString() : null;
   }
 
-  /// نوشتن امن: اول فایل موقت، بعد جایگزینی
-  Future<void> write(String data) async {
+  Future<void> writeKey(String key, String data) async {
     if (kIsWeb) {
-      await (await SharedPreferences.getInstance()).setString(_webKey, data);
+      await (await SharedPreferences.getInstance()).setString(key, data);
       return;
     }
-    final f = await _file();
+    final f = await _fileFor(key);
     final tmp = File('${f.path}.tmp');
     await tmp.writeAsString(data, flush: true);
     await tmp.rename(f.path);
   }
 
-  /// اگه فایل خراب بود یک کپی نگه می‌داریم تا داده از بین نره
+  Future<void> removeKey(String key) async {
+    if (kIsWeb) {
+      await (await SharedPreferences.getInstance()).remove(key);
+      return;
+    }
+    final f = await _fileFor(key);
+    if (await f.exists()) await f.delete();
+  }
+
+  // ──────────── کپی خراب ────────────
   Future<void> keepCorruptCopy() async {
     try {
       if (kIsWeb) {
         final p = await SharedPreferences.getInstance();
-        final raw = p.getString(_webKey);
-        if (raw != null) await p.setString('$_webKey.corrupt-${DateTime.now().millisecondsSinceEpoch}', raw);
+        final raw = p.getString(kMapKey);
+        if (raw != null) {
+          await p.setString(
+            '$kMapKey.corrupt-${DateTime.now().millisecondsSinceEpoch}',
+            raw,
+          );
+        }
         return;
       }
-      final f = await _file();
+      final f = await _fileFor(kMapKey);
       if (await f.exists()) {
-        await f.copy('${f.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}');
+        await f.copy(
+          '${f.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}',
+        );
       }
     } catch (_) {
       // نگه‌داشتن کپی خراب نباید جلوی بالا اومدن برنامه رو بگیره
     }
   }
 
-  /// خروجی بکاپ؛ true یعنی ذخیره شد
+  // ──────────── بکاپ ────────────
   Future<bool> exportBackup(String json) async {
     final bytes = utf8.encode(json);
-    final name = 'maghz-backup-${DateTime.now().toIso8601String().substring(0, 10)}.json';
+    final name =
+        'maghz-backup-${DateTime.now().toIso8601String().substring(0, 10)}.json';
     final path = await FilePicker.platform.saveFile(
       dialogTitle: 'ذخیره‌ی بکاپ',
       fileName: name,
@@ -64,7 +82,7 @@ class StorageService {
       allowedExtensions: ['json'],
       bytes: (kIsWeb || Platform.isAndroid || Platform.isIOS) ? bytes : null,
     );
-    if (kIsWeb) return true; // روی وب مرورگر خودش فایل رو دانلود می‌کنه
+    if (kIsWeb) return true;
     if (path == null) return false;
     if (!(Platform.isAndroid || Platform.isIOS)) {
       await File(path).writeAsBytes(bytes, flush: true);
@@ -72,7 +90,6 @@ class StorageService {
     return true;
   }
 
-  /// ورودی بکاپ؛ متن فایل یا null اگه کاربر انصراف داد
   Future<String?> pickBackup() async {
     final res = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -84,5 +101,16 @@ class StorageService {
     if (f.bytes != null) return utf8.decode(f.bytes!);
     if (!kIsWeb && f.path != null) return File(f.path!).readAsString();
     return null;
+  }
+
+  // ──────────── کمکی: مسیر فایل بر اساس کلید ────────────
+  Future<File> _fileFor(String key) async {
+    final dir = await getApplicationSupportDirectory();
+    await dir.create(recursive: true);
+    // سازگاری: نقشه در فایل قدیمی maghz_map.json ذخیره می‌شد
+    final fileName = key == kMapKey
+        ? 'maghz_map.json'
+        : '${key.replaceAll(RegExp(r'[^\w\-]'), '_')}.json';
+    return File('${dir.path}${Platform.pathSeparator}$fileName');
   }
 }
