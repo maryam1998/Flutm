@@ -1,6 +1,5 @@
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/emotion.dart';
@@ -119,7 +118,7 @@ class GratitudeStore extends ChangeNotifier {
 
     NeuralFiberEmotion? felt;
     if (emotions.hasSelection) {
-      final ids = emotions.selectedIds;
+      final ids = emotions.selectedIds.toList();
       final dom = dominantEmotion(ids);
       if (dom != null) {
         felt = NeuralFiberEmotion(
@@ -131,13 +130,13 @@ class GratitudeStore extends ChangeNotifier {
     }
 
     neural.addAutoFiber(emotion: felt);
-
     await _persist();
     notifyListeners();
   }
 
   Future<void> saveNeural() async {
     await _persist();
+    notifyListeners();
   }
 
   Future<GratitudeEntry> add({
@@ -179,11 +178,16 @@ class GratitudeStore extends ChangeNotifier {
     );
     entries.add(e);
 
+    // ─── ثبت خودکار یک رشته‌ی عصبی ───
     NeuralFiberEmotion? felt;
     if (emoIds.isNotEmpty) {
       final dom = dominantEmotion(emoIds);
       if (dom != null) {
-        felt = NeuralFiberEmotion(ids: emoIds, color: dom.color, freq: dom.freq);
+        felt = NeuralFiberEmotion(
+          ids: emoIds,
+          color: dom.color,
+          freq: dom.freq,
+        );
       }
     }
     if (felt != null) {
@@ -240,13 +244,43 @@ class GratitudeStore extends ChangeNotifier {
     return out;
   }
 
+  /// ⭐️ متد جدید: لیست رنگ‌های یکتای احساسات یک روز
+  /// مرتب‌شده از پرفرکانس به کم‌فرکانس — برای رسم حلقه‌ی گرادیان روی تقویم
+  List<Color> emotionColorsForDay(String dayKey) {
+    final ids = emotionIdsForDay(dayKey);
+    if (ids.isEmpty) return const [];
+
+    final emos = ids.map(emotionById).whereType<Emotion>().toList()
+      ..sort((a, b) => b.freq.compareTo(a.freq));
+
+    final seen = <String>{};
+    final out = <Color>[];
+    for (final e in emos) {
+      final hex = e.color.toLowerCase();
+      if (seen.add(hex)) out.add(_hexToColor(hex));
+    }
+    return out;
+  }
+
+  static Color _hexToColor(String hex) {
+    try {
+      final h = hex.replaceFirst('#', '');
+      return Color(int.parse('FF$h', radix: 16));
+    } catch (_) {
+      return const Color(0xFF2BBFAB);
+    }
+  }
+
   String? dominantEmotionColorForDay(String dayKey) {
     final ids = emotionIdsForDay(dayKey);
     if (ids.isEmpty) return null;
     return dominantEmotion(ids)?.color;
   }
 
-  Future<void> updateDayEmotions(String dayKey, List<String> emotionIds) async {
+  Future<void> updateDayEmotions(
+    String dayKey,
+    List<String> emotionIds,
+  ) async {
     final norm = _normDayKey(dayKey);
     final valid =
         emotionIds.where((id) => emotionById(id) != null).toSet().toList();
@@ -262,7 +296,11 @@ class GratitudeStore extends ChangeNotifier {
     if (valid.isNotEmpty) {
       final dom = dominantEmotion(valid);
       if (dom != null) {
-        felt = NeuralFiberEmotion(ids: valid, color: dom.color, freq: dom.freq);
+        felt = NeuralFiberEmotion(
+          ids: valid,
+          color: dom.color,
+          freq: dom.freq,
+        );
       }
     }
     neural.recolorFibersForDay(norm, felt);
@@ -325,7 +363,7 @@ class GratitudeStore extends ChangeNotifier {
 
   static const _faWeekdays = [
     'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه',
-    'جمعه', 'شنبه', 'یکشنبه'
+    'جمعه', 'شنبه', 'یکشنبه',
   ];
 
   static String _faDate(DateTime d) =>
