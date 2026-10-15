@@ -1,8 +1,8 @@
-import 'dart:convert';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'media_db.dart';
 
 class ImageService {
   static final _picker = ImagePicker();
@@ -19,7 +19,7 @@ class ImageService {
       for (final f in files) {
         final bytes = await f.readAsBytes();
         final mime = _mimeOf(f.name);
-        out.add('data:$mime;base64,${base64Encode(bytes)}');
+        out.add(await MediaDb.putBytes(bytes, mime));
       }
       return out;
     } catch (e) {
@@ -36,9 +36,9 @@ class ImageService {
       );
       if (f == null) return null;
       final bytes = await f.readAsBytes();
-      if (bytes.length > 50 * 1024 * 1024) return null;
+      if (bytes.length > 100 * 1024 * 1024) return null;
       final mime = _mimeOfVideo(f.name);
-      return 'data:$mime;base64,${base64Encode(bytes)}';
+      return MediaDb.putBytes(bytes, mime);
     } catch (e) {
       debugPrint('pickVideo failed: $e');
       return null;
@@ -54,9 +54,9 @@ class ImageService {
       if (res == null || res.files.isEmpty) return null;
       final f = res.files.first;
       if (f.bytes == null) return null;
-      if (f.bytes!.length > 30 * 1024 * 1024) return null;
+      if (f.bytes!.length > 100 * 1024 * 1024) return null;
       final mime = _mimeOfAudio(f.name);
-      return 'data:$mime;base64,${base64Encode(f.bytes!)}';
+      return MediaDb.putBytes(f.bytes!, mime);
     } catch (e) {
       debugPrint('pickAudio failed: $e');
       return null;

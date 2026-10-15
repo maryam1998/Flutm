@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'idb_kv.dart';
+import 'media_db.dart';
 
 /// جایگزین مستقیم SharedPreferences با همان متدها.
 ///
@@ -30,6 +31,46 @@ class AppPrefs {
   }
 
   static Future<AppPrefs> _init() async {
+    await MediaDb.init();
+    final p = await _create();
+    await p._externalizeAll();
+    return p;
+  }
+
+  /// مهاجرت یک‌باره: data URL های قدیمیِ داخل JSON به فایل جدا منتقل می‌شن
+  Future<void> _externalizeAll() async {
+    try {
+      final keys = _sp != null ? _sp.getKeys().toList() : _cache.keys.toList();
+      for (final k in keys) {
+        final v = _get(k);
+        if (v is String && v.contains(';base64,')) {
+          final out = await MediaDb.externalizeJson(v);
+          if (out != v) {
+            if (_sp != null) {
+              await _sp.setString(k, out);
+            } else {
+              await _put(k, out);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('AppPrefs: media migration failed: $e');
+    }
+  }
+
+  /// همه‌ی مقدارهای رشته‌ای (برای پاک‌سازی فایل‌های یتیم)
+  Iterable<String> stringValues() {
+    final keys = _sp != null ? _sp.getKeys() : _cache.keys;
+    final out = <String>[];
+    for (final k in keys) {
+      final v = _get(k);
+      if (v is String) out.add(v);
+    }
+    return out;
+  }
+
+  static Future<AppPrefs> _create() async {
     final sp = await SharedPreferences.getInstance();
     if (!IdbKv.supported) return AppPrefs._({}, sp);
 

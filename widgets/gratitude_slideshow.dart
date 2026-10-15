@@ -7,6 +7,7 @@ import '../services/app_prefs.dart';
 import 'package:video_player/video_player.dart';
 
 import '../state/gratitude_store.dart';
+import '../services/media_db.dart';
 
 const _kGold = Color(0xFFC9A24B);
 const _kInk = Color(0xFF000000);
@@ -160,7 +161,8 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
   }
 
   static bool _isVideoSrc(String src) =>
-      src.startsWith('data:video/');
+      src.startsWith('data:video/') ||
+      (MediaDb.isRef(src) && MediaDb.isVideo(src));
 
   // ────── slot management ──────
 
@@ -188,7 +190,8 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
     _slotVid[slot]?.dispose();
     _slotVid[slot] = null;
     try {
-      final ctl = VideoPlayerController.networkUrl(Uri.parse(src));
+      final ctl =
+          VideoPlayerController.networkUrl(Uri.parse(MediaDb.toDataUrl(src) ?? src));
       await ctl.initialize();
       await ctl.setLooping(true);
       await ctl.setVolume(0);
@@ -651,6 +654,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
 
   static Uint8List? _dataUrlToBytes(String src) {
     try {
+      if (MediaDb.isRef(src)) return MediaDb.bytes(src);
       if (!src.startsWith('data:')) return null;
       final i = src.indexOf(',');
       if (i < 0) return null;

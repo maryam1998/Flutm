@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'models/neural_container.dart';
 import 'services/app_prefs.dart';
+import 'services/media_db.dart';
 import 'services/storage.dart';
 import 'state/abundance_store.dart';
 import 'state/angels_store.dart';
@@ -90,4 +91,17 @@ Future<void> main() async {
     ],
     child: const MaghzApp(),
   ));
+
+  // پاک‌سازی فایل‌های رسانه‌ای یتیم (با تأخیر تا شروع برنامه کند نشه)
+  Future<void>.delayed(const Duration(seconds: 20), _collectMediaGarbage);
+}
+
+Future<void> _collectMediaGarbage() async {
+  try {
+    final prefs = await AppPrefs.getInstance();
+    final texts = <String>[...prefs.stringValues()];
+    final map = await StorageService().read();
+    if (map != null) texts.add(map);
+    await MediaDb.collectGarbage(texts);
+  } catch (_) {}
 }

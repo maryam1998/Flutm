@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io' show File;
 import 'dart:typed_data';
 
@@ -6,6 +5,8 @@ import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+
+import 'media_db.dart';
 
 class VoiceService {
   static final AudioRecorder _rec = AudioRecorder();
@@ -69,9 +70,9 @@ class VoiceService {
       }
 
       if (bytes == null || bytes.isEmpty) return null;
-      if (bytes.length > 20 * 1024 * 1024) return null;
+      if (bytes.length > 100 * 1024 * 1024) return null;
 
-      return 'data:audio/m4a;base64,${base64Encode(bytes)}';
+      return MediaDb.putBytes(bytes, 'audio/m4a');
     } catch (e) {
       debugPrint('VoiceService.stop failed: $e');
       _isRecording = false;

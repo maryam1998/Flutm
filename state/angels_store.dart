@@ -5,12 +5,14 @@ import 'package:flutter/foundation.dart';
 import '../services/app_prefs.dart';
 
 import '../services/angel_blob_store.dart';
+import '../services/media_db.dart';
 
-/// یک عکس (کم‌حجم) — bytes داخل AppPrefs (IndexedDB روی وب) به‌صورت base64 ذخیره میشه
+/// یک عکس — bytes جدا در MediaDb ذخیره می‌شه و در JSON فقط ارجاعش (ref) می‌مونه
 class AngelImage {
   final String id;
   final Uint8List bytes;
-  AngelImage({required this.id, required this.bytes});
+  String? ref;
+  AngelImage({required this.id, required this.bytes, this.ref});
 }
 
 /// یک ویدیو — bytes در IndexedDB، فقط metadata اینجا
@@ -65,6 +67,7 @@ class AngelsStore extends ChangeNotifier {
   int get count => _images.length + _videos.length;
 
   Future<void> load() async {
+    var legacyImages = false;
     try {
       await AngelBlobStore.init();
 
@@ -87,9 +90,18 @@ class AngelsStore extends ChangeNotifier {
             for (final e in list) {
               if (e is Map) {
                 final id = e['id'] as String? ?? '';
+                final ref = e['ref'] as String? ?? '';
                 final b64 = e['b64'] as String? ?? '';
-                if (id.isNotEmpty && b64.isNotEmpty) {
+                if (id.isEmpty) continue;
+                if (ref.isNotEmpty) {
+                  final b = MediaDb.bytes(ref);
+                  if (b != null) {
+                    _images.add(AngelImage(id: id, bytes: b, ref: ref));
+                  }
+                } else if (b64.isNotEmpty) {
+                  // فرمت قدیمی: base64 داخل JSON؛ در ذخیره‌ی بعدی منتقل می‌شه
                   try {
+                    legacyImages = true;
                     _images.add(
                         AngelImage(id: id, bytes: base64Decode(b64)));
                   } catch (_) {}
@@ -123,6 +135,7 @@ class AngelsStore extends ChangeNotifier {
         } catch (_) {}
       }
     } catch (_) {}
+    if (legacyImages) await _persist();
     notifyListeners();
   }
 
@@ -137,9 +150,11 @@ class AngelsStore extends ChangeNotifier {
       await sp.setString(_kBlend, _blend);
       await sp.setBool(_kFs, _fs);
 
-      final imgsJson = _images
-          .map((im) => {'id': im.id, 'b64': base64Encode(im.bytes)})
-          .toList();
+      for (final im in _images) {
+        im.ref ??= await MediaDb.putBytes(im.bytes, 'image/jpeg');
+      }
+      final imgsJson =
+          _images.map((im) => {'id': im.id, 'ref': im.ref}).toList();
       await sp.setString(_kImages, jsonEncode(imgsJson));
 
       final vidsJson = _videos

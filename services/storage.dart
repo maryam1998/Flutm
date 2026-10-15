@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'app_prefs.dart';
+import 'media_db.dart';
 
 /// کلید ذخیره در مرورگر (نسخه‌ی وب؛ dart:io و path_provider روی وب کار نمی‌کنن)
 const _webKey = 'maghz_map_json';
@@ -18,9 +19,23 @@ class StorageService {
   }
 
   Future<String?> read() async {
-    if (kIsWeb) return (await AppPrefs.getInstance()).getString(_webKey);
-    final f = await _file();
-    return await f.exists() ? f.readAsString() : null;
+    await MediaDb.init();
+    String? raw;
+    if (kIsWeb) {
+      raw = (await AppPrefs.getInstance()).getString(_webKey);
+    } else {
+      final f = await _file();
+      raw = await f.exists() ? await f.readAsString() : null;
+    }
+    // مهاجرت: عکس‌های داخل JSON نقشه → فایل جدا
+    if (raw != null && raw.contains(';base64,')) {
+      final out = await MediaDb.externalizeJson(raw);
+      if (out != raw) {
+        await write(out);
+        raw = out;
+      }
+    }
+    return raw;
   }
 
   /// نوشتن امن: اول فایل موقت، بعد جایگزینی

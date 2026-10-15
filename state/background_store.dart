@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/media_db.dart';
 import '../services/app_prefs.dart';
 
 enum BgKind { none, image, video }
@@ -11,12 +12,14 @@ enum BgKind { none, image, video }
 class BackgroundStore extends ChangeNotifier {
   static const _kKind = 'bg_kind';
   static const _kImgKey = 'bg_image';
+  static const _kImgRefKey = 'bg_image_ref';
   static const _kVidPath = 'bg_video_path';
   static const _kBlurKey = 'bg_blur';
   static const _kOpKey = 'bg_opacity';
 
   BgKind _kind = BgKind.none;
   Uint8List? _imageBytes;
+  String? _imageRef;
   String? _videoPath;
   double _blur = 0;
   double _opacity = 0.6;
@@ -34,11 +37,21 @@ class BackgroundStore extends ChangeNotifier {
     try {
       final sp = await AppPrefs.getInstance();
       final k = sp.getString(_kKind);
+      var legacyBg = false;
       if (k == 'image') {
-        final b64 = sp.getString(_kImgKey);
-        if (b64 != null && b64.isNotEmpty) {
-          _imageBytes = base64Decode(b64);
+        final ref = sp.getString(_kImgRefKey);
+        final refBytes = (ref != null && ref.isNotEmpty) ? MediaDb.bytes(ref) : null;
+        if (refBytes != null) {
+          _imageBytes = refBytes;
+          _imageRef = ref;
           _kind = BgKind.image;
+        } else {
+          final b64 = sp.getString(_kImgKey);
+          if (b64 != null && b64.isNotEmpty) {
+            _imageBytes = base64Decode(b64);
+            _kind = BgKind.image;
+            legacyBg = true; // فرمت قدیمی؛ در ذخیره‌ی بعدی منتقل می‌شه
+          }
         }
       } else if (k == 'video') {
         final p = sp.getString(_kVidPath);
@@ -49,6 +62,7 @@ class BackgroundStore extends ChangeNotifier {
       }
       _blur = sp.getDouble(_kBlurKey) ?? 0;
       _opacity = sp.getDouble(_kOpKey) ?? 0.6;
+      if (legacyBg) await _persist();
     } catch (_) {}
     notifyListeners();
   }
@@ -64,6 +78,7 @@ class BackgroundStore extends ChangeNotifier {
       );
       if (f == null) return false;
       _imageBytes = await f.readAsBytes();
+      _imageRef = null;
       _videoPath = null;
       _kind = BgKind.image;
       await _persist();
@@ -114,6 +129,7 @@ class BackgroundStore extends ChangeNotifier {
   Future<void> clear() async {
     _kind = BgKind.none;
     _imageBytes = null;
+    _imageRef = null;
     _videoPath = null;
     _blur = 0;
     _opacity = 0.6;
@@ -121,6 +137,7 @@ class BackgroundStore extends ChangeNotifier {
       final sp = await AppPrefs.getInstance();
       await sp.remove(_kKind);
       await sp.remove(_kImgKey);
+      await sp.remove(_kImgRefKey);
       await sp.remove(_kVidPath);
       await sp.remove(_kBlurKey);
       await sp.remove(_kOpKey);
@@ -133,9 +150,12 @@ class BackgroundStore extends ChangeNotifier {
       final sp = await AppPrefs.getInstance();
       await sp.setString(_kKind, _kind.name);
       if (_imageBytes != null) {
-        await sp.setString(_kImgKey, base64Encode(_imageBytes!));
+        _imageRef ??= await MediaDb.putBytes(_imageBytes!, 'image/jpeg');
+        await sp.setString(_kImgRefKey, _imageRef!);
+        await sp.remove(_kImgKey);
       } else {
         await sp.remove(_kImgKey);
+        await sp.remove(_kImgRefKey);
       }
       if (_videoPath != null) {
         await sp.setString(_kVidPath, _videoPath!);
