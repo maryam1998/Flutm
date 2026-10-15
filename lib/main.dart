@@ -13,6 +13,7 @@ import 'state/emotion_store.dart';
 import 'state/gratitude_store.dart';
 import 'state/map_store.dart';
 import 'state/motivation_store.dart';
+import 'state/shenakht_store.dart';
 import 'state/theme_store.dart';
 
 Future<void> main() async {
@@ -35,6 +36,7 @@ Future<void> main() async {
   final emotions = EmotionStore();
   final abundance = AbundanceStore();
   final angels = AngelsStore();
+  final shenakht = ShenakhtStore(StorageService());
 
   try {
     await store.load();
@@ -48,6 +50,7 @@ Future<void> main() async {
   await beliefs.load();
   await abundance.load();
   await angels.load();
+  await shenakht.load();
 
   // «ثبت حس» با بستن ادمک (echw:commit در وب): همه‌ی تمرین‌های امروز که
   // انجام شده‌ن رنگ حس می‌گیرن؛ اگه هیچ تمرینی نبود انتخاب نگه داشته می‌شه.
@@ -79,6 +82,7 @@ Future<void> main() async {
       ChangeNotifierProvider.value(value: emotions),
       ChangeNotifierProvider.value(value: abundance),
       ChangeNotifierProvider.value(value: angels),
+      ChangeNotifierProvider.value(value: shenakht),
     ],
     child: const MaghzApp(),
   ));
