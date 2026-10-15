@@ -1,7 +1,6 @@
 // lib/data/shenakht/schemas.dart
-// ۱۸ طرحواره — نسخه نهایی (بعد از اعمال CURATED_OPTIONS وب)
+// ۱۸ طرحواره — نسخه نهایی
 // معادل SCHEMAS.js + SCHEMAS_ADDITIONS.js + TRIGGERS_EXTRA.js + CURATED_OPTIONS.js
-// در وب اینها در زمان اجرا روی هم merge می‌شن؛ اینجا از قبل merge شده.
 
 import '../../models/shenakht/schema.dart';
 
@@ -1754,3 +1753,65 @@ final Map<String, Schema> _schemasById = {
 };
 
 Schema? findSchemaById(String? id) => id == null ? null : _schemasById[id];
+
+// ═══════════════════════════════════════════════════════════
+// اولویت‌بندی
+// ═══════════════════════════════════════════════════════════
+class PriorityLevel {
+  final int min;
+  final String level;
+  final String label;
+  final String emoji;
+  final String color;
+  const PriorityLevel({
+    required this.min,
+    required this.level,
+    required this.label,
+    required this.emoji,
+    required this.color,
+  });
+}
+
+const List<PriorityLevel> priorityLevels = [
+  PriorityLevel(
+      min: 70, level: 'high', label: 'بالا', emoji: '🔴', color: '#e74c3c'),
+  PriorityLevel(
+      min: 40, level: 'medium', label: 'متوسط', emoji: '🟠', color: '#f39c12'),
+  PriorityLevel(
+      min: 0, level: 'low', label: 'پایین', emoji: '🟢', color: '#27ae60'),
+];
+
+PriorityLevel getPriority(int percentage) {
+  for (final p in priorityLevels) {
+    if (percentage >= p.min) return p;
+  }
+  return priorityLevels.last;
+}
+
+// ═══════════════════════════════════════════════════════════
+// موتور قوانین
+// ═══════════════════════════════════════════════════════════
+String? resolveExercise(String schemaId, String? triggerId, String? behaviorId) {
+  final schema = findSchemaById(schemaId);
+  if (schema == null) return null;
+
+  for (final rule in schema.rules) {
+    final w = rule;
+    final matches = (w.trigger == null || w.trigger == triggerId) &&
+        (w.behavior == null || w.behavior == behaviorId);
+    if (matches) return w.then;
+  }
+  if (schema.exercises.isNotEmpty) {
+    return 'showExercise:${schema.exercises.first.id}';
+  }
+  return null;
+}
+
+String? getReplacementResponse(String schemaId, String? behaviorId) {
+  final schema = findSchemaById(schemaId);
+  if (schema == null) return null;
+  for (final r in schema.replacementResponses) {
+    if (r.behaviorId == behaviorId) return r.text;
+  }
+  return null;
+}
