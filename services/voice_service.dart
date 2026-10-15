@@ -12,7 +12,6 @@ class VoiceService {
 
   static bool _isRecording = false;
   static DateTime? _startedAt;
-  static AudioEncoder _encoder = AudioEncoder.aacLc;
 
   static bool get isRecording => _isRecording;
   static DateTime? get startedAt => _startedAt;
@@ -31,26 +30,9 @@ class VoiceService {
             '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
       }
 
-      // مرورگرها همه‌ی کدک‌ها رو برای MediaRecorder ندارن (کروم تا همین اواخر aac نداشت)،
-      // پس اولین کدکِ پشتیبانی‌شده انتخاب می‌شه.
-      var enc = AudioEncoder.aacLc;
-      for (final c in const [
-        AudioEncoder.aacLc,
-        AudioEncoder.opus,
-        AudioEncoder.wav,
-      ]) {
-        try {
-          if (await _rec.isEncoderSupported(c)) {
-            enc = c;
-            break;
-          }
-        } catch (_) {}
-      }
-      _encoder = enc;
-
       await _rec.start(
-        RecordConfig(
-          encoder: enc,
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
           bitRate: 64000,
           sampleRate: 44100,
         ),
@@ -74,12 +56,9 @@ class VoiceService {
       if (out == null) return null;
 
       Uint8List? bytes;
-      var mime = _mimeFor(_encoder);
       if (kIsWeb) {
         final r = await http.get(Uri.parse(out));
         bytes = r.bodyBytes;
-        final ct = (r.headers['content-type'] ?? '').split(';').first.trim();
-        if (ct.startsWith('audio/')) mime = ct;
       } else {
         final f = File(out);
         if (!await f.exists()) return null;
@@ -90,25 +69,14 @@ class VoiceService {
       }
 
       if (bytes == null || bytes.isEmpty) return null;
-      if (bytes.length > 5 * 1024 * 1024) return null;
+      if (bytes.length > 20 * 1024 * 1024) return null;
 
-      return 'data:$mime;base64,${base64Encode(bytes)}';
+      return 'data:audio/m4a;base64,${base64Encode(bytes)}';
     } catch (e) {
       debugPrint('VoiceService.stop failed: $e');
       _isRecording = false;
       _startedAt = null;
       return null;
-    }
-  }
-
-  static String _mimeFor(AudioEncoder e) {
-    switch (e) {
-      case AudioEncoder.opus:
-        return 'audio/ogg';
-      case AudioEncoder.wav:
-        return 'audio/wav';
-      default:
-        return 'audio/mp4';
     }
   }
 

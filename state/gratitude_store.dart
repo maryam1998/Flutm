@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
@@ -12,7 +12,6 @@ class GratitudeStore extends ChangeNotifier {
   static const _kJourneyDays = 'gratitude_journey_days';
   static const _kJourneyStart = 'gratitude_journey_start';
   static const _kNeural = 'gratitude_neural';
-  static const _kSeeded = 'gratitude_neural_seeded_v1';
   static const _kDayAfter = 'gratitude_day_after';
   static const _kJourneyPast = 'gratitude_journey_past';
 
@@ -29,15 +28,12 @@ class GratitudeStore extends ChangeNotifier {
   String journeyStart = '';
   bool loaded = false;
 
-  /// آخرین ذخیره‌سازی موفق بود؟ (حافظه‌ی مرورگر ~۵MB است؛ عکس/صدای زیاد می‌تونه پرش کنه)
-  bool lastPersistOk = true;
-
   int homeLimit = 40;
   int histLimit = 40;
 
   Future<void> load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final raw = sp.getString(_kEntries);
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw);
@@ -87,7 +83,6 @@ class GratitudeStore extends ChangeNotifier {
           }
         } catch (_) {}
       }
-      await _seedFibersFromEntries(sp);
       neural.autoSync();
       await _persist();
     } catch (_) {}
@@ -95,81 +90,19 @@ class GratitudeStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// هر کلید جدا و در try/catch خودش ذخیره می‌شه تا اگه «entries» (که عکس/صدای
-  /// base64 داره) از سهمیه‌ی مرورگر بزرگ‌تر شد، مسیر عصبی و بقیه‌ی state گم نشن.
-  /// اول چیزهای کوچک (عصبی، دوره‌ها، حس روز)، آخر لیست ثبت‌ها.
   Future<void> _persist() async {
-    var ok = true;
-    SharedPreferences sp;
     try {
-      sp = await SharedPreferences.getInstance();
-    } catch (e) {
-      debugPrint('GratitudeStore: prefs unavailable: $e');
-      lastPersistOk = false;
-      return;
-    }
-    Future<void> put(String key, String value) async {
-      try {
-        final r = await sp.setString(key, value);
-        if (!r) ok = false;
-      } catch (e) {
-        ok = false;
-        debugPrint('GratitudeStore: persist $key failed: $e');
-      }
-    }
-
-    try {
+      final sp = await AppPrefs.getInstance();
+      await sp.setString(
+        _kEntries,
+        jsonEncode(entries.map((e) => e.toJson()).toList()),
+      );
       await sp.setInt(_kJourneyDays, journeyDays);
       await sp.setString(_kJourneyStart, journeyStart);
-    } catch (e) {
-      ok = false;
-    }
-    await put(_kNeural, jsonEncode(neural.toJson()));
-    await put(_kDayAfter, jsonEncode(dayAfter));
-    await put(_kJourneyPast, jsonEncode(pastPeriods));
-    await put(_kEntries, jsonEncode(entries.map((e) => e.toJson()).toList()));
-    lastPersistOk = ok;
-  }
-
-  /// یک‌بار: ثبت‌هایی که قبل از سیم‌کشی مسیر عصبی ساخته شدن، رشته ندارن.
-  /// برای هر «ثبت» که رشته‌ای براش نیست (قدیمی‌ترین‌ها اول) یک رشته‌ی انجام‌شده
-  /// با زمان خودِ ثبت و رنگِ حسِ همون ثبت ساخته می‌شه.
-  Future<void> _seedFibersFromEntries(SharedPreferences sp) async {
-    try {
-      if (sp.getBool(_kSeeded) == true) return;
-      final real = entries.where((e) => e.source != 'purchase').toList()
-        ..sort((a, b) => a.iso.compareTo(b.iso));
-      var have = 0;
-      for (final v in neural.logs.values) {
-        if (v == true) have++;
-      }
-      final missing = real.length - have;
-      if (missing > 0) {
-        for (var i = 0; i < missing && i < real.length; i++) {
-          final e = real[i];
-          DateTime t;
-          try {
-            t = DateTime.parse(e.iso).toLocal();
-          } catch (_) {
-            continue;
-          }
-          final key =
-              'f${t.millisecondsSinceEpoch}-s${i.toString().padLeft(5, '0')}';
-          if (neural.logs.containsKey(key)) continue;
-          neural.logs[key] = true;
-          final valid =
-              e.emotionIds.where((id) => emotionById(id) != null).toList();
-          final dom = valid.isEmpty ? null : dominantEmotion(valid);
-          if (dom != null) {
-            neural.fiberEmotions[key] = NeuralFiberEmotion(
-                ids: valid, color: dom.color, freq: dom.freq);
-          }
-        }
-      }
-      await sp.setBool(_kSeeded, true);
-    } catch (e) {
-      debugPrint('GratitudeStore: seed failed: $e');
-    }
+      await sp.setString(_kNeural, jsonEncode(neural.toJson()));
+      await sp.setString(_kDayAfter, jsonEncode(dayAfter));
+      await sp.setString(_kJourneyPast, jsonEncode(pastPeriods));
+    } catch (_) {}
   }
 
   int get totalCount => entries.length;
