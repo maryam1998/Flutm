@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/map_tab.dart';
-import 'screens/placeholder_tab.dart';
 import 'screens/practice_tab.dart';
+import 'screens/shenakht/shenakht_tab.dart';
 import 'state/theme_store.dart';
 import 'widgets/angels_layer.dart';
 import 'widgets/background_layer.dart';
@@ -154,8 +154,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               child: IndexedStack(
                 index: _index,
                 children: const [
-                  PlaceholderTab(
-                      title: 'شناخت', note: 'بعد از تب نقشه منتقل می‌شه'),
+                  ShenakhtTab(),
                   MapTab(),
                   PracticeTab(),
                 ],
