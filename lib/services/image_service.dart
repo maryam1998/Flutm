@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:image_picker/image_picker.dart';
+
+import '../widgets/photo_cropper.dart';
 
 class ImageService {
   static final _picker = ImagePicker();
@@ -25,6 +28,67 @@ class ImageService {
     } catch (e) {
       debugPrint('pickImages failed: $e');
       return const [];
+    }
+  }
+
+  /// انتخاب چندتایی + برش تک‌تک عکس‌ها (صفحه‌ی «برش عکس»).
+  /// «انصراف» همون عکس رو رد می‌کنه؛ «بدون برش» عکس اصلی رو نگه می‌داره.
+  static Future<List<String>> pickImagesCropped({BuildContext? context}) async {
+    try {
+      final files = await _picker.pickMultiImage(
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 90,
+      );
+      if (files.isEmpty) return const [];
+      final out = <String>[];
+      for (var i = 0; i < files.length; i++) {
+        final f = files[i];
+        final bytes = await f.readAsBytes();
+        final mime = _mimeOf(f.name);
+        final res = await showPhotoCropper(
+          context,
+          bytes,
+          mime: mime,
+          progress: files.length > 1 ? '${i + 1} از ${files.length}' : null,
+        );
+        if (res == null) continue;
+        out.add('data:${res.mime};base64,${base64Encode(res.bytes)}');
+      }
+      return out;
+    } catch (e) {
+      debugPrint('pickImagesCropped failed: $e');
+      return const [];
+    }
+  }
+
+  /// یک عکس با برش (برای عکس پاهای متحرک / قدم‌زن) — پیش‌فرض ۱:۱
+  static Future<String?> pickSingleCropped({
+    BuildContext? context,
+    double? ratio = 1,
+    int maxSide = 640,
+  }) async {
+    try {
+      final f = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 90,
+      );
+      if (f == null) return null;
+      final bytes = await f.readAsBytes();
+      final res = await showPhotoCropper(
+        context,
+        bytes,
+        mime: _mimeOf(f.name),
+        initialRatio: ratio,
+        maxSide: maxSide,
+      );
+      if (res == null) return null;
+      return 'data:${res.mime};base64,${base64Encode(res.bytes)}';
+    } catch (e) {
+      debugPrint('pickSingleCropped failed: $e');
+      return null;
     }
   }
 

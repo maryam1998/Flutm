@@ -635,13 +635,19 @@ class _EditSheetState extends State<EditSheet> {
   // ============================================================
   List<Widget> _goalBody(Goal g) {
     return [
-      if (g.extra['walkerPhoto'] is String &&
-          (g.extra['walkerPhoto'] as String).isNotEmpty)
-        TextButton.icon(
-          onPressed: () => _edit(() => g.extra.remove('walkerPhoto')),
-          icon: const Icon(Icons.hide_image_outlined, size: 18),
-          label: const Text('حذف عکس قدم‌زن'),
-        ),
+      _sectionLabel('عکس پاهای متحرک'),
+      WalkerPhotoField(
+        initial: g.extra['walkerPhoto'] as String?,
+        onChanged: (v) => _edit(() {
+          if (v == null) {
+            g.extra.remove('walkerPhoto');
+          } else {
+            g.extra['walkerPhoto'] = v;
+            g.extra['walkerPlaying'] = true;
+            g.extra.remove('walkerPos');
+          }
+        }),
+      ),
       _textField(
         ctlKey: 'goal:${g.id}:name',
         initial: g.name,
@@ -897,13 +903,19 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ),
       ),
-      if (a.extra['walkerPhoto'] is String &&
-          (a.extra['walkerPhoto'] as String).isNotEmpty)
-        TextButton.icon(
-          onPressed: () => _edit(() => a.extra.remove('walkerPhoto')),
-          icon: const Icon(Icons.hide_image_outlined, size: 18),
-          label: const Text('حذف عکس قدم‌زن'),
-        ),
+      _sectionLabel('عکس پاهای متحرک'),
+      WalkerPhotoField(
+        initial: a.extra['walkerPhoto'] as String?,
+        onChanged: (v) => _edit(() {
+          if (v == null) {
+            a.extra.remove('walkerPhoto');
+          } else {
+            a.extra['walkerPhoto'] = v;
+            a.footPlaying = true;
+            a.footPos = null;
+          }
+        }),
+      ),
       const Padding(
         padding: EdgeInsets.only(top: 4, bottom: 4),
         child: Text(

@@ -719,7 +719,7 @@ class MapInteraction {
   }
 
   Future<void> _pickFacePhoto(_Pending p) async {
-    final src = await ImageService.pickSingleImage();
+    final src = await ImageService.pickSingleCropped(ratio: 1);
     if (src == null || src.isEmpty) return;
     if (p.isWalker) {
       final g = store.state.findHost(p.hostId);

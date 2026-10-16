@@ -1,3 +1,4 @@
+import 'widgets/photo_cropper.dart' show kRootNavKey;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,6 +25,7 @@ class MaghzApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeStore>();
     return MaterialApp(
+      navigatorKey: kRootNavKey,
       scaffoldMessengerKey: kMessengerKey,
       title: 'بی‌نهایت راه',
       debugShowCheckedModeBanner: false,
