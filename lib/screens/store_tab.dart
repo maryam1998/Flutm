@@ -18,7 +18,8 @@ const _kCard = Colors.white;
 const _kGold = Color(0xFFC9A24B);
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF7C8B87);
-const _kBorder = Color(0xFFE7E5DB);
+const _kBorder = Color(0x8C54B3A4); // کادر سبز
+const _kGreen = Color(0xFF178A7C);
 const _kDanger = Color(0xFFB3452F);
 
 class StoreTab extends StatefulWidget {
@@ -612,7 +613,7 @@ class _StoreTabState extends State<StoreTab> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: _kGold, width: 1.5),
+        borderSide: const BorderSide(color: _kGreen, width: 1.5),
       ),
     );
   }
@@ -741,7 +742,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: _kGold, width: 1.5),
+                  borderSide: const BorderSide(color: _kGreen, width: 1.5),
                 ),
               ),
             ),

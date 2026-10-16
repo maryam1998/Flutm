@@ -68,6 +68,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
             const SizedBox(height: 14),
             _Composer(
               pal: pal,
+              prompt: info.prompt,
+              count: store.totalCount,
               textCtrl: _textCtrl,
               images: _pendingImages,
               audios: _pendingAudios,
@@ -1403,6 +1405,8 @@ Color _hex(String hex) {
 // ════════════════════════════════════════════════════════════════
 class _Composer extends StatelessWidget {
   final GratPalette pal;
+  final String prompt;
+  final int count;
   final TextEditingController textCtrl;
   final List<GratitudeImage> images;
   final List<GratitudeAudio> audios;
@@ -1418,6 +1422,8 @@ class _Composer extends StatelessWidget {
 
   const _Composer({
     required this.pal,
+    required this.prompt,
+    required this.count,
     required this.textCtrl,
     required this.images,
     required this.audios,
@@ -1471,7 +1477,7 @@ class _Composer extends StatelessWidget {
               textDirection: TextDirection.rtl,
               style: TextStyle(fontSize: 14, color: pal.ink, height: 1.7),
               decoration: InputDecoration(
-                hintText: 'نعمت امروزت رو بنویس...',
+                hintText: '🎯 $prompt',
                 hintStyle: TextStyle(color: pal.muted, fontSize: 13),
                 filled: true,
                 fillColor: pal.surface,
@@ -1694,7 +1700,7 @@ class _EntryRow extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: pal.line),
+              border: Border.all(color: pal.emerald300.withValues(alpha: 0.55)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1711,10 +1717,13 @@ class _EntryRow extends StatelessWidget {
                   alignment: Alignment.center,
                   child: entry.images.isNotEmpty
                       ? _imgFromSrc(entry.images.first.src)
-                      : Text(
-                          entry.icon.isEmpty ? '🙏' : entry.icon,
-                          style: const TextStyle(fontSize: 20),
-                        ),
+                      : (entry.icon.isEmpty || entry.icon == '🙏')
+                          ? Icon(Icons.back_hand_outlined,
+                              size: 22, color: pal.emerald700)
+                          : Text(
+                              entry.icon,
+                              style: const TextStyle(fontSize: 20),
+                            ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

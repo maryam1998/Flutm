@@ -16,7 +16,7 @@ const _kCard = Colors.white;
 const _kGold = Color(0xFFC9A24B);
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF7C8B87);
-const _kBorder = Color(0xFFE7E5DB);
+const _kBorder = Color(0x8C54B3A4); // کادر سبز
 const _kEmerald = Color(0xFF178A7C);
 
 class HomeTab extends StatefulWidget {
@@ -88,7 +88,7 @@ class _HomeTabState extends State<HomeTab> {
             const SizedBox(height: 16),
             _journeyBanner(phase, grat),
             const SizedBox(height: 16),
-            _quickAdd(),
+            _quickAdd(phase, grat.totalCount),
             const SizedBox(height: 20),
             _recentList(grat),
           ],
@@ -246,13 +246,13 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _quickAdd() {
+  Widget _quickAdd(GratitudePhaseInfo phase, int count) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
+        border: Border.all(color: _kBorder, width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -268,6 +268,14 @@ class _HomeTabState extends State<HomeTab> {
             style: TextStyle(fontSize: 11.5, color: _kMuted, height: 1.7),
           ),
           const SizedBox(height: 10),
+          Text(
+            '${toFaDigits(count.toString())} - خدایا شکرت که:',
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F5B53)),
+          ),
+          const SizedBox(height: 8),
           TextField(
             controller: _text,
             minLines: 2,
@@ -276,7 +284,7 @@ class _HomeTabState extends State<HomeTab> {
             textDirection: TextDirection.rtl,
             style: const TextStyle(fontSize: 13, color: _kInk, height: 1.7),
             decoration: InputDecoration(
-              hintText: '۱ - خدایا شکرت که:',
+              hintText: '🎯 ${phase.prompt}',
               hintStyle: const TextStyle(color: _kMuted, fontSize: 12),
               filled: true,
               fillColor: _kCream,
@@ -292,7 +300,7 @@ class _HomeTabState extends State<HomeTab> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _kGold, width: 1.5),
+                borderSide: const BorderSide(color: _kEmerald, width: 1.5),
               ),
             ),
           ),
@@ -301,7 +309,7 @@ class _HomeTabState extends State<HomeTab> {
             height: 44,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: _kGold,
+                backgroundColor: const Color(0xFF0F5B53),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -357,7 +365,10 @@ class _HomeTabState extends State<HomeTab> {
                       shape: BoxShape.circle,
                       border: Border.all(color: _kBorder),
                     ),
-                    child: Text(e.icon, style: const TextStyle(fontSize: 15)),
+                    child: (e.icon.isEmpty || e.icon == '🙏')
+                        ? const Icon(Icons.back_hand_outlined,
+                            size: 17, color: Color(0xFF0F5B53))
+                        : Text(e.icon, style: const TextStyle(fontSize: 15)),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
