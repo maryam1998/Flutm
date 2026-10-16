@@ -390,3 +390,57 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     );
   }
 }
+
+/// «افزودن عکس (چندگانه)» ساده — بدون ایموجی/اندازه (برای «من»)
+class MultiPhotoField extends StatefulWidget {
+  final List<ImageItem> initial;
+  final void Function(List<ImageItem> images) onChange;
+  const MultiPhotoField({super.key, required this.initial, required this.onChange});
+
+  @override
+  State<MultiPhotoField> createState() => _MultiPhotoFieldState();
+}
+
+class _MultiPhotoFieldState extends State<MultiPhotoField> {
+  late List<ImageItem> _images = List.of(widget.initial);
+
+  Uint8List? _decode(String src) {
+    try {
+      if (!src.startsWith('data:')) return null;
+      return base64Decode(src.substring(src.indexOf(',') + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _pick() async {
+    final srcs = await ImageService.pickImagesCropped(context: context);
+    if (!mounted || srcs.isEmpty) return;
+    setState(() {
+      for (final s in srcs) {
+        _images.add(ImageItem(src: s, size: 50, dx: 0, dy: 0));
+      }
+    });
+    widget.onChange(List.of(_images));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),
+        for (var i = 0; i < _images.length; i++)
+          PhotoThumb(
+            bytes: _decode(_images[i].src),
+            onRemove: () {
+              setState(() => _images.removeAt(i));
+              widget.onChange(List.of(_images));
+            },
+          ),
+      ],
+    );
+  }
+}

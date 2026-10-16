@@ -610,15 +610,20 @@ class _EditSheetState extends State<EditSheet> {
         label: 'نام',
         onChanged: (v) => _edit(() => me.name = v),
       ),
-      _sectionLabel('رنگ'),
+      _sectionLabel('رنگ فرکانس'),
       _swatches(me.color, (c) => me.color = c),
-      _sectionLabel('یادداشت'),
+      _sectionLabel('حال و هوای این فرکانس (اختیاری)'),
       _textField(
         ctlKey: 'me:note',
         initial: me.note,
-        label: 'حال و هوای این فرکانس',
+        label: 'مثلاً: آرامش، اطمینان، شوق...',
         onChanged: (v) => _edit(() => me.note = v),
         maxLines: 3,
+      ),
+      _sectionLabel('عکس'),
+      MultiPhotoField(
+        initial: me.images,
+        onChange: (imgs) => _edit(() => me.images = imgs),
       ),
       _bottomActions(
         saveLabel: 'ذخیره',
