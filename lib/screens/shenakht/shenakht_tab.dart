@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/shenakht/progress_entry.dart';
 import '../../state/background_store.dart';
 import '../../state/shenakht_store.dart';
 import 'acceptance_screen.dart';
@@ -112,7 +111,8 @@ class ShenakhtShell extends StatelessWidget {
                       color: Colors.white,
                     ),
                     alignment: Alignment.center,
-                    child: const Text('🔍', style: TextStyle(fontSize: 14)),
+                    child:
+                        const Text('🔍', style: TextStyle(fontSize: 14)),
                   ),
                 )
               else if (onSOS != null)
@@ -379,7 +379,8 @@ class WelcomeScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
-                child: Text(emoji, style: const TextStyle(fontSize: 20)),
+                child:
+                    Text(emoji, style: const TextStyle(fontSize: 20)),
               ),
               const Spacer(),
               Text(title,
@@ -478,7 +479,8 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
       triggerId: sel.triggerIds.isNotEmpty ? sel.triggerIds.first : null,
       thoughtId: sel.thoughtIds.isNotEmpty ? sel.thoughtIds.first : null,
       emotionId: sel.emotionIds.isNotEmpty ? sel.emotionIds.first : null,
-      behaviorId: sel.behaviorIds.isNotEmpty ? sel.behaviorIds.first : null,
+      behaviorId:
+          sel.behaviorIds.isNotEmpty ? sel.behaviorIds.first : null,
       triggerIds: sel.triggerIds,
       thoughtIds: sel.thoughtIds,
       emotionIds: sel.emotionIds,
@@ -487,7 +489,8 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
       missionId: _missionRecord?.id,
       missionDone: missionDone,
       exerciseId: _exerciseRecord?['exerciseId'] as String?,
-      exerciseResult: _exerciseRecord?['result'] as Map<String, dynamic>?,
+      exerciseResult:
+          _exerciseRecord?['result'] as Map<String, dynamic>?,
       notes: notes,
     );
   }
@@ -559,7 +562,7 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
                 schemaId: _activeSchemaId!,
                 selection: _cycleSelection!,
                 onBack: () => _go('cycle_summary'),
-                onSkip: (_) {
+                onSkip: () {
                   _exerciseRecord = null;
                   _go('mission');
                 },
