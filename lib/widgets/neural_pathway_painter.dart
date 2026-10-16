@@ -64,8 +64,10 @@ class NeuralPathwayPainter extends CustomPainter {
     if (trueKeys.isEmpty) return;
 
     // فقط جدیدترین رشته‌ها کشیده می‌شن (به اندازه‌ی fiberCount)
-    final drawCount =
+    // برای خوانایی حداکثر ۲۴ رشته‌ی آخر کشیده می‌شه (عدد کل بالای ویجت می‌مونه)
+    var drawCount =
         fiberCount < trueKeys.length ? fiberCount : trueKeys.length;
+    if (drawCount > 24) drawCount = 24;
     final drawKeys = trueKeys.sublist(trueKeys.length - drawCount);
 
     // رشته‌ی بدون حس: فیروزه‌ای و نازک. رشته‌ی با حس: به رنگ همون حس و کمی

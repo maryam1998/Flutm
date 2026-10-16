@@ -88,6 +88,7 @@ class GratitudeStore extends ChangeNotifier {
         } catch (_) {}
       }
       await _seedFibersFromEntries(sp);
+      await _reconcileFibersWithEntries(sp);
       // شکرگذاری جریمه ندارد: روزِ بدون ثبت چیزی کم نمی‌کند و
       // «انجام نشد»های قبلی هم پاک می‌شوند تا رشته‌ها همان‌طور که هستند بمانند.
       neural.logs.removeWhere((_, v) => v == false);
@@ -172,6 +173,68 @@ class GratitudeStore extends ChangeNotifier {
       await sp.setBool(_kSeeded, true);
     } catch (e) {
       debugPrint('GratitudeStore: seed failed: $e');
+    }
+  }
+
+
+  /// یک‌بار: رشته‌های اضافه (مثلاً ۱۵۶ رشته برای ۷ ثبت) پاک می‌شن.
+  /// هر ثبتِ شکرگذاری دقیقاً یک رشته داره (با رنگ حسِ خودش)؛ رشته‌ی بی‌ثبت حذف می‌شه.
+  Future<void> _reconcileFibersWithEntries(SharedPreferences sp) async {
+    const flag = 'gratitude_neural_reconcile_v2';
+    try {
+      if (sp.getBool(flag) == true) return;
+      final real = entries.where((e) => e.source != 'purchase').toList()
+        ..sort((a, b) => a.iso.compareTo(b.iso));
+      final fiberRe = RegExp(r'^f(\d{10,})-');
+      final oldKeys = neural.logs.entries
+          .where((e) => e.value == true)
+          .map((e) => e.key)
+          .toList();
+      final used = <String>{};
+      final newLogs = <String, bool>{};
+      final newEmo = <String, NeuralFiberEmotion>{};
+      var i = 0;
+      for (final e in real) {
+        DateTime t;
+        try {
+          t = DateTime.parse(e.iso).toLocal();
+        } catch (_) {
+          continue;
+        }
+        final ms = t.millisecondsSinceEpoch;
+        String? match;
+        for (final k in oldKeys) {
+          if (used.contains(k)) continue;
+          final m = fiberRe.firstMatch(k);
+          final ts = m == null ? null : int.tryParse(m.group(1) ?? '');
+          if (ts != null && (ts - ms).abs() <= 10000) {
+            match = k;
+            break;
+          }
+        }
+        final key = match ??
+            'f$ms-r${(i++).toString().padLeft(5, '0')}';
+        if (match != null) used.add(match);
+        newLogs[key] = true;
+        final old = neural.fiberEmotions[key];
+        if (old != null) {
+          newEmo[key] = old;
+        } else {
+          final valid =
+              e.emotionIds.where((id) => emotionById(id) != null).toList();
+          final dom = valid.isEmpty ? null : dominantEmotion(valid);
+          if (dom != null) {
+            newEmo[key] = NeuralFiberEmotion(
+                ids: valid, color: dom.color, freq: dom.freq);
+          }
+        }
+      }
+      neural.logs = newLogs;
+      neural.fiberEmotions = newEmo;
+      neural.pendingManual.clear();
+      await sp.setBool(flag, true);
+    } catch (e) {
+      debugPrint('GratitudeStore: reconcile failed: $e');
     }
   }
 
