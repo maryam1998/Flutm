@@ -971,17 +971,24 @@ class MapPainter extends CustomPainter {
     final bobPhase = (tt * bobFreq * math.pi * 2) % (math.pi * 2);
     final bob = playing ? math.sin(bobPhase) * 1.5 : 0.0;
 
-    // دایره (چهره) کمی جلوتر از پاها، سمت پنجه‌ها، در جهت حرکت
-    final lead = baseSize * 0.9 * dir;
-    final bodyPos = Offset(
-        bodyPt.dx + math.cos(bodyAng) * lead + nx * (bob + laneOff),
-        bodyPt.dy + math.sin(bodyAng) * lead + ny * (bob + laneOff));
-
-    final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
-    final pulse = 0.9 + math.sin(tt * pulseRate * 2 * math.pi) * 0.1;
-    final faceBase = withBody ? 8.0 : math.max(6.0, baseSize * 0.36);
+    // اندازه‌ی سر: با عکس بزرگ و واضح، بدون عکس کوچک‌تر
     final hasPhoto = photo != null && photo.isNotEmpty;
-    final bodyR = (hasPhoto ? faceBase * 1.45 : faceBase) * pulse;
+    final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
+    final pulse =
+        hasPhoto ? 1.0 : 0.94 + math.sin(tt * pulseRate * 2 * math.pi) * 0.06;
+    final bodyR = (hasPhoto
+            ? math.max(18.0, baseSize * 1.1)
+            : math.max(8.0, baseSize * 0.45)) *
+        pulse;
+
+    // سر آدم: پشتِ پاها (سمت ساقه/پاشنه)، با فاصله‌ی خیلی کم از پای عقبی
+    final rearPt = cp.at(plantedT);
+    final rearAng = cp.tangent(plantedT);
+    final back =
+        (baseSize * 0.5 + baseSize * 0.12 + bodyR) * dir;
+    final bodyPos = Offset(
+        rearPt.dx - math.cos(rearAng) * back + nx * (bob + laneOff),
+        rearPt.dy - math.sin(rearAng) * back + ny * (bob + laneOff));
 
     canvas.drawCircle(
         bodyPos,
@@ -997,7 +1004,7 @@ class MapPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
 
     ui.Image? faceImg;
-    if (hasPhoto) faceImg = images.get(photo);
+    if (hasPhoto) faceImg = images.get(photo!);
     if (faceImg != null) {
       // عکس کاربر داخل دایره
       final dst = Rect.fromCircle(center: bodyPos, radius: bodyR);
@@ -1051,7 +1058,7 @@ class MapPainter extends CustomPainter {
       hostId: hostId,
       kind: HitKind.handle,
       center: bodyPos,
-      radius: math.max(bodyR * 1.7, 16),
+      radius: math.max(bodyR * 1.3, 20),
     ));
   }
 

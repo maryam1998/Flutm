@@ -723,12 +723,20 @@ class MapInteraction {
     if (src == null || src.isEmpty) return;
     if (p.isWalker) {
       final g = store.state.findHost(p.hostId);
-      if (g is Goal) g.extra['walkerPhoto'] = src;
+      if (g is Goal) {
+        g.extra['walkerPhoto'] = src;
+        g.extra['walkerPlaying'] = true; // بعد از آپلود در حال حرکت بمونه
+        g.extra.remove('walkerPos');
+      }
     } else {
       final host = store.state.findHost(p.hostId);
       if (host is MapHost) {
         final found = findActionNode(host.actions, p.actionId);
-        if (found != null) found.node.extra['walkerPhoto'] = src;
+        if (found != null) {
+          found.node.extra['walkerPhoto'] = src;
+          found.node.footPlaying = true; // بعد از آپلود در حال حرکت بمونه
+          found.node.footPos = null;
+        }
       }
     }
     store.changed();
