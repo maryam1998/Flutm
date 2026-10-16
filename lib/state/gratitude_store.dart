@@ -88,7 +88,10 @@ class GratitudeStore extends ChangeNotifier {
         } catch (_) {}
       }
       await _seedFibersFromEntries(sp);
-      neural.autoSync();
+      // شکرگذاری جریمه ندارد: روزِ بدون ثبت چیزی کم نمی‌کند و
+      // «انجام نشد»های قبلی هم پاک می‌شوند تا رشته‌ها همان‌طور که هستند بمانند.
+      neural.logs.removeWhere((_, v) => v == false);
+      neural.lastSyncKey = NeuralContainer.dayKeyOffset(-1);
       await _persist();
     } catch (_) {}
     loaded = true;
