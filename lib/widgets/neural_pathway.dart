@@ -289,7 +289,7 @@ class _NeuralPathwayState extends State<NeuralPathway>
     required bool filled,
   }) {
     return Material(
-      color: filled ? kGold500 : Colors.transparent,
+      color: filled ? kEmerald700 : Colors.transparent,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
@@ -299,7 +299,7 @@ class _NeuralPathwayState extends State<NeuralPathway>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: filled ? kGold500 : kNeuralBorder,
+              color: filled ? kEmerald700 : kNeuralBorder,
             ),
           ),
           alignment: Alignment.center,

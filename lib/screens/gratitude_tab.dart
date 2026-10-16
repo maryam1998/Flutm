@@ -1096,7 +1096,11 @@ class _DayCellState extends State<_DayCell> {
           aspectRatio: 1,
           child: LayoutBuilder(builder: (ctx, box) {
             final r = BorderRadius.circular(4);
-            return Container(
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Container(
               decoration: BoxDecoration(
                 borderRadius: r,
                 gradient: done
@@ -1106,20 +1110,19 @@ class _DayCellState extends State<_DayCell> {
                         colors: [pal.emerald700, pal.emerald500],
                       )
                     : null,
-                // box-shadow: inset 0 0 0 1px line  (فقط وقتی done/حلقه نیست)
+                // خط دور روز خالی (فقط وقتی done/حلقه نیست)
                 border: (done || hasRing)
                     ? null
                     : Border.all(color: pal.line, width: 1),
-                boxShadow: [
-                  if (today)
-                    BoxShadow(
-                        color: pal.emerald500,
-                        spreadRadius: hasRing ? 3.5 : 1.5,
-                        blurRadius: 0),
-                  if (hasRing)
-                    BoxShadow(color: ring!, spreadRadius: 2, blurRadius: 0),
-                ],
               ),
+              // حلقه‌ی رنگ حس: به‌صورت کادرِ روی سلول (نه سایه — سایه‌ی فلاتر
+              // داخل سلول خالی هم رنگ می‌ریخت و روز بنفش/آبی توپر می‌شد)
+              foregroundDecoration: hasRing
+                  ? BoxDecoration(
+                      borderRadius: r,
+                      border: Border.all(color: ring!, width: 2.4),
+                    )
+                  : null,
               child: ClipRRect(
                 borderRadius: r,
                 child: Stack(
@@ -1139,6 +1142,25 @@ class _DayCellState extends State<_DayCell> {
                   ],
                 ),
               ),
+                  ),
+                ),
+                // کادر «امروز» — بیرونِ سلول
+                if (today)
+                  Positioned(
+                    left: hasRing ? -4.5 : -2,
+                    right: hasRing ? -4.5 : -2,
+                    top: hasRing ? -4.5 : -2,
+                    bottom: hasRing ? -4.5 : -2,
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: pal.emerald500, width: 2),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             );
           }),
         ),
