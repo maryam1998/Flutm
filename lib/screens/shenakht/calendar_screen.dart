@@ -22,22 +22,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final entries = store.entries;
     final checkins = store.checkins;
 
-    // داده‌ی ۳۰ روز اخیر
     final today = _startOfDay(DateTime.now());
     final days = <_DayData>[];
     for (var i = 29; i >= 0; i--) {
       final d = today.subtract(Duration(days: i));
       final key = _key(d);
-      final dayEntries = entries.where(
-          (e) => _key(_startOfDay(e.createdAt)) == key).toList();
-      final dayCheckin = checkins.firstWhere(
-        (c) => _key(_startOfDay(c.createdAt)) == key,
-        orElse: () => _placeholderCheckin(),
-      );
+      final dayEntries =
+          entries.where((e) => _key(_startOfDay(e.createdAt)) == key).toList();
+      String dayMood = 'none';
+      for (final c in checkins) {
+        if (_key(_startOfDay(c.createdAt)) == key) {
+          dayMood = c.mood;
+          break;
+        }
+      }
       days.add(_DayData(
         date: d,
         dayNumber: d.day,
-        mood: dayCheckin.mood,
+        mood: dayMood,
         activations: dayEntries.length,
         hasWin: dayEntries.any((e) =>
             e.reactionType == 'paused' ||
@@ -46,8 +48,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ));
     }
 
-    final totalActivations =
-        days.fold<int>(0, (n, d) => n + d.activations);
+    final totalActivations = days.fold<int>(0, (n, d) => n + d.activations);
     final recordedDays = days.where((d) => d.mood != 'none').length;
     final winDays = days.where((d) => d.hasWin).length;
 
@@ -66,8 +67,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: const [
+                const Row(
+                  children: [
                     Text('📅', style: TextStyle(fontSize: 28)),
                     SizedBox(width: 10),
                     Column(
@@ -89,20 +90,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: _stat(
-                          label: 'فعال شدن', value: totalActivations),
-                    ),
+                        child: _stat(
+                            label: 'فعال شدن', value: totalActivations)),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _stat(label: 'روز ثبت', value: recordedDays),
-                    ),
+                        child:
+                            _stat(label: 'روز ثبت', value: recordedDays)),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _stat(
-                          label: '⭐ برد',
-                          value: winDays,
-                          icon: true),
-                    ),
+                        child: _stat(
+                            label: '⭐ برد', value: winDays, icon: true)),
                   ],
                 ),
               ],
@@ -123,15 +120,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     style: TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 12),
-                // ۴ ستون اول رو حذف می‌کنیم تا ۷ تایی بشه
                 _grid(days),
                 const SizedBox(height: 12),
                 const Divider(color: Color(0xFFEEEEEE)),
                 const SizedBox(height: 8),
-                Wrap(
+                const Wrap(
                   spacing: 12,
                   runSpacing: 6,
-                  children: const [
+                  children: [
                     _Legend(color: Color(0xFF27AE60), label: 'خوب'),
                     _Legend(color: Color(0xFFF39C12), label: 'متوسط'),
                     _Legend(color: Color(0xFFE74C3C), label: 'سخت'),
@@ -191,7 +187,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _grid(List<_DayData> days) {
-    // ۳۰ روز = ۵ هفته تقریبی — ۷ ستون
     final rows = <List<_DayData>>[];
     for (var i = 0; i < days.length; i += 7) {
       rows.add(days.sublist(i, (i + 7).clamp(0, days.length)));
@@ -219,14 +214,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _dayCell(_DayData d) {
     final color = _moodColor(d.mood);
-    final selected =
-        _selected != null && _key(_selected!) == _key(d.date);
+    final selected = _selected != null && _key(_selected!) == _key(d.date);
 
     return Padding(
       padding: const EdgeInsets.all(2),
       child: GestureDetector(
-        onTap: () => setState(() => _selected =
-            selected ? null : d.date),
+        onTap: () => setState(() => _selected = selected ? null : d.date),
         child: AspectRatio(
           aspectRatio: 1,
           child: Container(
@@ -288,16 +281,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final dayEntries = store.entries
         .where((e) => _key(_startOfDay(e.createdAt)) == key)
         .toList();
-    final checkin = store.checkins.firstWhere(
-      (c) => _key(_startOfDay(c.createdAt)) == key,
-      orElse: () => _placeholderCheckin(),
-    );
+    String dayMood = 'none';
+    for (final c in store.checkins) {
+      if (_key(_startOfDay(c.createdAt)) == key) {
+        dayMood = c.mood;
+        break;
+      }
+    }
 
-    final moodEmoji = checkin.mood == 'good'
+    final moodEmoji = dayMood == 'good'
         ? '😊'
-        : checkin.mood == 'hard'
+        : dayMood == 'hard'
             ? '😔'
-            : checkin.mood == 'meh'
+            : dayMood == 'meh'
                 ? '😐'
                 : '—';
 
@@ -365,8 +361,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  DateTime _startOfDay(DateTime d) =>
-      DateTime(d.year, d.month, d.day);
+  DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
 
   String _key(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -420,17 +415,12 @@ class _Legend extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(label,
-            style:
-                const TextStyle(fontSize: 11, color: Color(0xFF666666))),
+            style: const TextStyle(
+                fontSize: 11, color: Color(0xFF666666))),
       ],
     );
   }
 }
-
-// ── چک‌این خالی (وقتی داده‌ای نیست) ────────────────
-_dummyCheckin _placeholderCheckin() =>
-    _dummyCheckin();
-class _dummyCheckin { final String mood = 'none'; }
 
 String _faNum(int n) => String.fromCharCodes(
     n.toString().codeUnits.map((c) => (c >= 48 && c <= 57) ? c + 1728 : c));
