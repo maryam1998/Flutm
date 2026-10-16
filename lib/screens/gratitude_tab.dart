@@ -194,9 +194,11 @@ class _GratitudeTabState extends State<GratitudeTab> {
       _pendingVideos.clear();
       _pendingShare = false;
     });
-    _toast(wasShared
-        ? 'ثبت شد و با بقیه به اشتراک گذاشته شد 🌍'
-        : 'ثبت شد — فقط برای خودم 🤫');
+    _toast(!store.lastPersistOk
+        ? 'ثبت شد، ولی حافظه‌ی مرورگر پر شده — با بستن صفحه ممکنه از دست بره. عکس/صدای قدیمی رو پاک کن'
+        : (wasShared
+            ? 'ثبت شد و با بقیه به اشتراک گذاشته شد 🌍'
+            : 'ثبت شد — فقط برای خودم 🤫'));
   }
 
   Future<void> _pickImages() async {

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../data/gratitude_journey.dart';
 import '../state/abundance_store.dart';
+import '../state/emotion_store.dart';
 import '../state/gratitude_store.dart';
 import '../utils/money_format.dart';
 import '../widgets/abundance_card.dart';
@@ -41,7 +42,11 @@ class _HomeTabState extends State<HomeTab> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      await grat.add(text: text, shared: false);
+      await grat.add(
+        text: text,
+        shared: false,
+        emotions: context.read<EmotionStore>(),
+      );
       _text.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
