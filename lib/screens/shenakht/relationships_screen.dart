@@ -21,7 +21,7 @@ class RelationshipsScreen extends StatefulWidget {
 }
 
 class _RelationshipsScreenState extends State<RelationshipsScreen> {
-  int _tab = 0; // 0 = how to respond, 1 = why repeat
+  int _tab = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +51,9 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
                   'چرا بعضی روابط تکرار می‌شن؟\nچطور بهتر برخورد کنم؟',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      color: Colors.white70, fontSize: 13, height: 1.9),
+                      color: Colors.white70,
+                      fontSize: 13,
+                      height: 1.9),
                 ),
               ],
             ),
@@ -108,7 +110,8 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: active ? SK.primary : const Color(0xFF666666),
+                color:
+                    active ? SK.primary : const Color(0xFF666666),
               ),
             ),
           ),
@@ -128,7 +131,9 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
           child: const Text(
             '💡 اگر کسی که تو زندگیت هست، این الگو را دارد — روی اسمش بزن تا ببینی چطور رفتار کنی.',
             style: TextStyle(
-                fontSize: 12, color: Color(0xFF1E40AF), height: 1.9),
+                fontSize: 12,
+                color: Color(0xFF1E40AF),
+                height: 1.9),
           ),
         ),
         const SizedBox(height: 14),
@@ -144,7 +149,8 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFF0F0F0)),
+                    border:
+                        Border.all(color: const Color(0xFFF0F0F0)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -163,7 +169,8 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
                             Text(g.plainName,
                                 style: const TextStyle(
@@ -227,7 +234,7 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFF0F0F0)),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border(
                 right: BorderSide(color: color, width: 4),
@@ -237,8 +244,8 @@ class _RelationshipsScreenState extends State<RelationshipsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
