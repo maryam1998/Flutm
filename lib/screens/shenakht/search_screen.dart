@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/shenakht/schemas.dart';
 import '../../data/shenakht/simple_language.dart';
+import '../../models/shenakht/schema.dart' show Schema;
 import 'shenakht_tab.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -100,16 +101,14 @@ class _SearchScreenState extends State<SearchScreen> {
                         itemCount: results.length,
                         itemBuilder: (_, i) {
                           final s = results[i];
-                          final plain =
-                              getPlainName(s.id) ?? s.nameFa;
+                          final plain = getPlainName(s.id) ?? s.nameFa;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Material(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               child: InkWell(
-                                onTap: () =>
-                                    widget.onPickSchema(s.id),
+                                onTap: () => widget.onPickSchema(s.id),
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
                                   padding: const EdgeInsets.all(14),
@@ -144,8 +143,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                           ],
                                         ),
                                       ),
-                                      const Icon(
-                                          Icons.arrow_back,
+                                      const Icon(Icons.arrow_back,
                                           size: 16,
                                           color: Color(0xFFCCCCCC)),
                                     ],
