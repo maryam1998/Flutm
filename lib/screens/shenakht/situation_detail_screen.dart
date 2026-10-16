@@ -5,6 +5,7 @@ import '../../data/shenakht/origins.dart';
 import '../../data/shenakht/schemas.dart';
 import '../../data/shenakht/simple_language.dart';
 import '../../data/shenakht/situations_data.dart';
+import '../../models/shenakht/schema.dart' show Schema;
 import 'shenakht_tab.dart';
 
 class SituationDetailScreen extends StatelessWidget {
@@ -36,7 +37,8 @@ class SituationDetailScreen extends StatelessWidget {
         .toList();
     final mainSchema =
         relatedSchemas.isNotEmpty ? relatedSchemas.first : null;
-    final mainOrigin = mainSchema != null ? getOrigin(mainSchema.id) : null;
+    final mainOrigin =
+        mainSchema != null ? getOrigin(mainSchema.id) : null;
 
     return ShenakhtShell(
       title: s.categoryLabel,
@@ -77,14 +79,14 @@ class SituationDetailScreen extends StatelessWidget {
                 const Text(
                   'این موقعیت رو با هم می‌شناسیم — تا بتونی این بار جور دیگه‌ای عمل کنی.',
                   style: TextStyle(
-                      color: Colors.white70, fontSize: 13, height: 1.9),
+                      color: Colors.white70,
+                      fontSize: 13,
+                      height: 1.9),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-
-          // آیا آشناست؟
           if (s.examples.isNotEmpty) ...[
             _card(
               '💭 آیا این جمله‌ها برایت آشناست؟',
@@ -109,8 +111,6 @@ class SituationDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // چرخه پنهان
           if (s.cycle.isNotEmpty) ...[
             _card(
               '🔁 چرخه‌ی پنهان این موقعیت',
@@ -154,8 +154,6 @@ class SituationDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // ریشه
           if (mainOrigin != null) ...[
             _card(
               '🧸 این الگو از کجا آمد؟',
@@ -171,8 +169,6 @@ class SituationDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // الگوهای مرتبط
           if (relatedSchemas.isNotEmpty) ...[
             _card(
               '🔗 این موقعیت با این الگوها گره خورده',
@@ -186,8 +182,7 @@ class SituationDetailScreen extends StatelessWidget {
                           : const Color(0xFFFAFAFA),
                       borderRadius: BorderRadius.circular(10),
                       child: InkWell(
-                        onTap: () =>
-                            onPickSchema(relatedSchemas[i].id),
+                        onTap: () => onPickSchema(relatedSchemas[i].id),
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.all(12),
@@ -236,7 +231,9 @@ class SituationDetailScreen extends StatelessWidget {
                                   ],
                                 ],
                               ),
-                              if (relatedSchemas[i].shortDescription.isNotEmpty) ...[
+                              if (relatedSchemas[i]
+                                  .shortDescription
+                                  .isNotEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text(
                                   relatedSchemas[i].shortDescription,
@@ -256,8 +253,6 @@ class SituationDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // حالا چه کار کنی
           if (s.whatToDo.isNotEmpty) ...[
             _card(
               '🚀 مراحل مواجهه با این موقعیت',
@@ -295,8 +290,6 @@ class SituationDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // به خودت بگو
           if (s.selfTalk.isNotEmpty) ...[
             _card(
               '🗣️ به خودت این‌ها را بگو',
@@ -324,7 +317,6 @@ class SituationDetailScreen extends StatelessWidget {
               ],
             ),
           ],
-
           const SizedBox(height: 20),
           if (mainSchema != null)
             Material(
@@ -361,7 +353,8 @@ class SituationDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bg ?? Colors.white,
-        border: Border.all(color: border ?? const Color(0xFFF0F0F0)),
+        border:
+            Border.all(color: border ?? const Color(0xFFF0F0F0)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
