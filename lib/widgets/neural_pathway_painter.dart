@@ -74,9 +74,9 @@ class NeuralPathwayPainter extends CustomPainter {
     // ضخیم‌تر (اثر ثبت حس) — ولی نه اونقدر که زشت بشه.
     const defaultColor = kEmerald500;
     const defaultOpacity = 0.55;
-    const defaultWidth = 1.0;
-    const feltOpacity = 0.95;
-    const feltWidth = 2.2;
+    const defaultWidth = 0.8;
+    const feltOpacity = 0.9;
+    const feltWidth = 1.3;
     const spreadCycle = 9;
 
     for (int i = 0; i < drawCount; i++) {

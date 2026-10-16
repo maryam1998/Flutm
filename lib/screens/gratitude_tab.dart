@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../data/gratitude_journey.dart';
 import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
+import '../models/jalali.dart' as jal;
 import '../state/emotion_store.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
@@ -890,29 +891,20 @@ class _MiniCalendar extends StatelessWidget {
   static String _key(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// تبدیل دقیق میلادی → شمسی (همان الگوریتم jalaali-js در models/jalali.dart)
   static (int, int, int) _toJalali(int gy, int gm, int gd) {
-    const gDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    final gy2 = (gm > 2) ? gy + 1 : gy;
-    var days = 355666 +
-        365 * gy +
-        ((gy2 + 3) ~/ 4) -
-        ((gy2 + 99) ~/ 100) +
-        ((gy2 + 399) ~/ 400) +
-        gd;
-    for (var i = 0; i < gm - 1; i++) {
-      days += gDays[i];
-    }
-    var jy = -1595 + 33 * (days ~/ 12053);
-    days %= 12053;
-    jy += 4 * (days ~/ 1461);
-    days %= 1461;
-    if (days > 365) {
-      jy += (days - 1) ~/ 365;
-      days = (days - 1) % 365;
-    }
-    final jm = (days < 186) ? 1 + days ~/ 31 : 7 + (days - 186) ~/ 30;
-    final jd = 1 + ((days < 186) ? days % 31 : (days - 186) % 30);
-    return (jy, jm, jd);
+    final j = jal.toJalaali(gy, gm, gd);
+    return (j.jy, j.jm, j.jd);
+  }
+
+  static const _weekdays = [
+    'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه', 'یکشنبه',
+  ];
+
+  /// متن تولتیپ هر روز: «شنبه ۲۵ مهر ۱۴۰۵ / امروز — ثبت نشده»
+  static String dayTitle(DateTime d) {
+    final j = _toJalali(d.year, d.month, d.day);
+    return '${_weekdays[d.weekday - 1]} ${_toFa(j.$3)} ${_jalaliMonths[j.$2 - 1]} ${_toFa(j.$1)}';
   }
 }
 
@@ -1013,6 +1005,7 @@ class _PeriodGrid extends StatelessWidget {
       row.add(Expanded(
         child: _DayCell(
           pal: pal,
+          date: date,
           done: done,
           today: key == todayKey,
           future: date.isAfter(today),
@@ -1033,7 +1026,8 @@ class _PeriodGrid extends StatelessWidget {
 }
 
 /// یک روز — .mini-cal-day وب
-class _DayCell extends StatelessWidget {
+class _DayCell extends StatefulWidget {
+  final DateTime date;
   final bool done, today, future, monthEnd;
   final Color? ring;
   final VoidCallback? onTap;
@@ -1041,6 +1035,7 @@ class _DayCell extends StatelessWidget {
 
   const _DayCell({
     required this.pal,
+    required this.date,
     required this.done,
     required this.today,
     required this.future,
@@ -1050,10 +1045,51 @@ class _DayCell extends StatelessWidget {
   });
 
   @override
+  State<_DayCell> createState() => _DayCellState();
+}
+
+class _DayCellState extends State<_DayCell> {
+  final _tipKey = GlobalKey<TooltipState>();
+
+  @override
   Widget build(BuildContext context) {
+    final pal = widget.pal;
+    final done = widget.done, today = widget.today;
+    final future = widget.future, monthEnd = widget.monthEnd;
+    final ring = widget.ring;
     final hasRing = ring != null;
-    return GestureDetector(
-      onTap: onTap,
+    final status = future
+        ? 'هنوز نرسیده'
+        : (today
+            ? (done ? 'امروز — ثبت شده' : 'امروز — ثبت نشده')
+            : (done ? 'ثبت شده' : 'ثبت نشده'));
+    return Tooltip(
+      key: _tipKey,
+      richMessage: TextSpan(children: [
+        TextSpan(
+          text: '${_MiniCalendar.dayTitle(widget.date)}\n',
+          style: const TextStyle(
+              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+        ),
+        TextSpan(
+          text: status,
+          style: const TextStyle(color: Color(0xFFD7E3E8), fontSize: 11),
+        ),
+      ]),
+      textAlign: TextAlign.center,
+      preferBelow: false,
+      triggerMode: TooltipTriggerMode.manual,
+      showDuration: const Duration(milliseconds: 1800),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF12303D),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // روز ثبت‌شده: باز کردن حس‌ها؛ بقیه‌ی روزها: نمایش تولتیپ تاریخ
+      onTap: widget.onTap ?? () => _tipKey.currentState?.ensureTooltipVisible(),
+      onLongPress: () => _tipKey.currentState?.ensureTooltipVisible(),
       child: Opacity(
         opacity: future ? 0.3 : 1,
         child: AspectRatio(
@@ -1106,6 +1142,7 @@ class _DayCell extends StatelessWidget {
             );
           }),
         ),
+      ),
       ),
     );
   }
