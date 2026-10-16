@@ -148,7 +148,7 @@ class _SituationsScreenState extends State<SituationsScreen> {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFF0F0F0)),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border(
                 right: BorderSide(color: color, width: 4),
