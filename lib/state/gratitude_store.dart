@@ -364,6 +364,12 @@ class GratitudeStore extends ChangeNotifier {
     final r = neural.applyFeelingToToday(felt, createIfConfirmed: confirmed);
     if (r == FeelingApply.skipped) return r;
     dayAfter[today] = valid;
+    // حس‌ها روی ثبت‌های امروز که هنوز حسی ندارن هم نوشته می‌شه تا تو لیست دیده بشن
+    for (final e in entries) {
+      if (e.source == 'purchase') continue;
+      if (isoToKey(e.iso) != today) continue;
+      if (e.emotionIds.isEmpty) e.emotionIds = List.of(valid);
+    }
     await _persist();
     notifyListeners();
     return r;

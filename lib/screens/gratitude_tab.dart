@@ -92,7 +92,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
               child: NeuralPathway(
                 container: store.neural,
                 label: 'شکرگذاری',
-                showDayButtons: false,
+                showDayButtons: true,
                 onChange: () => store.saveNeural(),
                 emotionQualityToday: _emotionQualityToday(store),
               ),
@@ -1735,6 +1735,39 @@ class _EntryRow extends StatelessWidget {
                         '${entry.day} ${entry.date} - ${entry.time}',
                         style: TextStyle(fontSize: 11.5, color: pal.muted),
                       ),
+                      if (entry.emotionIds.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: entry.emotionIds
+                              .map(emotionById)
+                              .whereType<Emotion>()
+                              .map((e) {
+                            final c = hexToColor(e.color);
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 9, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: c.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                    color: c.withValues(alpha: 0.55)),
+                              ),
+                              child: Text(
+                                e.fa,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: HSLColor.fromColor(c)
+                                      .withLightness(0.3)
+                                      .toColor(),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                       if (entry.images.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Wrap(

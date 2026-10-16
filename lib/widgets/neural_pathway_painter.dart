@@ -63,20 +63,18 @@ class NeuralPathwayPainter extends CustomPainter {
     }
     if (trueKeys.isEmpty) return;
 
+    // فقط جدیدترین رشته‌ها کشیده می‌شن (به اندازه‌ی fiberCount)
     final drawCount =
         fiberCount < trueKeys.length ? fiberCount : trueKeys.length;
+    final drawKeys = trueKeys.sublist(trueKeys.length - drawCount);
 
-    // مثل وب: رشته‌های «با حس» همون ترتیبِ ثبتشون رو دارن و i‌امین رشته‌ی
-    // کشیده‌شده رنگِ i‌امین حسِ ثبت‌شده رو می‌گیره (رنگ = قوی‌ترین حس)
-    final feltKeys = container.fiberEmotions.keys
-        .where((k) => container.logs[k] == true)
-        .toList();
-
+    // رشته‌ی بدون حس: فیروزه‌ای و نازک. رشته‌ی با حس: به رنگ همون حس و کمی
+    // ضخیم‌تر (اثر ثبت حس) — ولی نه اونقدر که زشت بشه.
     const defaultColor = kEmerald500;
     const defaultOpacity = 0.55;
     const defaultWidth = 1.0;
-    const feltOpacity = 0.9;
-    const feltWidth = 2.4;
+    const feltOpacity = 0.95;
+    const feltWidth = 2.2;
     const spreadCycle = 9;
 
     for (int i = 0; i < drawCount; i++) {
@@ -92,8 +90,8 @@ class NeuralPathwayPainter extends CustomPainter {
       double fWidth = defaultWidth;
       double fOpacity = defaultOpacity;
 
-      final felt =
-          feltKeys.length > i ? container.fiberEmotions[feltKeys[i]] : null;
+      // رنگ از خودِ همین رشته خونده می‌شه (نه از روی ایندکس)
+      final felt = container.fiberEmotions[drawKeys[i]];
       if (felt != null) {
         fColor = _parseHex(felt.color);
         fWidth = feltWidth;
@@ -249,10 +247,7 @@ class NeuralPathwayPainter extends CustomPainter {
     }
   }
 
+  // رنگ رشته‌ها داخل container تغییر می‌کنه (بدون تغییر تعداد) پس همیشه بازکشی
   @override
-  bool shouldRepaint(covariant NeuralPathwayPainter old) =>
-      old.fiberCount != fiberCount ||
-      old.pulseValue != pulseValue ||
-      old.container.habitFormed != container.habitFormed ||
-      old.textColor != textColor;
+  bool shouldRepaint(covariant NeuralPathwayPainter old) => true;
 }
