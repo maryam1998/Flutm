@@ -211,10 +211,14 @@ class NeuralContainer {
     // «نیومدنِ» قبلی صفر می‌شد).
     final first = _firstActiveDay();
     final dayRe = RegExp(r'^\d{4}-\d{1,2}-\d{1,2}$');
+    // روزهایی که حداقل یک رشته‌ی انجام‌شده دارن — این روزها هرگز «انجام نشد» نمی‌شن
+    final doneDays = _doneDaySet();
     for (final k in logs.keys.toList()) {
       if (logs[k] != false || !dayRe.hasMatch(k)) continue;
       final d = _dayOf(k);
-      if (first == null || d.isBefore(first)) {
+      if (first == null ||
+          d.isBefore(first) ||
+          doneDays.contains('${d.year}-${d.month}-${d.day}')) {
         logs.remove(k);
         changed = true;
       }
@@ -247,13 +251,32 @@ class NeuralContainer {
     while (cursor != yesterday && guard < 3650) {
       cursor = ndKeyNext(cursor);
       guard++;
-      if (!logs.containsKey(cursor)) {
-        logs[cursor] = false;
-        changed = true;
-      }
+      if (logs.containsKey(cursor) || doneDays.contains(cursor)) continue;
+      if (_dayOf(cursor).isBefore(first)) continue;
+      logs[cursor] = false;
+      changed = true;
     }
     lastSyncKey = yesterday;
     return changed;
+  }
+
+  /// مجموعه‌ی روزها (y-m-d بدون صفرِ ابتدایی) که رشته‌ی انجام‌شده دارن
+  Set<String> _doneDaySet() {
+    final out = <String>{};
+    final dayRe = RegExp(r'^\d{4}-\d{1,2}-\d{1,2}$');
+    for (final e in logs.entries) {
+      if (e.value != true) continue;
+      DateTime? d;
+      if (dayRe.hasMatch(e.key)) {
+        d = _dayOf(e.key);
+      } else {
+        final m = RegExp(r'^f(\d{10,})-').firstMatch(e.key);
+        final ts = m == null ? null : int.tryParse(m.group(1) ?? '');
+        if (ts != null) d = DateTime.fromMillisecondsSinceEpoch(ts);
+      }
+      if (d != null) out.add('${d.year}-${d.month}-${d.day}');
+    }
+    return out;
   }
 
   /// اولین روزی که یک رشته‌ی «انجام‌شده» داشته (تاریخ بدون ساعت)
