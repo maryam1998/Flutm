@@ -784,6 +784,7 @@ class MapPainter extends CustomPainter {
       hitType: 'walker',
       hitId: g.id,
       hostId: g.id,
+      photo: g.extra['walkerPhoto'] as String?,
     );
   }
 
@@ -854,6 +855,7 @@ class MapPainter extends CustomPainter {
       hitId: a.id,
       hostId: hostId,
       withBody: false,
+      photo: a.extra['walkerPhoto'] as String?,
     );
   }
 
@@ -877,6 +879,7 @@ class MapPainter extends CustomPainter {
     required String hitId,
     required String hostId,
     bool withBody = true,
+    String? photo,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -967,26 +970,54 @@ class MapPainter extends CustomPainter {
     final bobFreq = speed * 2;
     final bobPhase = (tt * bobFreq * math.pi * 2) % (math.pi * 2);
     final bob = playing ? math.sin(bobPhase) * 1.5 : 0.0;
-    final bodyPos = Offset(bodyPt.dx + nx * (bob + laneOff),
-        bodyPt.dy + ny * (bob + laneOff));
 
-    if (withBody) {
-      final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
-      final pulse = 0.9 + math.sin(tt * pulseRate * 2 * math.pi) * 0.1;
-      final bodyR = 8.0 * pulse;
+    // دایره (چهره) کمی جلوتر از پاها، سمت پنجه‌ها، در جهت حرکت
+    final lead = baseSize * 0.9 * dir;
+    final bodyPos = Offset(
+        bodyPt.dx + math.cos(bodyAng) * lead + nx * (bob + laneOff),
+        bodyPt.dy + math.sin(bodyAng) * lead + ny * (bob + laneOff));
 
+    final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
+    final pulse = 0.9 + math.sin(tt * pulseRate * 2 * math.pi) * 0.1;
+    final faceBase = withBody ? 8.0 : math.max(6.0, baseSize * 0.36);
+    final hasPhoto = photo != null && photo.isNotEmpty;
+    final bodyR = (hasPhoto ? faceBase * 1.45 : faceBase) * pulse;
+
+    canvas.drawCircle(
+        bodyPos,
+        bodyR * 2.6,
+        Paint()
+          ..color = withOp(col, 0.20)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
+    canvas.drawCircle(
+        bodyPos,
+        bodyR * 1.35,
+        Paint()
+          ..color = withOp(col, 0.18)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+
+    ui.Image? faceImg;
+    if (hasPhoto) faceImg = images.get(photo);
+    if (faceImg != null) {
+      // عکس کاربر داخل دایره
+      final dst = Rect.fromCircle(center: bodyPos, radius: bodyR);
+      final side = math.min(faceImg.width, faceImg.height).toDouble();
+      final src = Rect.fromCenter(
+          center: Offset(faceImg.width / 2, faceImg.height / 2),
+          width: side,
+          height: side);
+      canvas.save();
+      canvas.clipPath(Path()..addOval(dst));
+      canvas.drawImageRect(faceImg, src, dst, Paint()..isAntiAlias = true);
+      canvas.restore();
       canvas.drawCircle(
           bodyPos,
-          bodyR * 2.6,
+          bodyR,
           Paint()
-            ..color = withOp(col, 0.20)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
-      canvas.drawCircle(
-          bodyPos,
-          bodyR * 1.35,
-          Paint()
-            ..color = withOp(col, 0.18)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.2
+            ..color = withOp(col, 0.95));
+    } else {
       canvas.drawCircle(
           bodyPos,
           bodyR,
@@ -996,7 +1027,6 @@ class MapPainter extends CustomPainter {
             ..color = withOp(col, 0.92));
       canvas.drawCircle(
           bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.92));
-
       if (!playing) {
         final r = bodyR * 0.32;
         canvas.drawRect(
@@ -1004,13 +1034,6 @@ class MapPainter extends CustomPainter {
           Paint()..color = withOp(col, 0.92),
         );
       }
-    } else {
-      canvas.drawCircle(
-          bodyPos,
-          baseSize * 1.3,
-          Paint()
-            ..color = withOp(col, playing ? 0.16 : 0.10)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8));
     }
 
     hits.add(HitEntry(
@@ -1020,6 +1043,15 @@ class MapPainter extends CustomPainter {
       kind: HitKind.handle,
       center: bodyPos,
       radius: baseSize * 1.4,
+    ));
+    // ناحیه‌ی لمس چهره (تپ = انتخاب عکس). آخر ثبت می‌شه تا اولویت داشته باشه.
+    hits.add(HitEntry(
+      type: 'face',
+      id: hitId,
+      hostId: hostId,
+      kind: HitKind.handle,
+      center: bodyPos,
+      radius: math.max(bodyR * 1.7, 16),
     ));
   }
 

@@ -28,6 +28,24 @@ class ImageService {
     }
   }
 
+  /// یک عکس برای «چهره‌ی قدم‌زن» (دایره‌ی جلوی پاها)
+  static Future<String?> pickSingleImage() async {
+    try {
+      final f = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 480,
+        maxHeight: 480,
+        imageQuality: 85,
+      );
+      if (f == null) return null;
+      final bytes = await f.readAsBytes();
+      return 'data:${_mimeOf(f.name)};base64,${base64Encode(bytes)}';
+    } catch (e) {
+      debugPrint('pickSingleImage failed: $e');
+      return null;
+    }
+  }
+
   static Future<String?> pickVideo() async {
     try {
       final f = await _picker.pickVideo(

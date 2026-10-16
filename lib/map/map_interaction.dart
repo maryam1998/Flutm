@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import '../models/map_models.dart';
+import '../services/image_service.dart';
 import '../state/map_store.dart';
 import 'camera.dart';
 import 'geometry.dart';
@@ -35,6 +36,7 @@ class _Pending {
     this.isFoot = false,
     this.isWalker = false,
     this.isTrophy = false,
+    this.isFace = false,
   });
   final String hostId;
   final String actionId;
@@ -43,6 +45,7 @@ class _Pending {
   final bool isFoot;
   final bool isWalker;
   final bool isTrophy;
+  final bool isFace;
   final Offset start;
 }
 
@@ -252,6 +255,19 @@ class MapInteraction {
     }
 
     final world = cam.screenToWorld(pos);
+
+    // ─── چهره‌ی قدم‌زن (دایره‌ی جلوی پاها): تپ = انتخاب عکس، کشیدن = جابه‌جایی ───
+    if (hit.type == 'face') {
+      if (hit.hostId == hit.id) {
+        _pending = _Pending(hit.id, '', null, false, pos,
+            isWalker: true, isFace: true);
+      } else {
+        _pending = _Pending(hit.hostId, hit.id, null, false, pos,
+            isFoot: true, isFace: true);
+      }
+      _slopPassed = false;
+      return;
+    }
 
     // ─── قدم روی شاخه ───
     if (hit.type == 'foot') {
@@ -702,6 +718,23 @@ class MapInteraction {
     _mark();
   }
 
+  Future<void> _pickFacePhoto(_Pending p) async {
+    final src = await ImageService.pickSingleImage();
+    if (src == null || src.isEmpty) return;
+    if (p.isWalker) {
+      final g = store.state.findHost(p.hostId);
+      if (g is Goal) g.extra['walkerPhoto'] = src;
+    } else {
+      final host = store.state.findHost(p.hostId);
+      if (host is MapHost) {
+        final found = findActionNode(host.actions, p.actionId);
+        if (found != null) found.node.extra['walkerPhoto'] = src;
+      }
+    }
+    store.changed();
+    store.toast?.call('عکس روی قدم‌زن گذاشته شد 📸');
+  }
+
   // ───────────────────────── pointer up ─────────────────────────
 
   void pointerUp(PointerUpEvent e) {
@@ -715,6 +748,12 @@ class MapInteraction {
       _holdArmed = false;
       final wasDrag = _slopPassed;
       _finish();
+
+      // ─── چهره‌ی قدم‌زن: تپ = انتخاب عکس ───
+      if (p.isFace && !wasDrag) {
+        _pickFacePhoto(p);
+        return;
+      }
 
       // ─── قدم‌زن: تپ = toggle حرکت/توقف ───
       if (p.isWalker) {
