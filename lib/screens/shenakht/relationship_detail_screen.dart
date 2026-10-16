@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../data/shenakht/relationships_data.dart';
 import '../../data/shenakht/schemas.dart';
 import '../../data/shenakht/simple_language.dart';
+import '../../models/shenakht/schema.dart' show Schema;
 import 'shenakht_tab.dart';
 
 class RelationshipDetailScreen extends StatelessWidget {
@@ -79,8 +80,6 @@ class RelationshipDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-
-          // الگوهای مرتبط
           if (related.isNotEmpty) ...[
             _card(
               '🔗 این الگو از ترکیب این طرحواره‌ها ساخته شده',
@@ -120,8 +119,6 @@ class RelationshipDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // کودکی
           if (p.childhood.isNotEmpty) ...[
             _card(
               '🧸 این الگو از کجا آمد؟',
@@ -139,8 +136,6 @@ class RelationshipDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // در زندگی واقعی
           _card(
             '📖 در زندگی واقعی چطور دیده می‌شه؟',
             children: [
@@ -155,14 +150,12 @@ class RelationshipDetailScreen extends StatelessWidget {
                   ),
                 ),
                 child: Text(p.realLife,
-                    style: const TextStyle(
-                        fontSize: 14, height: 1.95)),
+                    style:
+                        const TextStyle(fontSize: 14, height: 1.95)),
               ),
             ],
           ),
           const SizedBox(height: 12),
-
-          // چالش‌ها
           if (p.challenges.isNotEmpty) ...[
             _card(
               '⚠️ چالش‌های این رابطه',
@@ -192,8 +185,6 @@ class RelationshipDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // چه کمکی می‌کنه
           if (p.whatHelps.isNotEmpty) ...[
             _card(
               '✅ چه چیزی کمک می‌کند',
@@ -223,8 +214,6 @@ class RelationshipDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // چه چیزی بدتر می‌کنه
           if (p.whatHurts.isNotEmpty) ...[
             _card(
               '❌ چه چیزی اوضاع را بدتر می‌کند',
@@ -254,8 +243,6 @@ class RelationshipDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // حالا چه کار کنی
           if (p.whatToDoNow.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(
@@ -270,8 +257,8 @@ class RelationshipDetailScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
-                  child: const Text('🚀',
-                      style: TextStyle(fontSize: 18)),
+                  child:
+                      const Text('🚀', style: TextStyle(fontSize: 18)),
                 ),
                 const SizedBox(width: 10),
                 Column(
@@ -298,7 +285,8 @@ class RelationshipDetailScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFFF0F0F0)),
+                    border:
+                        Border.all(color: const Color(0xFFF0F0F0)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -329,7 +317,6 @@ class RelationshipDetailScreen extends StatelessWidget {
                 ),
               ),
           ],
-
           const SizedBox(height: 20),
           if (related.isNotEmpty)
             Material(
@@ -368,7 +355,8 @@ class RelationshipDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bg ?? Colors.white,
-        border: Border.all(color: border ?? const Color(0xFFF0F0F0)),
+        border:
+            Border.all(color: border ?? const Color(0xFFF0F0F0)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
