@@ -31,7 +31,6 @@ class ResponseGuideScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // هدر
           Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
@@ -91,8 +90,6 @@ class ResponseGuideScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-
-          // مثال
           _card(
             '📖 در زندگی واقعی چطور دیده می‌شه؟',
             bg: const Color(0xFFEEF4FF),
@@ -109,14 +106,12 @@ class ResponseGuideScreen extends StatelessWidget {
                   ),
                 ),
                 child: Text(g.example,
-                    style: const TextStyle(
-                        fontSize: 14, height: 1.95)),
+                    style:
+                        const TextStyle(fontSize: 14, height: 1.95)),
               ),
             ],
           ),
           const SizedBox(height: 12),
-
-          // کودکی
           if (g.childhood.isNotEmpty) ...[
             _card(
               '🧸 این الگو از کجا آمد؟',
@@ -168,8 +163,6 @@ class ResponseGuideScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // قاعده طلایی
           Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
@@ -218,8 +211,6 @@ class ResponseGuideScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-
-          // ✅ این کارها رو بکن
           if (g.doThis.isNotEmpty) ...[
             _card(
               '✅ این کارها را بکن',
@@ -249,8 +240,6 @@ class ResponseGuideScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // ❌ این کارها رو نکن
           if (g.dontDoThis.isNotEmpty) ...[
             _card(
               '❌ این کارها را نکن',
@@ -280,8 +269,6 @@ class ResponseGuideScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          // حالا چه کار کنی
           if (g.whatToDoNow.isNotEmpty) ...[
             Row(
               children: [
@@ -295,8 +282,8 @@ class ResponseGuideScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
-                  child: const Text('🚀',
-                      style: TextStyle(fontSize: 18)),
+                  child:
+                      const Text('🚀', style: TextStyle(fontSize: 18)),
                 ),
                 const SizedBox(width: 10),
                 Column(
@@ -323,7 +310,6 @@ class ResponseGuideScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFFF0F0F0)),
                     borderRadius: BorderRadius.circular(12),
                     border: Border(
                       right: BorderSide(
@@ -363,7 +349,6 @@ class ResponseGuideScreen extends StatelessWidget {
                 ),
               ),
           ],
-
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(16),
@@ -393,7 +378,8 @@ class ResponseGuideScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bg ?? Colors.white,
-        border: Border.all(color: border ?? const Color(0xFFF0F0F0)),
+        border:
+            Border.all(color: border ?? const Color(0xFFF0F0F0)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
