@@ -122,7 +122,7 @@ class _Avatar extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: color, width: size > 60 ? 3 : 1.5),
+          border: Border.all(color: color, width: size > 50 ? 2.5 : 1.5),
         ),
         child: ClipOval(
           child: Image.memory(
@@ -147,7 +147,7 @@ class _Avatar extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: color.withAlpha(60),
-          border: Border.all(color: color, width: size > 60 ? 3 : 1.5),
+          border: Border.all(color: color, width: size > 50 ? 2.5 : 1.5),
         ),
         child: EmojiStack(icon: icon, size: size),
       );
@@ -463,7 +463,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                     onTap: () => setState(() {
                       if (!_editing.remove(h.id)) _editing.add(h.id);
                     }),
-                    child: _Avatar(host: h, color: color, size: 78),
+                    child: _Avatar(host: h, color: color, size: 56),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -476,7 +476,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                           children: [
                             Text(_name(h),
                                 style: const TextStyle(
-                                    fontSize: 19,
+                                    fontSize: 16,
                                     height: 1.35,
                                     fontWeight: FontWeight.w800,
                                     color: kGoalsInk)),

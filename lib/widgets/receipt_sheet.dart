@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/abundance_models.dart';
+import '../models/jalali.dart';
 import '../utils/money_format.dart';
 
 const _kGold = Color(0xFFC9A24B);
@@ -91,9 +92,9 @@ class ReceiptSheet extends StatelessWidget {
                         style: TextStyle(fontSize: 11, color: _kMuted),
                       ),
                       const SizedBox(height: 14),
-                      _row('تاریخ', record.date),
-                      _row('روز هفته', record.day),
-                      _row('ساعت', record.time),
+                      _row('تاریخ', _dateText()),
+                      _row('روز هفته', _dayText()),
+                      _row('ساعت', _timeText()),
                       _row('کد رهگیری', toFaDigits(record.track)),
                       _row('شماره کارت مبدا', record.card),
                       _row('بانک مقصد', 'بانک فراوانی'),
@@ -133,6 +134,16 @@ class ReceiptSheet extends StatelessWidget {
       ),
     );
   }
+
+  DateTime? get _dt => DateTime.tryParse(record.iso)?.toLocal();
+
+  String _dateText() =>
+      _dt != null ? faDateLong(_dt!) : toFaDigits(record.date);
+
+  String _dayText() => _dt != null ? faWeekdayName(_dt!) : record.day;
+
+  String _timeText() =>
+      _dt != null ? faTimeHms(_dt!) : toFaDigits(record.time);
 
   Widget _row(String label, String value) {
     return Padding(

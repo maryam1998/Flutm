@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/jalali.dart';
 import '../state/abundance_store.dart';
 import '../utils/money_format.dart';
 import 'receipt_sheet.dart';
@@ -120,15 +121,20 @@ class ShopHistorySheet extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(
-                  p.day,
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700, color: _kInk),
+                Expanded(
+                  child: Text(
+                    faStampFromRecord(
+                        iso: p.iso as String,
+                        date: p.date as String,
+                        day: p.day as String,
+                        time: p.time as String),
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: _kInk),
+                  ),
                 ),
                 const SizedBox(width: 6),
-                Text(p.date,
-                    style: const TextStyle(fontSize: 11, color: _kMuted)),
-                const Spacer(),
                 Text(
                   formatMoney(p.total),
                   style: const TextStyle(

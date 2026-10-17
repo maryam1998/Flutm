@@ -40,15 +40,15 @@ class _PracticeTabState extends State<PracticeTab> {
         backgroundColor: Colors.transparent,
         body: IndexedStack(
           index: _sub,
-          children: const [
+          children: [
             // 0 = خانه
-            HomeTab(),
+            HomeTab(onOpenStore: () => setState(() => _sub = 1)),
             // 1 = بازی فراوانی
-            StoreTab(),
+            const StoreTab(),
             // 2 = شکرگذاری
-            GratitudeTab(),
+            const GratitudeTab(),
             // 3 = باورها
-            BeliefsTab(),
+            const BeliefsTab(),
           ],
         ),
         bottomNavigationBar: WebSubTabBar(

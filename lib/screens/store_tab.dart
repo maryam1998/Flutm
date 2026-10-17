@@ -10,6 +10,7 @@ import '../services/image_service.dart';
 import '../state/abundance_store.dart';
 import '../state/gratitude_store.dart';
 import '../utils/money_format.dart';
+import '../utils/thousands_input_formatter.dart';
 import '../widgets/receipt_sheet.dart';
 import '../widgets/shop_history_sheet.dart';
 
@@ -48,7 +49,7 @@ class _StoreTabState extends State<StoreTab> {
 
   void _addItem() {
     final name = _name.text.trim();
-    final price = double.tryParse(_price.text.trim()) ?? 0;
+    final price = parseMoneyInput(_price.text);
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('نام و مبلغ معتبر وارد کن')),
@@ -276,6 +277,7 @@ class _StoreTabState extends State<StoreTab> {
                   TextField(
                     controller: _price,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [ThousandsInputFormatter()],
                     textAlign: TextAlign.right,
                     textDirection: TextDirection.rtl,
                     style: const TextStyle(fontSize: 13, color: _kInk),

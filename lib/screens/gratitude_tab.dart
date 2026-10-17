@@ -699,7 +699,12 @@ class _ThemeBanner extends StatelessWidget {
 class _MiniCalendar extends StatelessWidget {
   final GratitudeStore store;
   final GratPalette pal;
-  const _MiniCalendar({required this.store, required this.pal});
+  final double horizontal;
+  const _MiniCalendar({
+    required this.store,
+    required this.pal,
+    this.horizontal = 18,
+  });
 
   static const _monthOrd = [
     'اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم',
@@ -742,7 +747,7 @@ class _MiniCalendar extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: EdgeInsets.symmetric(horizontal: horizontal),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1800,7 +1805,12 @@ class _EntryRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${entry.day} ${entry.date} - ${entry.time}',
+                        jal.faStampFromRecord(
+                          iso: entry.iso,
+                          date: entry.date,
+                          day: entry.day,
+                          time: entry.time,
+                        ),
                         style: TextStyle(fontSize: 11.5, color: pal.muted),
                       ),
                       if (entry.emotionIds.isNotEmpty) ...[
@@ -1890,7 +1900,9 @@ class _EntryRow extends StatelessWidget {
       if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
       buf.write(s[i]);
     }
-    return '${_toFa(int.parse(s))} تومان';
+    final fa = buf.toString().replaceAllMapped(
+        RegExp(r'\d'), (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)]);
+    return '$fa تومان';
   }
 }
 
@@ -2034,3 +2046,22 @@ String _toFa(int n) => n.toString().replaceAllMapped(
       RegExp(r'\d'),
       (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)],
     );
+
+/// تقویم دوره‌ی شکرگذاری برای استفاده در تب «خانه» — دقیقاً همان تقویم تب شکرگذاری
+class GratitudePeriodCalendar extends StatelessWidget {
+  const GratitudePeriodCalendar({super.key});
+
+  /// «اول، دوم، …» برای شماره‌ی دوره
+  static String ord(int i) => _MiniCalendar.ord(i);
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.watch<GratitudeStore>();
+    if (!store.loaded) return const SizedBox.shrink();
+    return _MiniCalendar(
+      store: store,
+      pal: GratPalette.of(context),
+      horizontal: 0,
+    );
+  }
+}

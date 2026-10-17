@@ -3,6 +3,7 @@ import '../widgets/web_theme_banner.dart';
 import 'package:provider/provider.dart';
 
 import '../data/gratitude_journey.dart';
+import '../models/jalali.dart' as jal;
 import '../state/abundance_store.dart';
 import '../state/emotion_store.dart';
 import '../state/gratitude_store.dart';
@@ -10,6 +11,7 @@ import '../utils/money_format.dart';
 import '../widgets/abundance_card.dart';
 import '../widgets/abundance_settings_sheet.dart';
 import '../widgets/card_edit_sheet.dart';
+import 'gratitude_tab.dart' show GratitudePeriodCalendar;
 
 const _kCream = Color(0xFFF7F6F1);
 const _kCard = Colors.white;
@@ -20,7 +22,9 @@ const _kBorder = Color(0x8C54B3A4); // کادر سبز
 const _kEmerald = Color(0xFF178A7C);
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  /// دکمه‌ی «خرید جدید» → رفتن به زیرتب «بازی فراوانی»
+  final VoidCallback? onOpenStore;
+  const HomeTab({super.key, this.onOpenStore});
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
@@ -87,6 +91,11 @@ class _HomeTabState extends State<HomeTab> {
             _settingsBtn(store),
             const SizedBox(height: 16),
             _journeyBanner(phase, grat),
+            const SizedBox(height: 14),
+            // تقویم دوره — همان تقویم تب شکرگذاری (ماه اول، روزهای دوره، تولتیپ تاریخ)
+            const GratitudePeriodCalendar(),
+            const SizedBox(height: 14),
+            _newPurchaseBtn(),
             const SizedBox(height: 16),
             _quickAdd(phase, grat.totalCount),
             const SizedBox(height: 20),
@@ -216,8 +225,9 @@ class _HomeTabState extends State<HomeTab> {
         children: [
           Row(
             children: [
-              const Text('🧭 مسیر ۲۸ روزه شکرگذاری',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xD9FFFFFF))),
+              Text(
+                  '🧭 دوره‌ی ${grat.pastPeriods.isNotEmpty ? '${GratitudePeriodCalendar.ord(grat.pastPeriods.length)} — ' : ''}${toFaDigits(phase.totalDays.toString())} روزه — ${phase.phaseShort}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xD9FFFFFF))),
               const Spacer(),
               Text(
                 'روز ${toFaDigits(phase.day.toString())} / ${toFaDigits(phase.totalDays.toString())}',
@@ -242,6 +252,25 @@ class _HomeTabState extends State<HomeTab> {
           const SizedBox(height: 10),
           WebBannerBar(value: pct),
         ],
+      ),
+    );
+  }
+
+  Widget _newPurchaseBtn() {
+    return SizedBox(
+      height: 54,
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: _kEmerald,
+          foregroundColor: Colors.white,
+          elevation: 3,
+          shadowColor: _kEmerald.withValues(alpha: 0.45),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+        onPressed: widget.onOpenStore,
+        icon: const Icon(Icons.shopping_bag_outlined, size: 20),
+        label: const Text('خرید جدید',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
       ),
     );
   }
@@ -384,7 +413,12 @@ class _HomeTabState extends State<HomeTab> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${e.day} ${e.time}',
+                          jal.faStampFromRecord(
+                            iso: e.iso,
+                            date: e.date,
+                            day: e.day,
+                            time: e.time,
+                          ),
                           style: const TextStyle(
                               fontSize: 10, color: _kMuted),
                         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/money_format.dart';
+import '../utils/thousands_input_formatter.dart';
 
 const _kGold = Color(0xFFC9972B);
 const _kInk = Color(0xFF2A2218);
@@ -51,8 +52,10 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
   @override
   void initState() {
     super.initState();
-    _start = TextEditingController(text: widget.startAmount.round().toString());
-    _step = TextEditingController(text: widget.step.round().toString());
+    _start = TextEditingController(
+        text: groupThousands(widget.startAmount.round().toString()));
+    _step = TextEditingController(
+        text: groupThousands(widget.step.round().toString()));
   }
 
   @override
@@ -63,8 +66,8 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
   }
 
   void _save() {
-    final s = double.tryParse(_start.text.trim()) ?? 0;
-    final st = double.tryParse(_step.text.trim()) ?? 0;
+    final s = parseMoneyInput(_start.text);
+    final st = parseMoneyInput(_step.text);
     if (s <= 0 || st <= 0) return;
     widget.onSave((startAmount: s, step: st));
     Navigator.pop(context);
@@ -171,8 +174,8 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
   }
 
   String _preview() {
-    final s = double.tryParse(_start.text.trim()) ?? 0;
-    final st = double.tryParse(_step.text.trim()) ?? 0;
+    final s = parseMoneyInput(_start.text);
+    final st = parseMoneyInput(_step.text);
     if (s <= 0 || st <= 0) return 'مبلغ شروع و افزایش روزانه رو وارد کن';
     return 'روز ۱: ${formatMoney(s)} ← روز ۲: ${formatMoney(s + st)} ← روز ۳: ${formatMoney(s + st * 2)}';
   }
@@ -193,6 +196,7 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
         TextField(
           controller: ctrl,
           keyboardType: TextInputType.number,
+          inputFormatters: [ThousandsInputFormatter()],
           textAlign: TextAlign.right,
           onChanged: (_) => setState(() {}),
           style: const TextStyle(

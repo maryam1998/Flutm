@@ -1,5 +1,7 @@
-/// تبدیل میلادی ↔ جلالی (پورت دقیق calG2d / calD2j نسخه‌ی وب)
-/// کلید روزها در لاگ‌ها «سال-ماه-روز جلالی» بدون صفر پیشوند است؛ مثل 1405-7-20
+// تبدیل میلادی ↔ جلالی (پورت دقیق calG2d / calD2j نسخه‌ی وب)
+// کلید روزها در لاگ‌ها «سال-ماه-روز جلالی» بدون صفر پیشوند است؛ مثل 1405-7-20
+
+import '../utils/money_format.dart' show toFaDigits;
 
 const kJalaliMonths = [
   'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
@@ -111,3 +113,46 @@ List<String> jalaaliCurrentWeekDates() {
 
 /// کلید جلالی امروز
 String todayJK() => jKey(DateTime.now());
+
+// ───────────── نمایش تاریخ/ساعت شمسی با ارقام فارسی ─────────────
+const _kFaWeekdayNames = [
+  'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه', 'یکشنبه',
+];
+
+/// نام روز هفته‌ی فارسی (DateTime.weekday: دوشنبه=۱ ... یکشنبه=۷)
+String faWeekdayName(DateTime d) => _kFaWeekdayNames[d.weekday - 1];
+
+/// «۱۸ مهر ۱۴۰۵»
+String faDateLong(DateTime d) {
+  final j = toJalaali(d.year, d.month, d.day);
+  return '${toFaDigits('${j.jd}')} ${kJalaliMonths[j.jm - 1]} ${toFaDigits('${j.jy}')}';
+}
+
+/// «۱۹:۵۰:۳۴»
+String faTimeHms(DateTime d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return toFaDigits('${two(d.hour)}:${two(d.minute)}:${two(d.second)}');
+}
+
+/// «شنبه ۱۸ مهر ۱۴۰۵ - ۱۹:۵۰:۳۴» (دقیقاً قالب نسخه‌ی وب)
+String faStamp(DateTime d) =>
+    '${faWeekdayName(d)} ${faDateLong(d)} - ${faTimeHms(d)}';
+
+/// از رکوردهای ذخیره‌شده (iso یا date/day/time قدیمی) متن شمسی فارسی می‌سازه.
+String faStampFromRecord({
+  required String iso,
+  String date = '',
+  String day = '',
+  String time = '',
+}) {
+  final dt = DateTime.tryParse(iso)?.toLocal();
+  if (dt != null) return faStamp(dt);
+  final m = RegExp(r'^(\d{4})-(\d{1,2})-(\d{1,2})$').firstMatch(date.trim());
+  if (m != null) {
+    final j = toJalaali(
+        int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
+    final d = '${toFaDigits('${j.jd}')} ${kJalaliMonths[j.jm - 1]} ${toFaDigits('${j.jy}')}';
+    return '${day.isEmpty ? '' : '$day '}$d - ${toFaDigits(time)}';
+  }
+  return toFaDigits('${day.isEmpty ? '' : '$day '}$date - $time');
+}
