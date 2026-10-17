@@ -445,6 +445,24 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                       builder: (_, bg, __) => Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          const Text('رنگ پس‌زمینه‌ی اپ',
+                              style:
+                                  TextStyle(fontSize: 12, color: _kMuted)),
+                          const SizedBox(height: 8),
+                          WebColorPicker(
+                            value: bg.color ?? Colors.white,
+                            onChanged: (c) => bg.setColor(c),
+                          ),
+                          if (bg.color != null)
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: TextButton(
+                                onPressed: () => bg.setColor(null),
+                                child: const Text('بازگشت به رنگ پیش‌فرض',
+                                    style: TextStyle(fontSize: 12)),
+                              ),
+                            ),
+                          const SizedBox(height: 10),
                           Row(
                             children: [
                               Expanded(

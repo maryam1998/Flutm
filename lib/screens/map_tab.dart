@@ -6,6 +6,7 @@ import '../map/map_canvas.dart';
 import '../map/map_ops.dart';
 import '../models/map_models.dart';
 import '../services/storage.dart';
+import '../state/background_store.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import '../theme/web_palette.dart';
@@ -69,7 +70,16 @@ class _MapTabState extends State<MapTab> {
     final wp = WebPalette.of(context);
     final ink = wp.textMain;
 
-    return Scaffold(
+    final bgStore = context.watch<BackgroundStore>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // مثل بقیه‌ی تب‌ها: روشن = سفید؛ با تصویر/ویدیو/رنگ دلخواه شفاف
+    final mapBg = (bgStore.overridesBackdrop || isDark)
+        ? Colors.transparent
+        : Colors.white;
+
+    return ColoredBox(
+      color: mapBg,
+      child: Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         fit: StackFit.expand,
@@ -246,7 +256,7 @@ class _MapTabState extends State<MapTab> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _roundBtn(IconData icon, Color color, VoidCallback onTap) {

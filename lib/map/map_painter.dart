@@ -489,16 +489,6 @@ class MapPainter extends CustomPainter {
       }
     }
 
-    final freq = kFreqBands[g.freq] ?? kFreqBands['alpha']!;
-    double sumW(List<ActionNode> l) =>
-        l.fold(0.0, (s, a) => s + a.weight + sumW(a.children));
-    final power = math.min(100, (sumW(g.actions) * 3).round());
-    final has = g.actions.isNotEmpty;
-    final hud = (g.collapsed && has)
-        ? 'رشد $power٪'
-        : '${freq.label} — ${freq.desc} · رشد $power٪';
-    drawText(canvas, hud, c.dx, c.dy + r0 + (has ? 46 : 42),
-        size: 11, color: withOp(tc, 0.6), weight: FontWeight.w400);
     _goalShutter(canvas, g, col, tc);
   }
 
@@ -795,7 +785,9 @@ class MapPainter extends CustomPainter {
       playing: playing,
       speed: speed.toDouble(),
       manualT: manualT,
-      baseSize: 20.0 * state.footScale.clamp(0.4, 3.0),
+      baseSize: 20.0 *
+          state.footScale.clamp(0.4, 3.0) *
+          ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0).clamp(0.4, 3.0),
       trailCount: 5,
       hitType: 'walker',
       hitId: g.id,

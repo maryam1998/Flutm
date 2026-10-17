@@ -77,6 +77,8 @@ class _BackgroundLayerState extends State<BackgroundLayer> {
       bgWidget = _bgImage(bg);
     } else if (bg.kind == BgKind.video && _videoCtl != null && _videoCtl!.value.isInitialized) {
       bgWidget = _bgVideo(bg);
+    } else if (bg.color != null) {
+      bgWidget = ColoredBox(color: bg.color!);
     } else {
       bgWidget = WebBackground(isDark: isDark);
     }

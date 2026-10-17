@@ -9,6 +9,7 @@ import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
 import '../models/jalali.dart' as jal;
 import '../state/emotion_store.dart';
+import '../state/background_store.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
 import '../widgets/gratitude_slideshow.dart';
@@ -41,10 +42,11 @@ class _GratitudeTabState extends State<GratitudeTab> {
   Widget build(BuildContext context) {
     final pal = GratPalette.of(context);
     final store = context.watch<GratitudeStore>();
+    final custom = context.watch<BackgroundStore>().color != null;
 
     if (!store.loaded) {
       return Container(
-        color: pal.paper,
+        color: custom ? Colors.transparent : pal.paper,
         alignment: Alignment.center,
         child: const CircularProgressIndicator(),
       );
@@ -53,7 +55,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final info = computeGratitudePhase(store.journeyDay, store.journeyDays);
 
     return Container(
-      color: pal.paper,
+      color: custom ? Colors.transparent : pal.paper,
       child: SingleChildScrollView(
         controller: _scrollCtrl,
         padding: const EdgeInsets.only(bottom: 40),

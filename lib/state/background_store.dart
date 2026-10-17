@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show Color;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,12 +15,14 @@ class BackgroundStore extends ChangeNotifier {
   static const _kVidPath = 'bg_video_path';
   static const _kBlurKey = 'bg_blur';
   static const _kOpKey = 'bg_opacity';
+  static const _kColorKey = 'bg_color';
 
   BgKind _kind = BgKind.none;
   Uint8List? _imageBytes;
   String? _videoPath;
   double _blur = 0;
   double _opacity = 0.6;
+  Color? _color; // رنگ ساده‌ی پس‌زمینه (وقتی تصویر/ویدیو نیست)
 
   BgKind get kind => _kind;
   Uint8List? get imageBytes => _imageBytes;
@@ -27,6 +30,10 @@ class BackgroundStore extends ChangeNotifier {
   double get blur => _blur;
   double get opacity => _opacity;
   bool get hasBackground => _kind != BgKind.none;
+  Color? get color => _color;
+
+  /// تصویر/ویدیو یا رنگ دلخواه فعال است (تب‌ها باید شفاف شوند تا دیده شود)
+  bool get overridesBackdrop => hasBackground || _color != null;
 
   final _picker = ImagePicker();
 
@@ -49,6 +56,8 @@ class BackgroundStore extends ChangeNotifier {
       }
       _blur = sp.getDouble(_kBlurKey) ?? 0;
       _opacity = sp.getDouble(_kOpKey) ?? 0.6;
+      final c = sp.getInt(_kColorKey);
+      _color = c == null ? null : Color(c);
     } catch (_) {}
     notifyListeners();
   }
@@ -108,6 +117,19 @@ class BackgroundStore extends ChangeNotifier {
   Future<void> setOpacity(double v) async {
     _opacity = v.clamp(0.1, 1.0);
     await _persist();
+    notifyListeners();
+  }
+
+  Future<void> setColor(Color? c) async {
+    _color = c;
+    try {
+      final sp = await SharedPreferences.getInstance();
+      if (c == null) {
+        await sp.remove(_kColorKey);
+      } else {
+        await sp.setInt(_kColorKey, c.toARGB32());
+      }
+    } catch (_) {}
     notifyListeners();
   }
 

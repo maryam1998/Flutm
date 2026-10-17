@@ -497,7 +497,7 @@ class _ShenakhtTabState extends State<ShenakhtTab> {
 
   @override
   Widget build(BuildContext context) {
-    final hasBg = context.watch<BackgroundStore>().hasBackground;
+    final hasBg = context.watch<BackgroundStore>().overridesBackdrop;
 
     Widget screen;
     switch (_route) {

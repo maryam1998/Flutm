@@ -111,13 +111,16 @@ class _WebColorDialog extends StatefulWidget {
 }
 
 class _WebColorDialogState extends State<_WebColorDialog> {
-  late Color _current;
+  // حالت اصلی HSV است (نه Color). اگر از Color برگردانده شود، با رسیدن
+  // اشباع/روشنایی به صفر، Hue و بقیه‌ی اهرم‌ها ریست می‌شوند و روی هم اثر می‌گذارند.
+  late HSVColor _hsv;
+  Color get _current => _hsv.toColor();
   int _page = 0; // 0 = simple, 1 = hsv
 
   @override
   void initState() {
     super.initState();
-    _current = widget.initial;
+    _hsv = HSVColor.fromColor(widget.initial);
   }
 
   static bool _same(Color a, Color b) => a.r == b.r && a.g == b.g && a.b == b.b;
@@ -132,7 +135,11 @@ class _WebColorDialogState extends State<_WebColorDialog> {
         constraints: const BoxConstraints(maxWidth: 340),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: _page == 0 ? _simplePage() : _hsvPage(),
+          // دیالوگ انگلیسی است؛ در اپ RTL اهرم‌ها برعکس می‌شدند ولی گرادیان نه
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: _page == 0 ? _simplePage() : _hsvPage(),
+          ),
         ),
       ),
     );
@@ -163,7 +170,7 @@ class _WebColorDialogState extends State<_WebColorDialog> {
           children: [
             for (final c in _kSimpleGrid)
               GestureDetector(
-                onTap: () => setState(() => _current = c),
+                onTap: () => setState(() => _hsv = HSVColor.fromColor(c)),
                 child: Container(
                   decoration: BoxDecoration(
                     color: c,
@@ -233,7 +240,7 @@ class _WebColorDialogState extends State<_WebColorDialog> {
   // ────── صفحه‌ی ۲: HSV ──────
 
   Widget _hsvPage() {
-    final hsv = HSVColor.fromColor(_current);
+    final hsv = _hsv;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -323,7 +330,7 @@ class _WebColorDialogState extends State<_WebColorDialog> {
         value: hsv.hue,
         max: 360,
         onChanged: (v) =>
-            setState(() => _current = hsv.withHue(v).toColor()),
+            setState(() => _hsv = _hsv.withHue(v)),
       );
 
   Widget _satSlider(HSVColor hsv) => _track(
@@ -336,7 +343,7 @@ class _WebColorDialogState extends State<_WebColorDialog> {
         value: hsv.saturation,
         max: 1,
         onChanged: (v) =>
-            setState(() => _current = hsv.withSaturation(v).toColor()),
+            setState(() => _hsv = _hsv.withSaturation(v)),
       );
 
   Widget _valSlider(HSVColor hsv) => _track(
@@ -349,7 +356,7 @@ class _WebColorDialogState extends State<_WebColorDialog> {
         value: hsv.value,
         max: 1,
         onChanged: (v) =>
-            setState(() => _current = hsv.withValue(v).toColor()),
+            setState(() => _hsv = _hsv.withValue(v)),
       );
 
   Widget _track({
@@ -376,11 +383,14 @@ class _WebColorDialogState extends State<_WebColorDialog> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Container(
-            height: 22,
-            decoration: BoxDecoration(
-              gradient: gradient,
-              border: Border.all(color: const Color(0x33000000)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              height: 22,
+              decoration: BoxDecoration(
+                gradient: gradient,
+                border: Border.all(color: const Color(0x33000000)),
+              ),
             ),
           ),
           Slider(

@@ -12,7 +12,7 @@ class PlaceholderTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = WebPalette.of(context);
     // وب: #shenakht-root پس‌زمینه‌ی --bg-2 دارد
-    final hasBg = context.watch<BackgroundStore>().hasBackground;
+    final hasBg = context.watch<BackgroundStore>().overridesBackdrop;
     return ColoredBox(
       color: hasBg ? Colors.transparent : p.bg2,
       child: Scaffold(

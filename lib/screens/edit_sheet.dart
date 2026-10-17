@@ -653,6 +653,17 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
+      _slider(
+        label: 'اندازه‌ی پاها و دایره‌ی متصل',
+        value: ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
+            .clamp(0.4, 3.0),
+        min: 0.4,
+        max: 3.0,
+        divisions: 26,
+        valueText:
+            '${(((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+        onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
+      ),
       _textField(
         ctlKey: 'goal:${g.id}:name',
         initial: g.name,
@@ -785,6 +796,15 @@ class _EditSheetState extends State<EditSheet> {
           r.images = images;
           r.iconScale = scale;
         }),
+      ),
+      _slider(
+        label: 'اندازه‌ی دایره',
+        value: r.radius.clamp(16.0, 120.0).toDouble(),
+        min: 16,
+        max: 120,
+        divisions: 52,
+        valueText: '${(r.radius / 30 * 100).round()}٪',
+        onChanged: (v) => _edit(() => r.radius = v),
       ),
       _sectionLabel('رنگ'),
       _swatches(r.color, (c) => r.color = c, extra: const [kRingColor]),

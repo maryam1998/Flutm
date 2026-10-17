@@ -28,7 +28,7 @@ class _PracticeTabState extends State<PracticeTab> {
     // وب: #grat-root پس‌زمینه‌ی --paper دارد (سفید)، ولی وقتی پس‌زمینه‌ی
     // دلخواه (تصویر/ویدیو) فعاله شفاف می‌شه (body.bg-mode-image #grat-root).
     // محتوای زیرتب‌ها فعلاً روشنه، پس در تم تاریک همون کرم قبلی می‌مونه.
-    final hasBg = context.watch<BackgroundStore>().hasBackground;
+    final hasBg = context.watch<BackgroundStore>().overridesBackdrop;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final paper = hasBg
         ? Colors.transparent
