@@ -434,6 +434,12 @@ class GratitudeStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// بعد از تغییر مستقیم عکس‌ها (مثلاً حذف از آلبوم) ذخیره و اعلام کن
+  Future<void> commitMedia() async {
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> remove(String id) async {
     entries.removeWhere((e) => e.id == id);
     await _persist();

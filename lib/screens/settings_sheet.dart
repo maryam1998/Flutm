@@ -22,15 +22,30 @@ const _kMuted = Color(0xFF7A6B57);
 const _kBorder = Color(0xFFE0D5C0);
 const _kDanger = Color(0xFFE5484D);
 
+/// منوی همبرگری: از سمت چپ باز می‌شود، کل صفحه را نمی‌گیرد.
 Future<void> showSettingsSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showGeneralDialog<void>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: false,
-    backgroundColor: Colors.transparent,
+    barrierDismissible: true,
+    barrierLabel: 'بستن تنظیمات',
     barrierColor: Colors.black.withAlpha(100),
-    builder: (_) => const _SettingsSheet(),
+    transitionDuration: const Duration(milliseconds: 260),
+    pageBuilder: (ctx, _, __) {
+      final w = MediaQuery.sizeOf(ctx).width;
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: (w * 0.78).clamp(260.0, 340.0).toDouble(),
+          height: double.infinity,
+          child: const _SettingsSheet(),
+        ),
+      );
+    },
+    transitionBuilder: (_, anim, __, child) => SlideTransition(
+      position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)
+          .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+      child: child,
+    ),
   );
 }
 
@@ -146,32 +161,20 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
-      ),
-      decoration: const BoxDecoration(
-        color: _kCream,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
+    return Material(
+      color: _kCream,
+      elevation: 12,
+      borderRadius:
+          const BorderRadius.horizontal(right: Radius.circular(22)),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
-        top: false,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _kBorder,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
             const SizedBox(height: 10),
 
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               child: Row(
                 children: [
                   const Expanded(
@@ -185,17 +188,22 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     ),
                   ),
                   TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
                     onPressed: () => Navigator.pop(context),
                     child: const Text('انصراف',
-                        style: TextStyle(color: _kMuted)),
+                        style: TextStyle(color: _kMuted, fontSize: 12.5)),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   FilledButton(
                     style: FilledButton.styleFrom(
                       backgroundColor: _kGold,
                       foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 36),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 8),
+                          horizontal: 14, vertical: 6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(999),
                       ),
@@ -210,9 +218,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             ),
             const Divider(height: 1, color: _kBorder),
 
-            Flexible(
+            Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -321,7 +329,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه فونت ═══════════
                     Row(
                       children: [
-                        _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)'),
+                        Flexible(
+                            child: _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -390,7 +399,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه‌ی رد پا ═══════════
                     Row(
                       children: [
-                        _sectionTitle('اندازه‌ی رد پا 👣'),
+                        Flexible(child: _sectionTitle('اندازه‌ی رد پا 👣')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(

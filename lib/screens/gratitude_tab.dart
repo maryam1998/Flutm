@@ -12,6 +12,7 @@ import '../state/emotion_store.dart';
 import '../state/background_store.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
+import '../widgets/grat_media.dart';
 import '../widgets/gratitude_slideshow.dart';
 import '../widgets/neural_pathway.dart';
 
@@ -107,7 +108,10 @@ class _GratitudeTabState extends State<GratitudeTab> {
                 (e) => e.source != 'purchase' && e.images.isNotEmpty))
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: GratitudeSlideshow(store: store),
+                child: GratitudeSlideshow(
+                  store: store,
+                  onOpenAlbum: (key) => _openAlbumAll(store, key),
+                ),
               ),
             const SizedBox(height: 18),
             _SectionLabel(
@@ -206,40 +210,96 @@ class _GratitudeTabState extends State<GratitudeTab> {
             : 'ثبت شد — فقط برای خودم 🤫'));
   }
 
-  Future<void> _pickImages() async {
+  /// آلبوم همه‌ی عکس‌های شکرگذاری‌ها (مثل openGratAlbumAll وب)
+  void _openAlbumAll(GratitudeStore store, String? currentKey) {
+    List<GratitudeImage> all() => [
+          for (final e in store.entries)
+            if (e.source != 'purchase') ...e.images,
+        ];
+    var start = 0;
+    if (currentKey != null) {
+      var i = 0;
+      outer:
+      for (final e in store.entries) {
+        if (e.source == 'purchase') continue;
+        for (final im in e.images) {
+          if ('g${e.id}_${im.id}' == currentKey) {
+            start = i;
+            break outer;
+          }
+          i++;
+        }
+      }
+    }
+    showGratAlbum(
+      context,
+      images: all,
+      start: start,
+      onRemove: (im) {
+        for (final e in store.entries) {
+          final at = e.images.indexOf(im);
+          if (at >= 0) {
+            e.images.removeAt(at);
+            e.image = e.images.isNotEmpty ? e.images.first.src : null;
+          }
+        }
+      },
+      onChanged: () => store.commitMedia(),
+    );
+  }
+
+  /// انتخاب عکس‌ها: کوچک‌سازی تا ۱۴۰۰px و JPEG با کیفیت ۰٫۸۲ (مثل gratFileToDataUrl وب)
+  Future<List<GratitudeImage>> _pickImageItems() async {
     try {
       final files =
-          await _picker.pickMultiImage(imageQuality: 82, maxWidth: 1400);
-      if (files.isEmpty) return;
+          await _picker.pickMultiImage(imageQuality: 82, maxWidth: 1400, maxHeight: 1400);
+      final out = <GratitudeImage>[];
       for (final f in files) {
         final bytes = await f.readAsBytes();
-        final b64 = base64Encode(bytes);
-        setState(() =>
-            _pendingImages.add(GratitudeImage(src: 'data:image/jpeg;base64,$b64')));
+        out.add(GratitudeImage(src: 'data:image/jpeg;base64,${base64Encode(bytes)}'));
       }
+      if (out.isNotEmpty) {
+        _toast(out.length > 1 ? '${_toFa(out.length)} عکس اضافه شد 🖼️' : 'عکس اضافه شد 🖼️');
+      }
+      return out;
     } catch (e) {
-      _toast('عکس اضافه نشد');
+      _toast('عکس خوانده نشد');
+      return [];
     }
   }
 
-  Future<void> _pickVideos() async {
+  Future<GratitudeVideo?> _pickVideoItem() async {
     try {
       final f = await _picker.pickVideo(source: ImageSource.gallery);
-      if (f == null) return;
+      if (f == null) return null;
       final bytes = await f.readAsBytes();
       if (bytes.length > 8 * 1024 * 1024) {
         _toast('ویدیو بزرگ‌تر از ۸ مگابایت ذخیره نمی‌شه');
-        return;
+        return null;
       }
-      final b64 = base64Encode(bytes);
-      setState(() => _pendingVideos.add(GratitudeVideo(
-            path: 'data:video/mp4;base64,$b64',
-            name: f.name,
-            size: bytes.length,
-          )));
+      final lower = f.name.toLowerCase();
+      final mime = lower.endsWith('.webm')
+          ? 'video/webm'
+          : (lower.endsWith('.mov') ? 'video/quicktime' : 'video/mp4');
+      return GratitudeVideo(
+        path: 'data:$mime;base64,${base64Encode(bytes)}',
+        name: f.name,
+        size: bytes.length,
+      );
     } catch (e) {
       _toast('ویدیو اضافه نشد');
+      return null;
     }
+  }
+
+  Future<void> _pickImages() async {
+    final l = await _pickImageItems();
+    if (l.isNotEmpty && mounted) setState(() => _pendingImages.addAll(l));
+  }
+
+  Future<void> _pickVideos() async {
+    final v = await _pickVideoItem();
+    if (v != null && mounted) setState(() => _pendingVideos.add(v));
   }
 
   void _toast(String msg) {
@@ -338,6 +398,34 @@ class _GratitudeTabState extends State<GratitudeTab> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          _MediaBtn(
+                              pal: pal,
+                              icon: Icons.videocam_outlined,
+                              onTap: () async {
+                                final v = await _pickVideoItem();
+                                if (v != null) setSheet(() => videos.add(v));
+                              }),
+                          const SizedBox(width: 8),
+                          _MediaBtn(
+                              pal: pal,
+                              icon: Icons.image_outlined,
+                              onTap: () async {
+                                final l = await _pickImageItems();
+                                if (l.isNotEmpty) setSheet(() => images.addAll(l));
+                              }),
+                        ],
+                      ),
+                      for (final e in videos.asMap().entries) ...[
+                        const SizedBox(height: 10),
+                        GratVideoView(
+                          key: ValueKey(e.value.id),
+                          src: e.value.path,
+                          onRemove: () => setSheet(() => videos.removeAt(e.key)),
+                        ),
+                      ],
                       if (images.isNotEmpty) ...[
                         const SizedBox(height: 10),
                         Wrap(
@@ -1609,16 +1697,24 @@ class _Composer extends StatelessWidget {
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: pal.surface2,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: pal.line),
+                      GestureDetector(
+                        onTap: () => showGratAlbum(
+                          context,
+                          images: () => images,
+                          start: e.key,
+                          onRemove: (im) => onRemoveImage(images.indexOf(im)),
                         ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _imgFromSrc(e.value.src),
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: pal.surface2,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: pal.line),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _imgFromSrc(e.value.src),
+                        ),
                       ),
                       Positioned(
                         top: -6,
@@ -1641,6 +1737,14 @@ class _Composer extends StatelessWidget {
                     ],
                   );
                 }).toList(),
+              ),
+            ],
+            for (final e in videos.asMap().entries) ...[
+              const SizedBox(height: 10),
+              GratVideoView(
+                key: ValueKey(e.value.id),
+                src: e.value.path,
+                onRemove: () => onRemoveVideo(e.key),
               ),
             ],
             const SizedBox(height: 10),
@@ -1867,15 +1971,31 @@ class _EntryRow extends StatelessWidget {
                           }).toList(),
                         ),
                       ],
+                      for (final v in entry.videos) ...[
+                        const SizedBox(height: 8),
+                        GratVideoView(key: ValueKey(v.id), src: v.path),
+                      ],
                       if (entry.images.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
-                          children: entry.images.map((im) {
+                          children: entry.images.asMap().entries.map((en) {
+                            final im = en.value;
                             return GestureDetector(
-                              onTap: () =>
-                                  _openImageViewer(context, entry.images),
+                              onTap: () => showGratAlbum(
+                                context,
+                                images: () => entry.images,
+                                start: en.key,
+                                onRemove: (x) {
+                                  entry.images.remove(x);
+                                  entry.image = entry.images.isNotEmpty
+                                      ? entry.images.first.src
+                                      : null;
+                                },
+                                onChanged: () =>
+                                    context.read<GratitudeStore>().commitMedia(),
+                              ),
                               child: Container(
                                 width: 56,
                                 height: 56,
@@ -2014,36 +2134,6 @@ class _GhostButton extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─── نمایشگر تصویر ───
-void _openImageViewer(BuildContext context, List<GratitudeImage> images) {
-  showDialog(
-    context: context,
-    builder: (_) => Dialog.fullscreen(
-      backgroundColor: Colors.black,
-      child: Stack(
-        children: [
-          PageView.builder(
-            itemCount: images.length,
-            itemBuilder: (_, i) => InteractiveViewer(
-              minScale: 1,
-              maxScale: 5,
-              child: Center(child: _imgFromSrc(images[i].src)),
-            ),
-          ),
-          Positioned(
-            top: 40,
-            right: 20,
-            child: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close, color: Colors.white, size: 28),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 // ─── decode ───

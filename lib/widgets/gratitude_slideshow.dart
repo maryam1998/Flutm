@@ -49,7 +49,8 @@ class _Slide {
 
 class GratitudeSlideshow extends StatefulWidget {
   final GratitudeStore store;
-  final VoidCallback? onOpenAlbum;
+  /// کلید اسلاید فعلی را می‌دهد تا آلبوم از همان عکس شروع شود
+  final ValueChanged<String?>? onOpenAlbum;
 
   const GratitudeSlideshow({
     super.key,
@@ -96,11 +97,13 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
       duration: const Duration(milliseconds: _fadeMs),
       value: 0,
     );
+    widget.store.addListener(_onStore);
     _loadCfg();
   }
 
   @override
   void dispose() {
+    widget.store.removeListener(_onStore);
     _timer?.cancel();
     _transition.dispose();
     _slotVid[0]?.dispose();
@@ -143,7 +146,9 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
 
   // ────── slides list ──────
 
-  void _refreshSlides() {
+  String _sig = '';
+
+  List<_Slide> _collect() {
     final out = <_Slide>[];
     for (final e in widget.store.entries) {
       if (e.source == 'purchase') continue;
@@ -155,8 +160,39 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
         ));
       }
     }
+    return out;
+  }
+
+  void _refreshSlides() {
+    final out = _collect();
+    _sig = out.map((s) => s.key).join('|');
     if (_cfg.order == 'rnd') out.shuffle();
     _slides = out;
+  }
+
+  String? _currentKey() {
+    final i = _currentSlideIdx();
+    return (i >= 0 && i < _slides.length) ? _slides[i].key : null;
+  }
+
+  /// عکس تازه اضافه/حذف شد → فهرست اسلایدها را به‌روز کن (مثل poll وب)
+  void _onStore() {
+    if (!mounted || !_cfgLoaded) return;
+    final raw = _collect().map((s) => s.key).join('|');
+    if (raw == _sig) return;
+    final curKey = _currentKey();
+    _timer?.cancel();
+    _refreshSlides();
+    if (_slides.isEmpty) {
+      _clearSlot(0);
+      _clearSlot(1);
+      _pendingSlot = -1;
+      setState(() {});
+      return;
+    }
+    var at = curKey == null ? 0 : _slides.indexWhere((s) => s.key == curKey);
+    if (at < 0) at = 0;
+    _showAt(at, initial: true);
   }
 
   static bool _isVideoSrc(String src) =>
@@ -245,10 +281,14 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
       _clearSlot(1 - next);
     });
     setState(() {});
+    // بعد از هر تعویض، تایمر بعدی (قبلاً فقط بار اول تنظیم می‌شد و اسلایدشو می‌ایستاد)
+    if (!_paused) _scheduleNext();
   }
 
-  int _currentSlideIdx() =>
-      _activeSlot >= 0 && _activeSlot < 2 ? _slotIdx[_activeSlot] : -1;
+  int _currentSlideIdx() {
+    final slot = _pendingSlot != -1 ? _pendingSlot : _activeSlot;
+    return slot >= 0 && slot < 2 ? _slotIdx[slot] : -1;
+  }
 
   // ────── navigation ──────
 
@@ -265,7 +305,9 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
         next = 0;
         if (_cfg.order == 'rnd') _refreshSlides();
       } else {
-        next = _slides.length - 1;
+        setState(() => _paused = true);
+        _timer?.cancel();
+        return;
       }
     } else if (next < 0) {
       if (_cfg.loop || manual) {
@@ -626,7 +668,7 @@ class _GratitudeSlideshowState extends State<GratitudeSlideshow>
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: widget.onOpenAlbum,
+        onTap: () => widget.onOpenAlbum?.call(_currentKey()),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 11),
           alignment: Alignment.center,
