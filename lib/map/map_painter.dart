@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show StringCharacters;
 import 'package:flutter/material.dart';
 
 import '../models/constants.dart';
@@ -419,8 +420,23 @@ class MapPainter extends CustomPainter {
         canvas.drawCircle(c, r, Paint()..color = withOp(color, 0.4));
       }
     } else if (icon.trim().isNotEmpty) {
-      drawText(canvas, icon, c.dx, c.dy,
-          size: r * 1.7, color: tc, vCenter: true);
+      final cs = icon.characters.where((e) => e.trim().isNotEmpty).take(3).toList();
+      if (cs.length <= 1) {
+        drawText(canvas, cs.isEmpty ? icon : cs.first, c.dx, c.dy,
+            size: r * 1.7, color: tc, vCenter: true);
+      } else {
+        // چند ایکون «روی‌هم»: اولی جلو و بزرگ‌تر، بقیه پشتش (مثل مغز)
+        const slots = [
+          (0.28, 0.30, 1.25),
+          (-0.14, -0.34, 1.05),
+          (-0.46, 0.34, 0.85),
+        ];
+        for (var i = cs.length - 1; i >= 0; i--) {
+          drawText(canvas, cs[i], c.dx + r * slots[i].$1,
+              c.dy + r * slots[i].$2,
+              size: r * slots[i].$3, color: tc, vCenter: true);
+        }
+      }
     } else {
       canvas.drawCircle(c, r, Paint()..color = withOp(color, 0.85));
     }

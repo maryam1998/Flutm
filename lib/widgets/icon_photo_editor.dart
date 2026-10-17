@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models/map_models.dart';
 import '../services/image_service.dart';
+import 'emoji_stack.dart';
 
 const _kCard = Colors.white;
 const _kGold = Color(0xFFC9972B);
@@ -232,9 +233,9 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
     );
   }
 
-  Widget _emojiPreview() => Text(
-        _iconCtl.text.isEmpty ? '🎯' : _iconCtl.text,
-        style: const TextStyle(fontSize: 26),
+  Widget _emojiPreview() => EmojiStack(
+        icon: _iconCtl.text.isEmpty ? '🎯' : _iconCtl.text,
+        size: 58,
       );
 }
 

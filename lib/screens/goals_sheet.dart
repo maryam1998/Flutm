@@ -14,6 +14,7 @@ import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import 'edit_sheet.dart';
 import '../theme/app_theme.dart';
+import '../widgets/emoji_stack.dart';
 import '../widgets/icon_photo_editor.dart';
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
@@ -148,10 +149,7 @@ class _Avatar extends StatelessWidget {
           color: color.withAlpha(60),
           border: Border.all(color: color, width: size > 60 ? 3 : 1.5),
         ),
-        child: Text(
-          icon.trim().isEmpty ? '•' : icon,
-          style: TextStyle(fontSize: size * 0.5),
-        ),
+        child: EmojiStack(icon: icon, size: size),
       );
 }
 
@@ -460,7 +458,13 @@ class _GoalsSheetState extends State<GoalsSheet> {
                             size: 20, color: kGoalsMuted),
                       ),
                     ),
-                  _Avatar(host: h, color: color, size: 78),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() {
+                      if (!_editing.remove(h.id)) _editing.add(h.id);
+                    }),
+                    child: _Avatar(host: h, color: color, size: 78),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -519,14 +523,13 @@ class _GoalsSheetState extends State<GoalsSheet> {
                     Navigator.pop(context);
                     widget.onShowOnMap(h);
                   }),
-                  _iconBtn(
-                    Icons.edit_outlined,
-                    'ویرایش آیکون و اندازه',
-                    () => setState(() {
-                      if (!_editing.remove(h.id)) _editing.add(h.id);
-                    }),
-                    color: _editing.contains(h.id) ? color : null,
-                  ),
+                  _iconBtn(Icons.edit_outlined, 'ویرایش', () {
+                    Navigator.pop(context);
+                    showEditSheet(
+                      widget.parentContext,
+                      h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -1151,9 +1154,13 @@ class _GoalsSheetState extends State<GoalsSheet> {
           date.day == selD.day;
       cells.add(
         InkWell(
-          // لمس: انتخاب روز (کادر ساعت‌ها پایین تقویم باز می‌شه)؛ تیک فقط با نگه‌داشتن
-          onTap: future ? null : () => setState(() => _selDay[n.id] = date),
-          onLongPress: future ? null : () => store.toggleLog(h, n, jk),
+          // لمس: روز تیک می‌خوره/برمی‌داره و کادر ساعت‌های همان روز زیر تقویم باز می‌شه
+          onTap: future
+              ? null
+              : () {
+                  setState(() => _selDay[n.id] = date);
+                  store.toggleLog(h, n, jk);
+                },
           borderRadius: BorderRadius.circular(6),
           child: Stack(
             alignment: Alignment.center,
@@ -1212,7 +1219,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
     final selJ = toJalaali(sel.year, sel.month, sel.day);
     final selLabel = '${toFa(selJ.jd)} ${kJalaliMonths[selJ.jm - 1]}';
     final selEntries = nodeEntries(n, selJk);
-    final selDone = truthy(n.logs[selJk]);
     final selSecs = nodeDaySecs(n, selJk);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -1247,23 +1253,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   child: Text(
                     '⏱ $selLabel${selSecs > 0 ? ' · ${fmtDur(selSecs)}' : ''} · + ساعت',
                     style: const TextStyle(fontSize: 12.5, color: _kMuted),
-                  ),
-                ),
-              ),
-              // تیک روز (دستی، نه خودکار)
-              GestureDetector(
-                onTap: () => store.toggleLog(h, n, selJk),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: selDone ? color.withAlpha(60) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: selDone ? color : _kBorder),
-                  ),
-                  child: Text(
-                    selDone ? '✓ انجام شده' : 'تیک این روز',
-                    style: const TextStyle(fontSize: 12, color: _kInk),
                   ),
                 ),
               ),
