@@ -174,6 +174,7 @@ Future<void> showGratAlbum(
   void Function(GratitudeImage im)? onRemove,
   VoidCallback? onChanged,
   int start = 0,
+  String cfgKey = 'gratSlideshow',
 }) {
   if (images().isEmpty) return Future.value();
   return Navigator.of(context, rootNavigator: true).push(
@@ -184,6 +185,7 @@ Future<void> showGratAlbum(
         onRemove: onRemove,
         onChanged: onChanged,
         start: start,
+        cfgKey: cfgKey,
       ),
     ),
   );
@@ -193,9 +195,11 @@ class _GratAlbum extends StatefulWidget {
   const _GratAlbum({
     required this.getImages,
     required this.start,
+    this.cfgKey = 'gratSlideshow',
     this.onRemove,
     this.onChanged,
   });
+  final String cfgKey;
   final List<GratitudeImage> Function() getImages;
   final void Function(GratitudeImage im)? onRemove;
   final VoidCallback? onChanged;
@@ -245,7 +249,7 @@ class _GratAlbumState extends State<_GratAlbum> {
   Future<void> _loadCfg() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final raw = sp.getString('gratSlideshow');
+      final raw = sp.getString(widget.cfgKey);
       if (raw != null && raw.isNotEmpty) {
         final j = jsonDecode(raw) as Map;
         _value = (j['value'] as num?)?.toDouble() ?? 5;

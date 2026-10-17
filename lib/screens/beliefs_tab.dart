@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import '../models/future_text_format.dart';
 import '../models/future_version.dart';
 import '../state/beliefs_store.dart';
+import '../utils/edit_mark.dart';
+import '../widgets/belief_visual_section.dart';
 import '../widgets/breath_circle.dart';
 import '../widgets/format_bar.dart';
 import '../widgets/mini_calendar_90.dart';
@@ -38,6 +40,11 @@ class _BeliefsTabState extends State<BeliefsTab> {
   bool _showMission = false;
   bool _showArchive = false;
   String? _selectedDay;
+
+  // هایلایت بخش ویرایش‌شده‌ی متن خواسته (مثل EditMark وب)
+  final GlobalKey _futureKey = GlobalKey();
+  EditRange? _futureMark;
+  int _futureMarkToken = 0;
 
   // تایمر تمرین
   Timer? _timer;
@@ -326,30 +333,7 @@ Widget _dailyPracticeCard(BeliefsStore store) {
         const SizedBox(height: 14),
 
         // ─── موسیقی مدیتیشن ───
-        const Text(
-          '🎵 موسیقی مدیتیشن (اختیاری)',
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: kBeliefsInk),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: kBeliefsMuted,
-              side: const BorderSide(color: kBeliefsBorder),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () =>
-                _toast('افزودن موسیقی به‌زودی به نسخه‌ی اپ اضافه می‌شود'),
-            icon: const Icon(Icons.add, size: 14),
-            label:
-                const Text('افزودن موسیقی', style: TextStyle(fontSize: 11)),
-          ),
-        ),
+        const BeliefMeditationMusic(),
         const SizedBox(height: 12),
 
         // ─── تایمر ───
@@ -564,6 +548,7 @@ Widget _futureBox(BeliefsStore store) {
   final text = (store.activeVersion?.text ?? '').trim();
 
   return GestureDetector(
+    key: _futureKey,
     onTap: () => _openEditor(store),
     child: Container(
       width: double.infinity,
@@ -575,11 +560,16 @@ Widget _futureBox(BeliefsStore store) {
         border: Border.all(color: kBeliefsBorder),
       ),
       child: text.isNotEmpty
-          ? Text(
-              '«$text»',
-              style: store.format.buildStyle(color: kBeliefsInk),
-              textAlign: store.format.textAlign,
-              textDirection: TextDirection.rtl,
+          ? SizedBox(
+              width: double.infinity,
+              child: EditMarkedText(
+                text: text,
+                range: _futureMark,
+                prefix: '«',
+                suffix: '»',
+                style: store.format.buildStyle(color: kBeliefsInk),
+                textAlign: store.format.textAlign,
+              ),
             )
           : const Column(
               children: [
@@ -1014,28 +1004,8 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
               'وقتی خودت رو «کسی که رسیده» می‌بینی و حسش می‌کنی، رفتارهایت خودبه‌خود با همون هویت هم‌راستا می‌شن.'),
         ]),
         const SizedBox(height: 12),
-        _noteField(store, 'visual',
-            hint: 'توضیح این تصویرسازی (اختیاری)...', lines: 3),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          decoration: BoxDecoration(
-            color: kBeliefsCream,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kBeliefsBorder),
-          ),
-          child: const Column(
-            children: [
-              Text('✨', style: TextStyle(fontSize: 28)),
-              SizedBox(height: 6),
-              Text('هنوز تصویری اضافه نکردی',
-                  style: TextStyle(fontSize: 12, color: kBeliefsMuted)),
-              SizedBox(height: 4),
-              Text('عکس یا ویدیوی مورد دلخواهت رو اضافه کن',
-                  style: TextStyle(fontSize: 10.5, color: kBeliefsMuted)),
-            ],
-          ),
-        ),
+        // یادداشت (ذخیره/لغو) + ضبط صدا + ویدیو + عکس با برش + اسلایدشو
+        const BeliefVisualSection(),
         const SizedBox(height: 14),
         const Divider(height: 1, color: kBeliefsBorder),
         const SizedBox(height: 12),
@@ -1368,6 +1338,25 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
     if (result == null || result.trim().isEmpty) return;
     if (result.trim() == initial.trim()) return;
     await store.saveText(result);
+    if (!mounted) return;
+    // بخش تغییرکرده را هایلایت کن و صفحه را روی همان‌جا ببر
+    final range = hadVersion ? diffEditRange(initial.trim(), result.trim()) : null;
+    final token = ++_futureMarkToken;
+    setState(() => _futureMark = range);
+    if (range != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = _futureKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Scrollable.ensureVisible(ctx,
+              alignment: 0.3, duration: const Duration(milliseconds: 400));
+        }
+      });
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted && token == _futureMarkToken) {
+          setState(() => _futureMark = null);
+        }
+      });
+    }
     _toast(hadVersion
         ? 'متن ویرایش شد ✏ (دوره و تقویم همان‌طور ماند)'
         : 'متن خواسته‌ات ثبت شد ✨');
@@ -1555,112 +1544,125 @@ class _TextEditorState extends State<_TextEditor> {
             top: 14,
             bottom: MediaQuery.of(context).viewInsets.bottom + 20,
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'متن خواسته‌ات',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: kBeliefsInk,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'با «بسیار خوشحال و سپاسگزارم حالا که…» شروع کن',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11.5, color: kBeliefsMuted),
-                ),
-                const SizedBox(height: 12),
-                FormatBar(
-                  format: _fmt,
-                  onChange: (f) {
-                    setState(() => _fmt = f);
-                    widget.onFormatChange(f);
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _ctrl,
-                  maxLines: null,
-                  minLines: 5,
-                  textAlign: _fmt.textAlign,
-                  textDirection: TextDirection.rtl,
-                  style: _fmt.buildStyle(color: kBeliefsInk),
-                  decoration: InputDecoration(
-                    hintText: 'بسیار خوشحال و سپاسگزارم حالا که…',
-                    hintStyle: const TextStyle(
-                        color: kBeliefsMuted, fontSize: 12, height: 1.8),
-                    filled: true,
-                    fillColor: kBeliefsCard,
-                    contentPadding: const EdgeInsets.all(12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: kBeliefsBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: kBeliefsBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: kBeliefsGold, width: 1.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: kBeliefsMuted,
-                          side: const BorderSide(color: kBeliefsBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'متن خواسته‌ات',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: kBeliefsInk,
                         ),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('انصراف'),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: kBeliefsGold,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          final t = _ctrl.text.trim();
-                          if (t.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('متن نمی‌تونه خالی باشه')),
-                            );
-                            return;
-                          }
-                          Navigator.pop(context, t);
+                      const SizedBox(height: 4),
+                      const Text(
+                        'با «بسیار خوشحال و سپاسگزارم حالا که…» شروع کن',
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(fontSize: 11.5, color: kBeliefsMuted),
+                      ),
+                      const SizedBox(height: 12),
+                      FormatBar(
+                        format: _fmt,
+                        onChange: (f) {
+                          setState(() => _fmt = f);
+                          widget.onFormatChange(f);
                         },
-                        child: const Text('💾 ذخیره',
-                            style: TextStyle(fontWeight: FontWeight.w800)),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _ctrl,
+                        maxLines: null,
+                        minLines: 5,
+                        textAlign: _fmt.textAlign,
+                        textDirection: TextDirection.rtl,
+                        style: _fmt.buildStyle(color: kBeliefsInk),
+                        decoration: InputDecoration(
+                          hintText: 'بسیار خوشحال و سپاسگزارم حالا که…',
+                          hintStyle: const TextStyle(
+                              color: kBeliefsMuted, fontSize: 12, height: 1.8),
+                          filled: true,
+                          fillColor: kBeliefsCard,
+                          contentPadding: const EdgeInsets.all(12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide:
+                                const BorderSide(color: kBeliefsBorder),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide:
+                                const BorderSide(color: kBeliefsBorder),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: kBeliefsGold, width: 1.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+              // دکمه‌های لغو / ذخیره همیشه پایین و در دسترس می‌مانند
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kBeliefsMuted,
+                        backgroundColor: kBeliefsCard,
+                        side: const BorderSide(color: kBeliefsBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('لغو'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kBeliefsGold,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        final t = _ctrl.text.trim();
+                        if (t.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('متن نمی‌تونه خالی باشه')),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context, t);
+                      },
+                      child: const Text('💾 ذخیره',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

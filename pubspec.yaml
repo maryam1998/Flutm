@@ -20,6 +20,7 @@ dependencies:
   video_player: ^2.9.2
   flutter_svg: ^2.0.10+1
   record: ^5.1.2
+  audioplayers: ^6.1.0
   http: ^1.2.0
   idb_shim: ^2.6.4
   web: ^1.1.0

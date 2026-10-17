@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/future_text_format.dart';
+import '../models/gratitude_entry.dart';
 import '../models/future_version.dart';
 import '../models/emotion.dart';
 import '../models/neural_container.dart';
@@ -72,6 +73,12 @@ class BeliefsStore extends ChangeNotifier {
   static const _kMissionNeural = 'beliefs_mission_neural_v1';
   static const _kTodaySteps = 'beliefs_today_steps_v1';
   static const _kTodayNothing = 'beliefs_today_nothing_v1';
+  // تصویرسازی (هر کلید جدا، تا سنگین‌بودن عکس/ویدیو بقیه‌ی state را خراب نکند)
+  static const _kVisNote = 'beliefs_visual_note_v1';
+  static const _kVisImages = 'beliefs_visual_images_v1';
+  static const _kVisVideos = 'beliefs_visual_videos_v1';
+  static const _kVisVoices = 'beliefs_visual_voices_v1';
+  static const _kMedTrack = 'beliefs_meditation_track_v1';
 
   final List<FutureVersion> versions = [];
   String? activeVersionId;
@@ -91,6 +98,16 @@ class BeliefsStore extends ChangeNotifier {
   final Map<String, String> seedNotes = {};
   NeuralContainer neural = NeuralContainer();
   NeuralContainer missionNeural = NeuralContainer();
+
+  // ═══ تصویرسازی: یادداشت + عکس + ویدیو + ضبط صدا + موسیقی مدیتیشن ═══
+  String visualNote = '';
+  final List<GratitudeImage> visualImages = [];
+  final List<GratitudeVideo> visualVideos = [];
+  final List<GratitudeAudio> visualVoices = [];
+  GratitudeAudio? meditationTrack;
+
+  /// آخرین ذخیره‌ی رسانه موفق بود؟ (عکس/ویدیوی زیاد می‌تونه سهمیه‌ی حافظه رو پر کنه)
+  bool lastVisualPersistOk = true;
 
   bool loaded = false;
 
@@ -251,10 +268,41 @@ Future<void> load() async {
       } catch (_) {}
     }
 
+    // ═══ تصویرسازی ═══
+    final vn = sp.getString(_kVisNote);
+    visualNote = vn ?? (seedNotes['visual'] ?? '');
+    _readList<GratitudeImage>(
+        sp, _kVisImages, visualImages, GratitudeImage.fromJson);
+    visualImages.removeWhere((e) => e.src.isEmpty);
+    _readList<GratitudeVideo>(
+        sp, _kVisVideos, visualVideos, GratitudeVideo.fromJson);
+    visualVideos.removeWhere((e) => e.path.isEmpty);
+    _readList<GratitudeAudio>(
+        sp, _kVisVoices, visualVoices, GratitudeAudio.fromJson);
+    visualVoices.removeWhere((e) => e.src.isEmpty);
+    final mtRaw = sp.getString(_kMedTrack);
+    if (mtRaw != null && mtRaw.isNotEmpty) {
+      try {
+        final t = GratitudeAudio.fromJson(jsonDecode(mtRaw));
+        meditationTrack = t.src.isEmpty ? null : t;
+      } catch (_) {}
+    }
+
   } catch (_) {}
 
   loaded = true;
   notifyListeners();
+}
+
+static void _readList<T>(SharedPreferences sp, String key, List<T> out,
+    T Function(dynamic) fromJson) {
+  out.clear();
+  final raw = sp.getString(key);
+  if (raw == null || raw.isEmpty) return;
+  try {
+    final l = jsonDecode(raw);
+    if (l is List) out.addAll(l.map(fromJson));
+  } catch (_) {}
 }
 
 // ═══════════════ persist ═══════════════
@@ -300,6 +348,106 @@ Future<void> _persist() async {
         }));
   } catch (_) {}
 }
+
+  // ═══════════════ تصویرسازی ═══════════════
+  Future<bool> _putVisual(String key, String value) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final ok = await sp.setString(key, value);
+      if (!ok) lastVisualPersistOk = false;
+      return ok;
+    } catch (e) {
+      debugPrint('BeliefsStore: persist $key failed: $e');
+      lastVisualPersistOk = false;
+      return false;
+    }
+  }
+
+  Future<void> _saveVisualImages() => _putVisual(_kVisImages,
+      jsonEncode(visualImages.map((e) => e.toJson()).toList()));
+  Future<void> _saveVisualVideos() => _putVisual(_kVisVideos,
+      jsonEncode(visualVideos.map((e) => e.toJson()).toList()));
+  Future<void> _saveVisualVoices() => _putVisual(_kVisVoices,
+      jsonEncode(visualVoices.map((e) => e.toJson()).toList()));
+
+  /// ذخیره‌ی یادداشت تصویرسازی (دکمه‌ی «ذخیره»ی ویرایشگر)
+  Future<void> setVisualNote(String v) async {
+    visualNote = v.trim();
+    lastVisualPersistOk = true;
+    await _putVisual(_kVisNote, visualNote);
+    notifyListeners();
+  }
+
+  /// true = روی دیسک هم ذخیره شد؛ false = فقط در حافظه (سهمیه پر است)
+  Future<bool> addVisualImages(List<String> srcs) async {
+    if (srcs.isEmpty) return true;
+    lastVisualPersistOk = true;
+    for (final s in srcs) {
+      visualImages.add(GratitudeImage(src: s));
+    }
+    await _saveVisualImages();
+    notifyListeners();
+    return lastVisualPersistOk;
+  }
+
+  Future<void> removeVisualImage(String id) async {
+    visualImages.removeWhere((e) => e.id == id);
+    await _saveVisualImages();
+    notifyListeners();
+  }
+
+  /// بعد از تغییر مستقیم لیست عکس‌ها (مثلاً حذف از آلبوم)
+  Future<void> commitVisualImages() async {
+    await _saveVisualImages();
+    notifyListeners();
+  }
+
+  Future<bool> addVisualVideo(GratitudeVideo v) async {
+    lastVisualPersistOk = true;
+    visualVideos.add(v);
+    await _saveVisualVideos();
+    notifyListeners();
+    return lastVisualPersistOk;
+  }
+
+  Future<void> removeVisualVideo(String id) async {
+    visualVideos.removeWhere((e) => e.id == id);
+    await _saveVisualVideos();
+    notifyListeners();
+  }
+
+  Future<bool> addVisualVoice(String src, {String name = ''}) async {
+    lastVisualPersistOk = true;
+    visualVoices.add(GratitudeAudio(src: src, name: name));
+    await _saveVisualVoices();
+    notifyListeners();
+    return lastVisualPersistOk;
+  }
+
+  Future<void> removeVisualVoice(int index) async {
+    if (index < 0 || index >= visualVoices.length) return;
+    visualVoices.removeAt(index);
+    await _saveVisualVoices();
+    notifyListeners();
+  }
+
+  Future<bool> setMeditationTrack(GratitudeAudio t) async {
+    lastVisualPersistOk = true;
+    meditationTrack = t;
+    await _putVisual(_kMedTrack, jsonEncode(t.toJson()));
+    notifyListeners();
+    return lastVisualPersistOk;
+  }
+
+  Future<void> removeMeditationTrack() async {
+    meditationTrack = null;
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.remove(_kMedTrack);
+    } catch (_) {}
+    notifyListeners();
+  }
+
     // ═══════════════ نسخهها ═══════════════
   FutureVersion? get activeVersion {
     if (activeVersionId == null) return null;
