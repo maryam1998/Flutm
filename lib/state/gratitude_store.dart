@@ -87,8 +87,6 @@ class GratitudeStore extends ChangeNotifier {
           }
         } catch (_) {}
       }
-      await _seedFibersFromEntries(sp);
-      await _reconcileFibersWithEntries(sp);
       // شکرگذاری جریمه ندارد: روزِ بدون ثبت چیزی کم نمی‌کند و
       // «انجام نشد»های قبلی هم پاک می‌شوند تا رشته‌ها همان‌طور که هستند بمانند.
       neural.logs.removeWhere((_, v) => v == false);
@@ -103,6 +101,7 @@ class GratitudeStore extends ChangeNotifier {
   /// base64 داره) از سهمیه‌ی حافظه بزرگ‌تر شد، مسیر عصبی و بقیه‌ی state گم نشن.
   /// اول چیزهای کوچک (عصبی، دوره‌ها، حس روز)، آخر لیست ثبت‌ها.
   Future<void> _persist() async {
+    _syncEntryFibers();
     var ok = true;
     SharedPreferences sp;
     try {
@@ -238,6 +237,59 @@ class GratitudeStore extends ChangeNotifier {
     }
   }
 
+
+  /// کلیدِ ثابتِ رشته‌ی هر ثبت
+  static String _fiberKeyFor(GratitudeEntry e, int ms) => 'f$ms-e${e.id}';
+
+  /// همیشه (idempotent): هر ثبتِ شکرگذاریِ واقعی ⇄ دقیقاً یک رشته.
+  ///  • رشته‌ی بی‌ثبت (تکراری، خرید، داده‌ی قدیمیِ خراب) حذف می‌شه
+  ///  • ثبتِ بدون رشته، رشته می‌گیره
+  ///  • رنگ رشته = قوی‌ترین حسِ همون ثبت (بدون حس = فیروزه‌ای)
+  ///  • رشته‌های دستی (دکمه‌ی «امروز انجام دادم»، کلید -man) دست‌نخورده می‌مونن
+  void _syncEntryFibers() {
+    try {
+      final real = entries.where((e) => e.source != 'purchase').toList();
+      final want = <String, GratitudeEntry>{};
+      for (final e in real) {
+        DateTime t;
+        try {
+          t = DateTime.parse(e.iso).toLocal();
+        } catch (_) {
+          continue;
+        }
+        want[_fiberKeyFor(e, t.millisecondsSinceEpoch)] = e;
+      }
+
+      // حذف رشته‌های بی‌ثبت (به‌جز دستی‌ها)
+      for (final k in neural.logs.keys.toList()) {
+        if (neural.logs[k] != true) continue;
+        if (k.contains('-man') || want.containsKey(k)) continue;
+        neural.logs.remove(k);
+        neural.fiberEmotions.remove(k);
+        neural.pendingManual.remove(k);
+      }
+      for (final k in neural.fiberEmotions.keys.toList()) {
+        if (neural.logs[k] != true) neural.fiberEmotions.remove(k);
+      }
+
+      // ساخت/به‌روزرسانی رشته‌ی هر ثبت
+      want.forEach((k, e) {
+        neural.logs[k] = true;
+        final valid =
+            e.emotionIds.where((id) => emotionById(id) != null).toList();
+        final dom = valid.isEmpty ? null : dominantEmotion(valid);
+        if (dom != null) {
+          neural.fiberEmotions[k] = NeuralFiberEmotion(
+              ids: valid, color: dom.color, freq: dom.freq);
+        } else {
+          neural.fiberEmotions.remove(k);
+        }
+      });
+    } catch (e) {
+      debugPrint('GratitudeStore: sync fibers failed: $e');
+    }
+  }
+
   int get totalCount => entries.length;
 
   int get todayCount {
@@ -349,23 +401,10 @@ class GratitudeStore extends ChangeNotifier {
     );
     entries.add(e);
 
-    // ─── ثبت خودکار مسیر عصبی (neuralAutoAddFiber در وب) ───
-    // هر ثبتِ شکرگذاری همیشه یک رشته‌ی «جدید» می‌سازه. اگه روی ادمک حسی
-    // انتخاب شده باشه، رشته به رنگِ قوی‌ترین حس (بالاترین فرکانس) ساخته می‌شه و
-    // بعدش ادمک ریست می‌شه تا برای دفعه‌ی بعد آماده باشه.
-    NeuralFiberEmotion? felt;
-    if (emoIds.isNotEmpty) {
-      final dom = dominantEmotion(emoIds);
-      if (dom != null) {
-        felt = NeuralFiberEmotion(
-          ids: List.of(emoIds),
-          color: dom.color,
-          freq: dom.freq,
-        );
-      }
-    }
-    neural.addAutoFiber(emotion: felt);
-    if (felt != null) emotions?.clear();
+    // رشته‌ی عصبی از روی خودِ ثبت ساخته می‌شه (_syncEntryFibers در _persist):
+    // هر ثبتِ شکرگذاری دقیقاً یک رشته؛ خرید (purchase) رشته نمی‌سازه.
+    // اگه روی ادمک حسی انتخاب شده بود، همراه ثبت ذخیره شده و ادمک ریست می‌شه.
+    if (emoIds.isNotEmpty) emotions?.clear();
 
     await _persist();
     notifyListeners();

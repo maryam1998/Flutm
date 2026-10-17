@@ -92,6 +92,7 @@ class _NeuralPathwayState extends State<NeuralPathway>
   void _onTodayDone() {
     widget.container.addFiber(
       calendarLinked: widget.calendarLinked,
+      manual: true,
     );
     widget.onChange?.call();
     setState(() {});

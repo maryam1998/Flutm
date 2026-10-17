@@ -733,7 +733,6 @@ class _MiniCalendar extends StatelessWidget {
       total: total,
       doneSet: doneSet,
       withEmotions: true,
-      onTapDone: (k) => _openDayEmotions(context, store, k),
     );
 
     // دوره تموم شده؟ (today >= start + total)
@@ -998,7 +997,7 @@ class _PeriodGrid extends StatelessWidget {
       final done = doneSet.contains(key);
       final monthEnd = (d % blockSize == blockSize - 1) || d == total - 1;
       Color? ring;
-      if (withEmotions) {
+      if (withEmotions && done) {
         final hex = store.dayRingColor(key);
         if (hex != null) {
           try {
@@ -1007,10 +1006,22 @@ class _PeriodGrid extends StatelessWidget {
         }
       }
 
+      String? emoText;
+      if (withEmotions && done) {
+        final names = store
+            .emotionIdsForDay(key)
+            .map(emotionById)
+            .whereType<Emotion>()
+            .toList()
+          ..sort((a, b) => b.freq.compareTo(a.freq));
+        if (names.isNotEmpty) emoText = names.map((e) => e.fa).join('، ');
+      }
+
       row.add(Expanded(
         child: _DayCell(
           pal: pal,
           date: date,
+          emotionsText: emoText,
           done: done,
           today: key == todayKey,
           future: date.isAfter(today),
@@ -1033,6 +1044,7 @@ class _PeriodGrid extends StatelessWidget {
 /// یک روز — .mini-cal-day وب
 class _DayCell extends StatefulWidget {
   final DateTime date;
+  final String? emotionsText;
   final bool done, today, future, monthEnd;
   final Color? ring;
   final VoidCallback? onTap;
@@ -1041,6 +1053,7 @@ class _DayCell extends StatefulWidget {
   const _DayCell({
     required this.pal,
     required this.date,
+    this.emotionsText,
     required this.done,
     required this.today,
     required this.future,
@@ -1080,6 +1093,11 @@ class _DayCellState extends State<_DayCell> {
           text: status,
           style: const TextStyle(color: Color(0xFFD7E3E8), fontSize: 11),
         ),
+        if (widget.emotionsText != null)
+          TextSpan(
+            text: '\nحس: ${widget.emotionsText}',
+            style: const TextStyle(color: Color(0xFFFFE9A8), fontSize: 11),
+          ),
       ]),
       textAlign: TextAlign.center,
       preferBelow: false,
@@ -1092,7 +1110,7 @@ class _DayCellState extends State<_DayCell> {
       ),
       child: GestureDetector(
       behavior: HitTestBehavior.opaque,
-      // روز ثبت‌شده: باز کردن حس‌ها؛ بقیه‌ی روزها: نمایش تولتیپ تاریخ
+      // تپ روی هر روز: تولتیپ تاریخ + وضعیت + حس‌های ثبت‌شده از ادمک
       onTap: widget.onTap ?? () => _tipKey.currentState?.ensureTooltipVisible(),
       onLongPress: () => _tipKey.currentState?.ensureTooltipVisible(),
       child: Opacity(
@@ -1309,6 +1327,7 @@ class _PastPeriodState extends State<_PastPeriod> {
 // ════════════════════════════════════════════════════════════════
 //                مودال ویرایش احساسات یک روز
 // ════════════════════════════════════════════════════════════════
+// ignore: unused_element
 void _openDayEmotions(
   BuildContext context,
   GratitudeStore store,

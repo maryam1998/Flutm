@@ -72,8 +72,9 @@ class NeuralContainer {
   String addFiber({
     bool calendarLinked = false,
     NeuralFiberEmotion? emotion,
+    bool manual = false,
   }) {
-    final key = _newFiberKey();
+    final key = manual ? '${_newFiberKey()}-man' : _newFiberKey();
     logs[key] = true;
 
     if (calendarLinked) {
