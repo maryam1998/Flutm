@@ -12,9 +12,9 @@ import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
-import 'day_sheet.dart';
 import 'edit_sheet.dart';
 import '../theme/app_theme.dart';
+import '../widgets/icon_photo_editor.dart';
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
 
@@ -185,6 +185,12 @@ class GoalsSheet extends StatefulWidget {
 }
 
 class _GoalsSheetState extends State<GoalsSheet> {
+  /// روز انتخاب‌شده در تقویم هر شاخه (پیش‌فرض امروز)
+  final Map<String, DateTime> _selDay = {};
+
+  /// هدف‌هایی که پنل ویرایش درجا (ایکون/عکس/اندازه) بازه
+  final Set<String> _editing = {};
+
   int _tab = 0; // 0=در جریان, 1=محقق‌شده
   String _q = '';
   final _search = TextEditingController();
@@ -513,18 +519,84 @@ class _GoalsSheetState extends State<GoalsSheet> {
                     Navigator.pop(context);
                     widget.onShowOnMap(h);
                   }),
-                  _iconBtn(Icons.edit_outlined, 'ویرایش', () {
-                    Navigator.pop(context);
-                    showEditSheet(
-                      widget.parentContext,
-                      h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
-                    );
-                  }),
+                  _iconBtn(
+                    Icons.edit_outlined,
+                    'ویرایش آیکون و اندازه',
+                    () => setState(() {
+                      if (!_editing.remove(h.id)) _editing.add(h.id);
+                    }),
+                    color: _editing.contains(h.id) ? color : null,
+                  ),
                 ],
               ),
             ),
           ),
+          if (_editing.contains(h.id)) _editPanel(store, h, color),
           if (isOpen) _body(store, h, color),
+        ],
+      ),
+    );
+  }
+
+  /// پنل ویرایش درجا: ایکون/عکس + اندازه‌ی ایکون (اولیه) + تأیید
+  Widget _editPanel(MapStore store, MapHost h, Color color) {
+    final g = h is Goal ? h : null;
+    final r = h is Ring ? h : null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          IconPhotoEditor(
+            key: ValueKey('ipe-${h.id}'),
+            initialIcon: g != null ? g.icon : r!.icon,
+            initialImages: g != null ? g.images : r!.images,
+            initialScale: g != null ? g.iconScale : r!.iconScale,
+            onChange: (icon, images, scale) {
+              if (g != null) {
+                g.icon = icon.isEmpty ? '🎯' : icon;
+                g.images = images;
+                g.iconScale = scale;
+              } else {
+                r!.icon = icon.isEmpty ? '🌟' : icon;
+                r.images = images;
+                r.iconScale = scale;
+              }
+              store.changed();
+            },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kGold,
+                    foregroundColor: _kInk,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () => setState(() => _editing.remove(h.id)),
+                  child: const Text('تأیید',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  showEditSheet(
+                    widget.parentContext,
+                    h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
+                  );
+                },
+                child: const Text('ویرایش کامل',
+                    style: TextStyle(color: _kMuted, fontSize: 12.5)),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1073,18 +1145,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
       final hasTime = nodeDaySecs(n, jk) > 0;
       final future = date.isAfter(pi.today);
       final isToday = date.isAtSameMomentAs(pi.today);
+      final selD = _selDay[n.id] ?? pi.today;
+      final isSel = date.year == selD.year &&
+          date.month == selD.month &&
+          date.day == selD.day;
       cells.add(
         InkWell(
-          onTap: future
-              ? null
-              : () => showDaySheet(
-                    context,
-                    store: store,
-                    host: h,
-                    node: n,
-                    date: date,
-                    accent: color,
-                  ),
+          // لمس: انتخاب روز (کادر ساعت‌ها پایین تقویم باز می‌شه)؛ تیک فقط با نگه‌داشتن
+          onTap: future ? null : () => setState(() => _selDay[n.id] = date),
+          onLongPress: future ? null : () => store.toggleLog(h, n, jk),
           borderRadius: BorderRadius.circular(6),
           child: Stack(
             alignment: Alignment.center,
@@ -1096,9 +1165,11 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(6),
                   color: has ? color : const Color(0xFFF5EFE0),
-                  border: isToday
+                  border: isSel
                       ? Border.all(color: _kInk, width: 2)
-                      : Border.all(color: _kBorder, width: 1),
+                      : isToday
+                          ? Border.all(color: _kInk.withAlpha(120), width: 1.2)
+                          : Border.all(color: _kBorder, width: 1),
                 ),
                 child: Text(
                   has ? '✓' : toFa(j.jd),
@@ -1136,8 +1207,13 @@ class _GoalsSheetState extends State<GoalsSheet> {
         ),
       );
     }
-    final todayEntries = nodeEntries(n, pi.todayJK);
-    final tj = toJalaali(pi.today.year, pi.today.month, pi.today.day);
+    final sel = _selDay[n.id] ?? pi.today;
+    final selJk = jKey(sel);
+    final selJ = toJalaali(sel.year, sel.month, sel.day);
+    final selLabel = '${toFa(selJ.jd)} ${kJalaliMonths[selJ.jm - 1]}';
+    final selEntries = nodeEntries(n, selJk);
+    final selDone = truthy(n.logs[selJk]);
+    final selSecs = nodeDaySecs(n, selJk);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
@@ -1155,79 +1231,359 @@ class _GoalsSheetState extends State<GoalsSheet> {
             );
           }),
           const SizedBox(height: 12),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: GestureDetector(
-              onTap: () => showTimeSheet(
-                context,
-                store: store,
-                host: h,
-                node: n,
-                jk: pi.todayJK,
-                dayLabel: 'امروز',
-              ),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _kBorder),
-                ),
-                child: Text(
-                  '⏱ ${toFa(tj.jd)} ${kJalaliMonths[tj.jm - 1]} · + ساعت',
-                  style: const TextStyle(fontSize: 12.5, color: _kMuted),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.start,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // چیپ تاریخ + افزودن ساعت (دیالوگ ثبت زمان)
+              GestureDetector(
+                onTap: () => _addTimeFor(store, n, selJk, selLabel),
+                child: _DashedBox(
+                  radius: 14,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  child: Text(
+                    '⏱ $selLabel${selSecs > 0 ? ' · ${fmtDur(selSecs)}' : ''} · + ساعت',
+                    style: const TextStyle(fontSize: 12.5, color: _kMuted),
+                  ),
                 ),
               ),
-            ),
-          ),
-          for (var i = 0; i < todayEntries.length; i++)
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _kBorder),
+              // تیک روز (دستی، نه خودکار)
+              GestureDetector(
+                onTap: () => store.toggleLog(h, n, selJk),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: selDone ? color.withAlpha(60) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: selDone ? color : _kBorder),
+                  ),
+                  child: Text(
+                    selDone ? '✓ انجام شده' : 'تیک این روز',
+                    style: const TextStyle(fontSize: 12, color: _kInk),
+                  ),
+                ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              if (selEntries.isNotEmpty)
+                GestureDetector(
+                  onTap: () => _clearDay(store, n, selJk),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: _kBorder),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          '${toFa(i + 1)}. ${_entryLabel(todayEntries[i])}',
-                          style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: _kInk),
-                        ),
-                        if ((todayEntries[i]['note'] as String?)
-                                ?.isNotEmpty ==
-                            true)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(
-                              todayEntries[i]['note'] as String,
-                              style: const TextStyle(
-                                  fontSize: 12, color: _kMuted),
-                            ),
-                          ),
+                        Icon(Icons.delete_outline, size: 16, color: _kInk),
+                        SizedBox(width: 4),
+                        Text('همه',
+                            style: TextStyle(fontSize: 12, color: _kInk)),
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: _kInk),
-                    onPressed: () {
-                      deleteEntry(n, pi.todayJK, i);
-                      store.changed();
-                    },
-                  ),
+                ),
+            ],
+          ),
+          if (selEntries.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _DashedBox(
+              radius: 14,
+              padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < selEntries.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _editEntry(store, n, selJk, i),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${toFa(i + 1)}. ${_entryLabel(selEntries[i])}',
+                                    style: const TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: _kInk),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.edit_outlined,
+                                          size: 15, color: _kMuted),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          ((selEntries[i]['note'] as String?)
+                                                      ?.isNotEmpty ==
+                                                  true)
+                                              ? selEntries[i]['note']
+                                                  as String
+                                              : 'ویرایش زمان و یادداشت',
+                                          style: const TextStyle(
+                                              fontSize: 12, color: _kMuted),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              deleteEntry(n, selJk, i);
+                              store.changed();
+                            },
+                            child: Container(
+                              width: 44,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(color: _kInk.withAlpha(150)),
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 17, color: _kInk),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _addTimeFor(
+      MapStore store, ActionNode n, String jk, String dayLabel) async {
+    final res = await askDurationTabbed(
+      context,
+      title: 'ثبت زمان جدید',
+      sub: '$dayLabel · ${n.text.isEmpty ? 'بدون نام' : n.text}',
+      defMin: 60,
+    );
+    if (res == null || res.mins <= 0) return;
+    if (res.range != null) {
+      addRange(n, jk, res.range!.start, res.range!.end, note: res.note);
+    } else {
+      addDuration(n, jk, res.mins, note: res.note);
+    }
+    // تیک خودکار نمی‌خوره؛ کاربر خودش تیک می‌زنه
+    store.changed();
+  }
+
+  Future<void> _clearDay(MapStore store, ActionNode n, String jk) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('حذف همه',
+            style: TextStyle(fontSize: 15, color: _kInk)),
+        content: const Text('همه‌ی زمان‌های این روز حذف بشه؟',
+            style: TextStyle(color: _kInk)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('نه', style: TextStyle(color: _kMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFE5484D)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      clearDayTime(n, jk);
+      store.changed();
+    }
+  }
+
+  static String _en(String s) {
+    const fa = '۰۱۲۳۴۵۶۷۸۹', ar = '٠١٢٣٤٥٦٧٨٩';
+    final b = StringBuffer();
+    for (final ch in s.split('')) {
+      var i = fa.indexOf(ch);
+      if (i < 0) i = ar.indexOf(ch);
+      b.write(i >= 0 ? '$i' : ch);
+    }
+    return b.toString().trim();
+  }
+
+  static int? _hm(String s) {
+    final p = _en(s).split(':');
+    if (p.length != 2) return null;
+    final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+      return null;
+    }
+    return h * 60 + m;
+  }
+
+  /// ویرایش دوباره‌ی یک ثبت زمان: مدت (یا بازه‌ی ساعت) + یادداشت
+  Future<void> _editEntry(
+      MapStore store, ActionNode n, String jk, int idx) async {
+    final raw = n.entries[jk];
+    if (raw is! List || idx >= raw.length || raw[idx] is! Map) return;
+    final e = raw[idx] as Map;
+    final isRange = e['kind'] == 'range';
+    final mins = (e['mins'] as num?)?.toInt() ?? 0;
+    final hc = TextEditingController(text: toFa(mins ~/ 60));
+    final mc = TextEditingController(text: toFa(mins % 60));
+    final fc = TextEditingController(
+        text: fmtHM((e['s'] as num?)?.toInt() ?? 0));
+    final tc = TextEditingController(
+        text: fmtHM((e['e'] as num?)?.toInt() ?? 0));
+    final nc = TextEditingController(text: (e['note'] as String?) ?? '');
+
+    InputDecoration dec(String l) => InputDecoration(
+          labelText: l,
+          isDense: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _kBorder),
+          ),
+        );
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('ویرایش ثبت زمان',
+            style: TextStyle(fontSize: 15, color: _kInk)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isRange)
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: fc,
+                      keyboardType: TextInputType.datetime,
+                      textAlign: TextAlign.center,
+                      decoration: dec('از (ساعت:دقیقه)'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: tc,
+                      keyboardType: TextInputType.datetime,
+                      textAlign: TextAlign.center,
+                      decoration: dec('تا (ساعت:دقیقه)'),
+                    ),
+                  ),
+                ])
+              else
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: hc,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      decoration: dec('ساعت'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: mc,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      decoration: dec('دقیقه'),
+                    ),
+                  ),
+                ]),
+              const SizedBox(height: 10),
+              TextField(
+                controller: nc,
+                minLines: 2,
+                maxLines: 4,
+                decoration: dec('یادداشت'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لغو', style: TextStyle(color: _kMuted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _kGold),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ذخیره'),
+          ),
+        ],
+      ),
+    );
+    final note = nc.text.trim();
+    final hText = hc.text, mText = mc.text, fText = fc.text, tText = tc.text;
+    hc.dispose();
+    mc.dispose();
+    fc.dispose();
+    tc.dispose();
+    nc.dispose();
+    if (ok != true) return;
+
+    var newMins = mins;
+    if (isRange) {
+      final s0 = _hm(fText), e0 = _hm(tText);
+      if (s0 == null || e0 == null) return;
+      var e1 = e0;
+      if (e1 <= s0) e1 += 1440;
+      newMins = e1 - s0;
+      final rl = n.ranges[jk];
+      if (rl is List) {
+        for (final r in rl) {
+          if (r is Map && r['s'] == e['s'] && r['e'] == e['e']) {
+            r['s'] = s0;
+            r['e'] = e1 % 1440;
+            break;
+          }
+        }
+      }
+      e['s'] = s0;
+      e['e'] = e1 % 1440;
+    } else {
+      final hh = int.tryParse(_en(hText)) ?? 0;
+      final mm = int.tryParse(_en(mText)) ?? 0;
+      newMins = hh.clamp(0, 24) * 60 + mm.clamp(0, 59);
+      if (newMins <= 0) return;
+    }
+    final cur = (n.time[jk] as num?)?.toInt() ?? 0;
+    final nv = cur + (newMins - mins) * 60;
+    if (nv > 0) {
+      n.time[jk] = nv;
+    } else {
+      n.time.remove(jk);
+    }
+    e['mins'] = newMins;
+    if (note.isEmpty) {
+      e.remove('note');
+    } else {
+      e['note'] = note;
+    }
+    store.changed();
   }
 
   String _entryLabel(Map<String, dynamic> e) {
@@ -1704,4 +2060,49 @@ class _GoalsSheetState extends State<GoalsSheet> {
     c.dispose();
     return res;
   }
+}
+
+
+/// کادر خط‌چین (مثل چیپ تاریخ و لیست ثبت‌های زمان در مغز)
+class _DashedBox extends StatelessWidget {
+  const _DashedBox({
+    required this.child,
+    this.radius = 14,
+    this.padding = const EdgeInsets.all(8),
+  });
+  final Widget child;
+  final double radius;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        painter: _DashPainter(radius),
+        child: Padding(padding: padding, child: child),
+      );
+}
+
+class _DashPainter extends CustomPainter {
+  _DashPainter(this.radius);
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFB9AE98)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Offset.zero & size, Radius.circular(radius)));
+    for (final m in path.computeMetrics()) {
+      var d = 0.0;
+      while (d < m.length) {
+        canvas.drawPath(m.extractPath(d, math.min(d + 5, m.length)), paint);
+        d += 9;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashPainter old) => old.radius != radius;
 }
