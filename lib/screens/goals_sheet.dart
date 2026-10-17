@@ -116,15 +116,23 @@ class _Avatar extends StatelessWidget {
         host is Goal ? (host as Goal).icon : (host as Ring).icon;
     final bytes = images.isNotEmpty ? _decodeSrc(images.first.src) : null;
     if (bytes != null) {
-      return ClipOval(
-        child: Image.memory(
-          bytes,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          cacheWidth: 120,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => _fallback(icon),
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color, width: size > 60 ? 3 : 1.5),
+        ),
+        child: ClipOval(
+          child: Image.memory(
+            bytes,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            cacheWidth: 240,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => _fallback(icon),
+          ),
         ),
       );
     }
@@ -138,7 +146,7 @@ class _Avatar extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: color.withAlpha(60),
-          border: Border.all(color: color.withAlpha(150)),
+          border: Border.all(color: color, width: size > 60 ? 3 : 1.5),
         ),
         child: Text(
           icon.trim().isEmpty ? '•' : icon,
@@ -384,8 +392,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
 
   BoxDecoration _cardDeco(Color c) => BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kGoalsBorder),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: c.withAlpha(210), width: 1.4),
       );
 
   Widget _iconBtn(IconData i, String tip, VoidCallback onTap, {Color? color}) =>
@@ -446,8 +454,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
                             size: 20, color: kGoalsMuted),
                       ),
                     ),
-                  _Avatar(host: h, color: color),
-                  const SizedBox(width: 10),
+                  _Avatar(host: h, color: color, size: 78),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,7 +466,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
                           children: [
                             Text(_name(h),
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.w700, color: kGoalsInk)),
+                                    fontSize: 19,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w800,
+                                    color: kGoalsInk)),
                             if (h.isRing)
                               _tag(
                                   'نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
@@ -479,7 +490,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: power / 100,
-                            minHeight: 5,
+                            minHeight: 7,
                             color: color,
                             backgroundColor: kGoalsBorder,
                           ),
@@ -898,6 +909,38 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   ),
                 ),
               ),
+              // قرص زمان امروز: ⌚ ۱ ساعت — با لمس، پنل ثبت زمان باز می‌شه
+              GestureDetector(
+                onTap: () => showTimeSheet(
+                  context,
+                  store: store,
+                  host: h,
+                  node: n,
+                  jk: pi.todayJK,
+                  dayLabel: 'امروز',
+                ),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: timerRunning(n)
+                        ? const Color(0xFFE5484D).withAlpha(30)
+                        : Colors.white.withAlpha(150),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                        color: timerRunning(n)
+                            ? const Color(0xFFE5484D)
+                            : kGoalsBorder),
+                  ),
+                  child: Text(
+                    nodeDaySecs(n, pi.todayJK) > 0
+                        ? '⌚ ${fmtDur(nodeDaySecs(n, pi.todayJK))}'
+                        : '⌚',
+                    style: const TextStyle(fontSize: 12, color: kGoalsInk),
+                  ),
+                ),
+              ),
               _iconBtn(Icons.add, 'افزودن زیرشاخه', () => setState(() {
                     _addingFor = n.id;
                     _addCtl.clear();
@@ -909,19 +952,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   if (!_daysOpen.remove(n.id)) _daysOpen.add(n.id);
                 }),
                 color: daysOpen ? color : null,
-              ),
-              _iconBtn(
-                timerRunning(n) ? Icons.timer : Icons.timer_outlined,
-                'زمان',
-                () => showTimeSheet(
-                  context,
-                  store: store,
-                  host: h,
-                  node: n,
-                  jk: pi.todayJK,
-                  dayLabel: 'امروز',
-                ),
-                color: nodeDaySecs(n, pi.todayJK) > 0 ? color : null,
               ),
               _iconBtn(
                 n.extra['achieved'] == true
@@ -936,26 +966,17 @@ class _GoalsSheetState extends State<GoalsSheet> {
               _iconBtn(Icons.close, 'حذف', () => _confirmDelete(store, h, n)),
             ],
           ),
-          if (nodeDaySecs(n, pi.todayJK) > 0 || timerRunning(n))
-            Padding(
-              padding: const EdgeInsets.only(top: 6, right: 4),
+          if (timerRunning(n))
+            const Padding(
+              padding: EdgeInsets.only(top: 6, right: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule, size: 13, color: kGoalsMuted),
-                  const SizedBox(width: 4),
-                  Text(
-                    'امروز: ${fmtDur(nodeDaySecs(n, pi.todayJK))}',
-                    style: const TextStyle(fontSize: 11, color: kGoalsMuted),
-                  ),
-                  if (timerRunning(n)) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.fiber_manual_record,
-                        size: 10, color: Color(0xFFE5484D)),
-                    const SizedBox(width: 4),
-                    const Text('در حال ضبط',
-                        style: TextStyle(
-                            fontSize: 11, color: Color(0xFFE5484D))),
-                  ],
+                  Icon(Icons.fiber_manual_record,
+                      size: 10, color: Color(0xFFE5484D)),
+                  SizedBox(width: 4),
+                  Text('در حال ضبط',
+                      style:
+                          TextStyle(fontSize: 11, color: Color(0xFFE5484D))),
                 ],
               ),
             ),
@@ -1042,7 +1063,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
     PeriodInfo pi,
     Color color,
   ) {
-    const cols = 15;
+    const cols = 12;
     final cells = <Widget>[];
     for (var d = 0; d < pi.total; d++) {
       final date = DateTime(pi.start.year, pi.start.month, pi.start.day + d);
@@ -1069,14 +1090,14 @@ class _GoalsSheetState extends State<GoalsSheet> {
             alignment: Alignment.center,
             children: [
               Container(
-                width: 25,
-                height: 25,
+                width: double.infinity,
+                height: double.infinity,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(6),
                   color: has ? color : const Color(0xFFF5EFE0),
                   border: isToday
-                      ? Border.all(color: _kGold, width: 2)
+                      ? Border.all(color: _kInk, width: 2)
                       : Border.all(color: _kBorder, width: 1),
                 ),
                 child: Text(
@@ -1115,21 +1136,106 @@ class _GoalsSheetState extends State<GoalsSheet> {
         ),
       );
     }
+    final todayEntries = nodeEntries(n, pi.todayJK);
+    final tj = toJalaali(pi.today.year, pi.today.month, pi.today.day);
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: LayoutBuilder(builder: (ctx, box) {
-        final cellW = (box.maxWidth - (cols - 1) * 3) / cols;
-        final size = cellW.clamp(18.0, 25.0);
-        return Wrap(
-          spacing: 3,
-          runSpacing: 3,
-          children: [
-            for (final c in cells)
-              SizedBox(width: size, height: size, child: c),
-          ],
-        );
-      }),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(builder: (ctx, box) {
+            final size = (box.maxWidth - (cols - 1) * 4) / cols;
+            return Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (final c in cells)
+                  SizedBox(width: size, height: size, child: c),
+              ],
+            );
+          }),
+          const SizedBox(height: 12),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: GestureDetector(
+              onTap: () => showTimeSheet(
+                context,
+                store: store,
+                host: h,
+                node: n,
+                jk: pi.todayJK,
+                dayLabel: 'امروز',
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _kBorder),
+                ),
+                child: Text(
+                  '⏱ ${toFa(tj.jd)} ${kJalaliMonths[tj.jm - 1]} · + ساعت',
+                  style: const TextStyle(fontSize: 12.5, color: _kMuted),
+                ),
+              ),
+            ),
+          ),
+          for (var i = 0; i < todayEntries.length; i++)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${toFa(i + 1)}. ${_entryLabel(todayEntries[i])}',
+                          style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: _kInk),
+                        ),
+                        if ((todayEntries[i]['note'] as String?)
+                                ?.isNotEmpty ==
+                            true)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Text(
+                              todayEntries[i]['note'] as String,
+                              style: const TextStyle(
+                                  fontSize: 12, color: _kMuted),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18, color: _kInk),
+                    onPressed: () {
+                      deleteEntry(n, pi.todayJK, i);
+                      store.changed();
+                    },
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  String _entryLabel(Map<String, dynamic> e) {
+    final mins = (e['mins'] as num?)?.toInt() ?? 0;
+    if (e['kind'] == 'range') {
+      return '🕒 ${fmtHM((e['s'] as num?)?.toInt() ?? 0)} تا ${fmtHM((e['e'] as num?)?.toInt() ?? 0)} — ${fmtDur(mins * 60)}';
+    }
+    return '⏱ ${fmtDur(mins * 60)}';
   }
 
   // ------------------------------------------------------------------ افزودن شاخه

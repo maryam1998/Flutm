@@ -252,15 +252,14 @@ class _TimeSheetState extends State<_TimeSheet> {
                         Expanded(
                           flex: 2,
                           child: FilledButton.icon(
-                            onPressed: _toggle,
-                            icon: Icon(live ? Icons.stop : Icons.play_arrow,
-                                size: 18),
-                            label: Text(live ? 'توقف' : 'شروع تایمر',
-                                style: const TextStyle(
+                            onPressed: _openAddDialog,
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('ثبت زمان',
+                                style: TextStyle(
                                     fontWeight: FontWeight.w700)),
                             style: FilledButton.styleFrom(
-                              backgroundColor: live ? _kLive : _kGold,
-                              foregroundColor: Colors.white,
+                              backgroundColor: _kGold.withValues(alpha: 0.15),
+                              foregroundColor: _kGold,
                               padding:
                                   const EdgeInsets.symmetric(vertical: 13),
                               shape: RoundedRectangleBorder(
@@ -273,14 +272,15 @@ class _TimeSheetState extends State<_TimeSheet> {
                         Expanded(
                           flex: 2,
                           child: FilledButton.icon(
-                            onPressed: _openAddDialog,
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('ثبت زمان',
-                                style: TextStyle(
+                            onPressed: _toggle,
+                            icon: Icon(live ? Icons.stop : Icons.play_arrow,
+                                size: 18),
+                            label: Text(live ? 'توقف' : 'شروع تایمر',
+                                style: const TextStyle(
                                     fontWeight: FontWeight.w700)),
                             style: FilledButton.styleFrom(
-                              backgroundColor: _kGold.withValues(alpha: 0.15),
-                              foregroundColor: _kGold,
+                              backgroundColor: live ? _kLive : _kGold,
+                              foregroundColor: Colors.white,
                               padding:
                                   const EdgeInsets.symmetric(vertical: 13),
                               shape: RoundedRectangleBorder(
