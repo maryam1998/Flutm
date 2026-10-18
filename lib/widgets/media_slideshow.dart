@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 import 'package:video_player/video_player.dart';
 
 import 'grat_media.dart' show gratVideoController;
@@ -133,7 +133,7 @@ class _MediaSlideshowState extends State<MediaSlideshow>
 
   Future<void> _loadCfg() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final raw = sp.getString(widget.cfgKey);
       if (raw != null && raw.isNotEmpty) {
         final j = jsonDecode(raw) as Map;
@@ -152,7 +152,7 @@ class _MediaSlideshowState extends State<MediaSlideshow>
 
   Future<void> _saveCfg() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setString(widget.cfgKey, jsonEncode({
         'value': _cfg.value,
         'unit': _cfg.unit,

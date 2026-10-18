@@ -371,21 +371,6 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kBeliefsMuted,
-                      backgroundColor: kBeliefsCard,
-                      side: const BorderSide(color: kBeliefsBorder),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _cancelEdit,
-                    child: const Text('لغو'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
                   flex: 2,
                   child: FilledButton(
                     style: FilledButton.styleFrom(
@@ -398,6 +383,21 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
                     onPressed: () => _saveEdit(store),
                     child: const Text('💾 ذخیره',
                         style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: kBeliefsMuted,
+                      backgroundColor: kBeliefsCard,
+                      side: const BorderSide(color: kBeliefsBorder),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _cancelEdit,
+                    child: const Text('لغو'),
                   ),
                 ),
               ],

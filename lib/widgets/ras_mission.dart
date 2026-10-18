@@ -651,19 +651,6 @@ class _RecordSheetState extends State<_RecordSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _kMuted,
-                        side: const BorderSide(color: _kBorder),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('لغو'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
                     flex: 2,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
@@ -680,6 +667,19 @@ class _RecordSheetState extends State<_RecordSheet> {
                               Navigator.pop(context);
                             },
                       child: const Text('ذخیره', style: TextStyle(fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _kMuted,
+                        side: const BorderSide(color: _kBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('لغو'),
                     ),
                   ),
                 ],

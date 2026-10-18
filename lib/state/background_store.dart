@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 enum BgKind { none, image, video }
 
@@ -39,7 +39,7 @@ class BackgroundStore extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final k = sp.getString(_kKind);
       if (k == 'image') {
         final b64 = sp.getString(_kImgKey);
@@ -123,7 +123,7 @@ class BackgroundStore extends ChangeNotifier {
   Future<void> setColor(Color? c) async {
     _color = c;
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       if (c == null) {
         await sp.remove(_kColorKey);
       } else {
@@ -140,7 +140,7 @@ class BackgroundStore extends ChangeNotifier {
     _blur = 0;
     _opacity = 0.6;
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.remove(_kKind);
       await sp.remove(_kImgKey);
       await sp.remove(_kVidPath);
@@ -152,7 +152,7 @@ class BackgroundStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setString(_kKind, _kind.name);
       if (_imageBytes != null) {
         await sp.setString(_kImgKey, base64Encode(_imageBytes!));

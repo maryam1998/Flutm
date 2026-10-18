@@ -12,9 +12,11 @@ import '../state/emotion_store.dart';
 import '../state/background_store.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
+import '../widgets/audio_clip_view.dart';
 import '../widgets/grat_media.dart';
 import '../widgets/gratitude_slideshow.dart';
 import '../widgets/neural_pathway.dart';
+import '../widgets/voice_recorder_sheet.dart';
 
 // ════════════════════════════════════════════════════════════════
 class GratitudeTab extends StatefulWidget {
@@ -30,7 +32,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
   final List<GratitudeAudio> _pendingAudios = [];
   final List<GratitudeVideo> _pendingVideos = [];
   bool _pendingShare = false;
-  final _picker = ImagePicker();
+  static final _picker = ImagePicker();
 
   @override
   void dispose() {
@@ -82,6 +84,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
               onShareChanged: (v) => setState(() => _pendingShare = v),
               onPickImages: _pickImages,
               onPickVideos: _pickVideos,
+              onRecord: _record,
               onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),
               onRemoveAudio: (i) => setState(() => _pendingAudios.removeAt(i)),
               onRemoveVideo: (i) => setState(() => _pendingVideos.removeAt(i)),
@@ -179,7 +182,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
         _pendingImages.isEmpty &&
         _pendingAudios.isEmpty &&
         _pendingVideos.isEmpty) {
-      _toast('یه متن، عکس، ویدیو یا صدا وارد کن 🌱');
+      _toast(context, 'یه متن، عکس، ویدیو یا صدا وارد کن 🌱');
       return;
     }
     final store = context.read<GratitudeStore>();
@@ -203,7 +206,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
       _pendingVideos.clear();
       _pendingShare = false;
     });
-    _toast(!store.lastPersistOk
+    _toast(context, !store.lastPersistOk
         ? 'ثبت شد، ولی حافظه‌ی مرورگر پر شده — با بستن صفحه ممکنه از دست بره. عکس/صدای قدیمی رو پاک کن'
         : (wasShared
             ? 'ثبت شد و با بقیه به اشتراک گذاشته شد 🌍'
@@ -249,7 +252,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
   }
 
   /// انتخاب عکس‌ها: کوچک‌سازی تا ۱۴۰۰px و JPEG با کیفیت ۰٫۸۲ (مثل gratFileToDataUrl وب)
-  Future<List<GratitudeImage>> _pickImageItems() async {
+  static Future<List<GratitudeImage>> _pickImageItems(BuildContext context) async {
     try {
       final files =
           await _picker.pickMultiImage(imageQuality: 82, maxWidth: 1400, maxHeight: 1400);
@@ -259,22 +262,22 @@ class _GratitudeTabState extends State<GratitudeTab> {
         out.add(GratitudeImage(src: 'data:image/jpeg;base64,${base64Encode(bytes)}'));
       }
       if (out.isNotEmpty) {
-        _toast(out.length > 1 ? '${_toFa(out.length)} عکس اضافه شد 🖼️' : 'عکس اضافه شد 🖼️');
+        _toast(context, out.length > 1 ? '${_toFa(out.length)} عکس اضافه شد 🖼️' : 'عکس اضافه شد 🖼️');
       }
       return out;
     } catch (e) {
-      _toast('عکس خوانده نشد');
+      _toast(context, 'عکس خوانده نشد');
       return [];
     }
   }
 
-  Future<GratitudeVideo?> _pickVideoItem() async {
+  static Future<GratitudeVideo?> _pickVideoItem(BuildContext context) async {
     try {
       final f = await _picker.pickVideo(source: ImageSource.gallery);
       if (f == null) return null;
       final bytes = await f.readAsBytes();
       if (bytes.length > 8 * 1024 * 1024) {
-        _toast('ویدیو بزرگ‌تر از ۸ مگابایت ذخیره نمی‌شه');
+        _toast(context, 'ویدیو بزرگ‌تر از ۸ مگابایت ذخیره نمی‌شه');
         return null;
       }
       final lower = f.name.toLowerCase();
@@ -287,23 +290,40 @@ class _GratitudeTabState extends State<GratitudeTab> {
         size: bytes.length,
       );
     } catch (e) {
-      _toast('ویدیو اضافه نشد');
+      _toast(context, 'ویدیو اضافه نشد');
       return null;
     }
   }
 
   Future<void> _pickImages() async {
-    final l = await _pickImageItems();
+    final l = await _pickImageItems(context);
     if (l.isNotEmpty && mounted) setState(() => _pendingImages.addAll(l));
   }
 
+  Future<void> _record() async {
+    final a = await _recordAudio(context);
+    if (a != null && mounted) setState(() => _pendingAudios.add(a));
+  }
+
+  /// ضبط صدا (مثل toggleGratRecording وب) → data-URL آماده‌ی ذخیره
+  static Future<GratitudeAudio?> _recordAudio(BuildContext context) async {
+    final src = await VoiceRecorderSheet.show(context, title: 'ضبط صدا');
+    if (src == null || src.isEmpty) return null;
+    final now = DateTime.now();
+    final hh = now.hour.toString().padLeft(2, '0');
+    final mm = now.minute.toString().padLeft(2, '0');
+    final stamp = '$hh:$mm'.replaceAllMapped(
+        RegExp(r'\d'), (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)]);
+    return GratitudeAudio(src: src, name: 'ضبط $stamp');
+  }
+
   Future<void> _pickVideos() async {
-    final v = await _pickVideoItem();
+    final v = await _pickVideoItem(context);
     if (v != null && mounted) setState(() => _pendingVideos.add(v));
   }
 
-  void _toast(String msg) {
-    if (!mounted) return;
+  static void _toast(BuildContext context, String msg) {
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
       duration: const Duration(milliseconds: 1600),
@@ -312,7 +332,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
   }
 
   // ─── ویرایش ───
-  void _openEditor(BuildContext context, GratitudeEntry g) {
+  static void _openEditor(BuildContext context, GratitudeEntry g) {
     final pal = GratPalette.of(context);
     final editCtrl = TextEditingController(text: g.text);
     final images = List.of(g.images);
@@ -405,7 +425,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                               pal: pal,
                               icon: Icons.videocam_outlined,
                               onTap: () async {
-                                final v = await _pickVideoItem();
+                                final v = await _pickVideoItem(context);
                                 if (v != null) setSheet(() => videos.add(v));
                               }),
                           const SizedBox(width: 8),
@@ -413,7 +433,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                               pal: pal,
                               icon: Icons.image_outlined,
                               onTap: () async {
-                                final l = await _pickImageItems();
+                                final l = await _pickImageItems(context);
                                 if (l.isNotEmpty) setSheet(() => images.addAll(l));
                               }),
                         ],
@@ -501,7 +521,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                   shared: share,
                                 );
                             if (context.mounted) Navigator.pop(ctx);
-                            _toast('ویرایش شد ✏️');
+                            _toast(context, 'ویرایش شد ✏️');
                           },
                           child: const Text('ذخیره تغییرات',
                               style: TextStyle(fontWeight: FontWeight.w800)),
@@ -539,7 +559,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                 .read<GratitudeStore>()
                                 .remove(g.id);
                             if (context.mounted) Navigator.pop(ctx);
-                            _toast('حذف شد 🗑');
+                            _toast(context, 'حذف شد 🗑');
                           }
                         },
                       ),
@@ -1588,6 +1608,8 @@ class _Composer extends StatelessWidget {
   final ValueChanged<bool> onShareChanged;
   final VoidCallback onPickImages;
   final VoidCallback onPickVideos;
+  final VoidCallback onRecord;
+  final bool home;
   final ValueChanged<int> onRemoveImage;
   final ValueChanged<int> onRemoveAudio;
   final ValueChanged<int> onRemoveVideo;
@@ -1605,6 +1627,8 @@ class _Composer extends StatelessWidget {
     required this.onShareChanged,
     required this.onPickImages,
     required this.onPickVideos,
+    required this.onRecord,
+    this.home = false,
     required this.onRemoveImage,
     required this.onRemoveAudio,
     required this.onRemoveVideo,
@@ -1617,23 +1641,46 @@ class _Composer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: pal.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-              color: pal.emerald300.withValues(alpha: 0.55), width: 1.5),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [pal.card, pal.surface],
-          ),
-        ),
+        decoration: home
+            // .quick-add وب: surface + کادر line + گوشه‌ی ۱۶
+            ? BoxDecoration(
+                color: pal.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: pal.line),
+              )
+            : BoxDecoration(
+                color: pal.card,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                    color: pal.emerald300.withValues(alpha: 0.55), width: 1.5),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [pal.card, pal.surface],
+                ),
+              ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (home) ...[
+              Text('🧠 مغزت رو تربیت کن تا داشته‌هات رو ببینه',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: pal.ink)),
+              const SizedBox(height: 4),
+              Text(
+                  'طبق علم اعصاب، هر بار شکرگذاری می‌کنی، مسیرهای عصبیِ مثبت‌نگری در مغزت قوی‌تر می‌شن.',
+                  style: TextStyle(
+                      fontSize: 10.5, color: pal.muted, height: 1.6)),
+              const SizedBox(height: 10),
+            ],
             Text.rich(
-              const TextSpan(children: [
-                TextSpan(text: 'خدایا شکرت که:'),
+              TextSpan(children: [
+                TextSpan(
+                    text: home
+                        ? '${_toFa(count + 1)} - خدایا شکرت که:'
+                        : 'خدایا شکرت که:'),
               ]),
               style: TextStyle(
                 fontSize: 14.5,
@@ -1674,18 +1721,18 @@ class _Composer extends StatelessWidget {
               children: [
                 _MediaBtn(
                     pal: pal,
-                    icon: Icons.mic_none_outlined,
-                    onTap: () {}),
-                const SizedBox(width: 8),
+                    icon: Icons.image_outlined,
+                    onTap: onPickImages),
+                const SizedBox(width: 10),
                 _MediaBtn(
                     pal: pal,
                     icon: Icons.videocam_outlined,
                     onTap: onPickVideos),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 _MediaBtn(
                     pal: pal,
-                    icon: Icons.image_outlined,
-                    onTap: onPickImages),
+                    icon: Icons.mic_none_outlined,
+                    onTap: onRecord),
               ],
             ),
             if (images.isNotEmpty) ...[
@@ -1745,6 +1792,15 @@ class _Composer extends StatelessWidget {
                 key: ValueKey(e.value.id),
                 src: e.value.path,
                 onRemove: () => onRemoveVideo(e.key),
+              ),
+            ],
+            for (final e in audios.asMap().entries) ...[
+              const SizedBox(height: 10),
+              AudioClipView(
+                key: ValueKey('pa${e.key}_${e.value.src.hashCode}'),
+                src: e.value.src,
+                title: e.value.name,
+                onRemove: () => onRemoveAudio(e.key),
               ),
             ],
             const SizedBox(height: 10),
@@ -1975,6 +2031,14 @@ class _EntryRow extends StatelessWidget {
                         const SizedBox(height: 8),
                         GratVideoView(key: ValueKey(v.id), src: v.path),
                       ],
+                      for (final a in entry.audios) ...[
+                        const SizedBox(height: 8),
+                        AudioClipView(
+                          key: ValueKey('ea${a.src.hashCode}'),
+                          src: a.src,
+                          title: a.name,
+                        ),
+                      ],
                       if (entry.images.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Wrap(
@@ -2173,6 +2237,212 @@ class GratitudePeriodCalendar extends StatelessWidget {
       store: store,
       pal: GratPalette.of(context),
       horizontal: 0,
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//        اجزای تب خانه (همان quick-add / مسیر عصبی / لیست وب)
+// ════════════════════════════════════════════════════════════════
+
+/// ورودی سریع شکرگذاری تب خانه — `.quick-add` وب
+/// (متن + عکس/ویدیو/صدا + «فقط برای خودم / اشتراک‌گذاری»)
+class GratitudeQuickAdd extends StatefulWidget {
+  const GratitudeQuickAdd({super.key});
+  @override
+  State<GratitudeQuickAdd> createState() => _GratitudeQuickAddState();
+}
+
+class _GratitudeQuickAddState extends State<GratitudeQuickAdd> {
+  final _textCtrl = TextEditingController();
+  final List<GratitudeImage> _images = [];
+  final List<GratitudeAudio> _audios = [];
+  final List<GratitudeVideo> _videos = [];
+  bool _share = false;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    final l = await _GratitudeTabState._pickImageItems(context);
+    if (l.isNotEmpty && mounted) setState(() => _images.addAll(l));
+  }
+
+  Future<void> _pickVideos() async {
+    final v = await _GratitudeTabState._pickVideoItem(context);
+    if (v != null && mounted) setState(() => _videos.add(v));
+  }
+
+  Future<void> _record() async {
+    final a = await _GratitudeTabState._recordAudio(context);
+    if (a != null && mounted) setState(() => _audios.add(a));
+  }
+
+  Future<void> _submit() async {
+    final text = _textCtrl.text.trim();
+    if (text.isEmpty && _images.isEmpty && _audios.isEmpty && _videos.isEmpty) {
+      _GratitudeTabState._toast(context, 'یه متن، عکس، ویدیو یا صدا وارد کن 🌱');
+      return;
+    }
+    if (_saving) return;
+    final store = context.read<GratitudeStore>();
+    final emotions = context.read<EmotionStore>();
+    final wasShared = _share;
+    setState(() => _saving = true);
+    try {
+      await store.add(
+        text: text,
+        images: List.of(_images),
+        audios: List.of(_audios),
+        videos: List.of(_videos),
+        shared: _share,
+        emotions: emotions,
+      );
+      if (!mounted) return;
+      setState(() {
+        _textCtrl.clear();
+        _images.clear();
+        _audios.clear();
+        _videos.clear();
+        _share = false;
+      });
+      _GratitudeTabState._toast(
+          context,
+          !store.lastPersistOk
+              ? 'ثبت شد، ولی حافظه‌ی دستگاه پر شده — عکس/صدای قدیمی رو پاک کن'
+              : (wasShared
+                  ? 'ثبت شد و با بقیه به اشتراک گذاشته شد 🌍'
+                  : 'ثبت شد — فقط برای خودم 🤫'));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = GratPalette.of(context);
+    final store = context.watch<GratitudeStore>();
+    if (!store.loaded) return const SizedBox.shrink();
+    final info = computeGratitudePhase(store.journeyDay, store.journeyDays);
+    return _Composer(
+      pal: pal,
+      home: true,
+      prompt: info.prompt,
+      count: store.totalCount,
+      textCtrl: _textCtrl,
+      images: _images,
+      audios: _audios,
+      videos: _videos,
+      share: _share,
+      onShareChanged: (v) => setState(() => _share = v),
+      onPickImages: _pickImages,
+      onPickVideos: _pickVideos,
+      onRecord: _record,
+      onRemoveImage: (i) => setState(() => _images.removeAt(i)),
+      onRemoveAudio: (i) => setState(() => _audios.removeAt(i)),
+      onRemoveVideo: (i) => setState(() => _videos.removeAt(i)),
+      onSubmit: _submit,
+    );
+  }
+}
+
+/// «انجام این تمرین» + مسیر عصبی شکرگذاری — `#np-gratitude-mount` وب
+class GratitudeNeuralSection extends StatelessWidget {
+  const GratitudeNeuralSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = GratPalette.of(context);
+    final store = context.watch<GratitudeStore>();
+    if (!store.loaded) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionLabel(
+          icon: Icons.psychology_alt_outlined,
+          title: 'انجام این تمرین',
+          pal: pal,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: NeuralPathway(
+            container: store.neural,
+            label: 'شکرگذاری',
+            showDayButtons: true,
+            onChange: () => store.saveNeural(),
+            emotionQualityToday: store.emotionQualityToday,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// «لیست شکرگذاری» تب خانه — `#home-recent` وب
+/// (ردیف‌های کامل با عکس/ویدیو/صدا، لمس = ویرایش، «نمایش بیشتر»)
+class GratitudeRecentList extends StatefulWidget {
+  const GratitudeRecentList({super.key});
+  @override
+  State<GratitudeRecentList> createState() => _GratitudeRecentListState();
+}
+
+class _GratitudeRecentListState extends State<GratitudeRecentList> {
+  int _limit = 40;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = GratPalette.of(context);
+    final store = context.watch<GratitudeStore>();
+    if (!store.loaded) return const SizedBox.shrink();
+    final all = store.allReversed;
+    final slice = all.take(_limit).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionLabel(
+          icon: Icons.list_alt_outlined,
+          title: 'لیست شکرگذاری',
+          pal: pal,
+        ),
+        if (all.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+              decoration: BoxDecoration(
+                color: pal.surface,
+                border: Border.all(color: pal.line),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                'هنوز شکرگذاری‌ای ثبت نکردی. یا از بازی فراوانی بخر یا همین‌جا بنویس 🌱',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: pal.muted, fontSize: 13, height: 1.8),
+              ),
+            ),
+          )
+        else ...[
+          ...slice.map((g) => _EntryRow(
+                entry: g,
+                pal: pal,
+                onTap: () => _GratitudeTabState._openEditor(context, g),
+              )),
+          if (all.length > slice.length)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              child: _GhostButton(
+                text:
+                    'نمایش بیشتر (${_toFa(all.length - slice.length)} مورد دیگر)',
+                pal: pal,
+                onTap: () => setState(() => _limit += 40),
+              ),
+            ),
+        ],
+      ],
     );
   }
 }

@@ -6,7 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/gratitude_entry.dart';
@@ -248,7 +248,7 @@ class _GratAlbumState extends State<_GratAlbum> {
 
   Future<void> _loadCfg() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final raw = sp.getString(widget.cfgKey);
       if (raw != null && raw.isNotEmpty) {
         final j = jsonDecode(raw) as Map;

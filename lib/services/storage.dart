@@ -4,7 +4,7 @@ import 'dart:io' show File, Platform;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'app_prefs.dart';
 
 /// کلیدهای ذخیره‌سازی
 const String kMapKey         = 'maghz_map_json';       // نقشه (سازگاری با گذشته)
@@ -20,14 +20,14 @@ class StorageService {
 
   // ──────────── API عمومی کلیددار ────────────
   Future<String?> readKey(String key) async {
-    if (kIsWeb) return (await SharedPreferences.getInstance()).getString(key);
+    if (kIsWeb) return (await AppPrefs.getInstance()).getString(key);
     final f = await _fileFor(key);
     return await f.exists() ? f.readAsString() : null;
   }
 
   Future<void> writeKey(String key, String data) async {
     if (kIsWeb) {
-      await (await SharedPreferences.getInstance()).setString(key, data);
+      await (await AppPrefs.getInstance()).setString(key, data);
       return;
     }
     final f = await _fileFor(key);
@@ -38,7 +38,7 @@ class StorageService {
 
   Future<void> removeKey(String key) async {
     if (kIsWeb) {
-      await (await SharedPreferences.getInstance()).remove(key);
+      await (await AppPrefs.getInstance()).remove(key);
       return;
     }
     final f = await _fileFor(key);
@@ -49,7 +49,7 @@ class StorageService {
   Future<void> keepCorruptCopy() async {
     try {
       if (kIsWeb) {
-        final p = await SharedPreferences.getInstance();
+        final p = await AppPrefs.getInstance();
         final raw = p.getString(kMapKey);
         if (raw != null) {
           await p.setString(

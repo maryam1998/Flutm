@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
@@ -37,7 +37,7 @@ class GratitudeStore extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final raw = sp.getString(_kEntries);
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw);
@@ -103,9 +103,9 @@ class GratitudeStore extends ChangeNotifier {
   Future<void> _persist() async {
     _syncEntryFibers();
     var ok = true;
-    SharedPreferences sp;
+    AppPrefs sp;
     try {
-      sp = await SharedPreferences.getInstance();
+      sp = await AppPrefs.getInstance();
     } catch (e) {
       debugPrint('GratitudeStore: prefs unavailable: $e');
       lastPersistOk = false;
@@ -137,7 +137,7 @@ class GratitudeStore extends ChangeNotifier {
   /// یک‌بار: ثبت‌هایی که قبل از سیم‌کشی مسیر عصبی ساخته شدن، رشته ندارن.
   /// برای هر «ثبت» که رشته‌ای براش نیست (قدیمی‌ترین‌ها اول) یک رشته‌ی انجام‌شده
   /// با زمان خودِ ثبت و رنگِ حسِ همون ثبت ساخته می‌شه.
-  Future<void> _seedFibersFromEntries(SharedPreferences sp) async {
+  Future<void> _seedFibersFromEntries(AppPrefs sp) async {
     try {
       if (sp.getBool(_kSeeded) == true) return;
       final real = entries.where((e) => e.source != 'purchase').toList()
@@ -178,7 +178,7 @@ class GratitudeStore extends ChangeNotifier {
 
   /// یک‌بار: رشته‌های اضافه (مثلاً ۱۵۶ رشته برای ۷ ثبت) پاک می‌شن.
   /// هر ثبتِ شکرگذاری دقیقاً یک رشته داره (با رنگ حسِ خودش)؛ رشته‌ی بی‌ثبت حذف می‌شه.
-  Future<void> _reconcileFibersWithEntries(SharedPreferences sp) async {
+  Future<void> _reconcileFibersWithEntries(AppPrefs sp) async {
     const flag = 'gratitude_neural_reconcile_v2';
     try {
       if (sp.getBool(flag) == true) return;

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 import '../models/emotion.dart';
 
@@ -42,7 +42,7 @@ class EmotionStore extends ChangeNotifier {
 
   Future<void> _load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final raw = sp.getString(_kSelected);
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw);
@@ -56,7 +56,7 @@ class EmotionStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setString(_kSelected, jsonEncode(_selected.toList()));
     } catch (_) {}
   }

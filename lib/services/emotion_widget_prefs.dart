@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'app_prefs.dart';
 
 class EmotionWidgetState {
   final double left;
@@ -48,7 +48,7 @@ class EmotionWidgetPrefs {
 
   Future<EmotionWidgetState> load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final raw = sp.getString(_key);
       if (raw == null || raw.isEmpty) return EmotionWidgetState.defaults;
       final j = jsonDecode(raw);
@@ -61,7 +61,7 @@ class EmotionWidgetPrefs {
 
   Future<void> save(EmotionWidgetState s) async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setString(_key, jsonEncode(s.toJson()));
     } catch (_) {}
   }

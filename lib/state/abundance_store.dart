@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 import '../models/abundance_models.dart';
 
@@ -23,7 +23,7 @@ class AbundanceStore extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
 
       final sRaw = sp.getString(_kSettings);
       settings = AbundanceSettings.fromJson(
@@ -70,7 +70,7 @@ class AbundanceStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setString(_kSettings, jsonEncode(settings.toJson()));
       await sp.setString(_kCard, jsonEncode(card.toJson()));
       await sp.setString(_kPending,

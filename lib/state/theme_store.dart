@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 class ThemeStore extends ChangeNotifier {
   static const _key = 'appTheme';
@@ -10,7 +10,7 @@ class ThemeStore extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final v = sp.getString(_key);
       _mode = (v == 'dark') ? ThemeMode.dark : ThemeMode.light;
     } catch (_) {
@@ -23,7 +23,7 @@ class ThemeStore extends ChangeNotifier {
     _mode = dark ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setString(_key, dark ? 'dark' : 'light');
     } catch (_) {}
   }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 import '../models/motivation_item.dart';
 
@@ -35,7 +35,7 @@ class MotivationStore extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final raw = sp.getString(_kItems);
       if (raw != null && raw.isNotEmpty) {
         final list = jsonDecode(raw);
@@ -53,7 +53,7 @@ class MotivationStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setString(
         _kItems,
         jsonEncode(items.map((e) => e.toJson()).toList()),

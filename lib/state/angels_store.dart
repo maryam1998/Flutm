@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 import '../services/angel_blob_store.dart';
 
@@ -68,7 +68,7 @@ class AngelsStore extends ChangeNotifier {
     try {
       await AngelBlobStore.init();
 
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       _on = sp.getBool(_kOn) ?? false;
       _size = (sp.getDouble(_kSize) ?? 140).clamp(60, 320);
       _speed = (sp.getDouble(_kSpeed) ?? 3).clamp(1, 12);
@@ -128,7 +128,7 @@ class AngelsStore extends ChangeNotifier {
 
   Future<void> _persist() async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.setBool(_kOn, _on);
       await sp.setDouble(_kSize, _size);
       await sp.setDouble(_kSpeed, _speed);

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 import '../models/future_text_format.dart';
 import '../models/gratitude_entry.dart';
@@ -167,7 +167,7 @@ class BeliefsStore extends ChangeNotifier {
   // ═══════════════ load ═══════════════
 Future<void> load() async {
   try {
-    final sp = await SharedPreferences.getInstance();
+    final sp = await AppPrefs.getInstance();
 
     final rawV = sp.getString(_kVersions);
     if (rawV != null && rawV.isNotEmpty) {
@@ -294,7 +294,7 @@ Future<void> load() async {
   notifyListeners();
 }
 
-static void _readList<T>(SharedPreferences sp, String key, List<T> out,
+static void _readList<T>(AppPrefs sp, String key, List<T> out,
     T Function(dynamic) fromJson) {
   out.clear();
   final raw = sp.getString(key);
@@ -308,7 +308,7 @@ static void _readList<T>(SharedPreferences sp, String key, List<T> out,
 // ═══════════════ persist ═══════════════
 Future<void> _persist() async {
   try {
-    final sp = await SharedPreferences.getInstance();
+    final sp = await AppPrefs.getInstance();
     await sp.setString(
         _kVersions, jsonEncode(versions.map((v) => v.toJson()).toList()));
     if (activeVersionId != null) {
@@ -352,7 +352,7 @@ Future<void> _persist() async {
   // ═══════════════ تصویرسازی ═══════════════
   Future<bool> _putVisual(String key, String value) async {
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       final ok = await sp.setString(key, value);
       if (!ok) lastVisualPersistOk = false;
       return ok;
@@ -442,7 +442,7 @@ Future<void> _persist() async {
   Future<void> removeMeditationTrack() async {
     meditationTrack = null;
     try {
-      final sp = await SharedPreferences.getInstance();
+      final sp = await AppPrefs.getInstance();
       await sp.remove(_kMedTrack);
     } catch (_) {}
     notifyListeners();
