@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../map/map_ops.dart';
+import '../map/walker_photos.dart';
 import '../models/constants.dart';
 import '../models/map_models.dart';
 import '../state/map_store.dart';
@@ -642,12 +643,10 @@ class _EditSheetState extends State<EditSheet> {
     return [
       _sectionLabel('عکس پاهای متحرک'),
       WalkerPhotoField(
-        initial: g.extra['walkerPhoto'] as String?,
+        initial: walkerPhotosOf(g.extra),
         onChanged: (v) => _edit(() {
-          if (v == null) {
-            g.extra.remove('walkerPhoto');
-          } else {
-            g.extra['walkerPhoto'] = v;
+          setWalkerPhotos(g.extra, v);
+          if (v.isNotEmpty) {
             g.extra['walkerPlaying'] = true;
             g.extra.remove('walkerPos');
           }
@@ -930,12 +929,10 @@ class _EditSheetState extends State<EditSheet> {
       ),
       _sectionLabel('عکس پاهای متحرک'),
       WalkerPhotoField(
-        initial: a.extra['walkerPhoto'] as String?,
+        initial: walkerPhotosOf(a.extra),
         onChanged: (v) => _edit(() {
-          if (v == null) {
-            a.extra.remove('walkerPhoto');
-          } else {
-            a.extra['walkerPhoto'] = v;
+          setWalkerPhotos(a.extra, v);
+          if (v.isNotEmpty) {
             a.footPlaying = true;
             a.footPos = null;
           }
@@ -944,7 +941,7 @@ class _EditSheetState extends State<EditSheet> {
       const Padding(
         padding: EdgeInsets.only(top: 4, bottom: 4),
         child: Text(
-          'می‌تونی قدم رو با انگشت روی نقشه بگیری و بکشی. با یک تپ روی قدم، حرکت/توقف می‌شه.',
+          'می‌تونی قدم رو با انگشت روی نقشه بگیری و بکشی. با یک تپ روی قدم یا دایره‌ی جلوش، حرکت/توقف می‌شه؛ نگه‌داشتن روش همین صفحه‌ی عکس‌ها رو باز می‌کنه.',
           style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
         ),
       ),

@@ -8,6 +8,7 @@ import '../data/gratitude_journey.dart';
 import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
 import '../models/jalali.dart' as jal;
+import '../services/data_url_cache.dart';
 import '../state/emotion_store.dart';
 import '../state/background_store.dart';
 import '../state/gratitude_store.dart';
@@ -16,7 +17,8 @@ import '../widgets/audio_clip_view.dart';
 import '../widgets/grat_media.dart';
 import '../widgets/gratitude_slideshow.dart';
 import '../widgets/neural_pathway.dart';
-import '../widgets/voice_recorder_sheet.dart';
+import '../widgets/inline_voice_button.dart';
+import '../services/image_service.dart';
 
 // ════════════════════════════════════════════════════════════════
 class GratitudeTab extends StatefulWidget {
@@ -84,7 +86,9 @@ class _GratitudeTabState extends State<GratitudeTab> {
               onShareChanged: (v) => setState(() => _pendingShare = v),
               onPickImages: _pickImages,
               onPickVideos: _pickVideos,
-              onRecord: _record,
+              onRecorded: _onRecorded,
+              onCropImage: _cropImage,
+              onImagesChanged: () => setState(() {}),
               onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),
               onRemoveAudio: (i) => setState(() => _pendingAudios.removeAt(i)),
               onRemoveVideo: (i) => setState(() => _pendingVideos.removeAt(i)),
@@ -276,10 +280,6 @@ class _GratitudeTabState extends State<GratitudeTab> {
       final f = await _picker.pickVideo(source: ImageSource.gallery);
       if (f == null) return null;
       final bytes = await f.readAsBytes();
-      if (bytes.length > 8 * 1024 * 1024) {
-        _toast(context, 'ویدیو بزرگ‌تر از ۸ مگابایت ذخیره نمی‌شه');
-        return null;
-      }
       final lower = f.name.toLowerCase();
       final mime = lower.endsWith('.webm')
           ? 'video/webm'
@@ -300,15 +300,19 @@ class _GratitudeTabState extends State<GratitudeTab> {
     if (l.isNotEmpty && mounted) setState(() => _pendingImages.addAll(l));
   }
 
-  Future<void> _record() async {
-    final a = await _recordAudio(context);
-    if (a != null && mounted) setState(() => _pendingAudios.add(a));
+  void _onRecorded(String src) {
+    if (!mounted) return;
+    setState(() => _pendingAudios.add(_audioFromSrc(src)));
   }
 
-  /// ضبط صدا (مثل toggleGratRecording وب) → data-URL آماده‌ی ذخیره
-  static Future<GratitudeAudio?> _recordAudio(BuildContext context) async {
-    final src = await VoiceRecorderSheet.show(context, title: 'ضبط صدا');
-    if (src == null || src.isEmpty) return null;
+  Future<void> _cropImage(int i) async {
+    if (i < 0 || i >= _pendingImages.length) return;
+    final n = await ImageService.cropDataUrl(context, _pendingImages[i].src);
+    if (n != null && mounted) setState(() => _pendingImages[i].src = n);
+  }
+
+  /// صدای ضبط‌شده (data-URL) → آیتم صدا با اسم «ضبط ساعت»
+  static GratitudeAudio _audioFromSrc(String src) {
     final now = DateTime.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
@@ -1608,7 +1612,9 @@ class _Composer extends StatelessWidget {
   final ValueChanged<bool> onShareChanged;
   final VoidCallback onPickImages;
   final VoidCallback onPickVideos;
-  final VoidCallback onRecord;
+  final ValueChanged<String> onRecorded;
+  final ValueChanged<int>? onCropImage;
+  final VoidCallback? onImagesChanged;
   final bool home;
   final ValueChanged<int> onRemoveImage;
   final ValueChanged<int> onRemoveAudio;
@@ -1627,7 +1633,9 @@ class _Composer extends StatelessWidget {
     required this.onShareChanged,
     required this.onPickImages,
     required this.onPickVideos,
-    required this.onRecord,
+    required this.onRecorded,
+    this.onCropImage,
+    this.onImagesChanged,
     this.home = false,
     required this.onRemoveImage,
     required this.onRemoveAudio,
@@ -1729,10 +1737,30 @@ class _Composer extends StatelessWidget {
                     icon: Icons.videocam_outlined,
                     onTap: onPickVideos),
                 const SizedBox(width: 10),
-                _MediaBtn(
-                    pal: pal,
-                    icon: Icons.mic_none_outlined,
-                    onTap: onRecord),
+                InlineMicButton(
+                  onRecorded: onRecorded,
+                  builder: (ctx, recording, busy, elapsed, onTap) => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _MediaBtn(
+                        pal: pal,
+                        icon: recording
+                            ? Icons.mic
+                            : Icons.mic_none_outlined,
+                        active: recording,
+                        onTap: onTap,
+                      ),
+                      if (recording) ...[
+                        const SizedBox(width: 8),
+                        Text(InlineMicButton.fmt(elapsed),
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: pal.danger)),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
             if (images.isNotEmpty) ...[
@@ -1750,6 +1778,7 @@ class _Composer extends StatelessWidget {
                           images: () => images,
                           start: e.key,
                           onRemove: (im) => onRemoveImage(images.indexOf(im)),
+                          onChanged: onImagesChanged,
                         ),
                         child: Container(
                           width: 60,
@@ -1763,6 +1792,25 @@ class _Composer extends StatelessWidget {
                           child: _imgFromSrc(e.value.src),
                         ),
                       ),
+                      if (onCropImage != null)
+                        Positioned(
+                          bottom: -6,
+                          right: -6,
+                          child: GestureDetector(
+                            onTap: () => onCropImage!(e.key),
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: pal.emerald700,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.crop,
+                                  size: 13, color: Colors.white),
+                            ),
+                          ),
+                        ),
                       Positioned(
                         top: -6,
                         right: -6,
@@ -1892,13 +1940,17 @@ class _MediaBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final GratPalette pal;
+  final bool active;
   const _MediaBtn(
-      {required this.icon, required this.onTap, required this.pal});
+      {required this.icon,
+      required this.onTap,
+      required this.pal,
+      this.active = false});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: pal.surface,
+      color: active ? pal.danger : pal.surface,
       borderRadius: BorderRadius.circular(50),
       child: InkWell(
         borderRadius: BorderRadius.circular(50),
@@ -1908,9 +1960,10 @@ class _MediaBtn extends StatelessWidget {
           height: 44,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: pal.emerald300),
+            border: Border.all(color: active ? pal.danger : pal.emerald300),
           ),
-          child: Icon(icon, color: pal.emerald700, size: 22),
+          child: Icon(icon,
+              color: active ? Colors.white : pal.emerald700, size: 22),
         ),
       ),
     );
@@ -2204,12 +2257,12 @@ class _GhostButton extends StatelessWidget {
 Widget _imgFromSrc(String src) {
   if (src.isEmpty) return const SizedBox.shrink();
   if (src.startsWith('data:')) {
-    try {
-      final bytes = base64Decode(src.substring(src.indexOf(',') + 1));
-      return Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true);
-    } catch (_) {
+    final bytes = DataUrlCache.bytes(src);
+    if (bytes == null) {
       return const Icon(Icons.broken_image, color: Colors.grey);
     }
+    return Image.memory(bytes,
+        fit: BoxFit.cover, cacheWidth: 1000, gaplessPlayback: true);
   }
   return Image.asset(src,
       fit: BoxFit.cover,
@@ -2277,9 +2330,15 @@ class _GratitudeQuickAddState extends State<GratitudeQuickAdd> {
     if (v != null && mounted) setState(() => _videos.add(v));
   }
 
-  Future<void> _record() async {
-    final a = await _GratitudeTabState._recordAudio(context);
-    if (a != null && mounted) setState(() => _audios.add(a));
+  void _onRecorded(String src) {
+    if (!mounted) return;
+    setState(() => _audios.add(_GratitudeTabState._audioFromSrc(src)));
+  }
+
+  Future<void> _cropImage(int i) async {
+    if (i < 0 || i >= _images.length) return;
+    final n = await ImageService.cropDataUrl(context, _images[i].src);
+    if (n != null && mounted) setState(() => _images[i].src = n);
   }
 
   Future<void> _submit() async {
@@ -2341,7 +2400,9 @@ class _GratitudeQuickAddState extends State<GratitudeQuickAdd> {
       onShareChanged: (v) => setState(() => _share = v),
       onPickImages: _pickImages,
       onPickVideos: _pickVideos,
-      onRecord: _record,
+      onRecorded: _onRecorded,
+      onCropImage: _cropImage,
+      onImagesChanged: () => setState(() {}),
       onRemoveImage: (i) => setState(() => _images.removeAt(i)),
       onRemoveAudio: (i) => setState(() => _audios.removeAt(i)),
       onRemoveVideo: (i) => setState(() => _videos.removeAt(i)),

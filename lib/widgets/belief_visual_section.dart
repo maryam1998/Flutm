@@ -12,7 +12,7 @@ import 'format_bar.dart'
     show kBeliefsBorder, kBeliefsCard, kBeliefsCream, kBeliefsGold, kBeliefsInk, kBeliefsMuted;
 import 'grat_media.dart';
 import 'media_slideshow.dart';
-import 'voice_recorder_sheet.dart';
+import 'inline_voice_button.dart';
 
 const Color _kEmerald300 = Color(0xFF54B3A4);
 const Color _kEmerald700 = Color(0xFF0F5B53);
@@ -203,11 +203,8 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
     }
   }
 
-  Future<void> _record() async {
-    if (_busy) return;
+  Future<void> _onRecorded(String src) async {
     final store = context.read<BeliefsStore>();
-    final src = await VoiceRecorderSheet.show(context, title: 'ضبط صدا');
-    if (!mounted || src == null) return;
     final now = DateTime.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
@@ -434,8 +431,15 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
   Widget _mediaButtons() {
     return Row(
       children: [
-        _RoundMediaBtn(
-            icon: Icons.mic_none_outlined, label: 'ضبط صدا', onTap: _record),
+        InlineMicButton(
+          onRecorded: _onRecorded,
+          builder: (ctx, recording, busy, elapsed, onTap) => _RoundMediaBtn(
+            icon: recording ? Icons.mic : Icons.mic_none_outlined,
+            label: recording ? InlineMicButton.fmt(elapsed) : 'ضبط صدا',
+            active: recording,
+            onTap: onTap,
+          ),
+        ),
         const SizedBox(width: 14),
         _RoundMediaBtn(
             icon: Icons.videocam_outlined, label: 'ویدیو', onTap: _pickVideo),
@@ -532,10 +536,12 @@ class _RoundMediaBtn extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.active = false,
   });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -543,7 +549,7 @@ class _RoundMediaBtn extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Material(
-          color: kBeliefsCard,
+          color: active ? _kDanger : kBeliefsCard,
           borderRadius: BorderRadius.circular(50),
           child: InkWell(
             borderRadius: BorderRadius.circular(50),
@@ -553,9 +559,10 @@ class _RoundMediaBtn extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: _kEmerald300),
+                border: Border.all(color: active ? _kDanger : _kEmerald300),
               ),
-              child: Icon(icon, color: _kEmerald700, size: 22),
+              child: Icon(icon,
+                  color: active ? Colors.white : _kEmerald700, size: 22),
             ),
           ),
         ),

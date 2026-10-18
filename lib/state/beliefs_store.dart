@@ -385,6 +385,7 @@ Future<void> _persist() async {
     for (final s in srcs) {
       visualImages.add(GratitudeImage(src: s));
     }
+    notifyListeners(); // عکس‌ها فوری دیده بشن؛ ذخیره بعدش
     await _saveVisualImages();
     notifyListeners();
     return lastVisualPersistOk;
@@ -392,12 +393,14 @@ Future<void> _persist() async {
 
   Future<void> removeVisualImage(String id) async {
     visualImages.removeWhere((e) => e.id == id);
+    notifyListeners();
     await _saveVisualImages();
     notifyListeners();
   }
 
   /// بعد از تغییر مستقیم لیست عکس‌ها (مثلاً حذف از آلبوم)
   Future<void> commitVisualImages() async {
+    notifyListeners();
     await _saveVisualImages();
     notifyListeners();
   }
@@ -405,6 +408,7 @@ Future<void> _persist() async {
   Future<bool> addVisualVideo(GratitudeVideo v) async {
     lastVisualPersistOk = true;
     visualVideos.add(v);
+    notifyListeners();
     await _saveVisualVideos();
     notifyListeners();
     return lastVisualPersistOk;
@@ -419,6 +423,7 @@ Future<void> _persist() async {
   Future<bool> addVisualVoice(String src, {String name = ''}) async {
     lastVisualPersistOk = true;
     visualVoices.add(GratitudeAudio(src: src, name: name));
+    notifyListeners();
     await _saveVisualVoices();
     notifyListeners();
     return lastVisualPersistOk;
@@ -434,6 +439,7 @@ Future<void> _persist() async {
   Future<bool> setMeditationTrack(GratitudeAudio t) async {
     lastVisualPersistOk = true;
     meditationTrack = t;
+    notifyListeners();
     await _putVisual(_kMedTrack, jsonEncode(t.toJson()));
     notifyListeners();
     return lastVisualPersistOk;

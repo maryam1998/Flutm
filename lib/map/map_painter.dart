@@ -15,6 +15,7 @@ import 'geometry.dart' as geo;
 import 'hit_registry.dart';
 import 'map_ops.dart';
 import 'user_state.dart';
+import 'walker_photos.dart';
 
 const kLabelRtlAnchor = false;
 
@@ -792,7 +793,7 @@ class MapPainter extends CustomPainter {
       hitType: 'walker',
       hitId: g.id,
       hostId: g.id,
-      photo: g.extra['walkerPhoto'] as String?,
+      photos: walkerPhotosOf(g.extra),
     );
   }
 
@@ -863,7 +864,7 @@ class MapPainter extends CustomPainter {
       hitId: a.id,
       hostId: hostId,
       withBody: false,
-      photo: a.extra['walkerPhoto'] as String?,
+      photos: walkerPhotosOf(a.extra),
     );
   }
 
@@ -887,7 +888,7 @@ class MapPainter extends CustomPainter {
     required String hitId,
     required String hostId,
     bool withBody = true,
-    String? photo,
+    List<String> photos = const [],
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -912,6 +913,9 @@ class MapPainter extends CustomPainter {
       bodyT = (manualT ?? (tMin + range / 2)).clamp(tMin, tMax);
     }
     final dir = returning ? -1.0 : 1.0;
+
+    // ─── فقط عکس انتخاب‌شده (اولی) نشون داده می‌شه؛ بقیه فقط ذخیره‌ان ───
+    final String? photo = photos.isNotEmpty ? photos.first : null;
 
     // ─── فاز قدم ───
     final stepPhase = playing ? (tt * speed) % 1.0 : 0.0;
@@ -1012,7 +1016,11 @@ class MapPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
 
     ui.Image? faceImg;
-    if (hasPhoto) faceImg = images.get(photo!);
+    if (hasPhoto) {
+      faceImg = images.get(photo!);
+      // اگر عکس نوبتی هنوز بارگذاری نشده، تا آماده شدن عکس اول نشون داده می‌شه
+      if (faceImg == null && photos.isNotEmpty) faceImg = images.get(photos.first);
+    }
     if (faceImg != null) {
       // عکس کاربر داخل دایره
       final dst = Rect.fromCircle(center: bodyPos, radius: bodyR);
@@ -1032,6 +1040,18 @@ class MapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.2
             ..color = withOp(col, 0.95));
+      if (!playing) {
+        // نشان ▶ : با یک تپ دوباره راه می‌افته
+        final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
+        final br = math.max(7.0, bodyR * 0.34);
+        canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFF000000), 0.62));
+        final tri = Path()
+          ..moveTo(bc.dx - br * 0.28, bc.dy - br * 0.45)
+          ..lineTo(bc.dx + br * 0.5, bc.dy)
+          ..lineTo(bc.dx - br * 0.28, bc.dy + br * 0.45)
+          ..close();
+        canvas.drawPath(tri, Paint()..color = const Color(0xFFFFFFFF));
+      }
     } else {
       canvas.drawCircle(
           bodyPos,
@@ -1059,7 +1079,7 @@ class MapPainter extends CustomPainter {
       center: bodyPos,
       radius: baseSize * 1.4,
     ));
-    // ناحیه‌ی لمس چهره (تپ = انتخاب عکس). آخر ثبت می‌شه تا اولویت داشته باشه.
+    // ناحیه‌ی لمس چهره (تپ = توقف/پلی، نگه‌داشتن = عکس‌ها). آخر ثبت می‌شه تا اولویت داشته باشه.
     hits.add(HitEntry(
       type: 'face',
       id: hitId,

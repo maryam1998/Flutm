@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/abundance_models.dart';
 import '../models/gratitude_entry.dart';
+import '../services/data_url_cache.dart';
 import '../services/image_service.dart';
 import '../state/abundance_store.dart';
 import '../state/gratitude_store.dart';
@@ -45,6 +45,14 @@ class _StoreTabState extends State<StoreTab> {
     final srcs = await ImageService.pickImages();
     if (!mounted || srcs.isEmpty) return;
     setState(() => _image = srcs.first);
+  }
+
+  Future<void> _cropImage() async {
+    final cur = _image;
+    if (cur == null) return;
+    final n = await ImageService.cropDataUrl(context, cur);
+    if (!mounted || n == null) return;
+    setState(() => _image = n);
   }
 
   void _addItem() {
@@ -244,22 +252,47 @@ class _StoreTabState extends State<StoreTab> {
         const SizedBox(height: 10),
         Row(
           children: [
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: _kCream,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kBorder),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: _kCream,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _kBorder),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: imageBytes != null
+                        ? Image.memory(imageBytes,
+                            fit: BoxFit.cover, cacheWidth: 240)
+                        : const Icon(Icons.image_outlined,
+                            color: _kMuted, size: 22),
+                  ),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: imageBytes != null
-                    ? Image.memory(imageBytes, fit: BoxFit.cover)
-                    : const Icon(Icons.image_outlined,
-                        color: _kMuted, size: 22),
-              ),
+                if (imageBytes != null)
+                  Positioned(
+                    right: -6,
+                    bottom: -6,
+                    child: GestureDetector(
+                      onTap: _cropImage,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: _kGold,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: const Icon(Icons.crop,
+                            size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -580,7 +613,7 @@ class _StoreTabState extends State<StoreTab> {
             border: Border.all(color: _kBorder),
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.memory(bytes, fit: BoxFit.cover),
+          child: Image.memory(bytes, fit: BoxFit.cover, cacheWidth: 240),
         );
       }
     }
@@ -621,12 +654,7 @@ class _StoreTabState extends State<StoreTab> {
   }
 
   static Uint8List? _decode(String src) {
-    try {
-      if (!src.startsWith('data:')) return null;
-      return base64Decode(src.substring(src.indexOf(',') + 1));
-    } catch (_) {
-      return null;
-    }
+    return DataUrlCache.bytes(src);
   }
 }
 

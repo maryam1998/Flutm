@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show FontFeature;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../services/audio_mime.dart';
+import '../services/data_url_cache.dart';
 
 const Color _kGold = Color(0xFFC9A24B);
 const Color _kInk = Color(0xFF000000);
@@ -74,9 +76,12 @@ class _AudioClipViewState extends State<AudioClipView> {
 
   /// وب: data-URL مستقیم؛ موبایل: بایت‌ها (data-URL روی موبایل پخش نمی‌شود)
   static Source _sourceOf(String src) {
-    if (kIsWeb || !src.startsWith('data:')) return UrlSource(src);
-    final Uint8List bytes = base64Decode(src.substring(src.indexOf(',') + 1));
-    return BytesSource(bytes);
+    if (!src.startsWith('data:')) return UrlSource(src);
+    final Uint8List? bytes = DataUrlCache.bytes(src);
+    if (bytes == null) return UrlSource(src);
+    // ذخیره‌های قدیمی با برچسب اشتباه (مثلاً audio/m4a برای webm) اصلاح می‌شن
+    if (kIsWeb) return UrlSource(fixAudioDataUrl(src, bytes));
+    return BytesSource(bytes, mimeType: sniffAudioMime(bytes));
   }
 
   @override

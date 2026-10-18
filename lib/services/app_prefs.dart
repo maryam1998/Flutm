@@ -18,6 +18,9 @@ class AppPrefs {
   /// null = حالت SharedPreferences خالص (غیر وب، یا IndexedDB در دسترس نیست)
   final Map<String, Object>? _mem;
 
+  /// کلیدهایی که آخرین نوشتنشان در IndexedDB ناموفق بود (باید دوباره نوشته شوند)
+  final Set<String> _failed = <String>{};
+
   static Future<AppPrefs>? _future;
   static Future<AppPrefs> getInstance() => _future ??= _create();
 
@@ -95,11 +98,16 @@ class AppPrefs {
       if (value is bool) return _sp.setBool(key, value);
       return false;
     }
+    if (m[key] == value && !_failed.contains(key)) {
+      return true; // بدون تغییر → دوباره نوشتن کل داده لازم نیست
+    }
     m[key] = value;
     try {
       await IdbKv.put(key, value);
+      _failed.remove(key);
       return true;
     } catch (e) {
+      _failed.add(key);
       debugPrint('AppPrefs: write "$key" failed: $e');
       return false;
     }

@@ -31,29 +31,21 @@ class ImageService {
     }
   }
 
-  /// انتخاب چندتایی + برش تک‌تک عکس‌ها (صفحه‌ی «برش عکس»).
-  /// «انصراف» همون عکس رو رد می‌کنه؛ «بدون برش» عکس اصلی رو نگه می‌داره.
+  /// انتخاب چندتایی عکس — **بدون برش اجباری**: همه‌ی عکس‌ها همون لحظه، دست‌نخورده
+  /// اضافه می‌شن؛ هر وقت خواستی با دکمه‌ی ✂ روی خود عکس برشش بزن ([cropDataUrl]).
+  /// (اسم قدیمی حفظ شده تا بقیه‌ی فایل‌ها نیازی به تغییر نداشته باشن.)
   static Future<List<String>> pickImagesCropped({BuildContext? context}) async {
     try {
       final files = await _picker.pickMultiImage(
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 90,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 92,
       );
       if (files.isEmpty) return const [];
       final out = <String>[];
-      for (var i = 0; i < files.length; i++) {
-        final f = files[i];
+      for (final f in files) {
         final bytes = await f.readAsBytes();
-        final mime = _mimeOf(f.name);
-        final res = await showPhotoCropper(
-          context,
-          bytes,
-          mime: mime,
-          progress: files.length > 1 ? '${i + 1} از ${files.length}' : null,
-        );
-        if (res == null) continue;
-        out.add('data:${res.mime};base64,${base64Encode(res.bytes)}');
+        out.add('data:${_mimeOf(f.name)};base64,${base64Encode(bytes)}');
       }
       return out;
     } catch (e) {
@@ -62,32 +54,58 @@ class ImageService {
     }
   }
 
-  /// یک عکس با برش (برای عکس پاهای متحرک / قدم‌زن) — پیش‌فرض ۱:۱
+  /// یک عکس — بدون برش اجباری (برش بعداً با دکمه‌ی ✂ و حالت «آزاد» انجام می‌شه).
   static Future<String?> pickSingleCropped({
     BuildContext? context,
-    double? ratio = 1,
+    double? ratio,
     int maxSide = 640,
   }) async {
     try {
       final f = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 90,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 92,
       );
       if (f == null) return null;
       final bytes = await f.readAsBytes();
+      return 'data:${_mimeOf(f.name)};base64,${base64Encode(bytes)}';
+    } catch (e) {
+      debugPrint('pickSingleCropped failed: $e');
+      return null;
+    }
+  }
+
+  /// برش یک عکسِ از قبل اضافه‌شده (data-URL). پیش‌فرض: برش **آزاد**.
+  /// null = انصراف/خطا؛ وگرنه data-URL جدید (یا همون قبلی اگه «بدون برش» بزنه).
+  static Future<String?> cropDataUrl(
+    BuildContext? context,
+    String src, {
+    double? ratio,
+    int maxSide = 2400,
+    String? progress,
+  }) async {
+    try {
+      if (!src.startsWith('data:')) return null;
+      final i = src.indexOf(',');
+      if (i < 0) return null;
+      final header = src.substring(5, i);
+      final mime = header.split(';').first.isEmpty
+          ? 'image/jpeg'
+          : header.split(';').first;
+      final bytes = base64Decode(src.substring(i + 1));
       final res = await showPhotoCropper(
         context,
         bytes,
-        mime: _mimeOf(f.name),
+        mime: mime,
         initialRatio: ratio,
         maxSide: maxSide,
+        progress: progress,
       );
       if (res == null) return null;
       return 'data:${res.mime};base64,${base64Encode(res.bytes)}';
     } catch (e) {
-      debugPrint('pickSingleCropped failed: $e');
+      debugPrint('cropDataUrl failed: $e');
       return null;
     }
   }
@@ -118,7 +136,6 @@ class ImageService {
       );
       if (f == null) return null;
       final bytes = await f.readAsBytes();
-      if (bytes.length > 8 * 1024 * 1024) return null;
       final mime = _mimeOfVideo(f.name);
       return 'data:$mime;base64,${base64Encode(bytes)}';
     } catch (e) {
@@ -136,7 +153,6 @@ class ImageService {
       if (res == null || res.files.isEmpty) return null;
       final f = res.files.first;
       if (f.bytes == null) return null;
-      if (f.bytes!.length > 5 * 1024 * 1024) return null;
       final mime = _mimeOfAudio(f.name);
       return 'data:$mime;base64,${base64Encode(f.bytes!)}';
     } catch (e) {

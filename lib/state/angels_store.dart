@@ -39,8 +39,6 @@ class AngelsStore extends ChangeNotifier {
   static const _kImages = 'angels_images_v1';
   static const _kVideos = 'angels_videos_v1';
 
-  static const int maxImageBytes = 10 * 1024 * 1024;    // ۱۰ مگ
-  static const int maxVideoBytes = 300 * 1024 * 1024;   // ۳۰۰ مگ
 
   bool _on = false;
   double _size = 140;
@@ -202,7 +200,6 @@ class AngelsStore extends ChangeNotifier {
 
   Future<bool> addImage(Uint8List bytes) async {
     if (bytes.isEmpty) return false;
-    if (bytes.length > maxImageBytes) return false;
     final id = 'ai${DateTime.now().millisecondsSinceEpoch}';
     _images.add(AngelImage(id: id, bytes: bytes));
     await _persist();
@@ -211,14 +208,13 @@ class AngelsStore extends ChangeNotifier {
   }
 
   /// افزودن ویدیو — bytes در IndexedDB ذخیره می‌شه.
-  /// اگر از ۳۰۰ مگ بزرگ‌تر یا ذخیره ناموفق بود، false برمی‌گردونه.
+  /// اگر ذخیره ناموفق بود، false برمی‌گردونه (بدون سقف حجم).
   Future<bool> addVideo({
     required String name,
     required String mime,
     required Uint8List bytes,
   }) async {
     if (bytes.isEmpty) return false;
-    if (bytes.length > maxVideoBytes) return false;
     final id = 'av${DateTime.now().millisecondsSinceEpoch}';
     try {
       await AngelBlobStore.put(id, bytes, mime);

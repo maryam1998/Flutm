@@ -1387,15 +1387,16 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
             ),
           ],
         ),
+        // راست‌چین: اولین دکمه سمت راست می‌افتد → ذخیره راست، لغو چپ
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('لغو', style: TextStyle(color: kBeliefsMuted)),
-          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('ذخیره'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لغو', style: TextStyle(color: kBeliefsMuted)),
           ),
         ],
       ),

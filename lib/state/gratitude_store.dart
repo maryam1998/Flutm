@@ -406,6 +406,7 @@ class GratitudeStore extends ChangeNotifier {
     // اگه روی ادمک حسی انتخاب شده بود، همراه ثبت ذخیره شده و ادمک ریست می‌شه.
     if (emoIds.isNotEmpty) emotions?.clear();
 
+    notifyListeners(); // اول نشون بده؛ ذخیره‌ی سنگین بعدش
     await _persist();
     notifyListeners();
     return e;
@@ -430,18 +431,21 @@ class GratitudeStore extends ChangeNotifier {
     if (videos != null) e.videos = videos;
     if (shared != null) e.shared = shared;
     e.editedAt = DateTime.now().millisecondsSinceEpoch;
+    notifyListeners();
     await _persist();
     notifyListeners();
   }
 
   /// بعد از تغییر مستقیم عکس‌ها (مثلاً حذف از آلبوم) ذخیره و اعلام کن
   Future<void> commitMedia() async {
+    notifyListeners();
     await _persist();
     notifyListeners();
   }
 
   Future<void> remove(String id) async {
     entries.removeWhere((e) => e.id == id);
+    notifyListeners();
     await _persist();
     notifyListeners();
   }

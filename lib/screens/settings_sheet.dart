@@ -643,7 +643,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(const SnackBar(
                                             content: Text(
-                                                'حجم هر تصویر باید کمتر از ۱۰ مگابایت باشد'),
+                                                'عکس ذخیره نشد؛ دوباره امتحان کن'),
                                           ));
                                         }
                                       }
@@ -688,7 +688,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(const SnackBar(
                                             content: Text(
-                                                'حجم هر ویدیو باید کمتر از ۳۰۰ مگابایت باشد'),
+                                                'ویدیو ذخیره نشد؛ دوباره امتحان کن'),
                                           ));
                                         }
                                       }

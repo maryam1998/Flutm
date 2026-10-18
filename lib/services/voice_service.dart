@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io' show File;
 import 'dart:typed_data';
 
@@ -6,6 +5,8 @@ import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+
+import 'audio_mime.dart';
 
 class VoiceService {
   static final AudioRecorder _rec = AudioRecorder();
@@ -23,17 +24,40 @@ class VoiceService {
     try {
       if (!await _rec.hasPermission()) return false;
 
+      // روی وب مرورگرها معمولاً AAC نمی‌تونن ضبط کنن؛ اولین فرمت پشتیبانی‌شده انتخاب می‌شه
+      var encoder = AudioEncoder.aacLc;
+      var ext = 'm4a';
+      if (kIsWeb) {
+        encoder = AudioEncoder.wav;
+        ext = 'wav';
+        for (final c in const [
+          AudioEncoder.opus,
+          AudioEncoder.aacLc,
+          AudioEncoder.wav,
+        ]) {
+          try {
+            if (await _rec.isEncoderSupported(c)) {
+              encoder = c;
+              ext = c == AudioEncoder.opus
+                  ? 'webm'
+                  : (c == AudioEncoder.aacLc ? 'm4a' : 'wav');
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+
       String path = '';
       if (!kIsWeb) {
         final dir = await getTemporaryDirectory();
         path =
-            '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+            '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.$ext';
       }
 
       await _rec.start(
-        const RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: 64000,
+        RecordConfig(
+          encoder: encoder,
+          bitRate: 128000,
           sampleRate: 44100,
         ),
         path: path,
@@ -68,10 +92,10 @@ class VoiceService {
         } catch (_) {}
       }
 
-      if (bytes == null || bytes.isEmpty) return null;
-      if (bytes.length > 5 * 1024 * 1024) return null;
+      if (bytes.isEmpty) return null;
 
-      return 'data:audio/m4a;base64,${base64Encode(bytes)}';
+      // بدون سقف حجم؛ برچسب فرمت از روی خودِ بایت‌ها تشخیص داده می‌شه
+      return audioDataUrl(bytes, name: 'voice.m4a');
     } catch (e) {
       debugPrint('VoiceService.stop failed: $e');
       _isRecording = false;

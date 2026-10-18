@@ -1,17 +1,17 @@
 import 'dart:convert';
+import 'dart:io' show File;
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/gratitude_entry.dart';
+import 'audio_mime.dart';
 
 /// انتخاب ویدیو و موسیقی برای بخش «تصویرسازی» تب باورها.
-/// همان قواعد تب شکرگذاری: ویدیو تا ۸ مگابایت، به‌صورت data-URL.
+/// بدون محدودیت حجم (همه‌چیز روی خود گوشی ذخیره می‌شه)، به‌صورت data-URL.
 class VisualMediaService {
-  static const int maxVideoBytes = 8 * 1024 * 1024;
-  static const int maxAudioBytes = 5 * 1024 * 1024;
-
   static final ImagePicker _picker = ImagePicker();
 
   /// ویدیو از گالری. اگه نشد، `error` پیام فارسی می‌دهد (لغو کاربر = هر دو null).
@@ -20,9 +20,6 @@ class VisualMediaService {
       final f = await _picker.pickVideo(source: ImageSource.gallery);
       if (f == null) return (video: null, error: null);
       final bytes = await f.readAsBytes();
-      if (bytes.length > maxVideoBytes) {
-        return (video: null, error: 'ویدیو بزرگ‌تر از ۸ مگابایت ذخیره نمی‌شه');
-      }
       final lower = f.name.toLowerCase();
       final mime = lower.endsWith('.webm')
           ? 'video/webm'
@@ -41,23 +38,26 @@ class VisualMediaService {
     }
   }
 
-  /// موسیقی مدیتیشن از فایل‌های گوشی.
+  /// موسیقی مدیتیشن از فایل‌های گوشی — همه‌ی فرمت‌های صوتی، بدون سقف حجم.
+  /// (FileType.any تا فایل‌هایی مثل flac/opus/amr/wma هم در انتخابگر دیده بشن)
   static Future<({GratitudeAudio? track, String? error})> pickMusic() async {
     try {
       final res = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
+        type: FileType.any,
         withData: true,
       );
       if (res == null || res.files.isEmpty) return (track: null, error: null);
       final f = res.files.first;
-      final bytes = f.bytes;
-      if (bytes == null) return (track: null, error: 'فایل خوانده نشد');
-      if (bytes.length > maxAudioBytes) {
-        return (track: null, error: 'موسیقی بزرگ‌تر از ۵ مگابایت ذخیره نمی‌شه');
+      Uint8List? bytes = f.bytes;
+      if (bytes == null && !kIsWeb && f.path != null) {
+        bytes = await File(f.path!).readAsBytes();
+      }
+      if (bytes == null || bytes.isEmpty) {
+        return (track: null, error: 'فایل خوانده نشد');
       }
       return (
         track: GratitudeAudio(
-          src: 'data:${_mimeOfAudio(f.name)};base64,${base64Encode(bytes)}',
+          src: audioDataUrl(bytes, name: f.name),
           name: f.name,
         ),
         error: null,
@@ -66,14 +66,5 @@ class VisualMediaService {
       debugPrint('VisualMediaService.pickMusic failed: $e');
       return (track: null, error: 'موسیقی اضافه نشد');
     }
-  }
-
-  static String _mimeOfAudio(String name) {
-    final l = name.toLowerCase();
-    if (l.endsWith('.wav')) return 'audio/wav';
-    if (l.endsWith('.m4a') || l.endsWith('.aac')) return 'audio/mp4';
-    if (l.endsWith('.ogg') || l.endsWith('.opus')) return 'audio/ogg';
-    if (l.endsWith('.webm')) return 'audio/webm';
-    return 'audio/mpeg';
   }
 }

@@ -10,20 +10,27 @@ import '../services/app_prefs.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/gratitude_entry.dart';
+import '../services/data_url_cache.dart';
+import '../services/image_service.dart';
 
 String _fa(int n) => n.toString().replaceAllMapped(
     RegExp(r'\d'), (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)]);
 
 /// تصویر از data-URL یا مسیر asset
-Widget gratImageFromSrc(String src, {BoxFit fit = BoxFit.cover}) {
+Widget gratImageFromSrc(String src,
+    {BoxFit fit = BoxFit.cover, int cacheWidth = 1000}) {
   if (src.isEmpty) return const SizedBox.shrink();
   if (src.startsWith('data:')) {
-    try {
-      final bytes = base64Decode(src.substring(src.indexOf(',') + 1));
-      return Image.memory(bytes, fit: fit, gaplessPlayback: true);
-    } catch (_) {
+    final bytes = DataUrlCache.bytes(src);
+    if (bytes == null) {
       return const Icon(Icons.broken_image, color: Colors.grey);
     }
+    return Image.memory(bytes,
+        fit: fit,
+        cacheWidth: cacheWidth,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.broken_image, color: Colors.grey));
   }
   return Image.asset(src,
       fit: fit,
@@ -346,6 +353,21 @@ class _GratAlbumState extends State<_GratAlbum> {
     setState(() => _idx = _idx.clamp(0, n - 1));
   }
 
+  /// برش آزاد عکس فعلی (پیش‌فرض «آزاد»؛ «بدون برش» هم هست)
+  Future<void> _crop() async {
+    final list = _list;
+    if (_idx >= list.length) return;
+    _timer?.cancel();
+    final im = list[_idx];
+    final n = await ImageService.cropDataUrl(context, im.src);
+    if (!mounted) return;
+    if (n != null && n != im.src) {
+      setState(() => im.src = n);
+      widget.onChanged?.call();
+    }
+    if (!_paused) _schedule();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -424,6 +446,13 @@ class _GratAlbumState extends State<_GratAlbum> {
                         padding: EdgeInsets.symmetric(horizontal: 6),
                         child: Icon(Icons.pause_circle_outline,
                             color: Colors.white70, size: 24),
+                      ),
+                    if (widget.onRemove != null || widget.onChanged != null)
+                      IconButton(
+                        tooltip: 'برش عکس',
+                        onPressed: _crop,
+                        icon: const Icon(Icons.crop,
+                            color: Colors.white, size: 24),
                       ),
                     if (widget.onRemove != null)
                       IconButton(

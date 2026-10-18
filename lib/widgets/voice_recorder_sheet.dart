@@ -86,7 +86,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
       if (src == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('ضبط ذخیره نشد یا حجمش بیشتر از ۵ مگابایت بود')),
+              content: Text('ضبط ذخیره نشد؛ دوباره امتحان کن')),
         );
         return;
       }

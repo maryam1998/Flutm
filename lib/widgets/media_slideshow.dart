@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import '../services/app_prefs.dart';
+import '../services/data_url_cache.dart';
 import 'package:video_player/video_player.dart';
 
 import 'grat_media.dart' show gratVideoController;
@@ -485,6 +486,7 @@ class _MediaSlideshowState extends State<MediaSlideshow>
               child: Image.memory(
                 bytes,
                 fit: BoxFit.contain,
+                cacheWidth: 1600,
                 gaplessPlayback: true,
               ),
             )
@@ -697,14 +699,7 @@ class _MediaSlideshowState extends State<MediaSlideshow>
   // ────── helpers ──────
 
   static Uint8List? _dataUrlToBytes(String src) {
-    try {
-      if (!src.startsWith('data:')) return null;
-      final i = src.indexOf(',');
-      if (i < 0) return null;
-      return base64Decode(src.substring(i + 1));
-    } catch (_) {
-      return null;
-    }
+    return DataUrlCache.bytes(src);
   }
 
   static String _toFa(int n) => n.toString().replaceAllMapped(

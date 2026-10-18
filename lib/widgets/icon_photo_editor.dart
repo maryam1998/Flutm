@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../map/draw_utils.dart' show toFa;
+import '../services/data_url_cache.dart';
 import '../models/map_models.dart';
 import '../services/image_service.dart';
 import 'emoji_stack.dart';
@@ -75,18 +76,20 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
     _emit();
   }
 
+  Future<void> _cropAt(int idx) async {
+    final n = await ImageService.cropDataUrl(context, _images[idx].src);
+    if (!mounted || n == null) return;
+    setState(() => _images[idx].src = n);
+    _emit();
+  }
+
   void _resetScale() {
     setState(() => _scale = 1.0);
     _emit();
   }
 
   Uint8List? _decode(String src) {
-    try {
-      if (!src.startsWith('data:')) return null;
-      return base64Decode(src.substring(src.indexOf(',') + 1));
-    } catch (_) {
-      return null;
-    }
+    return DataUrlCache.bytes(src);
   }
 
   @override
@@ -114,6 +117,7 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
                           _decode(_images.first.src)!,
                           width: 58,
                           height: 58,
+                          cacheWidth: 240,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _emojiPreview(),
                         )
@@ -226,6 +230,7 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
               PhotoThumb(
                 bytes: _decode(_images[i].src),
                 onRemove: () => _remove(i),
+                onCrop: () => _cropAt(i),
               ),
           ],
         ),
@@ -275,11 +280,13 @@ class PhotoAddButton extends StatelessWidget {
 class PhotoThumb extends StatelessWidget {
   final Uint8List? bytes;
   final VoidCallback onRemove;
+  final VoidCallback? onCrop;
   final double size;
   const PhotoThumb({
     super.key,
     required this.bytes,
     required this.onRemove,
+    this.onCrop,
     this.size = 74,
   });
 
@@ -302,6 +309,7 @@ class PhotoThumb extends StatelessWidget {
               child: bytes != null
                   ? Image.memory(bytes!,
                       fit: BoxFit.cover,
+                      cacheWidth: 240,
                       errorBuilder: (_, __, ___) =>
                           const Icon(Icons.broken_image, color: _kMuted))
                   : const Icon(Icons.image, color: _kMuted),
@@ -324,69 +332,197 @@ class PhotoThumb extends StatelessWidget {
               ),
             ),
           ),
+          if (onCrop != null)
+            Positioned(
+              right: -4,
+              bottom: -4,
+              child: GestureDetector(
+                onTap: onCrop,
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: _kGold,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: const Icon(Icons.crop, size: 15, color: Colors.white),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-/// عکس پاهای متحرک (قدم‌زن) — یک عکس، با همون سیستم برش
+/// عکس پاهای متحرک (قدم‌زن) — چند عکس، بدون برش اجباری.
+/// همه‌ی عکس‌ها ثبت می‌شن ولی فقط **یکی** (اولی، با تیک ✓) روی نقشه دیده می‌شه.
+/// با انگشت روی هر عکس بزن تا انتخاب بشه، یا بکش و جابه‌جا کن؛ ✂ = برش آزاد.
+class _WItem {
+  _WItem(this.id, this.src);
+  final int id;
+  final String src;
+}
+
 class WalkerPhotoField extends StatefulWidget {
-  final String? initial;
-  final void Function(String? src) onChanged;
-  const WalkerPhotoField({super.key, this.initial, required this.onChanged});
+  final List<String> initial;
+  final void Function(List<String> photos) onChanged;
+  const WalkerPhotoField({super.key, this.initial = const [], required this.onChanged});
 
   @override
   State<WalkerPhotoField> createState() => _WalkerPhotoFieldState();
 }
 
 class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
-  String? _src;
+  final List<_WItem> _items = [];
+  int _seq = 0;
+  final Map<int, Uint8List?> _bytesCache = {};
 
   @override
   void initState() {
     super.initState();
-    _src = (widget.initial != null && widget.initial!.isNotEmpty)
-        ? widget.initial
-        : null;
-  }
-
-  Uint8List? _bytes() {
-    final s = _src;
-    if (s == null || !s.startsWith('data:')) return null;
-    try {
-      return base64Decode(s.substring(s.indexOf(',') + 1));
-    } catch (_) {
-      return null;
+    for (final s in widget.initial) {
+      if (s.isNotEmpty) _items.add(_WItem(_seq++, s));
     }
   }
 
+  Uint8List? _bytes(_WItem it) {
+    return _bytesCache.putIfAbsent(it.id, () => DataUrlCache.bytes(it.src));
+  }
+
+  void _emit() => widget.onChanged(_items.map((e) => e.src).toList());
+
   Future<void> _pick() async {
-    final src = await ImageService.pickSingleCropped(context: context, ratio: 1);
-    if (!mounted || src == null || src.isEmpty) return;
-    setState(() => _src = src);
-    widget.onChanged(src);
+    final srcs = await ImageService.pickImagesCropped(context: context);
+    if (!mounted || srcs.isEmpty) return;
+    setState(() {
+      for (final s in srcs) {
+        _items.add(_WItem(_seq++, s));
+      }
+    });
+    _emit();
+  }
+
+  /// عکس انتخاب‌شده می‌ره اول لیست = همونی که روی نقشه دیده می‌شه
+  void _select(int i) {
+    if (i <= 0 || i >= _items.length) return;
+    setState(() {
+      final it = _items.removeAt(i);
+      _items.insert(0, it);
+    });
+    _emit();
+  }
+
+  Future<void> _cropAt(int i) async {
+    if (i < 0 || i >= _items.length) return;
+    final it = _items[i];
+    final n = await ImageService.cropDataUrl(context, it.src);
+    if (!mounted || n == null) return;
+    final at = _items.indexWhere((e) => e.id == it.id);
+    if (at < 0) return;
+    setState(() {
+      _bytesCache.remove(it.id);
+      _items[at] = _WItem(it.id, n);
+    });
+    _emit();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         PhotoAddButton(
-          label: _src == null ? 'افزودن عکس' : 'تغییر عکس',
+          label: _items.isEmpty ? 'افزودن عکس (چندگانه)' : 'افزودن عکس‌های بیشتر',
           onTap: _pick,
         ),
-        if (_src != null)
-          PhotoThumb(
-            bytes: _bytes(),
-            onRemove: () {
-              setState(() => _src = null);
-              widget.onChanged(null);
-            },
+        if (_items.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 90,
+            child: ReorderableListView.builder(
+              scrollDirection: Axis.horizontal,
+              buildDefaultDragHandles: false,
+              itemCount: _items.length,
+              proxyDecorator: (child, index, animation) =>
+                  Material(color: Colors.transparent, child: child),
+              onReorder: (oldIndex, newIndex) {
+                if (newIndex > oldIndex) newIndex -= 1;
+                setState(() {
+                  final it = _items.removeAt(oldIndex);
+                  _items.insert(newIndex, it);
+                });
+                _emit();
+              },
+              itemBuilder: (ctx, i) {
+                final it = _items[i];
+                final shown = i == 0;
+                return ReorderableDragStartListener(
+                  key: ValueKey(it.id),
+                  index: i,
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 14, top: 6),
+                    child: GestureDetector(
+                      onTap: () => _select(i),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: shown ? _kGold : Colors.transparent,
+                                  width: 3),
+                            ),
+                            child: PhotoThumb(
+                              bytes: _bytes(it),
+                              onCrop: () => _cropAt(i),
+                              onRemove: () {
+                                setState(() => _items.removeAt(i));
+                                _emit();
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            right: 2,
+                            top: -4,
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: shown
+                                    ? _kGold
+                                    : _kInk.withValues(alpha: 0.75),
+                                shape: BoxShape.circle,
+                              ),
+                              child: shown
+                                  ? const Icon(Icons.check,
+                                      size: 14, color: Colors.white)
+                                  : Text(toFa(i + 1),
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text(
+              'همه‌ی عکس‌ها ثبت می‌شن ولی فقط عکسِ ✓ روی نقشه دیده می‌شه. روی هر عکس بزن تا انتخاب بشه، یا با انگشت بکش و جابه‌جا کن. ✂ = برش آزاد.',
+              style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -406,12 +542,7 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
   late List<ImageItem> _images = List.of(widget.initial);
 
   Uint8List? _decode(String src) {
-    try {
-      if (!src.startsWith('data:')) return null;
-      return base64Decode(src.substring(src.indexOf(',') + 1));
-    } catch (_) {
-      return null;
-    }
+    return DataUrlCache.bytes(src);
   }
 
   Future<void> _pick() async {
@@ -436,6 +567,12 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
         for (var i = 0; i < _images.length; i++)
           PhotoThumb(
             bytes: _decode(_images[i].src),
+            onCrop: () async {
+              final n = await ImageService.cropDataUrl(context, _images[i].src);
+              if (!mounted || n == null) return;
+              setState(() => _images[i].src = n);
+              widget.onChange(List.of(_images));
+            },
             onRemove: () {
               setState(() => _images.removeAt(i));
               widget.onChange(List.of(_images));
