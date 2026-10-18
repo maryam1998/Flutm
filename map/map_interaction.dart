@@ -10,6 +10,8 @@ import 'camera.dart';
 import 'geometry.dart';
 import 'hit_registry.dart';
 import 'map_ops.dart';
+import 'walker_photos.dart';
+import '../services/image_service.dart';
 
 enum _Mode {
   none,
@@ -60,6 +62,7 @@ class MapInteraction {
     required this.onEditAction,
     this.onTimeBranch,
     this.onShowBranchMenu,
+    this.onWalkerPhotos,
   });
 
   final CameraController cam;
@@ -74,6 +77,7 @@ class MapInteraction {
   // نگه داشته شده برای سازگاری با map_canvas.dart.
   // در این نسخه استفاده نمی‌شود.
   final void Function(String hostId, String actionId)? onShowBranchMenu;
+  final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
 
   static const double _slop = 6;
 
@@ -270,9 +274,11 @@ class MapInteraction {
         _pending = _Pending(hit.hostId, hit.id, null, false, pos, isFoot: true);
       }
       _slopPassed = false;
+      final pp = _pending!;
       _lp = Timer(const Duration(milliseconds: 550), () {
         _faceHeld = true;
         HapticFeedback.mediumImpact();
+        _toggleWalk(pp); // لمس طولانی = توقف / ادامه‌ی حرکت
       });
       return;
     }
@@ -713,6 +719,50 @@ class MapInteraction {
     _mark();
   }
 
+  /// تپ روی قدم‌زن/پاها: انتخاب چند عکس؛ همه به لیست اضافه می‌شن (بدون برش اجباری)
+  Future<void> _pickWalkerPhotos(_Pending p) async {
+    final srcs = await ImageService.pickImagesCropped();
+    if (srcs.isEmpty) return;
+    Map<String, dynamic>? extra;
+    if (p.isWalker) {
+      final g = store.state.findHost(p.hostId);
+      if (g is Goal) extra = g.extra;
+    } else {
+      final host = store.state.findHost(p.hostId);
+      if (host is MapHost) {
+        extra = findActionNode(host.actions, p.actionId)?.node.extra;
+      }
+    }
+    if (extra == null) return;
+    setWalkerPhotos(extra, [...walkerPhotosOf(extra), ...srcs]);
+    store.changed();
+    store.toast?.call('${srcs.length} عکس اضافه شد 📸');
+  }
+
+  /// لمس طولانی روی قدم‌زن (هدف) یا پاهای شاخه: توقف ↔ ادامه
+  void _toggleWalk(_Pending p) {
+    if (p.isWalker) {
+      final g = store.state.findHost(p.hostId);
+      if (g is Goal) {
+        final playing = g.extra['walkerPlaying'] as bool? ?? true;
+        g.extra['walkerPlaying'] = !playing;
+        store.changed();
+        store.toast?.call(!playing ? 'قدم‌زن به راه افتاد 👣' : 'قدم‌زن متوقف شد');
+      }
+    } else if (p.isFoot) {
+      final host = store.state.findHost(p.hostId);
+      if (host is MapHost) {
+        final found = findActionNode(host.actions, p.actionId);
+        if (found != null) {
+          found.node.footPlaying = !found.node.footPlaying;
+          store.changed();
+          store.toast?.call(
+              found.node.footPlaying ? 'قدم به راه افتاد 👣' : 'قدم متوقف شد');
+        }
+      }
+    }
+  }
+
   // ───────────────────────── pointer up ─────────────────────────
 
   void pointerUp(PointerUpEvent e) {
@@ -729,28 +779,15 @@ class MapInteraction {
       _faceHeld = false;
       _finish();
 
-      // ─── نگه‌داشتن روی قدم‌زن/پاها: شیت ویرایش (افزودن چند عکس و جابه‌جایی) ───
-      if (held && !wasDrag && (p.isWalker || p.isFoot)) {
-        if (p.isWalker) {
-          onEditGoal(p.hostId);
-        } else {
-          onEditAction(p.hostId, p.actionId);
-        }
-        return;
-      }
-
-      // ─── قدم‌زن: تپ = toggle حرکت/توقف ───
-      if (p.isWalker) {
-        if (!wasDrag) {
-          final g = store.state.findHost(p.hostId);
-          if (g is Goal) {
-            final playing = g.extra['walkerPlaying'] as bool? ?? true;
-            g.extra['walkerPlaying'] = !playing;
-            store.changed();
-            store.toast?.call(
-                !playing
-                    ? 'قدم‌زن به راه افتاد 👣'
-                    : 'قدم‌زن متوقف شد — برای عکس‌ها نگه دار 📷');
+      // ─── قدم‌زن/پاها: لمس طولانی قبلاً حرکت/توقف رو عوض کرده؛ تپ ساده کاری نمی‌کنه ───
+      // تپ = انتخاب عکس (چندتایی، بدون محدودیت تعداد)
+      if (p.isWalker || p.isFoot) {
+        if (!wasDrag && !held) {
+          final cb = onWalkerPhotos;
+          if (cb != null) {
+            cb(p.hostId, p.actionId, p.isWalker);
+          } else {
+            _pickWalkerPhotos(p);
           }
         }
         return;
@@ -781,24 +818,6 @@ class MapInteraction {
                 ((totalLogs / 30.0).clamp(0.0, 1.0) * 100).round();
             store.toast?.call(
                 'رشد $pct٪ — $totalLogs از ۳۰ قدم در این هدف');
-          }
-        }
-        return;
-      }
-
-      // ─── قدم روی شاخه: تپ = toggle ───
-      if (p.isFoot) {
-        if (!wasDrag) {
-          final host = store.state.findHost(p.hostId);
-          if (host is MapHost) {
-            final found = findActionNode(host.actions, p.actionId);
-            if (found != null) {
-              found.node.footPlaying = !found.node.footPlaying;
-              store.changed();
-              store.toast?.call(found.node.footPlaying
-                  ? 'قدم به راه افتاد 👣'
-                  : 'قدم متوقف شد — برای عکس‌ها نگه دار 📷');
-            }
           }
         }
         return;

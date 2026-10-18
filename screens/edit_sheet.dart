@@ -49,6 +49,15 @@ class RingTarget extends EditTarget {
   String get key => 'r:$id';
 }
 
+/// کادر «عکس پاها» — با تپ روی پاها/قدم‌زن نقشه باز می‌شه (همون کادر و اندازه‌ی «من»)
+class WalkerPhotosTarget extends EditTarget {
+  const WalkerPhotosTarget(this.hostId, this.actionId, this.isWalker);
+  final String hostId, actionId;
+  final bool isWalker; // true = قدم‌زنِ خودِ هدف، false = پاهای یک شاخه
+  @override
+  String get key => 'w:$hostId:$actionId';
+}
+
 class ActionTarget extends EditTarget {
   const ActionTarget(this.hostId, this.actionId);
   final String hostId, actionId;
@@ -226,6 +235,7 @@ class _EditSheetState extends State<EditSheet> {
   String _title() {
     final t = _t;
     if (t is MeTarget) return 'من';
+    if (t is WalkerPhotosTarget) return 'عکس پاها';
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal && g.name.isNotEmpty ? g.name : 'هدف';
@@ -240,6 +250,7 @@ class _EditSheetState extends State<EditSheet> {
   List<Widget>? _body() {
     final t = _t;
     if (t is MeTarget) return _meBody();
+    if (t is WalkerPhotosTarget) return _walkerSheetBody(t);
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal ? _goalBody(g) : null;
@@ -621,10 +632,55 @@ class _EditSheetState extends State<EditSheet> {
         onChanged: (v) => _edit(() => me.note = v),
         maxLines: 3,
       ),
-      _sectionLabel('عکس'),
+      const SizedBox(height: 16),
       MultiPhotoField(
         initial: me.images,
         onChange: (imgs) => _edit(() => me.images = imgs),
+      ),
+      _bottomActions(
+        saveLabel: 'ذخیره',
+        onSave: () {
+          _store.changed();
+          Navigator.pop(context);
+        },
+      ),
+    ];
+  }
+
+  // ============================================================
+  // عکس پاها — همون کادرِ «من» (نام/رنگ نداره، فقط عکس‌ها + ذخیره)
+  // ============================================================
+  List<Widget>? _walkerSheetBody(WalkerPhotosTarget t) {
+    final Map<String, dynamic> ex;
+    ActionNode? act;
+    final host = _s.findHost(t.hostId);
+    if (t.isWalker) {
+      if (host is! Goal) return null;
+      ex = host.extra;
+    } else {
+      if (host is! MapHost) return null;
+      final found = findActionNode(host.actions, t.actionId);
+      if (found == null) return null;
+      act = found.node;
+      ex = found.node.extra;
+    }
+    return [
+      _sectionLabel('عکس پاهای متحرک'),
+      WalkerPhotoField(
+        initial: walkerPhotosOf(ex),
+        onChanged: (v) => _edit(() {
+          setWalkerPhotos(ex, v);
+          if (v.isNotEmpty) {
+            final a0 = act;
+            if (a0 != null) {
+              a0.footPlaying = true;
+              a0.footPos = null;
+            } else {
+              ex['walkerPlaying'] = true;
+              ex.remove('walkerPos');
+            }
+          }
+        }),
       ),
       _bottomActions(
         saveLabel: 'ذخیره',
@@ -941,7 +997,7 @@ class _EditSheetState extends State<EditSheet> {
       const Padding(
         padding: EdgeInsets.only(top: 4, bottom: 4),
         child: Text(
-          'می‌تونی قدم رو با انگشت روی نقشه بگیری و بکشی. با یک تپ روی قدم یا دایره‌ی جلوش، حرکت/توقف می‌شه؛ نگه‌داشتن روش همین صفحه‌ی عکس‌ها رو باز می‌کنه.',
+          'می‌تونی قدم رو با انگشت روی نقشه بگیری و بکشی. با یک تپ روی قدم یا دایره‌ی جلوش کادر عکس‌ها باز می‌شه؛ نگه‌داشتن روش حرکت/توقفش می‌کنه.',
           style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
         ),
       ),
