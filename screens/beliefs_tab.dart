@@ -9,7 +9,6 @@ import '../models/future_text_format.dart';
 import '../models/future_version.dart';
 import '../state/beliefs_store.dart';
 import '../utils/edit_mark.dart';
-import '../widgets/bank_calendar_sheet.dart';
 import '../widgets/belief_visual_section.dart';
 import '../widgets/breath_circle.dart';
 import '../widgets/format_bar.dart';
@@ -531,14 +530,6 @@ Widget _seedStep(BeliefsStore store, Set<String> steps) {
       _actionsRow(store),
       const SizedBox(height: 10),
       _registerButton(store, v),
-      const SizedBox(height: 10),
-      SizedBox(
-        width: double.infinity,
-        child: _tinyBtn(
-          '📅 تقویم خواندن',
-          () => BankCalendarSheet.show(context, BankCalKind.beliefs),
-        ),
-      ),
       const SizedBox(height: 12),
       if (_showArchive) ...[
         _archiveBox(store),
@@ -1035,23 +1026,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
   }
 
   // ═══════════════ مأموریت ذهن ═══════════════
-  /// isTrackingConfirmedForKey وب: آیا برای این روز نشانه‌ای ثبت شده؟
-  bool _isTrackingConfirmedForKey(BeliefsStore store, String dayKey) {
-    final p = dayKey.split('-').map((e) => int.tryParse(e) ?? 0).toList();
-    if (p.length != 3 || p[0] == 0) return false;
-    return store.rasSignals.any((s) =>
-        s.ts.year == p[0] && s.ts.month == p[1] && s.ts.day == p[2]);
-  }
-
   Widget _missionStep(BeliefsStore store) {
-    // ثبت‌های دستیِ تأییدنشده‌ی قدیمی‌تر از یک ساعت پاک می‌شن (cleanupPending وب)
-    if (store.missionNeural.cleanupPending(
-      calendarLinked: true,
-      isConfirmed: (k) => _isTrackingConfirmedForKey(store, k),
-    )) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => store.saveNeural());
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1071,14 +1046,6 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
           ),
           const SizedBox(height: 14),
           const RasMission(),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: _tinyBtn(
-              '📅 تقویم ردیابی',
-              () => BankCalendarSheet.show(context, BankCalKind.tracking),
-            ),
-          ),
           const SizedBox(height: 14),
           const Divider(height: 1, color: kBeliefsBorder),
           const SizedBox(height: 12),
@@ -1092,10 +1059,6 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
             container: store.missionNeural,
             label: 'ردیابی RAS',
             showDayButtons: false,
-            // مثل وب: مسیر ردیابی به تقویم وصله و ثبتِ دستی باید با
-            // نشانه‌ی همان روز تأیید بشه
-            calendarLinked: true,
-            isConfirmed: (k) => _isTrackingConfirmedForKey(store, k),
             onChange: () {
               store.saveNeural();
             },
@@ -1424,15 +1387,16 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
             ),
           ],
         ),
+        // راست‌چین: اولین دکمه سمت راست می‌افتد → ذخیره راست، لغو چپ
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('لغو', style: TextStyle(color: kBeliefsMuted)),
-          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: kBeliefsGold),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('ذخیره'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لغو', style: TextStyle(color: kBeliefsMuted)),
           ),
         ],
       ),
@@ -1480,8 +1444,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
 }
 
 // ═══════════════ توابع کمکی ═══════════════
-String _dayKey(DateTime d) =>
-    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+String _dayKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
 DateTime _parseDayKey(String k) {
   final p = k.split('-').map((e) => int.tryParse(e) ?? 1).toList();
@@ -1657,22 +1620,6 @@ class _TextEditorState extends State<_TextEditor> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: kBeliefsMuted,
-                        backgroundColor: kBeliefsCard,
-                        side: const BorderSide(color: kBeliefsBorder),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('لغو'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
                     flex: 2,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
@@ -1696,6 +1643,22 @@ class _TextEditorState extends State<_TextEditor> {
                       },
                       child: const Text('💾 ذخیره',
                           style: TextStyle(fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kBeliefsMuted,
+                        backgroundColor: kBeliefsCard,
+                        side: const BorderSide(color: kBeliefsBorder),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('لغو'),
                     ),
                   ),
                 ],
