@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../map/draw_utils.dart' show toFa;
+import '../services/data_url_cache.dart';
 import '../models/map_models.dart';
 import '../services/image_service.dart';
 import 'emoji_stack.dart';
@@ -82,12 +82,7 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
   }
 
   Uint8List? _decode(String src) {
-    try {
-      if (!src.startsWith('data:')) return null;
-      return base64Decode(src.substring(src.indexOf(',') + 1));
-    } catch (_) {
-      return null;
-    }
+    return DataUrlCache.bytes(src);
   }
 
   @override
@@ -115,6 +110,7 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
                           _decode(_images.first.src)!,
                           width: 58,
                           height: 58,
+                          cacheWidth: 240,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _emojiPreview(),
                         )
@@ -303,6 +299,7 @@ class PhotoThumb extends StatelessWidget {
               child: bytes != null
                   ? Image.memory(bytes!,
                       fit: BoxFit.cover,
+                      cacheWidth: 240,
                       errorBuilder: (_, __, ___) =>
                           const Icon(Icons.broken_image, color: _kMuted))
                   : const Icon(Icons.image, color: _kMuted),
@@ -363,13 +360,7 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
 
   Uint8List? _bytes(_WItem it) {
     return _bytesCache.putIfAbsent(it.id, () {
-      final s = it.src;
-      if (!s.startsWith('data:')) return null;
-      try {
-        return base64Decode(s.substring(s.indexOf(',') + 1));
-      } catch (_) {
-        return null;
-      }
+      return DataUrlCache.bytes(it.src);
     });
   }
 
@@ -482,12 +473,7 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
   late List<ImageItem> _images = List.of(widget.initial);
 
   Uint8List? _decode(String src) {
-    try {
-      if (!src.startsWith('data:')) return null;
-      return base64Decode(src.substring(src.indexOf(',') + 1));
-    } catch (_) {
-      return null;
-    }
+    return DataUrlCache.bytes(src);
   }
 
   Future<void> _pick() async {

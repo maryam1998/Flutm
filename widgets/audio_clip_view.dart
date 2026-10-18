@@ -1,0 +1,240 @@
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' show FontFeature;
+
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+
+import '../services/audio_mime.dart';
+import '../services/data_url_cache.dart';
+
+const Color _kGold = Color(0xFFC9A24B);
+const Color _kInk = Color(0xFF000000);
+const Color _kMuted = Color(0xFF7C8B87);
+const Color _kBorder = Color(0xFFE7E5DB);
+const Color _kCream = Color(0xFFF7F6F1);
+
+/// پخش‌کننده‌ی صدا (ویس ضبط‌شده یا موسیقی) از data-URL — معادل `<audio controls>` وب.
+class AudioClipView extends StatefulWidget {
+  const AudioClipView({
+    super.key,
+    required this.src,
+    this.title,
+    this.onRemove,
+  });
+
+  final String src;
+  final String? title;
+  final VoidCallback? onRemove;
+
+  @override
+  State<AudioClipView> createState() => _AudioClipViewState();
+}
+
+class _AudioClipViewState extends State<AudioClipView> {
+  final AudioPlayer _p = AudioPlayer();
+  final List<StreamSubscription<dynamic>> _subs = [];
+  bool _playing = false;
+  bool _failed = false;
+  bool _completed = false;
+  Duration _dur = Duration.zero;
+  Duration _pos = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _subs.add(_p.onPlayerStateChanged.listen((s) {
+      if (!mounted) return;
+      setState(() => _playing = s == PlayerState.playing);
+    }));
+    _subs.add(_p.onDurationChanged.listen((d) {
+      if (mounted) setState(() => _dur = d);
+    }));
+    _subs.add(_p.onPositionChanged.listen((d) {
+      if (mounted) setState(() => _pos = d);
+    }));
+    _subs.add(_p.onPlayerComplete.listen((_) {
+      if (!mounted) return;
+      setState(() {
+        _playing = false;
+        _completed = true;
+        _pos = Duration.zero;
+      });
+    }));
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      await _p.setReleaseMode(ReleaseMode.stop);
+      await _p.setSource(_sourceOf(widget.src));
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  /// وب: data-URL مستقیم؛ موبایل: بایت‌ها (data-URL روی موبایل پخش نمی‌شود)
+  static Source _sourceOf(String src) {
+    if (!src.startsWith('data:')) return UrlSource(src);
+    final Uint8List? bytes = DataUrlCache.bytes(src);
+    if (bytes == null) return UrlSource(src);
+    // ذخیره‌های قدیمی با برچسب اشتباه (مثلاً audio/m4a برای webm) اصلاح می‌شن
+    if (kIsWeb) return UrlSource(fixAudioDataUrl(src, bytes));
+    return BytesSource(bytes, mimeType: sniffAudioMime(bytes));
+  }
+
+  @override
+  void didUpdateWidget(covariant AudioClipView old) {
+    super.didUpdateWidget(old);
+    if (old.src != widget.src) {
+      _failed = false;
+      _completed = false;
+      _pos = Duration.zero;
+      _dur = Duration.zero;
+      _p.stop();
+      _init();
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+    _p.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_failed) return;
+    try {
+      if (_playing) {
+        await _p.pause();
+      } else {
+        if (_completed) {
+          await _p.seek(Duration.zero);
+          _completed = false;
+        }
+        await _p.resume();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  static String _fa(String s) => s.replaceAllMapped(
+      RegExp(r'\d'), (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)]);
+
+  static String _fmt(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return _fa('$m:$s');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final total = _dur.inMilliseconds;
+    final value = total <= 0
+        ? 0.0
+        : (_pos.inMilliseconds / total).clamp(0.0, 1.0).toDouble();
+    final title = (widget.title ?? '').trim();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+      decoration: BoxDecoration(
+        color: _kCream,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: _toggle,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _failed ? _kMuted : _kGold,
+                  ),
+                  child: Icon(
+                    _failed
+                        ? Icons.error_outline
+                        : (_playing ? Icons.pause : Icons.play_arrow),
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _failed
+                    ? const Text('صدا پخش نشد',
+                        style: TextStyle(fontSize: 12, color: _kMuted))
+                    : SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3,
+                          activeTrackColor: _kGold,
+                          inactiveTrackColor: _kBorder,
+                          thumbColor: _kGold,
+                          overlayShape: SliderComponentShape.noOverlay,
+                          thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 6),
+                        ),
+                        child: Slider(
+                          value: value,
+                          onChanged: total <= 0
+                              ? null
+                              : (v) => setState(() => _pos = Duration(
+                                  milliseconds: (v * total).round())),
+                          onChangeEnd: total <= 0
+                              ? null
+                              : (v) => _p.seek(Duration(
+                                  milliseconds: (v * total).round())),
+                        ),
+                      ),
+              ),
+              Text(
+                '${_fmt(_pos)} / ${_fmt(_dur)}',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: _kMuted,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              if (widget.onRemove != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: widget.onRemove,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                        color: Color(0xFFE5484D), shape: BoxShape.circle),
+                    child:
+                        const Icon(Icons.close, size: 15, color: Colors.white),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2, right: 4, left: 4),
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 11, color: _kInk, fontWeight: FontWeight.w600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
