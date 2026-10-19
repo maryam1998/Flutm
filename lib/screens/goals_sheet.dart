@@ -38,9 +38,9 @@ Future<void> showGoalsSheet(
     backgroundColor: kGoalsBg,
     builder: (ctx) => goalsLightSheet(DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.85,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.7,
       builder: (_, controller) => GoalsSheet(
         controller: controller,
         parentContext: context,

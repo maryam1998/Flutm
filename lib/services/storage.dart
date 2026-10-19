@@ -71,10 +71,10 @@ class StorageService {
   }
 
   // ──────────── بکاپ ────────────
-  Future<bool> exportBackup(String json) async {
+  Future<bool> exportBackup(String json, {String prefix = 'maghz-backup'}) async {
     final bytes = utf8.encode(json);
     final name =
-        'maghz-backup-${DateTime.now().toIso8601String().substring(0, 10)}.json';
+        '$prefix-${DateTime.now().toIso8601String().substring(0, 10)}.json';
     final path = await FilePicker.platform.saveFile(
       dialogTitle: 'ذخیره‌ی بکاپ',
       fileName: name,
@@ -101,6 +101,23 @@ class StorageService {
     if (f.bytes != null) return utf8.decode(f.bytes!);
     if (!kIsWeb && f.path != null) return File(f.path!).readAsString();
     return null;
+  }
+
+  /// همه‌ی فایل‌های JSON ذخیره‌شده (کلید → متن). روی وب خالیه چون همه‌چیز تو AppPrefs هست.
+  Future<Map<String, String>> readAllFiles() async {
+    final out = <String, String>{};
+    if (kIsWeb) return out;
+    final dir = await getApplicationSupportDirectory();
+    if (!await dir.exists()) return out;
+    await for (final e in dir.list()) {
+      if (e is! File || !e.path.endsWith('.json')) continue;
+      final name = e.uri.pathSegments.last;
+      final key = name == 'maghz_map.json'
+          ? kMapKey
+          : name.substring(0, name.length - 5);
+      out[key] = await e.readAsString();
+    }
+    return out;
   }
 
   // ──────────── کمکی: مسیر فایل بر اساس کلید ────────────

@@ -83,6 +83,21 @@ class AppPrefs {
     return v is bool ? v : null;
   }
 
+  /// همه‌ی کلید–مقدارها (برای بکاپ کامل)
+  Map<String, Object> exportAll() {
+    final m = _mem;
+    if (m != null) return Map<String, Object>.of(m);
+    final out = <String, Object>{};
+    for (final k in _sp.getKeys()) {
+      final v = _sp.get(k);
+      if (v != null) out[k] = v;
+    }
+    return out;
+  }
+
+  Future<bool> setStringList(String key, List<String> value) =>
+      _set(key, value);
+
   // ─────────── نوشتن ───────────
   Future<bool> setString(String key, String value) => _set(key, value);
   Future<bool> setInt(String key, int value) => _set(key, value);
@@ -96,6 +111,7 @@ class AppPrefs {
       if (value is int) return _sp.setInt(key, value);
       if (value is double) return _sp.setDouble(key, value);
       if (value is bool) return _sp.setBool(key, value);
+      if (value is List<String>) return _sp.setStringList(key, value);
       return false;
     }
     if (m[key] == value && !_failed.contains(key)) {

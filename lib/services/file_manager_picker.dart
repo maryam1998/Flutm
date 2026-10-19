@@ -54,14 +54,17 @@ class FileManagerPicker {
 
   Future<List<XFile>> pickVideos({bool multiple = true}) async {
     final res = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: videoExts,
+      // روی وب با پسوند مشخص، کروم اندروید «گالری/Google Photos» رو باز می‌کنه؛
+      // با FileType.any انتخاب‌گر فایل (فایل‌منیجر) باز می‌شه.
+      type: kIsWeb ? FileType.any : FileType.custom,
+      allowedExtensions: kIsWeb ? null : videoExts,
       allowMultiple: multiple,
       withData: kIsWeb, // روی موبایل فقط مسیر کافیه (ویدیوی بزرگ تو رم نمی‌آد)
     );
     if (res == null) return const [];
     final out = <XFile>[];
     for (final f in res.files) {
+      if (!_hasExt(f.name, videoExts)) continue;
       if (!kIsWeb && f.path != null) {
         out.add(XFile(f.path!, name: f.name));
       } else if (f.bytes != null && f.bytes!.isNotEmpty) {
@@ -69,6 +72,11 @@ class FileManagerPicker {
       }
     }
     return out;
+  }
+
+  bool _hasExt(String name, List<String> exts) {
+    final i = name.lastIndexOf('.');
+    return i >= 0 && exts.contains(name.substring(i + 1).toLowerCase());
   }
 
   int? _maxSide(int? w, int? h) {
@@ -82,13 +90,14 @@ class FileManagerPicker {
     required int quality,
   }) async {
     final res = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: imageExts,
+      type: kIsWeb ? FileType.any : FileType.custom,
+      allowedExtensions: kIsWeb ? null : imageExts,
       allowMultiple: multiple,
       withData: kIsWeb,
     );
     if (res == null) return const [];
     final out = await Future.wait(res.files.map((f) async {
+      if (!_hasExt(f.name, imageExts)) return null;
       Uint8List? bytes = f.bytes;
       if (bytes == null && !kIsWeb && f.path != null) {
         bytes = await File(f.path!).readAsBytes();

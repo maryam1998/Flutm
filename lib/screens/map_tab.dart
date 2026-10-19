@@ -141,11 +141,6 @@ class _MapTabState extends State<MapTab> {
                 padding: const EdgeInsets.all(10),
                 child: Row(
                   children: [
-                    _roundBtn(
-                      Icons.more_vert,
-                      ink,
-                      () => _showTopMenu(store),
-                    ),
                     const Spacer(),
                     if (_resizeMode)
                       Container(
@@ -162,12 +157,6 @@ class _MapTabState extends State<MapTab> {
                         child: Text('تغییر اندازه',
                             style: TextStyle(fontSize: 11, color: ink)),
                       ),
-                    _roundBtn(
-                      Icons.open_in_full,
-                      _resizeMode ? const Color(0xFF5EC8F0) : ink,
-                      () => setState(() => _resizeMode = !_resizeMode),
-                    ),
-                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),

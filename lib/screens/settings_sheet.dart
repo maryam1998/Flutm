@@ -12,6 +12,7 @@ import '../state/angels_store.dart';
 import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
+import '../widgets/backup_section.dart';
 import '../widgets/web_color_picker.dart';
 import 'motivation_sheet.dart';
 
@@ -37,10 +38,10 @@ Future<void> showSettingsSheet(BuildContext context) {
         child: Align(
           alignment: Alignment.centerLeft,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: SizedBox(
               width: (mq.size.width * 0.66).clamp(240.0, 310.0).toDouble(),
-              height: mq.size.height * 0.84,
+              height: mq.size.height - mq.padding.vertical - 8,
               child: ClipRRect(
                 borderRadius:
                     const BorderRadius.horizontal(right: Radius.circular(22)),
@@ -817,6 +818,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                             style: TextStyle(fontSize: 12.5)),
                       ),
                     ),
+                    const SizedBox(height: 20),
+
+                    // ═══════════ پشتیبان‌گیری ═══════════
+                    const BackupSection(),
                     const SizedBox(height: 20),
 
                     // ═══════════ دکمه‌های پایین ═══════════
