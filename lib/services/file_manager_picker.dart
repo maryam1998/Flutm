@@ -3,8 +3,9 @@ import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart' show ImageSource, XFile;
+
+import 'img_downscale.dart';
 
 /// جایگزین ImagePicker: عکس و ویدیو رو از «فایل‌منیجر» گوشی انتخاب می‌کنه
 /// (نه گالری). با FileType.custom و پسوندهای مشخص، انتخاب‌گر فایل سیستم باز می‌شه
@@ -107,8 +108,7 @@ class FileManagerPicker {
       final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
       // gif (انیمیشن) و بدون سقف اندازه: دست‌نخورده
       if (maxSide != null && ext != 'gif') {
-        final small = await compute(
-            _downscale, <Object>[bytes, maxSide, quality]);
+        final small = await downscaleToJpeg(bytes, maxSide, quality);
         if (small != null) {
           bytes = small;
           name = '${name.replaceAll(RegExp(r'\.[^.]*$'), '')}.jpg';
@@ -117,25 +117,5 @@ class FileManagerPicker {
       return XFile.fromData(bytes, name: name);
     }));
     return out.whereType<XFile>().toList();
-  }
-}
-
-/// کوچک‌سازی تا [maxSide] و JPEG؛ اگه نشد (مثلاً HEIC) null → فایل اصلی استفاده می‌شه.
-Uint8List? _downscale(List<Object> a) {
-  try {
-    final bytes = a[0] as Uint8List;
-    final maxSide = a[1] as int;
-    final quality = a[2] as int;
-    var im = img.decodeImage(bytes);
-    if (im == null) return null;
-    im = img.bakeOrientation(im);
-    if (math.max(im.width, im.height) > maxSide) {
-      im = im.width >= im.height
-          ? img.copyResize(im, width: maxSide)
-          : img.copyResize(im, height: maxSide);
-    }
-    return Uint8List.fromList(img.encodeJpg(im, quality: quality));
-  } catch (_) {
-    return null;
   }
 }

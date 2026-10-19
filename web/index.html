@@ -42,6 +42,19 @@
     <div class="bar"><i></i></div>
     <div id="boot-msg">در حال آماده‌سازی…</div>
   </div>
+  <script>
+    // دانلود main.dart.js هم‌زمان با flutter_bootstrap.js شروع می‌شود (نه پشت‌سرش).
+    // شماره‌ی نسخه (?v=...) از همین تگِ بعدی خوانده می‌شود؛ پس با هر دیپلوی درست می‌ماند.
+    (function () {
+      try {
+        var next = document.currentScript && document.currentScript.nextElementSibling;
+        var q = next && next.src ? new URL(next.src).search : '';
+        var l = document.createElement('link');
+        l.rel = 'preload'; l.as = 'script'; l.href = 'main.dart.js' + q;
+        document.head.appendChild(l);
+      } catch (e) {}
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

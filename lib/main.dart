@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'models/neural_container.dart';
+import 'services/boot_status.dart';
 import 'services/storage.dart';
 import 'services/web_cache_clean.dart';
 import 'state/abundance_store.dart';
@@ -49,6 +50,7 @@ class _BootSplash extends StatelessWidget {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  bootStage('data');
 
   // وب: صفحه‌ی بارگذاریِ index.html تا اولین فریمِ خودِ برنامه می‌مونه، پس
   // splash فلاتر لازم نیست (قبلاً دو صفحه‌ی بارگذاری پشت‌سرهم دیده می‌شد).
@@ -107,6 +109,7 @@ Future<void> main() async {
     return done;
   };
 
+  bootStage('ui');
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: store),
