@@ -410,7 +410,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه‌ی رد پا ═══════════
                     Row(
                       children: [
-                        Flexible(child: _sectionTitle('اندازه‌ی قدم‌زن')),
+                        Flexible(child: _sectionTitle('اندازه‌ی قدم در مسیر')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
