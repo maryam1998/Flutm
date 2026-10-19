@@ -1,11 +1,14 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../state/background_store.dart';
 import 'grat_media.dart' show gratVideoController;
+import '../services/media_blob.dart';
+import 'bg_video_view.dart';
 import 'web_background.dart';
 
 /// لایه‌ی پس‌زمینه‌ی مشترک روی همه‌ی تب‌ها — مثل `#ambient-bg` در وب:
@@ -26,6 +29,9 @@ class _BackgroundLayerState extends State<BackgroundLayer> {
   String? _loadedPath;
   int _gen = 0;
 
+  /// وب: آدرس ویدیو برای `<video>` HTML (blob-URL یا آدرس مستقیم)
+  String? _webUrl;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -45,6 +51,28 @@ class _BackgroundLayerState extends State<BackgroundLayer> {
 
   Future<void> _syncVideo(BackgroundStore bg) async {
     final want = bg.active && bg.kind == BgKind.video ? bg.videoPath : null;
+    if (kIsWeb) {
+      // وب: بدون VideoPlayer؛ فقط آدرس را پیدا می‌کنیم و `<video>` HTML نشان می‌دهد
+      if (want == null) {
+        if (_webUrl != null || _loadedPath != null) {
+          _webUrl = null;
+          _loadedPath = null;
+          if (mounted) setState(() {});
+        }
+        return;
+      }
+      if (_loadedPath == want) return;
+      final gen = ++_gen;
+      _loadedPath = want;
+      String? url;
+      try {
+        url = MediaBlob.isRef(want) ? await MediaBlob.playableSource(want) : want;
+      } catch (_) {}
+      if (!mounted || gen != _gen) return;
+      if (url == null) _loadedPath = null;
+      setState(() => _webUrl = url);
+      return;
+    }
     if (want == null) {
       if (_videoCtl != null) {
         await _disposeVideo();
@@ -121,12 +149,21 @@ class _BackgroundLayerState extends State<BackgroundLayer> {
   Widget build(BuildContext context) {
     final bg = context.watch<BackgroundStore>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final media = bg.active ? _media(bg) : null;
+    final webVideo = kIsWeb && bg.active && bg.kind == BgKind.video;
+    final media = (bg.active && !webVideo) ? _media(bg) : null;
 
     return Stack(
       fit: StackFit.expand,
       children: [
         WebBackground(isDark: isDark),
+        if (webVideo && _webUrl != null)
+          IgnorePointer(
+            child: buildBackgroundVideo(
+              url: _webUrl!,
+              opacity: bg.opacity,
+              blur: bg.blur,
+            ),
+          ),
         IgnorePointer(
           child: ClipRect(
             child: AnimatedOpacity(

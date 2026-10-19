@@ -4,7 +4,7 @@ import 'dart:typed_data';
 Future<Uint8List> fastDownscale(
   Uint8List bytes, {
   required String name,
-  int maxSide = 512,
-  double quality = 0.82,
+  int maxSide = 1280,
+  double quality = 0.92,
 }) async =>
     bytes;

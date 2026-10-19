@@ -214,7 +214,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         if (kind == 'image') {
           // فرشته‌ها کوچیک نمایش داده می‌شن؛ عکس خام چندمگابایتی فقط ذخیره و بالا اومدن رو کند می‌کرد
           final small =
-              await fastDownscale(bytes, name: f.name, maxSide: 512);
+              await fastDownscale(bytes, name: f.name, maxSide: 1280);
           ok = await angels.addImage(small);
         } else if (kind == 'video') {
           ok = await angels.addVideo(

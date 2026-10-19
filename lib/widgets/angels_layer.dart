@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -250,6 +251,7 @@ class _AngelsLayerState extends State<AngelsLayer>
   Widget build(BuildContext context) {
     final store = context.watch<AngelsStore>();
     final screen = MediaQuery.sizeOf(context);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -266,11 +268,12 @@ class _AngelsLayerState extends State<AngelsLayer>
           for (final it in _items)
             if (!it.loading)
               Positioned(
-                left: it.x,
-                top: it.dispY,
+                // روی پیکسل واقعی گرد می‌شود تا لبه‌ی لایه محو/خط‌دار نشود
+                left: (it.x * dpr).roundToDouble() / dpr,
+                top: (it.dispY * dpr).roundToDouble() / dpr,
                 child: _AngelWidget(
                   item: it,
-                  size: store.size,
+                  size: (store.size * dpr).roundToDouble() / dpr,
                   opacity: store.opacity,
                   soft: store.soft,
                   blend: store.blend,
@@ -361,7 +364,8 @@ class _AngelWidget extends StatelessWidget {
       width: size, // ارتفاع آزاد: نسبت عکس حفظ می‌شه (height:auto در وب)
       fit: BoxFit.fitWidth,
       gaplessPlayback: true,
-      filterQuality: FilterQuality.low,
+      filterQuality: FilterQuality.medium,
+      isAntiAlias: true,
     );
     if (soft) {
       img = RepaintBoundary(
@@ -375,11 +379,24 @@ class _AngelWidget extends StatelessWidget {
     return Opacity(opacity: opacity, child: img);
   }
 
+  /// معادل `radial-gradient(ellipse at center, #000 52%, transparent 72%)` در CSS.
+  /// در CSS شعاع بیضی «farthest-corner» است (نیم‌قطر × √۲)، نه نصفِ ضلع کوتاه؛
+  /// قبلاً ماسک خیلی تنگ‌تر بود و فرشته بریده می‌شد. انتهای محو را ۰٫۷۰ گذاشتم
+  /// (نه ۰٫۷۲) تا وسط لبه‌های کادر کاملاً شفاف شود و «کادر کمرنگ» دور عکس نیفتد.
   static Shader _maskShader(Rect rect) {
-    return const RadialGradient(
-      colors: [Colors.white, Colors.white, Colors.transparent],
-      stops: [0.0, 0.52, 0.72],
-    ).createShader(rect);
+    const k = 1.4142135623730951;
+    final m = Matrix4.identity()
+      ..setEntry(0, 0, rect.width / 2 * k)
+      ..setEntry(1, 1, rect.height / 2 * k)
+      ..setTranslationRaw(rect.center.dx, rect.center.dy, 0);
+    return ui.Gradient.radial(
+      Offset.zero,
+      1.0,
+      const [Colors.white, Colors.white, Color(0x00FFFFFF)],
+      const [0.0, 0.52, 0.70],
+      TileMode.clamp,
+      m.storage,
+    );
   }
 }
 

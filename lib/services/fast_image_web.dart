@@ -10,8 +10,8 @@ import 'package:web/web.dart' as web;
 Future<Uint8List> fastDownscale(
   Uint8List bytes, {
   required String name,
-  int maxSide = 512,
-  double quality = 0.82,
+  int maxSide = 1280,
+  double quality = 0.92,
 }) async {
   final lower = name.toLowerCase();
   if (lower.endsWith('.gif')) return bytes;
@@ -32,8 +32,12 @@ Future<Uint8List> fastDownscale(
     canvas.width = tw;
     canvas.height = th;
     final ctx = canvas.getContext('2d') as web.CanvasRenderingContext2D;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(bmp, 0, 0, tw, th);
-    final mime = lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    // PNG/WebP شفافیت دارند → حتماً PNG بماند (JPEG پس‌زمینه‌ی سیاه/سفید و «کادر» می‌ساخت)
+    final keepAlpha = lower.endsWith('.png') || lower.endsWith('.webp');
+    final mime = keepAlpha ? 'image/png' : 'image/jpeg';
     final done = Completer<web.Blob?>();
     canvas.toBlob(
       ((web.Blob? b) {
