@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/file_manager_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../data/gratitude_journey.dart';
@@ -34,7 +35,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
   final List<GratitudeAudio> _pendingAudios = [];
   final List<GratitudeVideo> _pendingVideos = [];
   bool _pendingShare = false;
-  static final _picker = ImagePicker();
+  static final _picker = FileManagerPicker();
 
   @override
   void dispose() {

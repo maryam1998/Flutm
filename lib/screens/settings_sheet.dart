@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/file_manager_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
@@ -137,8 +138,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 
   Future<List<XFile>> _pickAngelImages() async {
-    final picker = ImagePicker();
-    return picker.pickMultiImage();
+    return FileManagerPicker().pickMultiImage();
   }
 
   Future<List<XFile>> _pickAngelVideos() async {

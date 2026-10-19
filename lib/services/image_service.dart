@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:image_picker/image_picker.dart';
+import 'file_manager_picker.dart';
 
 import '../map/draw_utils.dart' show NodeImageCache;
 import '../widgets/photo_cropper.dart';
@@ -39,7 +40,7 @@ Future<List<String>> _filesToDataUrls(List<XFile> files, String Function(String)
 }
 
 class ImageService {
-  static final _picker = ImagePicker();
+  static final _picker = FileManagerPicker();
 
   static Future<List<String>> pickImages() async {
     try {

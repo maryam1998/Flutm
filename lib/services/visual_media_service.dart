@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'file_manager_picker.dart';
 
 import '../models/gratitude_entry.dart';
 import 'audio_mime.dart';
@@ -12,7 +13,7 @@ import 'audio_mime.dart';
 /// انتخاب ویدیو و موسیقی برای بخش «تصویرسازی» تب باورها.
 /// بدون محدودیت حجم (همه‌چیز روی خود گوشی ذخیره می‌شه)، به‌صورت data-URL.
 class VisualMediaService {
-  static final ImagePicker _picker = ImagePicker();
+  static final FileManagerPicker _picker = FileManagerPicker();
 
   /// ویدیو از گالری. اگه نشد، `error` پیام فارسی می‌دهد (لغو کاربر = هر دو null).
   static Future<({GratitudeVideo? video, String? error})> pickVideo() async {
