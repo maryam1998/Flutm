@@ -86,8 +86,14 @@ jobs:
           echo "Failed to push after retries."
           exit 1
 
-      # پوش با توکن پیش‌فرض، workflowهای دیگر را خودکار اجرا نمی‌کند؛ پس بیلد را دستی صدا می‌زنیم
-      - name: Trigger build
+      # پوش با توکن پیش‌فرض، workflowهای دیگر را خودکار اجرا نمی‌کند؛ پس بیلدها را دستی صدا می‌زنیم
+      - name: Trigger web deploy (GitHub Pages)
+        if: steps.run.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-web.yml --ref "${{ github.ref_name }}" || echo "deploy-web.yml not found, skipped"
+
+      - name: Trigger build (APK / Windows)
         if: steps.run.outputs.pushed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
