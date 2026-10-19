@@ -60,7 +60,7 @@ class _StoreTabState extends State<StoreTab> {
     final name = _name.text.trim();
     final price = parseMoneyInput(_price.text);
     if (name.isEmpty || price <= 0) {
-      ScaffoldMessenger.of(context).quietSnack(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('نام و مبلغ معتبر وارد کن')),
       );
       return;
@@ -81,13 +81,13 @@ class _StoreTabState extends State<StoreTab> {
     final grat = context.read<GratitudeStore>();
 
     if (store.cart.isEmpty) {
-      ScaffoldMessenger.of(context).quietSnack(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('سبد خریدت خالیه')),
       );
       return;
     }
     if (store.cartTotal > store.balance) {
-      ScaffoldMessenger.of(context).quietSnack(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(
                 'این مبلغ از موجودی امروزت بیشتره — باقی‌مانده: ${formatMoney(store.balance)}')),

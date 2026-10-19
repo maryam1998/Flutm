@@ -69,7 +69,7 @@ class _YsqScreenState extends State<YsqScreen> {
     setState(() => _index = target);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..quietSnack(SnackBar(
+      ..showSnackBar(SnackBar(
         content: Text(
           '${_faNum(check.missing.length)} سؤال بی‌جواب مونده — از این‌جا ادامه بده',
         ),

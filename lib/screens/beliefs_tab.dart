@@ -17,7 +17,6 @@ import '../widgets/neural_pathway.dart';
 import '../widgets/nothing_scene.dart';
 import '../widgets/quantum_connect.dart';
 import '../widgets/ras_mission.dart';
-import '../services/quiet_snack.dart';
 
 const Color _kEmerald = Color(0xFF178A7C);
 const Color _kEmerald300 = Color(0xFF54B3A4);
@@ -662,7 +661,7 @@ Future<void> _registerToday(BeliefsStore store) async {
   if (!already) {
     final ms = v.readTimes[tk];
     final timeTxt = ms == null ? '' : ' — ساعت ${_fmtTime(ms)}';
-    _toast('✓ امروز ثبت شد$timeTxt');
+    _info('✓ امروز ثبت شد$timeTxt');
   }
 }
 
@@ -765,7 +764,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
                   await store.activateVersion(v.id);
                   if (!mounted) return;
                   setState(() => _selectedDay = null);
-                  _toast('نسخه فعال شد ✓');
+                  _info('نسخه فعال شد ✓');
                 }),
               ),
               const SizedBox(width: 6),
@@ -775,7 +774,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
                 if (!ok) return;
                 await store.deleteVersion(v.id);
                 if (!mounted) return;
-                _toast('نسخه حذف شد');
+                _info('نسخه حذف شد');
               }, color: const Color(0xFFC0392B)),
             ],
           ),
@@ -1289,9 +1288,11 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
   }
 
   // ═══════════════ handlers ═══════════════
+  void _info(String msg) {}
+
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).quietSnack(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg)),
     );
   }
@@ -1358,7 +1359,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
         }
       });
     }
-    _toast(hadVersion
+    _info(hadVersion
         ? 'متن ویرایش شد ✏ (دوره و تقویم همان‌طور ماند)'
         : 'متن خواسته‌ات ثبت شد ✨');
   }
@@ -1425,7 +1426,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
         setState(() => _selectedDay = null);
       }
     }
-    _toast('دوره روی ${_toFa(n)} روز تنظیم شد 🌱');
+    _info('دوره روی ${_toFa(n)} روز تنظیم شد 🌱');
   }
 
   Future<void> _confirmResetCalendar(BeliefsStore store) async {
@@ -1440,7 +1441,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
     await store.resetCalendar();
     if (!mounted) return;
     setState(() => _selectedDay = null);
-    _toast('تقویم ریست شد — دوره‌ی تازه از امروز 🌱');
+    _info('تقویم ریست شد — دوره‌ی تازه از امروز 🌱');
   }
 }
 
@@ -1634,7 +1635,7 @@ class _TextEditorState extends State<_TextEditor> {
                       onPressed: () {
                         final t = _ctrl.text.trim();
                         if (t.isEmpty) {
-                          ScaffoldMessenger.of(context).quietSnack(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content: Text('متن نمی‌تونه خالی باشه')),
                           );

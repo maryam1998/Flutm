@@ -652,7 +652,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                             await angels.addImage(bytes);
                                         if (!ok && context.mounted) {
                                           ScaffoldMessenger.of(context)
-                                              .quietSnack(const SnackBar(
+                                              .showSnackBar(const SnackBar(
                                             content: Text(
                                                 'عکس ذخیره نشد؛ دوباره امتحان کن'),
                                           ));
@@ -697,7 +697,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                         );
                                         if (!ok && context.mounted) {
                                           ScaffoldMessenger.of(context)
-                                              .quietSnack(const SnackBar(
+                                              .showSnackBar(const SnackBar(
                                             content: Text(
                                                 'ویدیو ذخیره نشد؛ دوباره امتحان کن'),
                                           ));
@@ -884,7 +884,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                           ),
                         ),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).quietSnack(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
                                   'خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),

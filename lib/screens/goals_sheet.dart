@@ -2097,7 +2097,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             onPressed: () {
               final n = _parseDays(c.text);
               if (n == null) {
-                ScaffoldMessenger.of(ctx).quietSnack(SnackBar(
+                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
                     content:
                         Text('عدد بین ۱ تا ${toFa(kPcMaxDays)} وارد کن')));
                 return;

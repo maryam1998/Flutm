@@ -333,9 +333,9 @@ class _MapTabState extends State<MapTab> {
       final raw = await StorageService().pickBackup();
       if (raw == null) return;
       await store.importJson(raw);
-      msg.quietSnack(const SnackBar(content: Text('بکاپ وارد شد')));
+      msg.showSnackBar(const SnackBar(content: Text('بکاپ وارد شد')));
     } catch (e) {
-      msg.quietSnack(
+      msg.showSnackBar(
           SnackBar(content: Text('ورود بکاپ ناموفق بود: $e')));
     }
   }
@@ -344,9 +344,9 @@ class _MapTabState extends State<MapTab> {
     final msg = ScaffoldMessenger.of(context);
     try {
       final ok = await StorageService().exportBackup(await store.exportJson());
-      if (ok) msg.quietSnack(const SnackBar(content: Text('بکاپ ذخیره شد')));
+      if (ok) msg.showSnackBar(const SnackBar(content: Text('بکاپ ذخیره شد')));
     } catch (e) {
-      msg.quietSnack(SnackBar(content: Text('خروجی ناموفق بود: $e')));
+      msg.showSnackBar(SnackBar(content: Text('خروجی ناموفق بود: $e')));
     }
   }
 }
