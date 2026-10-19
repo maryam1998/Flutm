@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'models/neural_container.dart';
 import 'services/storage.dart';
+import 'services/web_cache_clean.dart';
 import 'state/abundance_store.dart';
 import 'state/angels_store.dart';
 import 'state/background_store.dart';
@@ -18,6 +19,9 @@ import 'state/theme_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // کش و سرویس‌ورکر قدیمیِ وب پاک می‌شه تا همیشه آخرین نسخه بالا بیاد
+  await cleanOldWebCaches();
 
   // فونت از اینترنت (fonts.gstatic.com) دانلود می‌شه؛ اگه کند/فیلتر بود نباید صفحه‌ی اول
   // دقیقه‌ها سفید بمونه. حداکثر ۳ ثانیه صبر می‌کنیم؛ بعدش برنامه بالا میاد و فونت وقتی
