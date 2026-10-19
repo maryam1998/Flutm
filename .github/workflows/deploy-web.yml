@@ -1,8 +1,10 @@
-name: Deploy Web (GitHub Pages)
+name: Deploy Web to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+    paths-ignore:
+      - '*.zip'
   workflow_dispatch:
 
 permissions:
@@ -11,13 +13,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: "pages"
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -29,41 +30,41 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.35.x'
           cache: true
 
       - name: Generate web folder if missing
         run: |
           if [ ! -d web ]; then
-            flutter create --platforms=web --project-name maghz /tmp/scaffold
+            flutter create --platforms=web --project-name lingolearn --org app.lingolearn /tmp/scaffold
             cp -r /tmp/scaffold/web .
+            sed -i 's|<title>.*</title>|<title>LingoLearn</title>|' web/index.html
           fi
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Analyze (optional)
-        run: flutter analyze --no-fatal-infos
-        continue-on-error: true
-
-      - name: Test (if test/ exists)
+      - name: Generate localizations
         run: |
-          if [ -d "test" ]; then
-            flutter test
-          else
-            echo "No test/ directory, skipping."
+          sed -i '/synthetic-package/d' l10n.yaml
+          sed -i 's/^flutter:$/flutter:\n  generate: true/' pubspec.yaml
+          flutter pub get
+          flutter gen-l10n
+
+      - name: Check Supabase secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::warning::SUPABASE_URL / SUPABASE_ANON_KEY are not set as repository secrets. The app will show a config-error screen."
           fi
 
       - name: Build web
-        run: flutter build web --release --base-href "/Flutm/" --pwa-strategy=none
-
-      # هر دیپلوی یک شماره‌ی تازه می‌گیرد تا مرورگر نسخه‌ی قدیمی را نگه ندارد
-      - name: Cache-bust
-        run: |
-          V=$(date +%s)
-          cd build/web
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=$V#g" index.html || true
-          sed -i "s#\"main.dart.js\"#\"main.dart.js?v=$V\"#g" flutter_bootstrap.js || true
-          grep -o "main.dart.js[^\"]*" flutter_bootstrap.js | head -1 || true
+        run: >
+          flutter build web --release --base-href "/Zflut/"
+          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -73,6 +74,6 @@ jobs:
         with:
           path: build/web
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

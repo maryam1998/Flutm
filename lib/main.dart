@@ -1,96 +1,158 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
-import 'models/neural_container.dart';
-import 'services/storage.dart';
-import 'services/web_cache_clean.dart';
-import 'state/abundance_store.dart';
-import 'state/angels_store.dart';
-import 'state/background_store.dart';
-import 'state/beliefs_store.dart';
-import 'state/emotion_store.dart';
-import 'state/gratitude_store.dart';
-import 'state/map_store.dart';
-import 'state/motivation_store.dart';
-import 'state/shenakht_store.dart';
-import 'state/theme_store.dart';
+import 'core/config/app_config.dart';
+import 'core/storage/durable_store.dart';
+import 'core/storage/local_storage.dart' show sharedPrefsProvider;
+import 'core/sync/app_restarter.dart';
+import 'core/storage/translation_cache_db.dart';
+
+// مقادیر واقعی از --dart-define (در GitHub Actions از Secrets) می‌آیند.
+const String _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // همه‌چیز (binding + runApp) در یک zone اجرا می‌شود تا هر خطای راه‌اندازی
+  // به‌جای صفحه‌ی خالی، روی صفحه نمایش داده شود.
+  await runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // کش و سرویس‌ورکر قدیمیِ وب پاک می‌شه تا همیشه آخرین نسخه بالا بیاد
-  await cleanOldWebCaches();
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      debugPrint('FlutterError: ${details.exceptionAsString()}');
+    };
+    // در حالت release خطای ساخت ویجت به‌جای کادر خاکستری/خالی، متن خطا را نشان بده.
+    ErrorWidget.builder = (details) => Material(
+          color: const Color(0xFFFFF3F3),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: SingleChildScrollView(
+                child: Text(
+                  details.exceptionAsString(),
+                  style: const TextStyle(color: Color(0xFF9E3B3B), fontSize: 12),
+                ),
+              ),
+            ),
+          ),
+        );
 
-  // فونت از اینترنت (fonts.gstatic.com) دانلود می‌شه؛ اگه کند/فیلتر بود نباید صفحه‌ی اول
-  // دقیقه‌ها سفید بمونه. حداکثر ۳ ثانیه صبر می‌کنیم؛ بعدش برنامه بالا میاد و فونت وقتی
-  // رسید جایگزین می‌شه.
-  try {
-    await GoogleFonts.pendingFonts([
-      GoogleFonts.vazirmatn(fontWeight: FontWeight.w400),
-      GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-    ]).timeout(const Duration(seconds: 3), onTimeout: () => []);
-  } catch (_) {}
-
-  final store = MapStore(StorageService());
-  final theme = ThemeStore();
-  final bg = BackgroundStore();
-  final motivation = MotivationStore();
-  final gratitude = GratitudeStore();
-  final beliefs = BeliefsStore();
-  final emotions = EmotionStore();
-  final abundance = AbundanceStore();
-  final angels = AngelsStore();
-  final shenakht = ShenakhtStore(StorageService());
-
-  // بارگذاری هم‌زمان (قبلاً پشت‌سرهم بود و جمعِ زمان‌ها حساب می‌شد)
-  await Future.wait<void>([
-    store.load().catchError((Object e, StackTrace st) {
-      debugPrint('load failed: $e\n$st');
-    }),
-    theme.load(),
-    bg.load(),
-    motivation.load(),
-    gratitude.load(),
-    beliefs.load(),
-    abundance.load(),
-    angels.load(),
-    shenakht.load(),
-  ]);
-
-  // «ثبت حس» با بستن ادمک (echw:commit در وب): همه‌ی تمرین‌های امروز که
-  // انجام شده‌ن رنگ حس می‌گیرن؛ اگه هیچ تمرینی نبود انتخاب نگه داشته می‌شه.
-  emotions.onCommitClose = (ids) async {
-    final g = await gratitude.applyCommittedFeeling(ids);
-    final b = await beliefs.applyCommittedFeeling(ids);
-    final done =
-        g != FeelingApply.skipped || b != FeelingApply.skipped;
-    if (done) {
-      kMessengerKey.currentState
-        ?..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-          content: Text('حس ثبت شد و رشته‌ی عصبی ساخته شد 🧠'),
-          duration: Duration(milliseconds: 1800),
-          behavior: SnackBarBehavior.floating,
-        ));
+    // portrait فقط روی موبایل معنی دارد.
+    if (!kIsWeb) {
+      await SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
     }
-    return done;
-  };
 
-  runApp(MultiProvider(
-    providers: [
-      ChangeNotifierProvider.value(value: store),
-      ChangeNotifierProvider.value(value: theme),
-      ChangeNotifierProvider.value(value: bg),
-      ChangeNotifierProvider.value(value: motivation),
-      ChangeNotifierProvider.value(value: gratitude),
-      ChangeNotifierProvider.value(value: beliefs),
-      ChangeNotifierProvider.value(value: emotions),
-      ChangeNotifierProvider.value(value: abundance),
-      ChangeNotifierProvider.value(value: angels),
-      ChangeNotifierProvider.value(value: shenakht),
-    ],
-    child: const MaghzApp(),
-  ));
+    // Supabase: در حالت kSkipLogin شکست آن مانع اجرای اپ نمی‌شود.
+    String? supabaseError;
+    if (_supabaseUrl.isEmpty || _supabaseAnonKey.isEmpty) {
+      supabaseError =
+          'SUPABASE_URL و SUPABASE_ANON_KEY هنگام build تنظیم نشده‌اند.\n'
+          'در GitHub: Settings ← Secrets and variables ← Actions ← New repository secret\n'
+          'دو secret با همین نام‌ها بساز و workflow را دوباره اجرا کن.';
+    } else {
+      try {
+        await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey);
+      } catch (e) {
+        supabaseError = '$e';
+      }
+    }
+    if (supabaseError != null && !kSkipLogin) {
+      runApp(StartupErrorApp(
+        title: 'تنظیمات/اتصال Supabase مشکل دارد',
+        details: supabaseError,
+      ));
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+
+    // نسخه‌ی دائمیِ داده‌های کاربر (IndexedDB روی وب / فایل روی موبایل):
+    // اگر prefs خالی/پاک شده باشد، لغات و داستان‌ها و ... از این‌جا برمی‌گردند.
+    await DurableStore.instance.init(prefs);
+
+    // کشِ دائمیِ ترجمه‌ها (IndexedDB / فایل) — در پس‌زمینه باز و پر می‌شود؛
+    // تا آماده شود کش فقط در حافظه کار می‌کند و اپ منتظر نمی‌ماند.
+    unawaited(TranslationCacheDb.instance.init(prefs));
+
+    // AppRestarter: بعد از بازیابیِ داده‌ی ابری درخت providerها دوباره ساخته می‌شود.
+    runApp(
+      AppRestarter(
+        builder: () => ProviderScope(
+          overrides: [
+            // SharedPreferences را از قبل می‌سازیم تا خواندن prefs سنکرون باشد.
+            sharedPrefsProvider.overrideWithValue(prefs),
+          ],
+          child: const LingoLearnApp(),
+        ),
+      ),
+    );
+  }, (error, stack) {
+    debugPrint('Uncaught: $error\n$stack');
+  });
+}
+
+/// صفحه‌ی خطای راه‌اندازی — مستقل از تم/ترجمه/Supabase تا همیشه نمایش داده شود.
+class StartupErrorApp extends StatelessWidget {
+  final String title;
+  final String details;
+  const StartupErrorApp({super.key, required this.title, required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: const Color(0xFFEFE6C9),
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Color(0xFF9E3B3B)),
+                    const SizedBox(height: 12),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E2A26),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      details,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.6,
+                        color: Color(0xFF4B5551),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

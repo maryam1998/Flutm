@@ -1,191 +1,80 @@
-import 'widgets/photo_cropper.dart' show kRootNavKey;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import 'screens/map_tab.dart';
-import 'screens/practice_tab.dart';
-import 'screens/shenakht/shenakht_tab.dart';
-import 'state/theme_store.dart';
-import 'widgets/angels_layer.dart';
-import 'widgets/background_layer.dart';
-import 'widgets/emotion_widget_layer.dart';
-import 'widgets/motivation_bar.dart';
-import 'widgets/web_tab_bars.dart';
+import 'core/constants/app_font_sizes.dart';
+import 'core/constants/app_fonts.dart';
+import 'core/constants/app_themes.dart';
+import 'core/providers/app_prefs_provider.dart';
+import 'core/providers/native_sync_provider.dart';
+import 'core/providers/preload.dart';
+import 'core/router/app_router.dart';
+import 'core/sync/cloud_sync.dart';
+import 'core/theme/theme_builder.dart';
+import 'l10n/app_localizations.dart';
 
-/// برای نمایش پیام (SnackBar) از بیرون از درخت ویجت‌ها
-final GlobalKey<ScaffoldMessengerState> kMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
+// فایل‌های دیگر (login_screen, header_tabs, ...) فقط app.dart را import می‌کنند
+// و نوع AppLocalizations را از همین‌جا می‌گیرند.
+export 'l10n/app_localizations.dart';
 
-class MaghzApp extends StatelessWidget {
-  const MaghzApp({super.key});
+class LingoLearnApp extends ConsumerWidget {
+  const LingoLearnApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = context.watch<ThemeStore>();
-    return MaterialApp(
-      navigatorKey: kRootNavKey,
-      scaffoldMessengerKey: kMessengerKey,
-      title: 'بی‌نهایت راه',
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 📦 داده‌ی همه‌ی تب‌ها از همین اول بارگذاری شود (نه با باز شدنِ تب)
+    startDataPreload(ProviderScope.containerOf(context, listen: false));
+    // 🔗 هماهنگی با بخش اندروید (لغات حباب، زیرنویس‌های ذخیره‌شده، وضعیت حباب)
+    ref.watch(nativeSyncProvider);
+    // ☁️ همگام‌سازی داده‌ها و فهرست مدل‌های دانلودشده با حساب کاربر (فقط وقتی وارد شده)
+    ref.watch(cloudSyncProvider);
+    final prefs = ref.watch(appPrefsProvider);
+    final router = ref.watch(appRouterProvider);
+    final themePreset = kAppThemes[prefs.theme]!;
+    final fontPreset = kAppFonts[prefs.font]!;
+    final sizePreset = kAppFontSizes[prefs.fontSize]!;
+
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      locale: const Locale('fa'),
-      supportedLocales: const [Locale('fa'), Locale('en')],
+      onGenerateTitle: (ctx) => AppLocalizations.of(ctx).app_title,
+      theme: buildAppTheme(themePreset, fontPreset),
+      locale: Locale(prefs.uiLang),
+      supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: _light,
-      darkTheme: _dark,
-      themeMode: theme.mode,
-      builder: (context, child) => Stack(
-        textDirection: TextDirection.rtl,
-        children: [
-          child ?? const SizedBox.shrink(),
-          const AngelsLayer(),
-          const EmotionWidgetLayer(),
-        ],
-      ),
-      home: const Shell(),
+      builder: (context, child) {
+        // ═══════════════════════════════════════════════════════════
+        // UI اپ همیشه راست‌چین است — مستقل از زبان رابط.
+        //
+        // تغییر زبان رابط (uiLang) فقط ترجمه‌ی متن‌ها را عوض می‌کند،
+        // ولی چیدمان و جهت هیچ‌وقت تغییر نمی‌کند. این باعث می‌شود:
+        //   • تب‌ها همیشه در جای خودشان بمانند
+        //   • آواتار همیشه سمت راست، منو همیشه سمت چپ
+        //   • انیمیشن‌ها و اسلایدها در جهت درست اجرا شوند
+        //   • حتی وقتی زبان مقصد کاربر انگلیسی است، UI به‌هم نریزد
+        // ═══════════════════════════════════════════════════════════
+        const dir = TextDirection.rtl;
+
+        return Directionality(
+          textDirection: dir,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(sizePreset.scale),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
+      routerConfig: router,
     );
   }
 }
 
-final _light = ThemeData(
-  brightness: Brightness.light,
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: const Color(0xFFC9972B),
-    brightness: Brightness.light,
-  ),
-  useMaterial3: true,
-  textTheme: GoogleFonts.vazirmatnTextTheme(),
-  scaffoldBackgroundColor: Colors.transparent,
-  appBarTheme: AppBarTheme(
-    backgroundColor: Colors.transparent,
-    foregroundColor: const Color(0xFF2A2218),
-    elevation: 0,
-    centerTitle: true,
-    titleTextStyle: GoogleFonts.vazirmatn(
-      fontSize: 17,
-      fontWeight: FontWeight.w700,
-      color: const Color(0xFF2A2218),
-    ),
-  ),
-  navigationBarTheme: NavigationBarThemeData(
-    backgroundColor: const Color.fromRGBO(255, 255, 255, 0.92),
-    indicatorColor: const Color.fromRGBO(244, 197, 66, 0.12),
-    labelTextStyle: WidgetStatePropertyAll(
-      GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.w600),
-    ),
-  ),
-  snackBarTheme: const SnackBarThemeData(
-    backgroundColor: Color(0xFF2A2218),
-    contentTextStyle: TextStyle(color: Colors.white),
-  ),
-);
-
-final _dark = ThemeData(
-  brightness: Brightness.dark,
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: const Color(0xFF5EC8F0),
-    brightness: Brightness.dark,
-  ),
-  useMaterial3: true,
-  textTheme: GoogleFonts.vazirmatnTextTheme(ThemeData.dark().textTheme),
-  scaffoldBackgroundColor: Colors.transparent,
-  appBarTheme: AppBarTheme(
-    backgroundColor: Colors.transparent,
-    foregroundColor: Colors.white,
-    elevation: 0,
-    centerTitle: true,
-    titleTextStyle: GoogleFonts.vazirmatn(
-      fontSize: 17,
-      fontWeight: FontWeight.w700,
-      color: Colors.white,
-    ),
-  ),
-  navigationBarTheme: NavigationBarThemeData(
-    backgroundColor: const Color.fromRGBO(18, 20, 38, 0.92),
-    indicatorColor: const Color.fromRGBO(244, 197, 66, 0.12),
-    labelTextStyle: WidgetStatePropertyAll(
-      GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.w600),
-    ),
-  ),
-);
-
-class Shell extends StatefulWidget {
-  const Shell({super.key});
-  @override
-  State<Shell> createState() => _ShellState();
-}
-
-class _ShellState extends State<Shell> with WidgetsBindingObserver {
-  int _index = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState s) {
-    if (s == AppLifecycleState.paused ||
-        s == AppLifecycleState.inactive ||
-        s == AppLifecycleState.detached) {
-      context.read<ThemeStore>();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BackgroundLayer(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Column(
-          children: [
-            const MotivationBar(),
-            Expanded(
-              child: IndexedStack(
-                index: _index,
-                children: const [
-                  ShenakhtTab(),
-                  MapTab(),
-                  PracticeTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: WebMainTabBar(
-          index: _index,
-          onTap: (i) => setState(() => _index = i),
-          items: const [
-            WebTabItem(
-              icon: Icons.psychology_outlined,
-              selectedIcon: Icons.psychology,
-              label: 'شناخت',
-            ),
-            WebTabItem(
-              icon: Icons.hub_outlined,
-              selectedIcon: Icons.hub,
-              label: 'هدف گذاری',
-            ),
-            WebTabItem(
-              icon: Icons.favorite_border,
-              selectedIcon: Icons.favorite,
-              label: 'تمرین',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+extension AppL10nX on BuildContext {
+  AppLocalizations get l10n => AppLocalizations.of(this);
 }
