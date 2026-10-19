@@ -48,7 +48,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
   Widget build(BuildContext context) {
     final pal = GratPalette.of(context);
     final store = context.watch<GratitudeStore>();
-    final custom = context.watch<BackgroundStore>().color != null;
+    final custom = context.watch<BackgroundStore>().overridesBackdrop;
 
     if (!store.loaded) {
       return Container(

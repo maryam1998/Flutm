@@ -145,7 +145,11 @@ class FullBackup {
         if (t is! List || t.length != 2) continue;
         final type = t[0], v = t[1];
         if (k == _bgVideoKey) {
-          if (newBgPath != null) await sp.setString(k, newBgPath);
+          if (newBgPath != null) {
+            await sp.setString(k, newBgPath);
+          } else if (v is String && MediaBlob.isRef(v)) {
+            await sp.setString(k, v);
+          }
           continue;
         }
         // نقشه/شناخت روی موبایل از فایل خونده می‌شن، نه AppPrefs

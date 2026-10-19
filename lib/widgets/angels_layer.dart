@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
@@ -272,6 +273,7 @@ class _AngelsLayerState extends State<AngelsLayer>
                   size: store.size,
                   opacity: store.opacity,
                   soft: store.soft,
+                  blend: store.blend,
                 ),
               ),
         ],
@@ -287,16 +289,28 @@ class _AngelWidget extends StatelessWidget {
   final double size;
   final double opacity;
   final bool soft;
+  final String blend;
 
   const _AngelWidget({
     required this.item,
     required this.size,
     required this.opacity,
     required this.soft,
+    this.blend = 'normal',
   });
 
+  /// مثل `mix-blend-mode` در وب: عادی / screen (محو تیره‌ها) / multiply (محو سفیدها)
   @override
   Widget build(BuildContext context) {
+    final w = _content(context);
+    if (blend == 'screen') return _BlendMask(blendMode: BlendMode.screen, child: w);
+    if (blend == 'multiply') {
+      return _BlendMask(blendMode: BlendMode.multiply, child: w);
+    }
+    return w;
+  }
+
+  Widget _content(BuildContext context) {
     // ─── ویدیو روی وب: HTML video با CSS mask ───
     if (item.isVideo && kIsWeb && item.blobUrl != null) {
       return buildAngelVideo(
@@ -344,9 +358,8 @@ class _AngelWidget extends StatelessWidget {
     if (b == null || b.isEmpty) return const SizedBox.shrink();
     Widget img = Image.memory(
       b,
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
+      width: size, // ارتفاع آزاد: نسبت عکس حفظ می‌شه (height:auto در وب)
+      fit: BoxFit.fitWidth,
       gaplessPlayback: true,
       filterQuality: FilterQuality.low,
     );
@@ -402,5 +415,41 @@ class _AngelItem {
     } catch (_) {}
     videoController = null;
     blobUrl = null;
+  }
+}
+
+
+/// ترکیب رنگ با پشت‌زمینه (معادل CSS mix-blend-mode)
+class _BlendMask extends SingleChildRenderObjectWidget {
+  const _BlendMask({required this.blendMode, super.child});
+  final BlendMode blendMode;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderBlendMask(blendMode);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderBlendMask r) {
+    r.blendMode = blendMode;
+  }
+}
+
+class _RenderBlendMask extends RenderProxyBox {
+  _RenderBlendMask(this._blendMode);
+  BlendMode _blendMode;
+  set blendMode(BlendMode v) {
+    if (v == _blendMode) return;
+    _blendMode = v;
+    markNeedsPaint();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    context.canvas.saveLayer(
+      offset & size,
+      Paint()..blendMode = _blendMode,
+    );
+    super.paint(context, offset);
+    context.canvas.restore();
   }
 }

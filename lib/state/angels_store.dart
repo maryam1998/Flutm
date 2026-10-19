@@ -44,7 +44,7 @@ class AngelsStore extends ChangeNotifier {
   static const _kVideos = 'angels_videos_v1';
 
 
-  bool _on = false;
+  bool _on = true; // مثل وب: پیش‌فرض روشن (تا عکسی نباشه چیزی دیده نمی‌شه)
   double _size = 140;
   double _speed = 3;
   double _opacity = 0.85;
@@ -71,7 +71,7 @@ class AngelsStore extends ChangeNotifier {
       await AngelBlobStore.init();
 
       final sp = await AppPrefs.getInstance();
-      _on = sp.getBool(_kOn) ?? false;
+      _on = sp.getBool(_kOn) ?? true;
       _size = (sp.getDouble(_kSize) ?? 140).clamp(60, 320);
       _speed = (sp.getDouble(_kSpeed) ?? 3).clamp(1, 12);
       _opacity = (sp.getDouble(_kOpacity) ?? 0.85).clamp(0.2, 1.0);
