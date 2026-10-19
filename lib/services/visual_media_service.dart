@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/gratitude_entry.dart';
 import 'audio_mime.dart';
+import 'media_blob.dart';
 
 /// انتخاب ویدیو و موسیقی برای بخش «تصویرسازی» تب باورها.
 /// بدون محدودیت حجم (همه‌چیز روی خود گوشی ذخیره می‌شه)، به‌صورت data-URL.
@@ -19,17 +20,15 @@ class VisualMediaService {
     try {
       final f = await _picker.pickVideo(source: ImageSource.gallery);
       if (f == null) return (video: null, error: null);
-      final bytes = await f.readAsBytes();
       final lower = f.name.toLowerCase();
       final mime = lower.endsWith('.webm')
           ? 'video/webm'
           : (lower.endsWith('.mov') ? 'video/quicktime' : 'video/mp4');
+      // ویدیو دیگه base64 داخل JSON نمی‌شه؛ بیرون ذخیره می‌شه و فقط مرجع می‌مونه
+      final ref = await MediaBlob.saveXFile(f, mime: mime);
+      final size = await f.length();
       return (
-        video: GratitudeVideo(
-          path: 'data:$mime;base64,${base64Encode(bytes)}',
-          name: f.name,
-          size: bytes.length,
-        ),
+        video: GratitudeVideo(path: ref, name: f.name, size: size),
         error: null,
       );
     } catch (e) {

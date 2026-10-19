@@ -1,12 +1,14 @@
+import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
+import '../services/fast_image.dart';
 import '../state/angels_store.dart';
 import '../state/background_store.dart';
 import '../state/map_store.dart';
@@ -127,36 +129,116 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         .toLowerCase();
   }
 
-  Future<List<XFile>> _pickAngelImages() async {
-    final picker = ImagePicker();
-    return picker.pickMultiImage();
+  static const _imgExts = {
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'apng', 'bmp', 'avif', 'heic', 'heif',
+  };
+  static const _vidExts = {
+    'mp4', 'mov', 'webm', 'm4v', 'mkv', '3gp', 'avi', 'ogv',
+  };
+
+  static String _extOf(String name) {
+    final i = name.lastIndexOf('.');
+    return i < 0 ? '' : name.substring(i + 1).toLowerCase();
   }
 
-  Future<List<XFile>> _pickAngelVideos() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['mp4', 'mov', 'webm', 'm4v', 'mkv'],
-      allowMultiple: true,
-      withData: true,
-    );
-    if (result == null) return const [];
-    return result.files
-        .where((f) => f.bytes != null && f.bytes!.isNotEmpty)
-        .map((f) => XFile.fromData(
-              f.bytes!,
-              name: f.name,
-              mimeType: _mimeOfVideo(f.name),
-            ))
-        .toList();
+  /// نوع فایل: 'image' | 'video' | null — اول از روی پسوند، بعد از روی محتوای فایل
+  static String? _kindOf(String name, Uint8List b) {
+    final e = _extOf(name);
+    if (_imgExts.contains(e)) return 'image';
+    if (_vidExts.contains(e)) return 'video';
+    if (b.length < 12) return null;
+    bool at(int o, String t) {
+      for (var i = 0; i < t.length; i++) {
+        if (b[o + i] != t.codeUnitAt(i)) return false;
+      }
+      return true;
+    }
+
+    if (at(0, 'GIF8') || at(1, 'PNG') || (b[0] == 0xFF && b[1] == 0xD8)) {
+      return 'image';
+    }
+    if (at(0, 'RIFF') && at(8, 'WEBP')) return 'image';
+    if (at(4, 'ftyp')) return 'video';
+    if (b[0] == 0x1A && b[1] == 0x45 && b[2] == 0xDF && b[3] == 0xA3) {
+      return 'video';
+    }
+    return null;
   }
 
   static String _mimeOfVideo(String name) {
-    final l = name.toLowerCase();
-    if (l.endsWith('.mov')) return 'video/quicktime';
-    if (l.endsWith('.webm')) return 'video/webm';
-    if (l.endsWith('.m4v')) return 'video/x-m4v';
-    if (l.endsWith('.mkv')) return 'video/x-matroska';
-    return 'video/mp4';
+    switch (_extOf(name)) {
+      case 'mov':
+        return 'video/quicktime';
+      case 'webm':
+        return 'video/webm';
+      case 'm4v':
+        return 'video/x-m4v';
+      case 'mkv':
+        return 'video/x-matroska';
+      case '3gp':
+        return 'video/3gpp';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'ogv':
+        return 'video/ogg';
+      default:
+        return 'video/mp4';
+    }
+  }
+
+  /// انتخاب از فایل‌منیجر (FileType.any تا روی کروم اندروید گالری/Google Photos
+  /// باز نشه و همه‌ی فرمت‌ها — gif/webp/mp4/jpg/png و... — قابل انتخاب باشن).
+  /// عکس‌ها دست‌نخورده ذخیره می‌شن تا GIF و WebP متحرک، متحرک بمونن.
+  Future<void> _addAngelFiles(AngelsStore angels) async {
+    var added = 0;
+    var failed = 0;
+    try {
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: true,
+        // روی موبایل/دسکتاپ فقط مسیر کافیه؛ روی وب بایت‌ها لازمه
+        withData: kIsWeb,
+      );
+      if (res == null) return;
+      for (final f in res.files) {
+        Uint8List? bytes = f.bytes;
+        if ((bytes == null || bytes.isEmpty) && !kIsWeb && f.path != null) {
+          bytes = await File(f.path!).readAsBytes();
+        }
+        if (bytes == null || bytes.isEmpty) {
+          failed++;
+          continue;
+        }
+        final kind = _kindOf(f.name, bytes);
+        bool ok = false;
+        if (kind == 'image') {
+          // فرشته‌ها کوچیک نمایش داده می‌شن؛ عکس خام چندمگابایتی فقط ذخیره و بالا اومدن رو کند می‌کرد
+          final small =
+              await fastDownscale(bytes, name: f.name, maxSide: 512);
+          ok = await angels.addImage(small);
+        } else if (kind == 'video') {
+          ok = await angels.addVideo(
+            name: f.name,
+            mime: _mimeOfVideo(f.name),
+            bytes: bytes,
+          );
+        }
+        if (ok) {
+          added++;
+        } else {
+          failed++;
+        }
+      }
+    } catch (e) {
+      debugPrint('angel pick files: $e');
+      failed++;
+    }
+    if (!mounted || failed == 0) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(added > 0
+          ? '$added فایل اضافه شد؛ ${failed.toString()} فایل پشتیبانی نشد'
+          : 'فایل اضافه نشد؛ فرمت پشتیبانی نمی‌شود یا فایل خوانده نشد'),
+    ));
   }
 
   @override
@@ -616,94 +698,23 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                             ),
                           if (angels.hasAssets)
                             const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _kInk,
-                                    side: const BorderSide(color: _kBorder),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 11),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    try {
-                                      final files =
-                                          await _pickAngelImages();
-                                      for (final f in files) {
-                                        final bytes =
-                                            await f.readAsBytes();
-                                        final ok =
-                                            await angels.addImage(bytes);
-                                        if (!ok && context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                            content: Text(
-                                                'عکس ذخیره نشد؛ دوباره امتحان کن'),
-                                          ));
-                                        }
-                                      }
-                                    } catch (e) {
-                                      debugPrint('angel pick images: $e');
-                                    }
-                                  },
-                                  icon: const Icon(
-                                      Icons.add_photo_alternate_outlined,
-                                      size: 18),
-                                  label: const Text('＋ عکس',
-                                      style: TextStyle(fontSize: 12.5)),
-                                ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kInk,
+                              side: const BorderSide(color: _kBorder),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 11),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _kInk,
-                                    side: const BorderSide(color: _kBorder),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 11),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    try {
-                                      final files =
-                                          await _pickAngelVideos();
-                                      for (final f in files) {
-                                        final bytes =
-                                            await f.readAsBytes();
-                                        final mime = _mimeOfVideo(f.name);
-                                        final ok = await angels.addVideo(
-                                          name: f.name,
-                                          mime: mime,
-                                          bytes: bytes,
-                                        );
-                                        if (!ok && context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                            content: Text(
-                                                'ویدیو ذخیره نشد؛ دوباره امتحان کن'),
-                                          ));
-                                        }
-                                      }
-                                    } catch (e) {
-                                      debugPrint('angel pick videos: $e');
-                                    }
-                                  },
-                                  icon: const Icon(
-                                      Icons.video_library_outlined,
-                                      size: 18),
-                                  label: const Text('＋ ویدیو (بی‌صدا)',
-                                      style: TextStyle(fontSize: 12.5)),
-                                ),
-                              ),
-                            ],
+                            ),
+                            onPressed: () => _addAngelFiles(angels),
+                            icon: const Icon(
+                                Icons.add_photo_alternate_outlined,
+                                size: 18),
+                            label: const Text(
+                                '＋ افزودن عکس / GIF / ویدیو',
+                                style: TextStyle(fontSize: 12.5)),
                           ),
                           const SizedBox(height: 10),
                           _checkTile(

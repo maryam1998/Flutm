@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="مغز">
+  <meta name="theme-color" content="#FBF6EA">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="مغز">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>مغز</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #FBF6EA; }
+    /* صفحه‌ی بارگذاری: همون لحظه‌ی اول دیده می‌شه، حتی قبل از رسیدن فایل‌های سنگین فلاتر */
+    #boot {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+      background: #FBF6EA; z-index: 10; transition: opacity .25s ease;
+      font-family: Tahoma, "Segoe UI", sans-serif; color: #7A6B57; font-size: 14px;
+    }
+    #boot.hide { opacity: 0; pointer-events: none; }
+    #boot img { width: 84px; height: 84px; border-radius: 20px; }
+    #boot .bar { width: 160px; height: 4px; border-radius: 4px; background: #E8DEC8; overflow: hidden; }
+    #boot .bar i { display: block; height: 100%; width: 40%; background: #C9972B; border-radius: 4px;
+      animation: slide 1.1s ease-in-out infinite; }
+    @keyframes slide { 0% { margin-inline-start: -40%; } 100% { margin-inline-start: 100%; } }
+    @media (prefers-color-scheme: dark) {
+      html, body, #boot { background: #1A1610; }
+      #boot { color: #B8A98F; }
+      #boot .bar { background: #2E271C; }
+    }
+  </style>
+</head>
+<body>
+  <div id="boot">
+    <img src="icons/Icon-192.png" alt="">
+    <div class="bar"><i></i></div>
+    <div id="boot-msg">در حال آماده‌سازی…</div>
+  </div>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

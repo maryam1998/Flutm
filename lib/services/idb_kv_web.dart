@@ -23,9 +23,28 @@ class IdbKv {
     return _db!;
   }
 
-  /// همه‌ی کلیدها یک‌جا (هنگام شروع برنامه)
+  /// همه‌ی کلیدها یک‌جا (هنگام شروع برنامه).
+  /// getAllKeys + getAll چند برابر سریع‌تر از خواندن با cursor و یکی‌یکی است.
   static Future<Map<String, Object?>> readAll() async {
     final db = await _open();
+    try {
+      final tx = db.transaction(_storeName, idbModeReadOnly);
+      final store = tx.objectStore(_storeName);
+      final keysF = store.getAllKeys();
+      final valsF = store.getAll();
+      final keys = await keysF;
+      final vals = await valsF;
+      await tx.completed;
+      if (keys.length == vals.length) {
+        final out = <String, Object?>{};
+        for (var i = 0; i < keys.length; i++) {
+          out[keys[i].toString()] = vals[i];
+        }
+        return out;
+      }
+    } catch (_) {
+      // مرورگر/کتابخانه getAll نداشت → روش قدیمی
+    }
     final tx = db.transaction(_storeName, idbModeReadOnly);
     final store = tx.objectStore(_storeName);
     final out = <String, Object?>{};

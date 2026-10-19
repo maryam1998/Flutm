@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import '../services/app_prefs.dart';
+import '../services/media_blob.dart';
 
 import '../models/future_text_format.dart';
 import '../models/gratitude_entry.dart';
@@ -415,6 +416,9 @@ Future<void> _persist() async {
   }
 
   Future<void> removeVisualVideo(String id) async {
+    for (final v in visualVideos.where((e) => e.id == id)) {
+      MediaBlob.delete(v.path); // فایل/بلاب بیرونی هم پاک بشه
+    }
     visualVideos.removeWhere((e) => e.id == id);
     await _saveVisualVideos();
     notifyListeners();

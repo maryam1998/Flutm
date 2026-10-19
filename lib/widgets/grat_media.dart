@@ -12,6 +12,7 @@ import 'package:video_player/video_player.dart';
 import '../models/gratitude_entry.dart';
 import '../services/data_url_cache.dart';
 import '../services/image_service.dart';
+import '../services/media_blob.dart';
 
 String _fa(int n) => n.toString().replaceAllMapped(
     RegExp(r'\d'), (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)]);
@@ -43,6 +44,13 @@ Widget gratImageFromSrc(String src,
 /// ساخت کنترلر ویدیو از data-URL / مسیر فایل / آدرس.
 /// روی موبایل data-URL مستقیم پخش نمی‌شود، پس اول در فایل موقت نوشته می‌شود.
 Future<VideoPlayerController> gratVideoController(String src) async {
+  // ویدیوی ذخیره‌شده بیرون از JSON (سریع): وب → blob-URL ، موبایل → فایل
+  if (MediaBlob.isRef(src)) {
+    final p = await MediaBlob.playableSource(src);
+    if (p == null) throw StateError('video blob missing');
+    if (kIsWeb) return VideoPlayerController.networkUrl(Uri.parse(p));
+    return VideoPlayerController.file(File(p));
+  }
   if (src.startsWith('data:')) {
     if (kIsWeb) return VideoPlayerController.networkUrl(Uri.parse(src));
     final bytes = base64Decode(src.substring(src.indexOf(',') + 1));

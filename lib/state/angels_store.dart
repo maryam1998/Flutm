@@ -11,6 +11,10 @@ class AngelImage {
   final String id;
   final Uint8List bytes;
   AngelImage({required this.id, required this.bytes});
+
+  /// base64 فقط یک‌بار ساخته می‌شه (قبلاً با هر تغییر اسلایدر همه‌ی عکس‌ها دوباره رمزگذاری می‌شدن)
+  String? _b64;
+  String get b64 => _b64 ??= base64Encode(bytes);
 }
 
 /// یک ویدیو — bytes در IndexedDB، فقط metadata اینجا
@@ -88,8 +92,10 @@ class AngelsStore extends ChangeNotifier {
                 final b64 = e['b64'] as String? ?? '';
                 if (id.isNotEmpty && b64.isNotEmpty) {
                   try {
-                    _images.add(
-                        AngelImage(id: id, bytes: base64Decode(b64)));
+                    final im =
+                        AngelImage(id: id, bytes: base64Decode(b64));
+                    im._b64 = b64;
+                    _images.add(im);
                   } catch (_) {}
                 }
               }
@@ -124,7 +130,8 @@ class AngelsStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _persist() async {
+  /// فقط تنظیمات (سبک) — برای اسلایدرها و کلیدها
+  Future<void> _persistSettings() async {
     try {
       final sp = await AppPrefs.getInstance();
       await sp.setBool(_kOn, _on);
@@ -134,10 +141,15 @@ class AngelsStore extends ChangeNotifier {
       await sp.setBool(_kSoft, _soft);
       await sp.setString(_kBlend, _blend);
       await sp.setBool(_kFs, _fs);
+    } catch (_) {}
+  }
 
-      final imgsJson = _images
-          .map((im) => {'id': im.id, 'b64': base64Encode(im.bytes)})
-          .toList();
+  /// لیست عکس‌ها و ویدیوها (سنگین‌تر) — فقط وقتی لیست عوض شد
+  Future<void> _persistMedia() async {
+    try {
+      final sp = await AppPrefs.getInstance();
+      final imgsJson =
+          _images.map((im) => {'id': im.id, 'b64': im.b64}).toList();
       await sp.setString(_kImages, jsonEncode(imgsJson));
 
       final vidsJson = _videos
@@ -156,43 +168,43 @@ class AngelsStore extends ChangeNotifier {
 
   Future<void> setOn(bool v) async {
     _on = v;
-    await _persist();
+    await _persistSettings();
     notifyListeners();
   }
 
   Future<void> setSize(double v) async {
     _size = v.clamp(60, 320);
-    await _persist();
+    await _persistSettings();
     notifyListeners();
   }
 
   Future<void> setSpeed(double v) async {
     _speed = v.clamp(1, 12);
-    await _persist();
+    await _persistSettings();
     notifyListeners();
   }
 
   Future<void> setOpacity(double v) async {
     _opacity = v.clamp(0.2, 1.0);
-    await _persist();
+    await _persistSettings();
     notifyListeners();
   }
 
   Future<void> setSoft(bool v) async {
     _soft = v;
-    await _persist();
+    await _persistSettings();
     notifyListeners();
   }
 
   Future<void> setBlend(String v) async {
     _blend = (v == 'screen' || v == 'multiply') ? v : 'normal';
-    await _persist();
+    await _persistSettings();
     notifyListeners();
   }
 
   Future<void> setFs(bool v) async {
     _fs = v;
-    await _persist();
+    await _persistSettings();
     notifyListeners();
   }
 
@@ -202,7 +214,7 @@ class AngelsStore extends ChangeNotifier {
     if (bytes.isEmpty) return false;
     final id = 'ai${DateTime.now().millisecondsSinceEpoch}';
     _images.add(AngelImage(id: id, bytes: bytes));
-    await _persist();
+    await _persistMedia();
     notifyListeners();
     return true;
   }
@@ -227,14 +239,14 @@ class AngelsStore extends ChangeNotifier {
       mime: mime,
       size: bytes.length,
     ));
-    await _persist();
+    await _persistMedia();
     notifyListeners();
     return true;
   }
 
   Future<void> removeImage(String id) async {
     _images.removeWhere((im) => im.id == id);
-    await _persist();
+    await _persistMedia();
     notifyListeners();
   }
 
@@ -243,7 +255,7 @@ class AngelsStore extends ChangeNotifier {
     try {
       await AngelBlobStore.delete(id);
     } catch (_) {}
-    await _persist();
+    await _persistMedia();
     notifyListeners();
   }
 
@@ -255,7 +267,7 @@ class AngelsStore extends ChangeNotifier {
       } catch (_) {}
     }
     _videos.clear();
-    await _persist();
+    await _persistMedia();
     notifyListeners();
   }
 

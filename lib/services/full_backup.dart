@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'angel_blob_store.dart';
 import 'app_prefs.dart';
+import 'media_blob.dart';
 import 'storage.dart';
 
 class BackupReport {
@@ -84,6 +85,9 @@ class FullBackup {
       } catch (_) {}
     }
 
+    // ۵) ویدیوهای ذخیره‌شده‌ی بیرونی (موبایل: فایل‌ها؛ وب: همراه بلاب‌ها بالا آمد)
+    final mediaFiles = await MediaBlob.exportNativeFilesB64(base64Encode);
+
     return jsonEncode({
       'kind': _kind,
       'version': 1,
@@ -92,6 +96,7 @@ class FullBackup {
       'files': files,
       'angelBlobs': blobs,
       if (bgVideo != null) 'bgVideo': bgVideo,
+      if (mediaFiles.isNotEmpty) 'mediaFiles': mediaFiles,
     });
   }
 
@@ -181,6 +186,20 @@ class FullBackup {
               Uint8List.fromList(base64Decode(m['b64'] as String)),
               (m['mime'] as String?) ?? 'video/mp4',
             );
+            nVideos++;
+          } catch (_) {}
+        }
+      }
+    }
+
+    // ویدیوهای بیرونی موبایل
+    final mf = d['mediaFiles'];
+    if (mf is Map) {
+      for (final e in mf.entries) {
+        if (e.value is String) {
+          try {
+            await MediaBlob.importNativeFile(
+                e.key as String, base64Decode(e.value as String));
             nVideos++;
           } catch (_) {}
         }

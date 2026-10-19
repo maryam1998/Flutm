@@ -17,20 +17,52 @@ import 'state/motivation_store.dart';
 import 'state/shenakht_store.dart';
 import 'state/theme_store.dart';
 
+/// صفحه‌ی اولِ سبک: همون لحظه نشون داده می‌شه تا کاربر منتظر صفحه‌ی خالی نمونه
+/// (بارگذاری داده‌ها بعدش انجام می‌شه).
+class _BootSplash extends StatelessWidget {
+  const _BootSplash();
+  @override
+  Widget build(BuildContext context) => const Directionality(
+        textDirection: TextDirection.rtl,
+        child: ColoredBox(
+          color: Color(0xFFFBF6EA),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.psychology_outlined, size: 56, color: Color(0xFFC9972B)),
+                SizedBox(height: 16),
+                SizedBox(
+                  width: 26,
+                  height: 26,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Color(0xFFC9972B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // اول یک صفحه‌ی سبک بالا بیاد؛ بقیه‌ی کارها (پاک‌سازی کش، فونت، خواندن داده‌ها) بعدش.
+  runApp(const _BootSplash());
 
   // کش و سرویس‌ورکر قدیمیِ وب پاک می‌شه تا همیشه آخرین نسخه بالا بیاد
   await cleanOldWebCaches();
 
-  // فونت از اینترنت (fonts.gstatic.com) دانلود می‌شه؛ اگه کند/فیلتر بود نباید صفحه‌ی اول
-  // دقیقه‌ها سفید بمونه. حداکثر ۳ ثانیه صبر می‌کنیم؛ بعدش برنامه بالا میاد و فونت وقتی
-  // رسید جایگزین می‌شه.
+  // فونت وزیرمتن داخل خود برنامه است (assets/google_fonts) و از اینترنت دانلود نمی‌شه.
+  // اگه به هر دلیلی پیدا نشد، حداکثر ۱.۵ ثانیه صبر می‌کنیم و برنامه بالا میاد.
   try {
     await GoogleFonts.pendingFonts([
       GoogleFonts.vazirmatn(fontWeight: FontWeight.w400),
       GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-    ]).timeout(const Duration(seconds: 3), onTimeout: () => []);
+    ]).timeout(const Duration(milliseconds: 1500), onTimeout: () => []);
   } catch (_) {}
 
   final store = MapStore(StorageService());

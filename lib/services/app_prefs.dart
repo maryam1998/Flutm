@@ -83,7 +83,25 @@ class AppPrefs {
     return v is bool ? v : null;
   }
 
+  /// همه‌ی کلید/مقدارها (برای بکاپ کامل)
+  Map<String, Object> exportAll() {
+    final m = _mem;
+    if (m != null) return Map<String, Object>.from(m);
+    final out = <String, Object>{};
+    for (final k in _sp.getKeys()) {
+      final v = _sp.get(k);
+      if (v != null) out[k] = v;
+    }
+    return out;
+  }
+
   // ─────────── نوشتن ───────────
+  Future<bool> setStringList(String key, List<String> value) {
+    final m = _mem;
+    if (m == null) return _sp.setStringList(key, value);
+    return _set(key, List<String>.from(value));
+  }
+
   Future<bool> setString(String key, String value) => _set(key, value);
   Future<bool> setInt(String key, int value) => _set(key, value);
   Future<bool> setDouble(String key, double value) => _set(key, value);

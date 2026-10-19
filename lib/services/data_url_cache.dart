@@ -19,6 +19,20 @@ class DataUrlCache {
     return Object.hash(n, head, tail, mid);
   }
 
+  /// بایت‌های از قبل موجود را (بدون دیکُد دوباره‌ی base64) در کش می‌گذارد.
+  static void seed(String src, Uint8List b) {
+    final i = src.indexOf(',');
+    if (i < 0) return;
+    final k = _key(src, i);
+    if (_m.containsKey(k)) return;
+    _m[k] = b;
+    _total += b.length;
+    while (_total > _maxBytes && _m.length > 1) {
+      final first = _m.keys.first;
+      _total -= _m.remove(first)!.length;
+    }
+  }
+
   static Uint8List? bytes(String? src) {
     if (src == null || !src.startsWith('data:')) return null;
     final i = src.indexOf(',');

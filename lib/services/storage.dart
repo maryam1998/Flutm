@@ -71,10 +71,23 @@ class StorageService {
   }
 
   // ──────────── بکاپ ────────────
-  Future<bool> exportBackup(String json) async {
+  /// محتوای فایل‌های ذخیره‌ی موبایل/دسکتاپ (کلید → متن). روی وب خالیه چون همه‌چیز در AppPrefs است.
+  Future<Map<String, String>> readAllFiles() async {
+    final out = <String, String>{};
+    if (kIsWeb) return out;
+    for (final k in const [kMapKey, kYsqProfileKey, kYsqProgressKey, kYsqCheckinKey]) {
+      try {
+        final f = await _fileFor(k);
+        if (await f.exists()) out[k] = await f.readAsString();
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  Future<bool> exportBackup(String json, {String prefix = 'maghz-backup'}) async {
     final bytes = utf8.encode(json);
     final name =
-        'maghz-backup-${DateTime.now().toIso8601String().substring(0, 10)}.json';
+        '$prefix-${DateTime.now().toIso8601String().substring(0, 10)}.json';
     final path = await FilePicker.platform.saveFile(
       dialogTitle: 'ذخیره‌ی بکاپ',
       fileName: name,

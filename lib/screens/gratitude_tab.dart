@@ -19,6 +19,7 @@ import '../widgets/gratitude_slideshow.dart';
 import '../widgets/neural_pathway.dart';
 import '../widgets/inline_voice_button.dart';
 import '../services/image_service.dart';
+import '../services/media_blob.dart';
 
 // ════════════════════════════════════════════════════════════════
 class GratitudeTab extends StatefulWidget {
@@ -279,16 +280,12 @@ class _GratitudeTabState extends State<GratitudeTab> {
     try {
       final f = await _picker.pickVideo(source: ImageSource.gallery);
       if (f == null) return null;
-      final bytes = await f.readAsBytes();
       final lower = f.name.toLowerCase();
       final mime = lower.endsWith('.webm')
           ? 'video/webm'
           : (lower.endsWith('.mov') ? 'video/quicktime' : 'video/mp4');
-      return GratitudeVideo(
-        path: 'data:$mime;base64,${base64Encode(bytes)}',
-        name: f.name,
-        size: bytes.length,
-      );
+      final ref = await MediaBlob.saveXFile(f, mime: mime);
+      return GratitudeVideo(path: ref, name: f.name, size: await f.length());
     } catch (e) {
       _toast(context, 'ویدیو اضافه نشد');
       return null;
