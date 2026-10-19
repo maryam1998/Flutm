@@ -740,6 +740,12 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       const SizedBox(height: 8),
+      _sectionLabel('رنگ پا'),
+      _swatches(
+        (ex['footColor'] as String?) ?? '',
+        (c) => ex['footColor'] = c,
+        onInherit: () => ex.remove('footColor'),
+      ),
       if (act != null) ...[
         _slider(
           label: 'اندازه‌ی پاها',
