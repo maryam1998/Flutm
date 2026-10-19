@@ -42,9 +42,7 @@ class MapStore extends ChangeNotifier {
 
   /// بعد از هر تغییر ساختاری صدا بزن: لینک خودکار حلقه‌ها، آپدیت UI و ذخیره
   void changed() {
-    for (final m in autoLinkRings(state)) {
-      toast?.call(m);
-    }
+    autoLinkRings(state);
     notifyListeners();
     touch();
   }
@@ -108,7 +106,6 @@ class MapStore extends ChangeNotifier {
     state.ringsCollapsed = false;
     state.rings.add(r);
     changed();
-    toast?.call('نشانه اضافه شد — روی مسیر یک هدف ببرش تا خودکار زیرمجموعه‌اش شود');
     return r;
   }
 

@@ -42,12 +42,8 @@ class _MapTabState extends State<MapTab> {
     super.dispose();
   }
 
-  void _toast(String m) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(m)));
-  }
+  // پیام‌های خودکار نقشه حذف شدند
+  void _toast(String m) {}
 
   void _fit() {
     final r = bounds.rect;
@@ -190,25 +186,6 @@ class _MapTabState extends State<MapTab> {
             ),
           ),
 
-          // نشانگر ذخیره
-          Positioned(
-            bottom: 90,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ValueListenableBuilder<int>(
-                  valueListenable: store.lastSaved,
-                  builder: (_, ts, __) {
-                    if (ts == 0) return const SizedBox.shrink();
-                    return _SaveIndicator(key: ValueKey(ts));
-                  },
-                ),
-              ),
-            ),
-          ),
-
           // نوار ابزار پایین — دکمه‌ی تنظیمات اضافه شد
           Positioned(
             left: 8,
@@ -333,7 +310,6 @@ class _MapTabState extends State<MapTab> {
       final raw = await StorageService().pickBackup();
       if (raw == null) return;
       await store.importJson(raw);
-      msg.showSnackBar(const SnackBar(content: Text('بکاپ وارد شد')));
     } catch (e) {
       msg.showSnackBar(
           SnackBar(content: Text('ورود بکاپ ناموفق بود: $e')));
@@ -343,61 +319,9 @@ class _MapTabState extends State<MapTab> {
   Future<void> _export(BuildContext context, MapStore store) async {
     final msg = ScaffoldMessenger.of(context);
     try {
-      final ok = await StorageService().exportBackup(await store.exportJson());
-      if (ok) msg.showSnackBar(const SnackBar(content: Text('بکاپ ذخیره شد')));
+      await StorageService().exportBackup(await store.exportJson());
     } catch (e) {
       msg.showSnackBar(SnackBar(content: Text('خروجی ناموفق بود: $e')));
     }
-  }
-}
-
-class _SaveIndicator extends StatefulWidget {
-  const _SaveIndicator({super.key});
-  @override
-  State<_SaveIndicator> createState() => _SaveIndicatorState();
-}
-
-class _SaveIndicatorState extends State<_SaveIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 220),
-  );
-  @override
-  void initState() {
-    super.initState();
-    _c.forward();
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (mounted) _c.reverse();
-    });
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _c,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.78),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, size: 14, color: Color(0xFF63D6A8)),
-            SizedBox(width: 6),
-            Text('ذخیره شد',
-                style: TextStyle(fontSize: 12, color: Colors.white)),
-          ],
-        ),
-      ),
-    );
   }
 }

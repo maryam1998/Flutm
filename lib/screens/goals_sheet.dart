@@ -608,8 +608,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
   void _reach(MapStore store, Goal g) {
     _open.remove(g.id);
     store.reachGoal(g);
-    ScaffoldMessenger.of(widget.parentContext)
-        .showSnackBar(const SnackBar(content: Text('🏆 هدف محقق شد!')));
   }
 
   // ------------------------------------------------------------------ کارت محقق‌شده
@@ -761,6 +759,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
           for (final a in h.actions)
             ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
           ..._trophiesSection(store, h, hostColor),
+          if (h is Goal) ..._linkedRings(store, h),
 
           const SizedBox(height: 6),
 
@@ -1724,6 +1723,28 @@ class _GoalsSheetState extends State<GoalsSheet> {
       out.addAll(_collectAchieved(n.children, n.text));
     }
     return out;
+  }
+
+  /// نشانه‌های «نزدیک شدن به هدف» که روی مسیر این هدف قرار گرفته‌اند؛
+  /// با هر تغییر روی نقشه (چسبیدن، جدا شدن، حذف) همین‌جا خودکار به‌روز می‌شوند.
+  List<Widget> _linkedRings(MapStore store, Goal g) {
+    final rings = store.state.ringsOfGoal(g);
+    if (rings.isEmpty) return const <Widget>[];
+    return [
+      const Padding(
+        padding: EdgeInsets.fromLTRB(4, 8, 4, 6),
+        child: Text('نزدیک شدن به هدف',
+            style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: kGoalsMuted)),
+      ),
+      for (final r in rings)
+        KeyedSubtree(
+          key: ValueKey('ring-${r.id}'),
+          child: _hostCard(store, _Row(r, '')),
+        ),
+    ];
   }
 
   List<Widget> _trophiesSection(MapStore store, MapHost h, Color hostColor) {

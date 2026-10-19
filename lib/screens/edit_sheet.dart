@@ -1174,7 +1174,6 @@ class _EditSheetState extends State<EditSheet> {
               onPressed: () {
                 resetBranchPos(a);
                 _store.changed();
-                _store.toast?.call('شاخه سرِ جای اولش برگشت');
               },
               icon: const Icon(Icons.restart_alt, size: 18),
               label: const Text('برگرداندن به جای اول',

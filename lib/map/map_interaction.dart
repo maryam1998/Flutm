@@ -578,7 +578,8 @@ class MapInteraction {
           if (best == null || res.dist < best.dist) best = res;
         }
         // آهنربا: نزدیک مسیر هدف که بیاد روی مسیر می‌چسبه؛ با کشیدن بیشتر آزاد می‌شه
-        if (best != null && best.dist < 46 / cam.scale) {
+        if (best != null &&
+            best.dist < (r.radius == 0 ? 30.0 : r.radius) + 70) {
           r.x = best.pt.dx;
           r.y = best.pt.dy;
         } else {
@@ -737,7 +738,6 @@ class MapInteraction {
     if (extra == null) return;
     setWalkerPhotos(extra, [...walkerPhotosOf(extra), ...srcs]);
     store.changed();
-    store.toast?.call('${srcs.length} عکس اضافه شد 📸');
   }
 
   /// لمس طولانی روی قدم‌زن (هدف) یا پاهای شاخه: توقف ↔ ادامه
@@ -748,7 +748,6 @@ class MapInteraction {
         final playing = g.extra['walkerPlaying'] as bool? ?? true;
         g.extra['walkerPlaying'] = !playing;
         store.changed();
-        store.toast?.call(!playing ? 'قدم‌زن به راه افتاد 👣' : 'قدم‌زن متوقف شد');
       }
     } else if (p.isFoot) {
       final host = store.state.findHost(p.hostId);
@@ -757,8 +756,6 @@ class MapInteraction {
         if (found != null) {
           found.node.footPlaying = !found.node.footPlaying;
           store.changed();
-          store.toast?.call(
-              found.node.footPlaying ? 'قدم به راه افتاد 👣' : 'قدم متوقف شد');
         }
       }
     }
@@ -794,35 +791,8 @@ class MapInteraction {
         return;
       }
 
-      // ─── جام: تپ = نمایش درصد پیشرفت ───
-      if (p.isTrophy) {
-        if (!wasDrag) {
-          final g = store.state.findHost(p.hostId);
-          if (g is Goal) {
-            var totalLogs = 0;
-            var branches = 0;
-            void walk(List<ActionNode> list) {
-              for (final a in list) {
-                branches++;
-                for (final v in a.logs.values) {
-                  if (v == true ||
-                      v == 'انجام شد ✓' ||
-                      (v is String && v.isNotEmpty)) {
-                    totalLogs++;
-                  }
-                }
-                walk(a.children);
-              }
-            }
-            walk(g.actions);
-            final pct =
-                ((totalLogs / 30.0).clamp(0.0, 1.0) * 100).round();
-            store.toast?.call(
-                'رشد $pct٪ — $totalLogs از ۳۰ قدم در این هدف');
-          }
-        }
-        return;
-      }
+      // جام: تپ پیام نمایش نمی‌دهد
+      if (p.isTrophy) return;
 
       // تپ روی شاخه → کادر ویرایش
       onEditAction(p.hostId, p.actionId);

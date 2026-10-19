@@ -83,7 +83,8 @@ double _distToGoalPath(MapState s, Goal g, Offset p) {
   return best;
 }
 
-/// اگه حلقه نزدیک مسیر یک هدف باشه، زیرمجموعه‌ی اون هدف میشه. پیام‌ها رو برمی‌گردونه.
+/// اگه حلقه نزدیک مسیر یک هدف باشه، روی مسیر می‌چسبه و زیرمجموعه‌ی اون هدف میشه؛
+/// اگه از مسیر دور شد، از هدف جدا میشه. هیچ پیامی نمایش داده نمی‌شه.
 List<String> autoLinkRings(MapState s) {
   final msgs = <String>[];
   if (s.goals.isEmpty) return msgs;
@@ -94,7 +95,13 @@ List<String> autoLinkRings(MapState s) {
       if (g.id == r.goalId) cur = g;
     }
     final pos = Offset(r.x, r.y);
-    if (cur != null && _distToGoalPath(s, cur, pos) <= th) continue;
+    if (cur != null && _distToGoalPath(s, cur, pos) <= th) {
+      // هنوز نزدیک مسیر هدفِ خودش است: دقیقاً روی مسیر بنشیند
+      final snapCur = nearestOnCubic(trunkControlPoints(cur, s.me), pos);
+      r.x = snapCur.pt.dx;
+      r.y = snapCur.pt.dy;
+      continue;
+    }
     Goal? best;
     var bestD = 0.0;
     for (final g in s.goals) {
@@ -112,7 +119,9 @@ List<String> autoLinkRings(MapState s) {
       r.y = snap.pt.dy;
       r.goalId = best.id;
       best.lastActivity = DateTime.now().millisecondsSinceEpoch;
-      msgs.add('نشانه روی مسیر «${best.name.isEmpty ? 'هدف' : best.name}» قرار گرفت و زیرمجموعه‌اش شد');
+    } else if (cur != null) {
+      // از مسیر هدف دور شد و به هدف دیگری هم نرسید: از زیرمجموعه‌ی هدف خارج می‌شود
+      r.goalId = '';
     }
   }
   return msgs;
