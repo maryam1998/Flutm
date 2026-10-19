@@ -1,0 +1,56 @@
+name: Build Android APK
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create android folder if missing
+        run: |
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android --project-name=maghz --no-pub .
+          fi
+
+      - name: Add RECORD_AUDIO permission
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "android.permission.RECORD_AUDIO" "$MANIFEST"; then
+            sed -i 's|<application|<uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <application|' "$MANIFEST"
+          fi
+          if ! grep -q "android.permission.INTERNET" "$MANIFEST"; then
+            sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET" />\n    <application|' "$MANIFEST"
+          fi
+
+      - name: Commit android folder if new
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add android/ pubspec.yaml pubspec.lock 2>/dev/null || git add android/
+          git add .github/ 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "Add android platform + permissions"
+          git push || true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: maghz-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 30
