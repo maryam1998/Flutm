@@ -88,7 +88,7 @@ List<String> autoLinkRings(MapState s) {
   final msgs = <String>[];
   if (s.goals.isEmpty) return msgs;
   for (final r in s.rings) {
-    final th = (r.radius == 0 ? 30.0 : r.radius) + 40;
+    final th = (r.radius == 0 ? 30.0 : r.radius) + 70;
     Goal? cur;
     for (final g in s.goals) {
       if (g.id == r.goalId) cur = g;
@@ -106,6 +106,10 @@ List<String> autoLinkRings(MapState s) {
       }
     }
     if (best != null) {
+      // آهنربا: موقع وصل‌شدن، دقیقاً روی مسیر هدف می‌نشینه (بعدش با انگشت آزادانه قابل جابه‌جایی‌ه)
+      final snap = nearestOnCubic(trunkControlPoints(best, s.me), pos);
+      r.x = snap.pt.dx;
+      r.y = snap.pt.dy;
       r.goalId = best.id;
       best.lastActivity = DateTime.now().millisecondsSinceEpoch;
       msgs.add('نشانه روی مسیر «${best.name.isEmpty ? 'هدف' : best.name}» قرار گرفت و زیرمجموعه‌اش شد');

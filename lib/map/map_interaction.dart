@@ -577,7 +577,8 @@ class MapInteraction {
           final res = nearestOnCubic(trunkControlPoints(g, s.me), target);
           if (best == null || res.dist < best.dist) best = res;
         }
-        if (best != null && best.dist < 18 / cam.scale) {
+        // آهنربا: نزدیک مسیر هدف که بیاد روی مسیر می‌چسبه؛ با کشیدن بیشتر آزاد می‌شه
+        if (best != null && best.dist < 46 / cam.scale) {
           r.x = best.pt.dx;
           r.y = best.pt.dy;
         } else {

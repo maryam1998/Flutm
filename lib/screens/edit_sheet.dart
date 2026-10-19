@@ -68,8 +68,8 @@ class ActionTarget extends EditTarget {
 Future<void> showEditSheet(BuildContext context, EditTarget target) {
   final store = context.read<MapStore>();
 
-  // «من» و «پاها»: کادر کوچکِ کناری که از سمت چپ باز می‌شه (مثل مغز)
-  if (target is MeTarget || target is WalkerPhotosTarget) {
+  // همه‌ی کادرهای ویرایش: کادر کوچکِ کناری که از سمت چپ باز می‌شه (مثل مغز)
+  {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -78,7 +78,7 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (ctx, a1, a2) {
         final mq = MediaQuery.of(ctx);
-        final w = (mq.size.width * 0.74).clamp(260.0, 420.0).toDouble();
+        final w = (mq.size.width * 0.78).clamp(270.0, 440.0).toDouble();
         return SafeArea(
           child: Align(
             alignment: Alignment.centerLeft,
