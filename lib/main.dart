@@ -16,6 +16,7 @@ import 'state/map_store.dart';
 import 'state/motivation_store.dart';
 import 'state/shenakht_store.dart';
 import 'state/theme_store.dart';
+import 'services/quiet_snack.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,7 +70,7 @@ Future<void> main() async {
     if (done) {
       kMessengerKey.currentState
         ?..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
+        ..quietSnack(const SnackBar(
           content: Text('حس ثبت شد و رشته‌ی عصبی ساخته شد 🧠'),
           duration: Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,

@@ -24,11 +24,7 @@ class _BackupSectionState extends State<BackupSection> {
     final msg = ScaffoldMessenger.of(context);
     try {
       final json = await FullBackup.build();
-      final ok = await StorageService()
-          .exportBackup(json, prefix: 'maghz-full-backup');
-      if (ok) {
-        msg.showSnackBar(const SnackBar(content: Text('بکاپ کامل ذخیره شد')));
-      }
+      await StorageService().exportBackup(json, prefix: 'maghz-full-backup');
     } catch (e) {
       msg.showSnackBar(SnackBar(content: Text('بکاپ ناموفق بود: $e')));
     } finally {

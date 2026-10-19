@@ -63,6 +63,7 @@ class MapInteraction {
     this.onTimeBranch,
     this.onShowBranchMenu,
     this.onWalkerPhotos,
+    this.onStepInfo,
   });
 
   final CameraController cam;
@@ -78,6 +79,8 @@ class MapInteraction {
   // در این نسخه استفاده نمی‌شود.
   final void Function(String hostId, String actionId)? onShowBranchMenu;
   final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
+  /// تپ روی «قدم فعلی»: نمایش تعداد قدم‌ها و ثبت‌ها
+  final void Function(String hostId, String actionId, bool isWalker)? onStepInfo;
 
   static const double _slop = 6;
 
@@ -784,8 +787,11 @@ class MapInteraction {
       // تپ = انتخاب عکس (چندتایی، بدون محدودیت تعداد)
       if (p.isWalker || p.isFoot) {
         if (!wasDrag && !held) {
+          final si = onStepInfo;
           final cb = onWalkerPhotos;
-          if (cb != null) {
+          if (si != null) {
+            si(p.hostId, p.actionId, p.isWalker);
+          } else if (cb != null) {
             cb(p.hostId, p.actionId, p.isWalker);
           } else {
             _pickWalkerPhotos(p);
@@ -794,33 +800,9 @@ class MapInteraction {
         return;
       }
 
-      // ─── جام: تپ = نمایش درصد پیشرفت ───
+      // ─── جام: تپ = تعداد قدم‌ها و ثبت‌ها ───
       if (p.isTrophy) {
-        if (!wasDrag) {
-          final g = store.state.findHost(p.hostId);
-          if (g is Goal) {
-            var totalLogs = 0;
-            var branches = 0;
-            void walk(List<ActionNode> list) {
-              for (final a in list) {
-                branches++;
-                for (final v in a.logs.values) {
-                  if (v == true ||
-                      v == 'انجام شد ✓' ||
-                      (v is String && v.isNotEmpty)) {
-                    totalLogs++;
-                  }
-                }
-                walk(a.children);
-              }
-            }
-            walk(g.actions);
-            final pct =
-                ((totalLogs / 30.0).clamp(0.0, 1.0) * 100).round();
-            store.toast?.call(
-                'رشد $pct٪ — $totalLogs از ۳۰ قدم در این هدف');
-          }
-        }
+        if (!wasDrag) onStepInfo?.call(p.hostId, '', true);
         return;
       }
 

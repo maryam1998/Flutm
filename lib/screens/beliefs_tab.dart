@@ -17,6 +17,7 @@ import '../widgets/neural_pathway.dart';
 import '../widgets/nothing_scene.dart';
 import '../widgets/quantum_connect.dart';
 import '../widgets/ras_mission.dart';
+import '../services/quiet_snack.dart';
 
 const Color _kEmerald = Color(0xFF178A7C);
 const Color _kEmerald300 = Color(0xFF54B3A4);
@@ -1290,7 +1291,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
   // ═══════════════ handlers ═══════════════
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).quietSnack(
       SnackBar(content: Text(msg)),
     );
   }
@@ -1633,7 +1634,7 @@ class _TextEditorState extends State<_TextEditor> {
                       onPressed: () {
                         final t = _ctrl.text.trim();
                         if (t.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(context).quietSnack(
                             const SnackBar(
                                 content: Text('متن نمی‌تونه خالی باشه')),
                           );

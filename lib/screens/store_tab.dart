@@ -13,6 +13,7 @@ import '../utils/money_format.dart';
 import '../utils/thousands_input_formatter.dart';
 import '../widgets/receipt_sheet.dart';
 import '../widgets/shop_history_sheet.dart';
+import '../services/quiet_snack.dart';
 
 const _kCream = Color(0xFFF7F6F1);
 const _kCard = Colors.white;
@@ -59,7 +60,7 @@ class _StoreTabState extends State<StoreTab> {
     final name = _name.text.trim();
     final price = parseMoneyInput(_price.text);
     if (name.isEmpty || price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).quietSnack(
         const SnackBar(content: Text('نام و مبلغ معتبر وارد کن')),
       );
       return;
@@ -80,13 +81,13 @@ class _StoreTabState extends State<StoreTab> {
     final grat = context.read<GratitudeStore>();
 
     if (store.cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).quietSnack(
         const SnackBar(content: Text('سبد خریدت خالیه')),
       );
       return;
     }
     if (store.cartTotal > store.balance) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).quietSnack(
         SnackBar(
             content: Text(
                 'این مبلغ از موجودی امروزت بیشتره — باقی‌مانده: ${formatMoney(store.balance)}')),
@@ -385,7 +386,7 @@ class _StoreTabState extends State<StoreTab> {
               ),
               onPressed: () {
                 store.moveAllPendingToCart();
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(context).quietSnack(
                   const SnackBar(content: Text('🛍️ به سبد خرید اضافه شد')),
                 );
               },

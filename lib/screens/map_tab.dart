@@ -14,7 +14,9 @@ import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
 import 'settings_sheet.dart';
+import 'steps_sheet.dart';
 import 'time_sheet.dart';
+import '../services/quiet_snack.dart';
 
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
@@ -46,7 +48,7 @@ class _MapTabState extends State<MapTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(m)));
+      ..quietSnack(SnackBar(content: Text(m)));
   }
 
   void _fit() {
@@ -91,6 +93,15 @@ class _MapTabState extends State<MapTab> {
             onEditMe: () => showEditSheet(context, const MeTarget()),
             onWalkerPhotos: (hostId, actionId, isWalker) => showEditSheet(
                 context, WalkerPhotosTarget(hostId, actionId, isWalker)),
+            onStepInfo: (hostId, actionId, isWalker) => showStepsSheet(
+              context,
+              store: store,
+              hostId: hostId,
+              actionId: actionId,
+              isWalker: isWalker,
+              onEditPhotos: () => showEditSheet(
+                  context, WalkerPhotosTarget(hostId, actionId, isWalker)),
+            ),
             onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),
             onEditAction: (hostId, actionId) =>
@@ -191,7 +202,7 @@ class _MapTabState extends State<MapTab> {
                   valueListenable: store.lastSaved,
                   builder: (_, ts, __) {
                     if (ts == 0) return const SizedBox.shrink();
-                    return _SaveIndicator(key: ValueKey(ts));
+                    return const SizedBox.shrink();
                   },
                 ),
               ),
@@ -322,9 +333,9 @@ class _MapTabState extends State<MapTab> {
       final raw = await StorageService().pickBackup();
       if (raw == null) return;
       await store.importJson(raw);
-      msg.showSnackBar(const SnackBar(content: Text('بکاپ وارد شد')));
+      msg.quietSnack(const SnackBar(content: Text('بکاپ وارد شد')));
     } catch (e) {
-      msg.showSnackBar(
+      msg.quietSnack(
           SnackBar(content: Text('ورود بکاپ ناموفق بود: $e')));
     }
   }
@@ -333,9 +344,9 @@ class _MapTabState extends State<MapTab> {
     final msg = ScaffoldMessenger.of(context);
     try {
       final ok = await StorageService().exportBackup(await store.exportJson());
-      if (ok) msg.showSnackBar(const SnackBar(content: Text('بکاپ ذخیره شد')));
+      if (ok) msg.quietSnack(const SnackBar(content: Text('بکاپ ذخیره شد')));
     } catch (e) {
-      msg.showSnackBar(SnackBar(content: Text('خروجی ناموفق بود: $e')));
+      msg.quietSnack(SnackBar(content: Text('خروجی ناموفق بود: $e')));
     }
   }
 }

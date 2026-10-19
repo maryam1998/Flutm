@@ -15,6 +15,7 @@ import '../state/theme_store.dart';
 import '../widgets/backup_section.dart';
 import '../widgets/web_color_picker.dart';
 import 'motivation_sheet.dart';
+import '../services/quiet_snack.dart';
 
 const _kCream = Color(0xFFFBF6EA);
 const _kCard = Colors.white;
@@ -125,7 +126,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.userName = _nameCtrl.text.trim();
     store.changed();
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).quietSnack(
       const SnackBar(content: Text('تنظیمات ذخیره شد')),
     );
   }
@@ -409,7 +410,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه‌ی رد پا ═══════════
                     Row(
                       children: [
-                        Flexible(child: _sectionTitle('اندازه‌ی رد پا 👣')),
+                        Flexible(child: _sectionTitle('اندازه‌ی قدم‌زن')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -499,7 +500,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                     final ok = await bg.pickImage();
                                     if (ok && context.mounted) {
                                       ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
+                                          .quietSnack(const SnackBar(
                                               content: Text(
                                                   'تصویر پس‌زمینه ثبت شد')));
                                     }
@@ -526,7 +527,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                     final ok = await bg.pickVideo();
                                     if (ok && context.mounted) {
                                       ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
+                                          .quietSnack(const SnackBar(
                                               content:
                                                   Text('ویدیو پس‌زمینه ثبت شد')));
                                     }
@@ -651,7 +652,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                             await angels.addImage(bytes);
                                         if (!ok && context.mounted) {
                                           ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
+                                              .quietSnack(const SnackBar(
                                             content: Text(
                                                 'عکس ذخیره نشد؛ دوباره امتحان کن'),
                                           ));
@@ -696,7 +697,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                         );
                                         if (!ok && context.mounted) {
                                           ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
+                                              .quietSnack(const SnackBar(
                                             content: Text(
                                                 'ویدیو ذخیره نشد؛ دوباره امتحان کن'),
                                           ));
@@ -883,7 +884,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                           ),
                         ),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(context).quietSnack(
                             const SnackBar(
                               content: Text(
                                   'خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),

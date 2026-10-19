@@ -292,7 +292,7 @@ class _EditSheetState extends State<EditSheet> {
   String _title() {
     final t = _t;
     if (t is MeTarget) return 'من';
-    if (t is WalkerPhotosTarget) return 'عکس پاها';
+    if (t is WalkerPhotosTarget) return 'عکس قدم‌زن';
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal && g.name.isNotEmpty ? g.name : 'هدف';
@@ -748,7 +748,7 @@ class _EditSheetState extends State<EditSheet> {
       ),
       if (act != null) ...[
         _slider(
-          label: 'اندازه‌ی پاها',
+          label: 'اندازه‌ی قدم‌زن',
           value: (act.footSize ?? 1.0).clamp(0.4, 2.5).toDouble(),
           min: 0.4,
           max: 2.5,
@@ -767,13 +767,13 @@ class _EditSheetState extends State<EditSheet> {
         ),
         _switchTile(
           title: 'در حال حرکت',
-          subtitle: 'روشن = پاها راه می‌رن',
+          subtitle: 'روشن = قدم‌زن حرکت می‌کنه',
           value: act.footPlaying,
           onChanged: (v) => _edit(() => act!.footPlaying = v),
         ),
       ] else ...[
         _slider(
-          label: 'اندازه‌ی پاها و دایره‌ی متصل',
+          label: 'اندازه‌ی قدم‌زن و دایره‌ی متصل',
           value: ((ex['walkerSize'] as num?)?.toDouble() ?? 1.0)
               .clamp(0.4, 3.0)
               .toDouble(),
@@ -818,7 +818,7 @@ class _EditSheetState extends State<EditSheet> {
   // ============================================================
   List<Widget> _goalBody(Goal g) {
     return [
-      _sectionLabel('عکس پاهای متحرک'),
+      _sectionLabel('عکس قدم‌زن'),
       WalkerPhotoField(
         initial: walkerPhotosOf(g.extra),
         onChanged: (v) => _edit(() {
@@ -830,7 +830,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       _slider(
-        label: 'اندازه‌ی پاها و دایره‌ی متصل',
+        label: 'اندازه‌ی قدم‌زن و دایره‌ی متصل',
         value: ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
             .clamp(0.4, 3.0),
         min: 0.4,
@@ -1055,7 +1055,7 @@ class _EditSheetState extends State<EditSheet> {
       _shapeGrid(a.style, (v) => a.style = v, inherit: true),
 
       // ═══════════ قدم روی مسیر 👣 ═══════════
-      _sectionLabel('قدم روی مسیر 👣'),
+      _sectionLabel('قدم فعلی روی مسیر'),
       _slider(
         label: 'اندازه‌ی قدم',
         value: (a.footSize ?? 1.0).clamp(0.4, 2.5),
@@ -1104,7 +1104,7 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ),
       ),
-      _sectionLabel('عکس پاهای متحرک'),
+      _sectionLabel('عکس قدم‌زن'),
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
         onChanged: (v) => _edit(() {
