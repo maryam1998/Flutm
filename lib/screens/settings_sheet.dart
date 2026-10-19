@@ -31,13 +31,22 @@ Future<void> showSettingsSheet(BuildContext context) {
     barrierColor: Colors.black.withAlpha(100),
     transitionDuration: const Duration(milliseconds: 260),
     pageBuilder: (ctx, _, __) {
-      final w = MediaQuery.sizeOf(ctx).width;
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: SizedBox(
-          width: (w * 0.78).clamp(260.0, 340.0).toDouble(),
-          height: double.infinity,
-          child: const _SettingsSheet(),
+      final mq = MediaQuery.of(ctx);
+      return SafeArea(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: SizedBox(
+              width: (mq.size.width * 0.66).clamp(240.0, 310.0).toDouble(),
+              height: mq.size.height * 0.84,
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.horizontal(right: Radius.circular(22)),
+                child: const _SettingsSheet(),
+              ),
+            ),
+          ),
         ),
       );
     },
