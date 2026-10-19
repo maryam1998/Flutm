@@ -54,7 +54,7 @@ jobs:
           fi
 
       - name: Build web
-        run: flutter build web --release --base-href "/Flutm/" --pwa-strategy=none
+        run: flutter build web --release --base-href "/Flutm/" --pwa-strategy=none --no-web-resources-cdn
 
       # هر دیپلوی یک شماره‌ی تازه می‌گیرد تا مرورگر نسخه‌ی قدیمی را نگه ندارد
       - name: Cache-bust

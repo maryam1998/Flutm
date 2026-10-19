@@ -13,6 +13,12 @@ class GoogleFonts {
 
   static const String family = 'Vazirmatn';
 
+  /// فونت ایموجیِ سبکِ داخل برنامه (فقط ایموجی‌های استفاده‌شده، ~۲۵۰KB).
+  /// بدون این، فلاتر وب برای هر ایموجی فونت ۱۰ مگابایتی را از fonts.gstatic.com
+  /// می‌گیرد که روی اینترنت ایران کند یا قطع است و صفحه را ده‌ها ثانیه نگه می‌دارد.
+  static const String emojiFamily = 'NotoEmoji';
+  static const List<String> emojiFallback = [emojiFamily];
+
   static TextStyle vazirmatn({
     TextStyle? textStyle,
     Color? color,
@@ -45,10 +51,11 @@ class GoogleFonts {
       foreground: foreground,
       shadows: shadows,
       fontFeatures: fontFeatures,
-      fontFamilyFallback: fontFamilyFallback,
+      fontFamilyFallback: fontFamilyFallback ?? emojiFallback,
     );
   }
 
   static TextTheme vazirmatnTextTheme([TextTheme? base]) =>
-      (base ?? ThemeData.light().textTheme).apply(fontFamily: family);
+      (base ?? ThemeData.light().textTheme)
+          .apply(fontFamily: family, fontFamilyFallback: emojiFallback);
 }

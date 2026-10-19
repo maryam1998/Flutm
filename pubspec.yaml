@@ -48,3 +48,6 @@ flutter:
           weight: 800
         - asset: assets/google_fonts/Vazirmatn-Black.ttf
           weight: 900
+    - family: NotoEmoji
+      fonts:
+        - asset: assets/google_fonts/NotoEmojiSubset.ttf
