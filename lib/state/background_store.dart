@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:image_picker/image_picker.dart';
-import '../services/file_manager_picker.dart';
 import '../services/app_prefs.dart';
 
 enum BgKind { none, image, video }
@@ -36,7 +35,7 @@ class BackgroundStore extends ChangeNotifier {
   /// تصویر/ویدیو یا رنگ دلخواه فعال است (تب‌ها باید شفاف شوند تا دیده شود)
   bool get overridesBackdrop => hasBackground || _color != null;
 
-  final _picker = FileManagerPicker();
+  final _picker = ImagePicker();
 
   Future<void> load() async {
     try {

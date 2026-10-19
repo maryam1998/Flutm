@@ -420,6 +420,27 @@ class _GratAlbumState extends State<_GratAlbum> {
                 right: 8,
                 child: Row(
                   children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close,
+                          color: Colors.white, size: 26),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${_fa(idx + 1)} / ${_fa(list.length)}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const Spacer(),
                     if (_paused)
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6),
@@ -450,28 +471,6 @@ class _GratAlbumState extends State<_GratAlbum> {
                       },
                       icon: const Icon(Icons.grid_view_rounded,
                           color: Colors.white, size: 24),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${_fa(idx + 1)} / ${_fa(list.length)}',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close,
-                          color: Colors.white, size: 26),
                     ),
                   ],
                 ),

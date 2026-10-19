@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../data/shenakht/ysq_questions.dart';
 import '../../state/shenakht_store.dart';
 import 'shenakht_tab.dart';
-import '../../services/quiet_snack.dart';
 
 class YsqScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -84,7 +83,7 @@ class _YsqScreenState extends State<YsqScreen> {
       // همه جواب داده شدن
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..quietSnack(const SnackBar(
+        ..showSnackBar(const SnackBar(
           content: Text('همه‌ی سؤال‌ها جواب داده شدن ✅'),
           duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,

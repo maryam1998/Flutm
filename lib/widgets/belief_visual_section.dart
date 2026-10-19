@@ -156,6 +156,7 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
         if (mounted && token == _markToken) setState(() => _mark = null);
       });
     }
+    _toast(context, nt.isEmpty ? 'یادداشت پاک شد' : 'یادداشت ذخیره شد ✓');
   }
 
   // ─── رسانه ───
@@ -169,7 +170,13 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
       if (!mounted || srcs.isEmpty) return;
       final ok = await store.addVisualImages(srcs);
       if (!mounted) return;
-      if (!ok) _toast(context, _kStorageFullMsg);
+      _toast(
+          context,
+          ok
+              ? (srcs.length > 1
+                  ? '${_fa(srcs.length)} عکس اضافه شد ✨'
+                  : 'عکس اضافه شد ✨')
+              : _kStorageFullMsg);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -190,7 +197,7 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
       if (v == null) return;
       final ok = await store.addVisualVideo(v);
       if (!mounted) return;
-      if (!ok) _toast(context, _kStorageFullMsg);
+      _toast(context, ok ? 'ویدیو اضافه شد 🎬' : _kStorageFullMsg);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -204,7 +211,7 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
     final ok = await store.addVisualVoice(src,
         name: 'ضبط ${_faStr('$hh:$mm')}');
     if (!mounted) return;
-    if (!ok) _toast(context, _kStorageFullMsg);
+    _toast(context, ok ? 'صدا ذخیره شد 🎙️' : _kStorageFullMsg);
   }
 
   void _openAlbum(BeliefsStore store, int start) {
@@ -594,7 +601,7 @@ class _BeliefMeditationMusicState extends State<BeliefMeditationMusic> {
       if (t == null) return;
       final ok = await store.setMeditationTrack(t);
       if (!mounted) return;
-      if (!ok) _toast(context, _kStorageFullMsg);
+      _toast(context, ok ? 'موسیقی اضافه شد 🎵' : _kStorageFullMsg);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

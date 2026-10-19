@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 
 import '../services/audio_mime.dart';
 import '../services/data_url_cache.dart';
-import '../services/quiet_snack.dart';
 
 const Color _kInk = Color(0xFF000000);
 const Color _kMuted = Color(0xFF7C8B87);
@@ -169,7 +168,7 @@ class _AudioClipViewState extends State<AudioClipView> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).quietSnack(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('ذخیره‌ی فایل صدا نشد'),
         duration: Duration(milliseconds: 1600),
       ));

@@ -661,7 +661,7 @@ Future<void> _registerToday(BeliefsStore store) async {
   if (!already) {
     final ms = v.readTimes[tk];
     final timeTxt = ms == null ? '' : ' — ساعت ${_fmtTime(ms)}';
-    _info('✓ امروز ثبت شد$timeTxt');
+    _toast('✓ امروز ثبت شد$timeTxt');
   }
 }
 
@@ -764,7 +764,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
                   await store.activateVersion(v.id);
                   if (!mounted) return;
                   setState(() => _selectedDay = null);
-                  _info('نسخه فعال شد ✓');
+                  _toast('نسخه فعال شد ✓');
                 }),
               ),
               const SizedBox(width: 6),
@@ -774,7 +774,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
                 if (!ok) return;
                 await store.deleteVersion(v.id);
                 if (!mounted) return;
-                _info('نسخه حذف شد');
+                _toast('نسخه حذف شد');
               }, color: const Color(0xFFC0392B)),
             ],
           ),
@@ -1288,8 +1288,6 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
   }
 
   // ═══════════════ handlers ═══════════════
-  void _info(String msg) {}
-
   void _toast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1359,7 +1357,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
         }
       });
     }
-    _info(hadVersion
+    _toast(hadVersion
         ? 'متن ویرایش شد ✏ (دوره و تقویم همان‌طور ماند)'
         : 'متن خواسته‌ات ثبت شد ✨');
   }
@@ -1426,7 +1424,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
         setState(() => _selectedDay = null);
       }
     }
-    _info('دوره روی ${_toFa(n)} روز تنظیم شد 🌱');
+    _toast('دوره روی ${_toFa(n)} روز تنظیم شد 🌱');
   }
 
   Future<void> _confirmResetCalendar(BeliefsStore store) async {
@@ -1441,7 +1439,7 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
     await store.resetCalendar();
     if (!mounted) return;
     setState(() => _selectedDay = null);
-    _info('تقویم ریست شد — دوره‌ی تازه از امروز 🌱');
+    _toast('تقویم ریست شد — دوره‌ی تازه از امروز 🌱');
   }
 }
 

@@ -8,7 +8,6 @@ import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
-import '../services/quiet_snack.dart';
 
 // رنگ‌های شیت زمان (روشن — هم‌رنگ Goals Sheet)
 const _kCream = Color(0xFFFBF6EA);
@@ -540,7 +539,7 @@ class _DurationDialogState extends State<_DurationDialog> {
     if (_mode == 'dur') {
       final t = _total();
       if (t <= 0 && !widget.allowZero) {
-        ScaffoldMessenger.of(context).quietSnack(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ساعت یا دقیقه رو وارد کن')),
         );
         return;
@@ -552,7 +551,7 @@ class _DurationDialogState extends State<_DurationDialog> {
     } else {
       final r = _readRange();
       if (r == null) {
-        ScaffoldMessenger.of(context).quietSnack(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ساعت شروع و پایان را درست انتخاب کن')),
         );
         return;
@@ -561,7 +560,7 @@ class _DurationDialogState extends State<_DurationDialog> {
       if (end <= r.start) end += 1440;
       final mins = end - r.start;
       if (mins <= 0) {
-        ScaffoldMessenger.of(context).quietSnack(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('مدت باید بیشتر از صفر باشه')),
         );
         return;

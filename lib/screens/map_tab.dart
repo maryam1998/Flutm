@@ -14,9 +14,7 @@ import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
 import 'settings_sheet.dart';
-import 'steps_sheet.dart';
 import 'time_sheet.dart';
-import '../services/quiet_snack.dart';
 
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
@@ -48,7 +46,7 @@ class _MapTabState extends State<MapTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..quietSnack(SnackBar(content: Text(m)));
+      ..showSnackBar(SnackBar(content: Text(m)));
   }
 
   void _fit() {
@@ -93,15 +91,6 @@ class _MapTabState extends State<MapTab> {
             onEditMe: () => showEditSheet(context, const MeTarget()),
             onWalkerPhotos: (hostId, actionId, isWalker) => showEditSheet(
                 context, WalkerPhotosTarget(hostId, actionId, isWalker)),
-            onStepInfo: (hostId, actionId, isWalker) => showStepsSheet(
-              context,
-              store: store,
-              hostId: hostId,
-              actionId: actionId,
-              isWalker: isWalker,
-              onEditPhotos: () => showEditSheet(
-                  context, WalkerPhotosTarget(hostId, actionId, isWalker)),
-            ),
             onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),
             onEditAction: (hostId, actionId) =>
@@ -152,6 +141,11 @@ class _MapTabState extends State<MapTab> {
                 padding: const EdgeInsets.all(10),
                 child: Row(
                   children: [
+                    _roundBtn(
+                      Icons.more_vert,
+                      ink,
+                      () => _showTopMenu(store),
+                    ),
                     const Spacer(),
                     if (_resizeMode)
                       Container(
@@ -168,6 +162,12 @@ class _MapTabState extends State<MapTab> {
                         child: Text('تغییر اندازه',
                             style: TextStyle(fontSize: 11, color: ink)),
                       ),
+                    _roundBtn(
+                      Icons.open_in_full,
+                      _resizeMode ? const Color(0xFF5EC8F0) : ink,
+                      () => setState(() => _resizeMode = !_resizeMode),
+                    ),
+                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
@@ -202,7 +202,7 @@ class _MapTabState extends State<MapTab> {
                   valueListenable: store.lastSaved,
                   builder: (_, ts, __) {
                     if (ts == 0) return const SizedBox.shrink();
-                    return const SizedBox.shrink();
+                    return _SaveIndicator(key: ValueKey(ts));
                   },
                 ),
               ),

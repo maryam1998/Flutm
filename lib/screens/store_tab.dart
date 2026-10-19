@@ -13,7 +13,6 @@ import '../utils/money_format.dart';
 import '../utils/thousands_input_formatter.dart';
 import '../widgets/receipt_sheet.dart';
 import '../widgets/shop_history_sheet.dart';
-import '../services/quiet_snack.dart';
 
 const _kCream = Color(0xFFF7F6F1);
 const _kCard = Colors.white;
@@ -386,7 +385,7 @@ class _StoreTabState extends State<StoreTab> {
               ),
               onPressed: () {
                 store.moveAllPendingToCart();
-                ScaffoldMessenger.of(context).quietSnack(
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('🛍️ به سبد خرید اضافه شد')),
                 );
               },

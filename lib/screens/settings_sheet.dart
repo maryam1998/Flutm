@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/file_manager_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
@@ -12,10 +11,8 @@ import '../state/angels_store.dart';
 import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
-import '../widgets/backup_section.dart';
 import '../widgets/web_color_picker.dart';
 import 'motivation_sheet.dart';
-import '../services/quiet_snack.dart';
 
 const _kCream = Color(0xFFFBF6EA);
 const _kCard = Colors.white;
@@ -34,22 +31,13 @@ Future<void> showSettingsSheet(BuildContext context) {
     barrierColor: Colors.black.withAlpha(100),
     transitionDuration: const Duration(milliseconds: 260),
     pageBuilder: (ctx, _, __) {
-      final mq = MediaQuery.of(ctx);
-      return SafeArea(
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: SizedBox(
-              width: (mq.size.width * 0.66).clamp(240.0, 310.0).toDouble(),
-              height: mq.size.height - mq.padding.vertical - 8,
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.horizontal(right: Radius.circular(22)),
-                child: const _SettingsSheet(),
-              ),
-            ),
-          ),
+      final w = MediaQuery.sizeOf(ctx).width;
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: (w * 0.78).clamp(260.0, 340.0).toDouble(),
+          height: double.infinity,
+          child: const _SettingsSheet(),
         ),
       );
     },
@@ -126,7 +114,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.userName = _nameCtrl.text.trim();
     store.changed();
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).quietSnack(
+    ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('تنظیمات ذخیره شد')),
     );
   }
@@ -140,7 +128,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 
   Future<List<XFile>> _pickAngelImages() async {
-    return FileManagerPicker().pickMultiImage();
+    final picker = ImagePicker();
+    return picker.pickMultiImage();
   }
 
   Future<List<XFile>> _pickAngelVideos() async {
@@ -410,7 +399,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه‌ی رد پا ═══════════
                     Row(
                       children: [
-                        Flexible(child: _sectionTitle('اندازه‌ی قدم در مسیر')),
+                        Flexible(child: _sectionTitle('اندازه‌ی رد پا 👣')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -500,7 +489,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                     final ok = await bg.pickImage();
                                     if (ok && context.mounted) {
                                       ScaffoldMessenger.of(context)
-                                          .quietSnack(const SnackBar(
+                                          .showSnackBar(const SnackBar(
                                               content: Text(
                                                   'تصویر پس‌زمینه ثبت شد')));
                                     }
@@ -527,7 +516,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                     final ok = await bg.pickVideo();
                                     if (ok && context.mounted) {
                                       ScaffoldMessenger.of(context)
-                                          .quietSnack(const SnackBar(
+                                          .showSnackBar(const SnackBar(
                                               content:
                                                   Text('ویدیو پس‌زمینه ثبت شد')));
                                     }
@@ -819,10 +808,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                             style: TextStyle(fontSize: 12.5)),
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // ═══════════ پشتیبان‌گیری ═══════════
-                    const BackupSection(),
                     const SizedBox(height: 20),
 
                     // ═══════════ دکمه‌های پایین ═══════════

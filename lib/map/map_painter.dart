@@ -798,7 +798,6 @@ class MapPainter extends CustomPainter {
       hitId: g.id,
       hostId: g.id,
       photos: walkerPhotosOf(g.extra),
-      stepCount: _goalTotalLogs(g),
     );
   }
 
@@ -818,8 +817,36 @@ class MapPainter extends CustomPainter {
     final size = baseSize * 1.2 * sizeMul * footMul;
     final len = math.max(route.length, 1.0);
 
-    // بدون ثبت: هنوز قدمی برداشته نشده، چیزی کشیده نمی‌شه
-    if (n == 0) return;
+    // ─── بدون ثبت: فقط علامت کم‌رنگ پا کنار شاخه (شروع مسیر) ───
+    if (n == 0) {
+      const u0 = 0.03;
+      _drawWalkerFoot(canvas, route, u0, -1.0, size, withOp(color, 0.32));
+      _drawWalkerFoot(canvas, route, u0, 1.0, size, withOp(color, 0.32));
+      hits.add(HitEntry(
+        type: 'foot',
+        id: a.id,
+        hostId: hostId,
+        kind: HitKind.handle,
+        center: route.at(u0),
+        radius: size * 1.4,
+      ));
+      return;
+    }
+
+    // ─── روزهای قبل: قدم‌های ثابت و کم‌رنگ، پشت سر هم از شروع مسیر ───
+    final fixed = n - 1;
+    if (fixed > 0) {
+      final stride =
+          math.min(size * 1.5 / len, 0.85 / math.max(1, fixed)).toDouble();
+      for (var k = 0; k < fixed; k++) {
+        final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
+        // هر روز یک جفت پا، کمی جلوتر از روز قبل
+        _drawWalkerFoot(canvas, route, u, -1.0, size * 0.9,
+            withOp(color, 0.30));
+        _drawWalkerFoot(canvas, route, u, 1.0, size * 0.9,
+            withOp(color, 0.30));
+      }
+    }
 
     // ─── امروز: پاها در مسیر هدف قدم می‌زنند (رفت و برگشت) ───
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
@@ -846,7 +873,6 @@ class MapPainter extends CustomPainter {
       hostId: hostId,
       withBody: false,
       photos: walkerPhotosOf(a.extra),
-      stepCount: n,
     );
   }
 
@@ -871,10 +897,10 @@ class MapPainter extends CustomPainter {
     required String hostId,
     bool withBody = true,
     List<String> photos = const [],
-    int stepCount = 0,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
+    final mine = <Offset>[];
 
     // ─── موقعیت بدنه + جهت (رفت / برگشت) ───
     double bodyT;
@@ -899,9 +925,61 @@ class MapPainter extends CustomPainter {
     // ─── فقط عکس انتخاب‌شده (اولی) نشون داده می‌شه؛ بقیه فقط ذخیره‌ان ───
     final String? photo = photos.isNotEmpty ? photos.first : null;
 
-    // ─── فاز حرکت (فقط برای ضربان بدنه) ───
+    // ─── فاز قدم ───
+    final stepPhase = playing ? (tt * speed) % 1.0 : 0.0;
+    final leftSwinging = stepPhase < 0.5;
+    final swingPhase = leftSwinging ? stepPhase * 2 : (stepPhase - 0.5) * 2;
+    final swingEase = _easeInOut(swingPhase);
+
+    // ─── موقعیت پاها (نسبت به جهت حرکت) ───
     final footGap = stepLen * 0.45;
     final plantedT = (bodyT - dir * footGap).clamp(0.02, 0.98);
+    final swingStart = plantedT;
+    final swingEnd = (bodyT + dir * footGap).clamp(0.02, 0.98);
+    final swingingT = swingStart + (swingEnd - swingStart) * swingEase;
+
+    final leftT = leftSwinging ? swingingT : plantedT;
+    final rightT = leftSwinging ? plantedT : swingingT;
+
+    const maxLift = 5.0;
+    final leftLift =
+        leftSwinging ? math.sin(swingPhase * math.pi) * maxLift : 0.0;
+    final rightLift =
+        leftSwinging ? 0.0 : math.sin(swingPhase * math.pi) * maxLift;
+
+    // ─── دنباله (پشت سر، نسبت به جهت حرکت) ───
+    for (var i = 1; i <= trailCount; i++) {
+      final trailT = (bodyT - dir * i * stepLen).clamp(0.02, 0.98);
+      if (trailT < tMin - 0.001 || trailT > tMax + 0.001) continue;
+      final trailSize = baseSize * math.max(0.2, 0.5 - i * 0.06);
+      final trailOpacity = (1.0 - i / (trailCount + 1)) * 0.42;
+      final trailIsLeft = (i + (leftSwinging ? 0 : 1)) % 2 == 0;
+      _drawWalkerFoot(canvas, cp, trailT, trailIsLeft ? -1.0 : 1.0, trailSize,
+          withOp(col, trailOpacity),
+          lift: 0,
+          outline: true,
+          returning: returning,
+          laneOff: laneOff,
+          others: _walkerPts,
+          pref: pref);
+    }
+
+    // ─── دو پا ───
+    _drawWalkerFoot(canvas, cp, leftT, -1.0, baseSize, withOp(col, 0.92),
+        lift: leftLift,
+        returning: returning,
+        laneOff: laneOff,
+        others: _walkerPts,
+        mine: mine,
+        pref: pref);
+    _drawWalkerFoot(canvas, cp, rightT, 1.0, baseSize, withOp(col, 0.92),
+        lift: rightLift,
+        returning: returning,
+        laneOff: laneOff,
+        others: _walkerPts,
+        mine: mine,
+        pref: pref);
+    _walkerPts.addAll(mine);
 
     // ─── بدنه ───
     final bodyPt = cp.at(bodyT);
@@ -1001,10 +1079,6 @@ class MapPainter extends CustomPainter {
       }
     }
 
-    // ─── برچسب «قدم فعلی برای رسیدن به هدف» + تعداد قدم‌ها (به‌جای نماد پا) ───
-    _drawStepLabel(canvas, bodyPos, bodyR, col,
-        small: hitType != 'walker', stepCount: stepCount);
-
     hits.add(HitEntry(
       type: hitType,
       id: hitId,
@@ -1022,37 +1096,6 @@ class MapPainter extends CustomPainter {
       center: bodyPos,
       radius: math.max(bodyR * 1.3, 20),
     ));
-  }
-
-  void _drawStepLabel(Canvas canvas, Offset bodyPos, double bodyR, Color col,
-      {required bool small, required int stepCount}) {
-    final text = stepCount > 0
-        ? 'قدم فعلی برای رسیدن به هدف · ${toFa(stepCount)} قدم'
-        : 'قدم فعلی برای رسیدن به هدف';
-    final tp = textCache.get(
-        text,
-        small ? 8.5 : 10.0,
-        isDark ? const Color(0xFFF2F4FF) : const Color(0xFF2A2218),
-        FontWeight.w700);
-    const padX = 7.0, padY = 3.0;
-    final w = tp.width + padX * 2, h = tp.height + padY * 2;
-    final c = Offset(bodyPos.dx, bodyPos.dy + bodyR + 5 + h / 2);
-    final rr = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: c, width: w, height: h),
-        Radius.circular(h / 2));
-    canvas.drawRRect(
-        rr,
-        Paint()
-          ..color = isDark
-              ? const Color(0xCC10142A)
-              : const Color(0xE6FFFFFF));
-    canvas.drawRRect(
-        rr,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = withOp(col, 0.9));
-    tp.paint(canvas, Offset(c.dx - tp.width / 2, c.dy - tp.height / 2));
   }
 
   void _drawWalkerFoot(
