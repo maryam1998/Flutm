@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'vazir_font.dart';
 
 const kLightBg = Color(0xFFF5EFE0);
 const kLightBg2 = Color(0xFFEDE5D5);

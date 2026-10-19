@@ -9,6 +9,11 @@ const String kWebBuildStamp = '2026-10-19-v7';
 /// فقط وقتی stamp عوض شده باشه یک‌بار صفحه رو تازه می‌کنه (حلقه‌ی بی‌پایان نداریم).
 Future<void> cleanOldWebCaches() async {
   try {
+    // همین نسخه قبلاً پاک‌سازی شده → هیچ کاری لازم نیست (شروع سریع‌تر)
+    if (web.window.localStorage.getItem('maghz_build_stamp') ==
+        kWebBuildStamp) {
+      return;
+    }
     final regs =
         (await web.window.navigator.serviceWorker.getRegistrations().toDart)
             .toDart;

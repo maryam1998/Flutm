@@ -1,7 +1,7 @@
 import 'widgets/photo_cropper.dart' show kRootNavKey;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'theme/vazir_font.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/map_tab.dart';
@@ -153,12 +153,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           children: [
             const MotivationBar(),
             Expanded(
-              child: IndexedStack(
+              // تب‌ها تنبل ساخته می‌شن: فقط تبِ اول (نقشه) موقع شروع؛ بقیه
+              // اولین باری که بازشون کنی. بعدش زنده می‌مونن (حالت حفظ می‌شه).
+              child: _LazyIndexedStack(
                 index: _index,
-                children: const [
-                  ShenakhtTab(),
-                  MapTab(),
-                  PracticeTab(),
+                builders: [
+                  (_) => const ShenakhtTab(),
+                  (_) => const MapTab(),
+                  (_) => const PracticeTab(),
                 ],
               ),
             ),
@@ -186,6 +188,32 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// مثل IndexedStack ولی هر فرزند فقط وقتی اولین بار انتخاب شد ساخته می‌شود.
+class _LazyIndexedStack extends StatefulWidget {
+  const _LazyIndexedStack({required this.index, required this.builders});
+  final int index;
+  final List<WidgetBuilder> builders;
+  @override
+  State<_LazyIndexedStack> createState() => _LazyIndexedStackState();
+}
+
+class _LazyIndexedStackState extends State<_LazyIndexedStack> {
+  late final List<bool> _built =
+      List<bool>.generate(widget.builders.length, (i) => i == widget.index);
+
+  @override
+  Widget build(BuildContext context) {
+    _built[widget.index] = true;
+    return IndexedStack(
+      index: widget.index,
+      children: [
+        for (var i = 0; i < widget.builders.length; i++)
+          _built[i] ? widget.builders[i](context) : const SizedBox.shrink(),
+      ],
     );
   }
 }

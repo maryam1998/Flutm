@@ -17,7 +17,7 @@
     boot.classList.add('hide');
     setTimeout(function () { if (boot && boot.parentNode) boot.parentNode.removeChild(boot); boot = null; }, 400);
   }
-  window.addEventListener('flutter-first-frame', hideBoot);
+  window.addEventListener('flutter-first-frame', hideBoot); // وب: اولین فریم = خودِ برنامه
   // اگه به هر دلیلی رویداد نیومد، صفحه‌ی بارگذاری برای همیشه نمونه
   setTimeout(hideBoot, 45000);
 

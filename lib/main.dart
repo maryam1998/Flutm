@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 
 import 'app.dart';
@@ -50,20 +50,15 @@ class _BootSplash extends StatelessWidget {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // اول یک صفحه‌ی سبک بالا بیاد؛ بقیه‌ی کارها (پاک‌سازی کش، فونت، خواندن داده‌ها) بعدش.
-  runApp(const _BootSplash());
+  // وب: صفحه‌ی بارگذاریِ index.html تا اولین فریمِ خودِ برنامه می‌مونه، پس
+  // splash فلاتر لازم نیست (قبلاً دو صفحه‌ی بارگذاری پشت‌سرهم دیده می‌شد).
+  // موبایل: یک صفحه‌ی سبک بالا بیاد تا کاربر صفحه‌ی سفید نبینه.
+  if (!kIsWeb) runApp(const _BootSplash());
 
-  // کش و سرویس‌ورکر قدیمیِ وب پاک می‌شه تا همیشه آخرین نسخه بالا بیاد
-  await cleanOldWebCaches();
-
-  // فونت وزیرمتن داخل خود برنامه است (assets/google_fonts) و از اینترنت دانلود نمی‌شه.
-  // اگه به هر دلیلی پیدا نشد، حداکثر ۱.۵ ثانیه صبر می‌کنیم و برنامه بالا میاد.
-  try {
-    await GoogleFonts.pendingFonts([
-      GoogleFonts.vazirmatn(fontWeight: FontWeight.w400),
-      GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-    ]).timeout(const Duration(milliseconds: 1500), onTimeout: () => []);
-  } catch (_) {}
+  // فونت وزیرمتن داخل خود برنامه است (pubspec) و دانلود/انتظاری ندارد.
+  // پاک‌سازی کش قدیمیِ وب هم موازی با خواندن داده‌ها انجام می‌شود (و فقط
+  // وقتی نسخه عوض شده باشد کار می‌کند).
+  final cacheClean = cleanOldWebCaches();
 
   final store = MapStore(StorageService());
   final theme = ThemeStore();
@@ -90,6 +85,8 @@ Future<void> main() async {
     angels.load(),
     shenakht.load(),
   ]);
+
+  await cacheClean;
 
   // «ثبت حس» با بستن ادمک (echw:commit در وب): همه‌ی تمرین‌های امروز که
   // انجام شده‌ن رنگ حس می‌گیرن؛ اگه هیچ تمرینی نبود انتخاب نگه داشته می‌شه.
