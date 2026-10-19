@@ -54,7 +54,16 @@ jobs:
           fi
 
       - name: Build web
-        run: flutter build web --release --base-href "/Flutm/"
+        run: flutter build web --release --base-href "/Flutm/" --pwa-strategy=none
+
+      # هر دیپلوی یک شماره‌ی تازه می‌گیرد تا مرورگر نسخه‌ی قدیمی را نگه ندارد
+      - name: Cache-bust
+        run: |
+          V=$(date +%s)
+          cd build/web
+          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=$V#g" index.html || true
+          sed -i "s#\"main.dart.js\"#\"main.dart.js?v=$V\"#g" flutter_bootstrap.js || true
+          grep -o "main.dart.js[^\"]*" flutter_bootstrap.js | head -1 || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
