@@ -78,7 +78,7 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (ctx, a1, a2) {
         final mq = MediaQuery.of(ctx);
-        final w = (mq.size.width * 0.66).clamp(240.0, 360.0).toDouble();
+        final w = (mq.size.width * 0.78).clamp(270.0, 440.0).toDouble();
         return SafeArea(
           child: Align(
             alignment: Alignment.centerLeft,
@@ -212,7 +212,7 @@ class _EditSheetState extends State<EditSheet> {
     }
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * (widget.panel ? 0.62 : 0.7),
+        maxHeight: MediaQuery.sizeOf(context).height * (widget.panel ? 0.86 : 0.9),
       ),
       decoration: BoxDecoration(
         color: _kBg,
@@ -292,7 +292,7 @@ class _EditSheetState extends State<EditSheet> {
   String _title() {
     final t = _t;
     if (t is MeTarget) return 'من';
-    if (t is WalkerPhotosTarget) return 'عکس قدم‌زن';
+    if (t is WalkerPhotosTarget) return 'عکس پاها';
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal && g.name.isNotEmpty ? g.name : 'هدف';
@@ -748,7 +748,7 @@ class _EditSheetState extends State<EditSheet> {
       ),
       if (act != null) ...[
         _slider(
-          label: 'اندازه‌ی قدم‌زن',
+          label: 'اندازه‌ی پاها',
           value: (act.footSize ?? 1.0).clamp(0.4, 2.5).toDouble(),
           min: 0.4,
           max: 2.5,
@@ -767,13 +767,13 @@ class _EditSheetState extends State<EditSheet> {
         ),
         _switchTile(
           title: 'در حال حرکت',
-          subtitle: 'روشن = قدم‌زن حرکت می‌کنه',
+          subtitle: 'روشن = پاها راه می‌رن',
           value: act.footPlaying,
           onChanged: (v) => _edit(() => act!.footPlaying = v),
         ),
       ] else ...[
         _slider(
-          label: 'اندازه‌ی قدم‌زن و دایره‌ی متصل',
+          label: 'اندازه‌ی پاها و دایره‌ی متصل',
           value: ((ex['walkerSize'] as num?)?.toDouble() ?? 1.0)
               .clamp(0.4, 3.0)
               .toDouble(),
@@ -818,7 +818,7 @@ class _EditSheetState extends State<EditSheet> {
   // ============================================================
   List<Widget> _goalBody(Goal g) {
     return [
-      _sectionLabel('عکس قدم‌زن'),
+      _sectionLabel('عکس پاهای متحرک'),
       WalkerPhotoField(
         initial: walkerPhotosOf(g.extra),
         onChanged: (v) => _edit(() {
@@ -830,7 +830,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       _slider(
-        label: 'اندازه‌ی قدم‌زن و دایره‌ی متصل',
+        label: 'اندازه‌ی پاها و دایره‌ی متصل',
         value: ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
             .clamp(0.4, 3.0),
         min: 0.4,
@@ -1055,7 +1055,7 @@ class _EditSheetState extends State<EditSheet> {
       _shapeGrid(a.style, (v) => a.style = v, inherit: true),
 
       // ═══════════ قدم روی مسیر 👣 ═══════════
-      _sectionLabel('قدم گذاشتن در مسیر هدف'),
+      _sectionLabel('قدم روی مسیر 👣'),
       _slider(
         label: 'اندازه‌ی قدم',
         value: (a.footSize ?? 1.0).clamp(0.4, 2.5),
@@ -1104,7 +1104,7 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ),
       ),
-      _sectionLabel('عکس قدم‌زن'),
+      _sectionLabel('عکس پاهای متحرک'),
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
         onChanged: (v) => _edit(() {
@@ -1174,7 +1174,6 @@ class _EditSheetState extends State<EditSheet> {
               onPressed: () {
                 resetBranchPos(a);
                 _store.changed();
-                _store.toast?.call('شاخه سرِ جای اولش برگشت');
               },
               icon: const Icon(Icons.restart_alt, size: 18),
               label: const Text('برگرداندن به جای اول',
