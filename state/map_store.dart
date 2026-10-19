@@ -104,6 +104,9 @@ class MapStore extends ChangeNotifier {
   Ring addRing() {
     final r = newRingNearMe(state);
     state.ringsCollapsed = false;
+    // خودکار زیرمجموعه‌ی هدف: فعال‌ترین هدفِ در جریان (اگه هدفی هست)
+    final goal = pickGoalForNewRing(state);
+    if (goal != null) placeRingOnGoal(state, r, goal);
     state.rings.add(r);
     changed();
     return r;

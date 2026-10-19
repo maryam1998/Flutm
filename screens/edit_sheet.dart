@@ -78,7 +78,7 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (ctx, a1, a2) {
         final mq = MediaQuery.of(ctx);
-        final w = (mq.size.width * 0.78).clamp(270.0, 440.0).toDouble();
+        final w = (mq.size.width * 0.68).clamp(240.0, 380.0).toDouble();
         return SafeArea(
           child: Align(
             alignment: Alignment.centerLeft,
@@ -212,7 +212,7 @@ class _EditSheetState extends State<EditSheet> {
     }
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * (widget.panel ? 0.86 : 0.9),
+        maxHeight: MediaQuery.sizeOf(context).height * (widget.panel ? 0.62 : 0.7),
       ),
       decoration: BoxDecoration(
         color: _kBg,

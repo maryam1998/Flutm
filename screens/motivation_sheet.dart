@@ -101,7 +101,7 @@ class _MotivationSheetState extends State<_MotivationSheet> {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.65,
       ),
       decoration: const BoxDecoration(
         color: _kCream,

@@ -18,7 +18,6 @@ import '../widgets/emoji_stack.dart';
 import '../widgets/icon_photo_editor.dart';
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
-import '../services/quiet_snack.dart';
 
 const _kGold = Color(0xFFC9972B);
 const _kInk = Color(0xFF2A2218);
@@ -39,9 +38,9 @@ Future<void> showGoalsSheet(
     backgroundColor: kGoalsBg,
     builder: (ctx) => goalsLightSheet(DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.36,
-      minChildSize: 0.25,
-      maxChildSize: 0.55,
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.8,
       builder: (_, controller) => GoalsSheet(
         controller: controller,
         parentContext: context,
@@ -220,32 +219,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        _buildList(context),
-        // «هدف جدید»: پایین-راست، دم دست انگشت شست
-        Positioned(
-          right: 16,
-          bottom: 16 + MediaQuery.of(context).padding.bottom,
-          child: FloatingActionButton.extended(
-            heroTag: 'goals-add-goal',
-            backgroundColor: kGoalsGold,
-            foregroundColor: Colors.white,
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onAddGoal();
-            },
-            icon: const Icon(Icons.add, size: 22),
-            label: const Text('هدف جدید',
-                style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildList(BuildContext context) {
     final store = context.watch<MapStore>();
     final s = store.state;
     final active = s.goals.where((g) => !g.reached).toList();
@@ -294,9 +267,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
         s.goals.isEmpty ? 0 : s.rings.where((r) => ringIsOrphan(s, r)).length;
     final countText = pool.isEmpty ? '' : '${toFa(pool.length)} مورد';
 
-    return ListView(
+    return Stack(children: [
+    ListView(
       controller: widget.controller,
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 84),
       children: [
         // هدر
         Row(
@@ -314,6 +288,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
               constraints: const BoxConstraints.tightFor(width: 36, height: 36),
               visualDensity: VisualDensity.compact,
             ),
+            const Spacer(),
           ],
         ),
         const SizedBox(height: 10),
@@ -407,7 +382,26 @@ class _GoalsSheetState extends State<GoalsSheet> {
             ),
           ),
       ],
-    );
+    ),
+    // دکمه‌ی «هدف جدید»: پایین، گوشه‌ی راست
+    Positioned(
+      right: 16,
+      bottom: 16,
+      child: Material(
+        elevation: 4,
+        shadowColor: Colors.black38,
+        borderRadius: BorderRadius.circular(22),
+        child: FilledButton.tonalIcon(
+          onPressed: () {
+            Navigator.pop(context);
+            widget.onAddGoal();
+          },
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('هدف جدید'),
+        ),
+      ),
+    ),
+    ]);
   }
 
   // ------------------------------------------------------------------ کارت هدف
@@ -627,7 +621,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
     _open.remove(g.id);
     store.reachGoal(g);
     ScaffoldMessenger.of(widget.parentContext)
-        .quietSnack(const SnackBar(content: Text('🏆 هدف محقق شد!')));
+        .showSnackBar(const SnackBar(content: Text('🏆 هدف محقق شد!')));
   }
 
   // ------------------------------------------------------------------ کارت محقق‌شده
@@ -723,48 +717,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
 
   // ------------------------------------------------------------------ بدنه‌ی هدف باز‌شده
 
-  /// «نزدیک شدن به هدف»هایی که روی مسیر این هدف قرار گرفتن — زیرمنوی هدف
-  List<Widget> _ringSection(MapStore store, Ring rg) {
-    final c = _hostColor(rg);
-    final rpi = periodInfo(rg, store);
-    return [
-      Container(
-        margin: const EdgeInsets.only(top: 10, bottom: 4),
-        padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
-        decoration: BoxDecoration(
-          color: c.withAlpha(24),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: c.withAlpha(110)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.trending_flat, size: 18, color: c),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(_name(rg),
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: kGoalsInk)),
-            ),
-            _iconBtn(Icons.edit_outlined, 'ویرایش', () {
-              Navigator.pop(context);
-              showEditSheet(widget.parentContext, RingTarget(rg.id));
-            }),
-          ],
-        ),
-      ),
-      if (rg.actions.isEmpty)
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          child: Text('هنوز شاخه‌ای نداره',
-              style: TextStyle(fontSize: 12, color: kGoalsMuted)),
-        ),
-      for (final a in rg.actions)
-        ..._nodeTiles(store, rg, a, rpi, c, 0, ''),
-    ];
-  }
-
   Widget _body(MapStore store, MapHost h, Color hostColor) {
     final pi = periodInfo(h, store);
     final todayCnt = todayCount(h, pi.todayJK);
@@ -820,9 +772,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
             ),
           for (final a in h.actions)
             ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
-          if (h is Goal)
-            for (final rg in store.state.ringsOfGoal(h))
-              ..._ringSection(store, rg),
           ..._trophiesSection(store, h, hostColor),
 
           const SizedBox(height: 6),
