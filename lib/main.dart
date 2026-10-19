@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'models/neural_container.dart';
 import 'services/storage.dart';
+import 'services/web_cache_clean.dart';
 import 'state/abundance_store.dart';
 import 'state/angels_store.dart';
 import 'state/background_store.dart';
@@ -19,13 +20,18 @@ import 'state/theme_store.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await GoogleFonts.pendingFonts([
-    GoogleFonts.vazirmatn(fontWeight: FontWeight.w400),
-    GoogleFonts.vazirmatn(fontWeight: FontWeight.w500),
-    GoogleFonts.vazirmatn(fontWeight: FontWeight.w600),
-    GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
-    GoogleFonts.vazirmatn(fontWeight: FontWeight.w800),
-  ]);
+  // کش و سرویس‌ورکر قدیمیِ وب پاک می‌شه تا همیشه آخرین نسخه بالا بیاد
+  await cleanOldWebCaches();
+
+  // فونت از اینترنت (fonts.gstatic.com) دانلود می‌شه؛ اگه کند/فیلتر بود نباید صفحه‌ی اول
+  // دقیقه‌ها سفید بمونه. حداکثر ۳ ثانیه صبر می‌کنیم؛ بعدش برنامه بالا میاد و فونت وقتی
+  // رسید جایگزین می‌شه.
+  try {
+    await GoogleFonts.pendingFonts([
+      GoogleFonts.vazirmatn(fontWeight: FontWeight.w400),
+      GoogleFonts.vazirmatn(fontWeight: FontWeight.w700),
+    ]).timeout(const Duration(seconds: 3), onTimeout: () => []);
+  } catch (_) {}
 
   final store = MapStore(StorageService());
   final theme = ThemeStore();
@@ -38,19 +44,20 @@ Future<void> main() async {
   final angels = AngelsStore();
   final shenakht = ShenakhtStore(StorageService());
 
-  try {
-    await store.load();
-  } catch (e, st) {
-    debugPrint('load failed: $e\n$st');
-  }
-  await theme.load();
-  await bg.load();
-  await motivation.load();
-  await gratitude.load();
-  await beliefs.load();
-  await abundance.load();
-  await angels.load();
-  await shenakht.load();
+  // بارگذاری هم‌زمان (قبلاً پشت‌سرهم بود و جمعِ زمان‌ها حساب می‌شد)
+  await Future.wait<void>([
+    store.load().catchError((Object e, StackTrace st) {
+      debugPrint('load failed: $e\n$st');
+    }),
+    theme.load(),
+    bg.load(),
+    motivation.load(),
+    gratitude.load(),
+    beliefs.load(),
+    abundance.load(),
+    angels.load(),
+    shenakht.load(),
+  ]);
 
   // «ثبت حس» با بستن ادمک (echw:commit در وب): همه‌ی تمرین‌های امروز که
   // انجام شده‌ن رنگ حس می‌گیرن؛ اگه هیچ تمرینی نبود انتخاب نگه داشته می‌شه.

@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../services/data_url_cache.dart';
 
 Color withOp(Color c, double o) => c.withAlpha((o.clamp(0.0, 1.0) * 255).round());
 
@@ -108,14 +109,31 @@ void drawDashed(Canvas c, Path path, Paint p, List<double> dashes) {
   }
 }
 
-/// کش تصاویر data: URI برای رسم روی بوم
+/// کش تصاویر data: URI برای رسم روی بوم.
+/// یک نمونه‌ی مشترک ([shared]) هست تا عکسِ تازه‌انتخاب‌شده همون لحظه‌ی انتخاب، پیش‌دیکُد (warm)
+/// بشه و موقع نشون دادن روی نقشه منتظر دیکُد نمونه.
 class NodeImageCache extends ChangeNotifier {
+  static final NodeImageCache shared = NodeImageCache();
+
   final _cache = <String, ui.Image>{};
   final _pending = <String>{};
 
+  // کلید ارزان (به‌جای hashCode کل رشته‌ی چند مگابایتی که هر فریم محاسبه می‌شد)
+  static String _key(String src) {
+    final n = src.length;
+    final a = src.indexOf(',') + 1;
+    final head = src.substring(a, a + 64 > n ? n : a + 64);
+    final tail = src.substring(n - 64 < a ? a : n - 64);
+    final mid = n > a + 400 ? src.substring(n ~/ 2, n ~/ 2 + 48) : '';
+    return '$n:${Object.hash(head, tail, mid)}';
+  }
+
+  /// آماده‌سازی بی‌صدا (بدون برگرداندن چیزی)
+  void warm(String src) => get(src);
+
   ui.Image? get(String src) {
     if (src.isEmpty || !src.startsWith('data:')) return null;
-    final k = '${src.length}:${src.hashCode}';
+    final k = _key(src);
     final hit = _cache[k];
     if (hit != null) return hit;
     if (_pending.add(k)) _load(k, src);
@@ -124,14 +142,15 @@ class NodeImageCache extends ChangeNotifier {
 
   Future<void> _load(String key, String src) async {
     try {
-      final i = src.indexOf(',');
-      final bytes = base64Decode(src.substring(i + 1));
-      final codec = await ui.instantiateImageCodec(bytes, targetWidth: 320);
+      final bytes = DataUrlCache.bytes(src);
+      if (bytes == null) return;
+      final codec = await ui.instantiateImageCodec(bytes, targetWidth: 400);
       final frame = await codec.getNextFrame();
       _cache[key] = frame.image;
+      _pending.remove(key);
       notifyListeners();
     } catch (_) {
-      // تصویر نامعتبر یا فرمت پشتیبانی‌نشده (مثل SVG): نادیده گرفته میشه
+      // تصویر نامعتبر یا فرمت پشتیبانی‌نشده (مثل SVG): در pending می‌مونه تا هر فریم دوباره تلاش نشه
     }
   }
 }

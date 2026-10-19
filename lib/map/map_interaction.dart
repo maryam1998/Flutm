@@ -62,6 +62,7 @@ class MapInteraction {
     required this.onEditAction,
     this.onTimeBranch,
     this.onShowBranchMenu,
+    this.onWalkerPhotos,
   });
 
   final CameraController cam;
@@ -76,6 +77,7 @@ class MapInteraction {
   // نگه داشته شده برای سازگاری با map_canvas.dart.
   // در این نسخه استفاده نمی‌شود.
   final void Function(String hostId, String actionId)? onShowBranchMenu;
+  final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
 
   static const double _slop = 6;
 
@@ -780,7 +782,14 @@ class MapInteraction {
       // ─── قدم‌زن/پاها: لمس طولانی قبلاً حرکت/توقف رو عوض کرده؛ تپ ساده کاری نمی‌کنه ───
       // تپ = انتخاب عکس (چندتایی، بدون محدودیت تعداد)
       if (p.isWalker || p.isFoot) {
-        if (!wasDrag && !held) _pickWalkerPhotos(p);
+        if (!wasDrag && !held) {
+          final cb = onWalkerPhotos;
+          if (cb != null) {
+            cb(p.hostId, p.actionId, p.isWalker);
+          } else {
+            _pickWalkerPhotos(p);
+          }
+        }
         return;
       }
 

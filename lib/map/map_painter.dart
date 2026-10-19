@@ -770,7 +770,11 @@ class MapPainter extends CustomPainter {
   // ───────────────────────── قدم‌زن روی تنه ─────────────────────────
 
   /// قدم‌زن هدف (آبی): کل تنه، رفت و برگشتی.
-  void _walker(Canvas canvas, Goal g, geo.Cubic cp, Color col) {
+  void _walker(Canvas canvas, Goal g, geo.Cubic cp, Color col0) {
+    final fcHex = g.extra['footColor'];
+    final col = (fcHex is String && fcHex.isNotEmpty)
+        ? hexColor(fcHex, col0)
+        : col0;
     final playing = g.extra['walkerPlaying'] as bool? ?? true;
     final speed =
         ((g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.5).clamp(0.3, 4.0);
@@ -800,8 +804,12 @@ class MapPainter extends CustomPainter {
   /// قدم‌زن شاخه/زیرشاخه: از نقطه‌ی ساخته شدن شاخه، روی شاخه‌های پدر تا تنه،
   /// و بعد روی تنه تا هدف اصلی؛ رفت و برگشتی.
   void _branchWalker(Canvas canvas, List<Offset> routePts, int lane,
-      ActionNode a, Color color, double baseSize, String hostId) {
+      ActionNode a, Color color0, double baseSize, String hostId) {
     if (routePts.length < 2) return;
+    final fcHex = a.extra['footColor'];
+    final color = (fcHex is String && fcHex.isNotEmpty)
+        ? hexColor(fcHex, color0)
+        : color0;
     final n = _logCount(a);
     final route = _RouteCurve(routePts);
     final sizeMul = state.footScale.clamp(0.4, 3.0);

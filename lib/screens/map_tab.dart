@@ -89,6 +89,8 @@ class _MapTabState extends State<MapTab> {
             boundsBox: bounds,
             isResizeMode: () => _resizeMode,
             onEditMe: () => showEditSheet(context, const MeTarget()),
+            onWalkerPhotos: (hostId, actionId, isWalker) => showEditSheet(
+                context, WalkerPhotosTarget(hostId, actionId, isWalker)),
             onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),
             onEditAction: (hostId, actionId) =>

@@ -244,7 +244,7 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
       );
 }
 
-/// دکمه‌ی «افزودن عکس» — خط‌چین/کادر خاکستری با آیکون دوربین (مثل مغز)
+/// دکمه‌ی «افزودن عکس» — دقیقاً مثل مغز: کادر کوچک خاکستری، متن + آیکون دوربین
 class PhotoAddButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -252,113 +252,249 @@ class PhotoAddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFAF6EC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _kBorder),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.photo_camera_outlined, size: 20, color: _kInk),
-            const SizedBox(width: 8),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 13.5, color: _kInk, fontWeight: FontWeight.w600)),
-          ],
+    return Material(
+      color: const Color(0xFFF1F2F6),
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: const Color(0xFFD5D8E2)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.photo_camera_outlined, size: 18, color: _kInk),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 12.5,
+                      color: _kInk,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// بندانگشتی گرد با دکمه‌ی ✕ (مثل مغز)
+/// اندازه‌ی استاندارد بندانگشتی (دقیقاً مثل اسکرین‌شات مغز) — «من»، «پاها» و بقیه‌ی جاها
+const double kPhotoThumbSize = 56;
+
+/// بندانگشتی گرد + دکمه‌ی ✕ که **کنار پایین-چپِ** دایره می‌شینه (مثل مغز).
+/// [selected] = عکسی که روی نقشه نمایش داده می‌شه (حلقه‌ی طلایی + ✓).
 class PhotoThumb extends StatelessWidget {
   final Uint8List? bytes;
   final VoidCallback onRemove;
   final VoidCallback? onCrop;
   final double size;
+  final bool selected;
+  final bool showOrder;
+  final int order;
   const PhotoThumb({
     super.key,
     required this.bytes,
     required this.onRemove,
     this.onCrop,
-    this.size = 74,
+    this.size = kPhotoThumbSize,
+    this.selected = false,
+    this.showOrder = false,
+    this.order = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
+    final ring = selected ? 3.0 : 0.0;
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _kCard,
-                border: Border.all(color: _kBorder, width: 1.5),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: bytes != null
-                  ? Image.memory(bytes!,
-                      fit: BoxFit.cover,
-                      cacheWidth: 240,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.broken_image, color: _kMuted))
-                  : const Icon(Icons.image, color: _kMuted),
-            ),
-          ),
-          Positioned(
-            left: -6,
-            bottom: -4,
-            child: GestureDetector(
-              onTap: onRemove,
+          // ✕ کنار دایره، پایین-چپ
+          GestureDetector(
+            onTap: onRemove,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 10, 0, 6),
               child: Container(
-                width: 28,
-                height: 24,
+                width: 32,
+                height: 20,
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFEFEF),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: _kInk.withValues(alpha: 0.6)),
+                  borderRadius: BorderRadius.circular(2),
+                  border: Border.all(color: _kInk.withValues(alpha: 0.7)),
                 ),
-                child: const Icon(Icons.close, size: 16, color: _kInk),
+                child: const Icon(Icons.close, size: 14, color: _kInk),
               ),
             ),
           ),
-          if (onCrop != null)
-            Positioned(
-              right: -4,
-              bottom: -4,
-              child: GestureDetector(
-                onTap: onCrop,
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: _kGold,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
+          SizedBox(
+            width: size + ring * 2,
+            height: size + ring * 2,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Container(
+                    padding: EdgeInsets.all(ring),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: selected
+                          ? Border.all(color: _kGold, width: ring)
+                          : null,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _kCard,
+                        border: selected
+                            ? null
+                            : Border.all(color: _kBorder, width: 1),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: bytes != null
+                          ? Image.memory(bytes!,
+                              fit: BoxFit.cover,
+                              cacheWidth: 200,
+                              gaplessPlayback: true,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.broken_image, color: _kMuted))
+                          : const Icon(Icons.image, color: _kMuted),
+                    ),
                   ),
-                  child: const Icon(Icons.crop, size: 15, color: Colors.white),
                 ),
-              ),
+                if (showOrder)
+                  Positioned(
+                    right: -2,
+                    top: -4,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected ? _kGold : _kInk.withValues(alpha: 0.75),
+                        shape: BoxShape.circle,
+                      ),
+                      child: selected
+                          ? const Icon(Icons.check, size: 12, color: Colors.white)
+                          : Text(toFa(order),
+                              style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                if (onCrop != null)
+                  Positioned(
+                    right: -3,
+                    bottom: -3,
+                    child: GestureDetector(
+                      onTap: onCrop,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: _kGold,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        child:
+                            const Icon(Icons.crop, size: 13, color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// عکس پاهای متحرک (قدم‌زن) — چند عکس، بدون برش اجباری.
-/// همه‌ی عکس‌ها ثبت می‌شن ولی فقط **یکی** (اولی، با تیک ✓) روی نقشه دیده می‌شه.
-/// با انگشت روی هر عکس بزن تا انتخاب بشه، یا بکش و جابه‌جا کن؛ ✂ = برش آزاد.
+/// ردیف بندانگشتی‌های **قابل جابه‌جایی با انگشت** (مشترک بین «من» و «پاها»).
+/// عکسِ اول (✓) همونیه که نمایش داده می‌شه؛ با لمس هر عکس همون انتخاب (می‌ره اول)،
+/// یا بکش و جابه‌جاش کن.
+class ReorderablePhotoStrip extends StatelessWidget {
+  final List<int> ids;
+  final List<Uint8List?> bytes;
+  final void Function(int oldIndex, int newIndex) onReorder;
+  final void Function(int index) onSelect;
+  final void Function(int index) onRemove;
+  final void Function(int index) onCrop;
+  const ReorderablePhotoStrip({
+    super.key,
+    required this.ids,
+    required this.bytes,
+    required this.onReorder,
+    required this.onSelect,
+    required this.onRemove,
+    required this.onCrop,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (ids.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: kPhotoThumbSize + 24,
+          child: ReorderableListView.builder(
+            scrollDirection: Axis.horizontal,
+            buildDefaultDragHandles: false,
+            padding: const EdgeInsets.only(top: 8),
+            itemCount: ids.length,
+            proxyDecorator: (child, index, animation) =>
+                Material(color: Colors.transparent, child: child),
+            onReorder: (o, n) {
+              if (n > o) n -= 1;
+              if (o == n) return;
+              onReorder(o, n);
+            },
+            itemBuilder: (ctx, i) {
+              return ReorderableDragStartListener(
+                key: ValueKey(ids[i]),
+                index: i,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onSelect(i),
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 8),
+                    child: PhotoThumb(
+                      bytes: bytes[i],
+                      selected: i == 0,
+                      showOrder: ids.length > 1,
+                      order: i + 1,
+                      onRemove: () => onRemove(i),
+                      onCrop: () => onCrop(i),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (ids.length > 1)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'همه‌ی عکس‌ها ثبت می‌شن ولی فقط عکسِ ✓ نمایش داده می‌شه. روی هر عکس بزن تا انتخاب بشه، یا با انگشت بکش و جابه‌جا کن.',
+              style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// عکس پاهای متحرک (قدم‌زن) — چند عکس، قابل جابه‌جایی با انگشت؛ فقط عکس اول نمایش داده می‌شه.
 class _WItem {
   _WItem(this.id, this.src);
   final int id;
@@ -377,7 +513,6 @@ class WalkerPhotoField extends StatefulWidget {
 class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
   final List<_WItem> _items = [];
   int _seq = 0;
-  final Map<int, Uint8List?> _bytesCache = {};
 
   @override
   void initState() {
@@ -385,10 +520,6 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     for (final s in widget.initial) {
       if (s.isNotEmpty) _items.add(_WItem(_seq++, s));
     }
-  }
-
-  Uint8List? _bytes(_WItem it) {
-    return _bytesCache.putIfAbsent(it.id, () => DataUrlCache.bytes(it.src));
   }
 
   void _emit() => widget.onChanged(_items.map((e) => e.src).toList());
@@ -404,7 +535,6 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     _emit();
   }
 
-  /// عکس انتخاب‌شده می‌ره اول لیست = همونی که روی نقشه دیده می‌شه
   void _select(int i) {
     if (i <= 0 || i >= _items.length) return;
     setState(() {
@@ -421,10 +551,7 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     if (!mounted || n == null) return;
     final at = _items.indexWhere((e) => e.id == it.id);
     if (at < 0) return;
-    setState(() {
-      _bytesCache.remove(it.id);
-      _items[at] = _WItem(it.id, n);
-    });
+    setState(() => _items[at] = _WItem(it.id, n));
     _emit();
   }
 
@@ -433,94 +560,28 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PhotoAddButton(
-          label: _items.isEmpty ? 'افزودن عکس (چندگانه)' : 'افزودن عکس‌های بیشتر',
-          onTap: _pick,
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),
         ),
         if (_items.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 90,
-            child: ReorderableListView.builder(
-              scrollDirection: Axis.horizontal,
-              buildDefaultDragHandles: false,
-              itemCount: _items.length,
-              proxyDecorator: (child, index, animation) =>
-                  Material(color: Colors.transparent, child: child),
-              onReorder: (oldIndex, newIndex) {
-                if (newIndex > oldIndex) newIndex -= 1;
-                setState(() {
-                  final it = _items.removeAt(oldIndex);
-                  _items.insert(newIndex, it);
-                });
-                _emit();
-              },
-              itemBuilder: (ctx, i) {
-                final it = _items[i];
-                final shown = i == 0;
-                return ReorderableDragStartListener(
-                  key: ValueKey(it.id),
-                  index: i,
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 14, top: 6),
-                    child: GestureDetector(
-                      onTap: () => _select(i),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: shown ? _kGold : Colors.transparent,
-                                  width: 3),
-                            ),
-                            child: PhotoThumb(
-                              bytes: _bytes(it),
-                              onCrop: () => _cropAt(i),
-                              onRemove: () {
-                                setState(() => _items.removeAt(i));
-                                _emit();
-                              },
-                            ),
-                          ),
-                          Positioned(
-                            right: 2,
-                            top: -4,
-                            child: Container(
-                              width: 20,
-                              height: 20,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: shown
-                                    ? _kGold
-                                    : _kInk.withValues(alpha: 0.75),
-                                shape: BoxShape.circle,
-                              ),
-                              child: shown
-                                  ? const Icon(Icons.check,
-                                      size: 14, color: Colors.white)
-                                  : Text(toFa(i + 1),
-                                      style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text(
-              'همه‌ی عکس‌ها ثبت می‌شن ولی فقط عکسِ ✓ روی نقشه دیده می‌شه. روی هر عکس بزن تا انتخاب بشه، یا با انگشت بکش و جابه‌جا کن. ✂ = برش آزاد.',
-              style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
-            ),
+          const SizedBox(height: 12),
+          ReorderablePhotoStrip(
+            ids: [for (final e in _items) e.id],
+            bytes: [for (final e in _items) DataUrlCache.bytes(e.src)],
+            onReorder: (o, n) {
+              setState(() {
+                final it = _items.removeAt(o);
+                _items.insert(n, it);
+              });
+              _emit();
+            },
+            onSelect: _select,
+            onRemove: (i) {
+              setState(() => _items.removeAt(i));
+              _emit();
+            },
+            onCrop: _cropAt,
           ),
         ],
       ],
@@ -528,7 +589,7 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
   }
 }
 
-/// «افزودن عکس (چندگانه)» ساده — بدون ایموجی/اندازه (برای «من»)
+/// «افزودن عکس (چندگانه)» برای «من» — مثل پاها: با انگشت جابه‌جا کن؛ عکسِ اول (✓) نمایش داده می‌شه.
 class MultiPhotoField extends StatefulWidget {
   final List<ImageItem> initial;
   final void Function(List<ImageItem> images) onChange;
@@ -538,46 +599,84 @@ class MultiPhotoField extends StatefulWidget {
   State<MultiPhotoField> createState() => _MultiPhotoFieldState();
 }
 
-class _MultiPhotoFieldState extends State<MultiPhotoField> {
-  late List<ImageItem> _images = List.of(widget.initial);
+class _MItem {
+  _MItem(this.id, this.item);
+  final int id;
+  final ImageItem item;
+}
 
-  Uint8List? _decode(String src) {
-    return DataUrlCache.bytes(src);
+class _MultiPhotoFieldState extends State<MultiPhotoField> {
+  final List<_MItem> _items = [];
+  int _seq = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final im in widget.initial) {
+      if (im.src.isNotEmpty) _items.add(_MItem(_seq++, im));
+    }
   }
+
+  void _emit() => widget.onChange([for (final e in _items) e.item]);
 
   Future<void> _pick() async {
     final srcs = await ImageService.pickImagesCropped(context: context);
     if (!mounted || srcs.isEmpty) return;
     setState(() {
       for (final s in srcs) {
-        _images.add(ImageItem(src: s, size: 50, dx: 0, dy: 0));
+        _items.add(_MItem(_seq++, ImageItem(src: s, size: 50, dx: 0, dy: 0)));
       }
     });
-    widget.onChange(List.of(_images));
+    _emit();
+  }
+
+  void _select(int i) {
+    if (i <= 0 || i >= _items.length) return;
+    setState(() {
+      final it = _items.removeAt(i);
+      _items.insert(0, it);
+    });
+    _emit();
+  }
+
+  Future<void> _cropAt(int i) async {
+    if (i < 0 || i >= _items.length) return;
+    final it = _items[i];
+    final n = await ImageService.cropDataUrl(context, it.item.src);
+    if (!mounted || n == null) return;
+    setState(() => it.item.src = n);
+    _emit();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),
-        for (var i = 0; i < _images.length; i++)
-          PhotoThumb(
-            bytes: _decode(_images[i].src),
-            onCrop: () async {
-              final n = await ImageService.cropDataUrl(context, _images[i].src);
-              if (!mounted || n == null) return;
-              setState(() => _images[i].src = n);
-              widget.onChange(List.of(_images));
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),
+        ),
+        if (_items.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ReorderablePhotoStrip(
+            ids: [for (final e in _items) e.id],
+            bytes: [for (final e in _items) DataUrlCache.bytes(e.item.src)],
+            onReorder: (o, n) {
+              setState(() {
+                final it = _items.removeAt(o);
+                _items.insert(n, it);
+              });
+              _emit();
             },
-            onRemove: () {
-              setState(() => _images.removeAt(i));
-              widget.onChange(List.of(_images));
+            onSelect: _select,
+            onRemove: (i) {
+              setState(() => _items.removeAt(i));
+              _emit();
             },
+            onCrop: _cropAt,
           ),
+        ],
       ],
     );
   }

@@ -1,11 +1,42 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:image_picker/image_picker.dart';
 
+import '../map/draw_utils.dart' show NodeImageCache;
 import '../widgets/photo_cropper.dart';
+import 'data_url_cache.dart';
+
+/// رمزگذاری base64 (برای عکس‌های بزرگ سنگینه؛ روی موبایل تو isolate جدا انجام می‌شه تا UI قفل نکنه)
+String _toDataUrl(List<Object> args) =>
+    'data:${args[0]};base64,${base64Encode(args[1] as Uint8List)}';
+
+Future<String> _encodeDataUrl(String mime, Uint8List bytes) async {
+  if (kIsWeb || bytes.length < 200 * 1024) {
+    return 'data:$mime;base64,${base64Encode(bytes)}';
+  }
+  try {
+    return await compute(_toDataUrl, <Object>[mime, bytes]);
+  } catch (_) {
+    return 'data:$mime;base64,${base64Encode(bytes)}';
+  }
+}
+
+/// همه‌ی فایل‌ها هم‌زمان خونده و رمزگذاری می‌شن (قبلاً یکی‌یکی بود و برای چند عکس خیلی کند بود)،
+/// و بلافاصله برای نقشه/بندانگشتی آماده (decode) می‌شن تا عکس دیر ظاهر نشه.
+Future<List<String>> _filesToDataUrls(List<XFile> files, String Function(String) mimeOf) async {
+  final out = await Future.wait(files.map((f) async {
+    final bytes = await f.readAsBytes();
+    final url = await _encodeDataUrl(mimeOf(f.name), bytes);
+    DataUrlCache.bytes(url); // دیکُد بایت‌ها برای بندانگشتی
+    NodeImageCache.shared.warm(url); // دیکُد تصویر برای نقشه
+    return url;
+  }));
+  return out;
+}
 
 class ImageService {
   static final _picker = ImagePicker();
@@ -18,13 +49,7 @@ class ImageService {
         imageQuality: 85,
       );
       if (files.isEmpty) return const [];
-      final out = <String>[];
-      for (final f in files) {
-        final bytes = await f.readAsBytes();
-        final mime = _mimeOf(f.name);
-        out.add('data:$mime;base64,${base64Encode(bytes)}');
-      }
-      return out;
+      return await _filesToDataUrls(files, _mimeOf);
     } catch (e) {
       debugPrint('pickImages failed: $e');
       return const [];
@@ -36,18 +61,14 @@ class ImageService {
   /// (اسم قدیمی حفظ شده تا بقیه‌ی فایل‌ها نیازی به تغییر نداشته باشن.)
   static Future<List<String>> pickImagesCropped({BuildContext? context}) async {
     try {
+      // ۱۶۰۰px و کیفیت ۸۵ = تقریباً هم‌کیفیت، ولی چند برابر سریع‌تر از ۲۴۰۰px/۹۲
       final files = await _picker.pickMultiImage(
-        maxWidth: 2400,
-        maxHeight: 2400,
-        imageQuality: 92,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
       );
       if (files.isEmpty) return const [];
-      final out = <String>[];
-      for (final f in files) {
-        final bytes = await f.readAsBytes();
-        out.add('data:${_mimeOf(f.name)};base64,${base64Encode(bytes)}');
-      }
-      return out;
+      return await _filesToDataUrls(files, _mimeOf);
     } catch (e) {
       debugPrint('pickImagesCropped failed: $e');
       return const [];
@@ -63,13 +84,12 @@ class ImageService {
     try {
       final f = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 2400,
-        maxHeight: 2400,
-        imageQuality: 92,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
       );
       if (f == null) return null;
-      final bytes = await f.readAsBytes();
-      return 'data:${_mimeOf(f.name)};base64,${base64Encode(bytes)}';
+      return (await _filesToDataUrls([f], _mimeOf)).first;
     } catch (e) {
       debugPrint('pickSingleCropped failed: $e');
       return null;

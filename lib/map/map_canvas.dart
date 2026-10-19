@@ -22,6 +22,7 @@ class MapCanvas extends StatefulWidget {
     required this.onEditAction,
     this.onTimeBranch,
     this.onShowBranchMenu,
+    this.onWalkerPhotos,
   });
 
   final CameraController cam;
@@ -34,6 +35,9 @@ class MapCanvas extends StatefulWidget {
   final void Function(String hostId, String actionId)? onTimeBranch;
   final void Function(String hostId, String actionId)? onShowBranchMenu;
 
+  /// تپ روی پاها/قدم‌زن: کادر عکس‌ها (isWalker=true یعنی قدم‌زنِ خودِ هدف، actionId خالی)
+  final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
+
   @override
   State<MapCanvas> createState() => _MapCanvasState();
 }
@@ -42,7 +46,7 @@ class _MapCanvasState extends State<MapCanvas>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final Ticker _ticker;
   final ValueNotifier<double> _time = ValueNotifier(0);
-  final NodeImageCache _images = NodeImageCache();
+  final NodeImageCache _images = NodeImageCache.shared; // مشترک؛ dispose نمی‌شه
   final HitRegistry _hits = HitRegistry();
   late final MapInteraction _touch;
 
@@ -61,6 +65,7 @@ class _MapCanvasState extends State<MapCanvas>
       onEditAction: widget.onEditAction,
       onTimeBranch: widget.onTimeBranch,
       onShowBranchMenu: widget.onShowBranchMenu,
+      onWalkerPhotos: widget.onWalkerPhotos,
     );
     WidgetsBinding.instance.addObserver(this);
   }
@@ -77,7 +82,6 @@ class _MapCanvasState extends State<MapCanvas>
     _touch.dispose();
     _ticker.dispose();
     _time.dispose();
-    _images.dispose();
     super.dispose();
   }
 

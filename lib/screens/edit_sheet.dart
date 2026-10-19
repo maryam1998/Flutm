@@ -49,6 +49,15 @@ class RingTarget extends EditTarget {
   String get key => 'r:$id';
 }
 
+/// کادر «عکس پاها» — با تپ روی پاها/قدم‌زن نقشه باز می‌شه (همون کادر و اندازه‌ی «من»)
+class WalkerPhotosTarget extends EditTarget {
+  const WalkerPhotosTarget(this.hostId, this.actionId, this.isWalker);
+  final String hostId, actionId;
+  final bool isWalker; // true = قدم‌زنِ خودِ هدف، false = پاهای یک شاخه
+  @override
+  String get key => 'w:$hostId:$actionId';
+}
+
 class ActionTarget extends EditTarget {
   const ActionTarget(this.hostId, this.actionId);
   final String hostId, actionId;
@@ -58,6 +67,49 @@ class ActionTarget extends EditTarget {
 
 Future<void> showEditSheet(BuildContext context, EditTarget target) {
   final store = context.read<MapStore>();
+
+  // «من» و «پاها»: کادر کوچکِ کناری که از سمت چپ باز می‌شه (مثل مغز)
+  if (target is MeTarget || target is WalkerPhotosTarget) {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'بستن',
+      barrierColor: Colors.black.withAlpha(60),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (ctx, a1, a2) {
+        final mq = MediaQuery.of(ctx);
+        final w = (mq.size.width * 0.74).clamp(260.0, 420.0).toDouble();
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: 8,
+                bottom: 8 + mq.viewInsets.bottom,
+              ),
+              child: SizedBox(
+                width: w,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: EditSheet(
+                        store: store, initial: target, panel: true),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (ctx, anim, _, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    );
+  }
+
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -76,9 +128,17 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
 // ویجت اصلی
 // ============================================================
 class EditSheet extends StatefulWidget {
-  const EditSheet({super.key, required this.store, required this.initial});
+  const EditSheet({
+    super.key,
+    required this.store,
+    required this.initial,
+    this.panel = false,
+  });
   final MapStore store;
   final EditTarget initial;
+
+  /// true = کادر کناریِ کوچک (به‌جای صفحه‌ی پایین)
+  final bool panel;
 
   @override
   State<EditSheet> createState() => _EditSheetState();
@@ -152,11 +212,16 @@ class _EditSheetState extends State<EditSheet> {
     }
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+        maxHeight: MediaQuery.sizeOf(context).height * (widget.panel ? 0.86 : 0.9),
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _kBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: widget.panel
+            ? const BorderRadius.horizontal(right: Radius.circular(22))
+            : const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: widget.panel
+            ? const [BoxShadow(color: Color(0x33000000), blurRadius: 18)]
+            : null,
       ),
       child: SafeArea(
         top: false,
@@ -164,15 +229,16 @@ class _EditSheetState extends State<EditSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _kBorder,
-                borderRadius: BorderRadius.circular(2),
+            if (!widget.panel)
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _kBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
+            SizedBox(height: widget.panel ? 2 : 8),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
@@ -226,6 +292,7 @@ class _EditSheetState extends State<EditSheet> {
   String _title() {
     final t = _t;
     if (t is MeTarget) return 'من';
+    if (t is WalkerPhotosTarget) return 'عکس پاها';
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal && g.name.isNotEmpty ? g.name : 'هدف';
@@ -240,6 +307,7 @@ class _EditSheetState extends State<EditSheet> {
   List<Widget>? _body() {
     final t = _t;
     if (t is MeTarget) return _meBody();
+    if (t is WalkerPhotosTarget) return _walkerSheetBody(t);
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal ? _goalBody(g) : null;
@@ -621,11 +689,120 @@ class _EditSheetState extends State<EditSheet> {
         onChanged: (v) => _edit(() => me.note = v),
         maxLines: 3,
       ),
-      _sectionLabel('عکس'),
+      const SizedBox(height: 16),
       MultiPhotoField(
         initial: me.images,
         onChange: (imgs) => _edit(() => me.images = imgs),
       ),
+      _bottomActions(
+        saveLabel: 'ذخیره',
+        onSave: () {
+          _store.changed();
+          Navigator.pop(context);
+        },
+      ),
+    ];
+  }
+
+  // ============================================================
+  // عکس پاها — همون کادرِ «من» (نام/رنگ نداره، فقط عکس‌ها + ذخیره)
+  // ============================================================
+  List<Widget>? _walkerSheetBody(WalkerPhotosTarget t) {
+    final Map<String, dynamic> ex;
+    final ActionNode? act;
+    final host = _s.findHost(t.hostId);
+    if (t.isWalker) {
+      if (host is! Goal) return null;
+      act = null;
+      ex = host.extra;
+    } else {
+      if (host is! MapHost) return null;
+      final found = findActionNode(host.actions, t.actionId);
+      if (found == null) return null;
+      act = found.node;
+      ex = found.node.extra;
+    }
+    return [
+      WalkerPhotoField(
+        initial: walkerPhotosOf(ex),
+        onChanged: (v) => _edit(() {
+          setWalkerPhotos(ex, v);
+          if (v.isNotEmpty) {
+            final a0 = act;
+            if (a0 != null) {
+              a0.footPlaying = true;
+              a0.footPos = null;
+            } else {
+              ex['walkerPlaying'] = true;
+              ex.remove('walkerPos');
+            }
+          }
+        }),
+      ),
+      const SizedBox(height: 8),
+      _sectionLabel('رنگ پا'),
+      _swatches(
+        (ex['footColor'] as String?) ?? '',
+        (c) => ex['footColor'] = c,
+        onInherit: () => ex.remove('footColor'),
+      ),
+      if (act != null) ...[
+        _slider(
+          label: 'اندازه‌ی پاها',
+          value: (act.footSize ?? 1.0).clamp(0.4, 2.5).toDouble(),
+          min: 0.4,
+          max: 2.5,
+          divisions: 21,
+          valueText: '${((act.footSize ?? 1.0) * 100).round()}٪',
+          onChanged: (v) => _edit(() => act!.footSize = v),
+        ),
+        _slider(
+          label: 'سرعت قدم زدن',
+          value: (act.footSpeed ?? 1.0).clamp(0.2, 3.0).toDouble(),
+          min: 0.2,
+          max: 3.0,
+          divisions: 28,
+          valueText: '${(act.footSpeed ?? 1.0).toStringAsFixed(1)}×',
+          onChanged: (v) => _edit(() => act!.footSpeed = v),
+        ),
+        _switchTile(
+          title: 'در حال حرکت',
+          subtitle: 'روشن = پاها راه می‌رن',
+          value: act.footPlaying,
+          onChanged: (v) => _edit(() => act!.footPlaying = v),
+        ),
+      ] else ...[
+        _slider(
+          label: 'اندازه‌ی پاها و دایره‌ی متصل',
+          value: ((ex['walkerSize'] as num?)?.toDouble() ?? 1.0)
+              .clamp(0.4, 3.0)
+              .toDouble(),
+          min: 0.4,
+          max: 3.0,
+          divisions: 26,
+          valueText:
+              '${(((ex['walkerSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+          onChanged: (v) => _edit(() => ex['walkerSize'] = v),
+        ),
+        _slider(
+          label: 'سرعت قدم زدن',
+          value: ((ex['walkerSpeed'] as num?)?.toDouble() ?? 1.5)
+              .clamp(0.3, 4.0)
+              .toDouble(),
+          min: 0.3,
+          max: 4.0,
+          divisions: 37,
+          valueText:
+              '${((ex['walkerSpeed'] as num?)?.toDouble() ?? 1.5).toStringAsFixed(1)}×',
+          onChanged: (v) => _edit(() => ex['walkerSpeed'] = v),
+        ),
+        _switchTile(
+          title: 'در حال حرکت',
+          subtitle: 'روشن = قدم‌زن راه می‌ره',
+          value: ex['walkerPlaying'] as bool? ?? true,
+          onChanged: (v) => _edit(() => ex['walkerPlaying'] = v),
+        ),
+      ],
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
@@ -941,7 +1118,7 @@ class _EditSheetState extends State<EditSheet> {
       const Padding(
         padding: EdgeInsets.only(top: 4, bottom: 4),
         child: Text(
-          'می‌تونی قدم رو با انگشت روی نقشه بگیری و بکشی. با یک تپ روی قدم یا دایره‌ی جلوش، حرکت/توقف می‌شه؛ نگه‌داشتن روش همین صفحه‌ی عکس‌ها رو باز می‌کنه.',
+          'می‌تونی قدم رو با انگشت روی نقشه بگیری و بکشی. با یک تپ روی قدم یا دایره‌ی جلوش کادر عکس‌ها باز می‌شه؛ نگه‌داشتن روش حرکت/توقفش می‌کنه.',
           style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
         ),
       ),

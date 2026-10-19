@@ -37,7 +37,7 @@ class MapStore extends ChangeNotifier {
   /// فقط ذخیره‌ی با تأخیر (بدون بازسازی UI). موقع درگ استفاده میشه چون painter خودش هر فریم دوباره می‌کشه
   void touch() {
     _timer?.cancel();
-    _timer = Timer(const Duration(milliseconds: 400), flush);
+    _timer = Timer(const Duration(milliseconds: 900), flush);
   }
 
   /// بعد از هر تغییر ساختاری صدا بزن: لینک خودکار حلقه‌ها، آپدیت UI و ذخیره
