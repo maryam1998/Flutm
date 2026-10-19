@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- بکاپِ خودکارِ گوگل فقط تنظیمات و نشستِ ورود (SharedPreferences) را نگه می‌دارد، نه مدل‌های حجیم (Whisper/Piper).
-     نتیجه: بعد از حذف و نصبِ دوباره، اگر بکاپ بازیابی شود کاربر مستقیم وارد اپ می‌شود و دوباره وارد نمی‌شود. -->
-<full-backup-content>
-    <include domain="sharedpref" path="." />
-</full-backup-content>
