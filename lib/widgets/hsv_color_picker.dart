@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF5B5F77);
+const _kBorder = Color(0xFFE4E6EE);
 
 /// انتخابگر رنگ HSV — ظاهری شبیه سیستم انتخابگر عکس دوم
 class HsvColorPicker extends StatefulWidget {

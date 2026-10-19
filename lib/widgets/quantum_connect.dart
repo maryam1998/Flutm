@@ -2,9 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 const _kEmerald700 = Color(0xFF0F5B53);
-const _kGold500 = Color(0xFFC9972B);
-const _kMuted = Color(0xFF7A6B57);
-const _kInk = Color(0xFF2A2218);
+const _kGold500 = Color(0xFFC9962B);
+const _kMuted = Color(0xFF5B5F77);
+const _kInk = Color(0xFF000000);
 
 class QuantumConnect extends StatefulWidget {
   const QuantumConnect({super.key});

@@ -16,37 +16,43 @@ import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
 import 'motivation_sheet.dart';
 
-const _kCream = Color(0xFFFBF6EA);
-const _kCard = Colors.white;
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
+// پالت دقیقِ Maghz (html[data-theme="light"] در css/base-and-map.css)
+const _kCream = Color.fromRGBO(255, 255, 255, 0.92); // --panel-bg
+const _kCard = Color(0xFFF1F2F8); // --input-bg
+const _kGold = Color(0xFFC9962B); // --accent
+const _kInk = Color(0xFF000000); // --text-main
+const _kMuted = Color(0xFF5B5F77); // --text-dim
+const _kBorder = Color.fromRGBO(20, 24, 50, 0.10); // --panel-border
 const _kDanger = Color(0xFFE5484D);
 
-/// منوی همبرگری: از سمت چپ باز می‌شود، کل صفحه را نمی‌گیرد.
+/// پنجره‌ی تنظیمات — مثل `.overlay` + `.modal` در Maghz:
+/// پرده‌ی rgba(5,6,14,.6)، کادر وسط‌صفحه تا min(360px, 90vw)، گوشه ۱۸،
+/// پس‌زمینه‌ی نیمه‌شفاف (--panel-bg) تا پس‌زمینه‌ی برنامه پشتش دیده شود.
 Future<void> showSettingsSheet(BuildContext context) {
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'بستن تنظیمات',
-    barrierColor: Colors.black.withAlpha(100),
-    transitionDuration: const Duration(milliseconds: 260),
+    barrierColor: const Color.fromRGBO(5, 6, 14, 0.6),
+    transitionDuration: const Duration(milliseconds: 200),
     pageBuilder: (ctx, _, __) {
-      final w = MediaQuery.sizeOf(ctx).width;
-      return Align(
-        alignment: Alignment.centerLeft,
+      final sz = MediaQuery.sizeOf(ctx);
+      final w = sz.width * 0.9 < 360 ? sz.width * 0.9 : 360.0;
+      return Center(
         child: SizedBox(
-          width: (w * 0.78).clamp(260.0, 340.0).toDouble(),
-          height: double.infinity,
+          width: w,
+          height: sz.height - 40,
           child: const _SettingsSheet(),
         ),
       );
     },
-    transitionBuilder: (_, anim, __, child) => SlideTransition(
-      position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)
-          .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-      child: child,
+    transitionBuilder: (_, anim, __, child) => FadeTransition(
+      opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.96, end: 1).animate(
+            CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
     ),
   );
 }
@@ -245,9 +251,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   Widget build(BuildContext context) {
     return Material(
       color: _kCream,
-      elevation: 12,
-      borderRadius:
-          const BorderRadius.horizontal(right: Radius.circular(22)),
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: _kBorder),
+      ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
         child: Column(
@@ -1053,7 +1062,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
-          color: active ? const Color(0x1FF4C542) : _kCard,
+          color: active ? const Color.fromRGBO(244, 197, 66, 0.12) : _kCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: active ? _kGold : _kBorder),
         ),

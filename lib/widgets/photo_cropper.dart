@@ -61,7 +61,7 @@ class _CropPage extends StatefulWidget {
 
 class _CropPageState extends State<_CropPage> {
   static const _bg = Color(0xFF0B0F1A);
-  static const _gold = Color(0xFFC9972B);
+  static const _gold = Color(0xFFC9962B);
   static const _chipBg = Color(0xFF151B2B);
   static const _chipBorder = Color(0xFF2A3247);
 

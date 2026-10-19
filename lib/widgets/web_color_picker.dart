@@ -59,7 +59,7 @@ class WebColorPicker extends StatelessWidget {
           color: c,
           shape: BoxShape.circle,
           border: Border.all(
-            color: active ? const Color(0xFF2A2218) : const Color(0x22000000),
+            color: active ? const Color(0xFF000000) : const Color(0x22000000),
             width: active ? 3 : 1.5,
           ),
         ),
@@ -80,7 +80,7 @@ class WebColorPicker extends StatelessWidget {
         decoration: BoxDecoration(
           color: value,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF2A2218), width: 1.8),
+          border: Border.all(color: const Color(0xFF000000), width: 1.8),
         ),
         child: const Icon(Icons.colorize, size: 18, color: Colors.white),
       ),

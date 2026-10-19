@@ -26,19 +26,19 @@ class _BootSplash extends StatelessWidget {
   Widget build(BuildContext context) => const Directionality(
         textDirection: TextDirection.rtl,
         child: ColoredBox(
-          color: Color(0xFFFBF6EA),
+          color: Color(0xFFFFFFFF),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.psychology_outlined, size: 56, color: Color(0xFFC9972B)),
+                Icon(Icons.psychology_outlined, size: 56, color: Color(0xFFC9962B)),
                 SizedBox(height: 16),
                 SizedBox(
                   width: 26,
                   height: 26,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    color: Color(0xFFC9972B),
+                    color: Color(0xFFC9962B),
                   ),
                 ),
               ],

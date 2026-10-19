@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 
 const _kEmerald500 = Color(0xFF2BBFAB);
 const _kEmerald700 = Color(0xFF0F5B53);
-const _kMuted = Color(0xFF7A6B57);
-const _kInk = Color(0xFF2A2218);
-const _kBorder = Color(0xFFE0D5C0);
+const _kMuted = Color(0xFF5B5F77);
+const _kInk = Color(0xFF000000);
+const _kBorder = Color(0xFFE4E6EE);
 
 class BreathCircle extends StatefulWidget {
   const BreathCircle({super.key});

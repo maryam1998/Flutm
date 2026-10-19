@@ -32,7 +32,7 @@ class _PracticeTabState extends State<PracticeTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final paper = hasBg
         ? Colors.transparent
-        : (isDark ? const Color(0xFFFBF6EA) : Colors.white);
+        : (isDark ? const Color(0xFFFFFFFF) : Colors.white);
 
     return ColoredBox(
       color: paper,

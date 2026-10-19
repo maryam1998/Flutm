@@ -55,7 +55,7 @@ class MaghzApp extends StatelessWidget {
 final _light = ThemeData(
   brightness: Brightness.light,
   colorScheme: ColorScheme.fromSeed(
-    seedColor: const Color(0xFFC9972B),
+    seedColor: const Color(0xFFC9962B),
     brightness: Brightness.light,
   ),
   useMaterial3: true,
@@ -63,13 +63,13 @@ final _light = ThemeData(
   scaffoldBackgroundColor: Colors.transparent,
   appBarTheme: AppBarTheme(
     backgroundColor: Colors.transparent,
-    foregroundColor: const Color(0xFF2A2218),
+    foregroundColor: const Color(0xFF000000),
     elevation: 0,
     centerTitle: true,
     titleTextStyle: GoogleFonts.vazirmatn(
       fontSize: 17,
       fontWeight: FontWeight.w700,
-      color: const Color(0xFF2A2218),
+      color: const Color(0xFF000000),
     ),
   ),
   navigationBarTheme: NavigationBarThemeData(
@@ -80,7 +80,7 @@ final _light = ThemeData(
     ),
   ),
   snackBarTheme: const SnackBarThemeData(
-    backgroundColor: Color(0xFF2A2218),
+    backgroundColor: Color(0xFF000000),
     contentTextStyle: TextStyle(color: Colors.white),
   ),
 );

@@ -8,11 +8,11 @@ const int kNeuralFiberCap = 10;
 const Color kEmerald300 = Color(0xFF54C9B8);
 const Color kEmerald500 = Color(0xFF2BBFAB);
 const Color kEmerald700 = Color(0xFF0F5B53);
-const Color kNeuralInk = Color(0xFF2A2218);
-const Color kNeuralMuted = Color(0xFF7A6B57);
-const Color kNeuralBorder = Color(0xFFE0D5C0);
+const Color kNeuralInk = Color(0xFF000000);
+const Color kNeuralMuted = Color(0xFF5B5F77);
+const Color kNeuralBorder = Color(0xFFE4E6EE);
 const Color kNeuralCard = Color(0xFFFFFFFF);
-const Color kNeuralCream = Color(0xFFFBF6EA);
+const Color kNeuralCream = Color(0xFFFFFFFF);
 const Color kGold500 = Color(0xFFC9A24B);
 
 int neuralTier(int fiberCount, bool habitFormed) {

@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'vazir_font.dart';
 
-const kLightBg = Color(0xFFF5EFE0);
-const kLightBg2 = Color(0xFFEDE5D5);
-const kLightInk = Color(0xFF2A2218);
+const kLightBg = Color(0xFFEEF1F8);
+const kLightBg2 = Color(0xFFDBE1F0);
+const kLightInk = Color(0xFF000000);
 const kDarkBg = Color(0xFF0B0D1E);
 const kDarkBg2 = Color(0xFF151933);
 
 // ---------- پالت صفحه‌ی «اهداف» (هم‌رنگ وب) ----------
-const kGoalsBg = Color(0xFFFBF6EA); // کرم
-const kGoalsGold = Color(0xFFC9972B); // طلایی
-const kGoalsInk = Color(0xFF2A2218); // متن
-const kGoalsMuted = Color(0xFF7A6B57); // متن کم‌رنگ
-const kGoalsBorder = Color(0xFFE0D5C0); // حاشیه
+const kGoalsBg = Color(0xFFFFFFFF); // کرم
+const kGoalsGold = Color(0xFFC9962B); // طلایی
+const kGoalsInk = Color(0xFF000000); // متن
+const kGoalsMuted = Color(0xFF5B5F77); // متن کم‌رنگ
+const kGoalsBorder = Color(0xFFE4E6EE); // حاشیه
 
 // ---------- تم روشن (پیش‌فرض — شبیه وب) ----------
 final ThemeData lightTheme = ThemeData(
   brightness: Brightness.light,
   scaffoldBackgroundColor: kLightBg,
   colorScheme: ColorScheme.fromSeed(
-    seedColor: const Color(0xFFC9972B),
+    seedColor: const Color(0xFFC9962B),
     brightness: Brightness.light,
   ),
   useMaterial3: true,
@@ -37,7 +37,7 @@ final ThemeData lightTheme = ThemeData(
   ),
   navigationBarTheme: NavigationBarThemeData(
     backgroundColor: kLightBg,
-    indicatorColor: const Color(0xFFC9972B).withAlpha(60),
+    indicatorColor: const Color(0xFFC9962B).withAlpha(60),
     labelTextStyle: WidgetStatePropertyAll(
       GoogleFonts.vazirmatn(fontSize: 11, fontWeight: FontWeight.w600),
     ),

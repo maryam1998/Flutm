@@ -19,10 +19,10 @@ import '../widgets/icon_photo_editor.dart';
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
 
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
+const _kGold = Color(0xFFC9962B);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF5B5F77);
+const _kBorder = Color(0xFFE4E6EE);
 
 /// فهرست اهداف — معادل «اهداف من» نسخه‌ی وب
 Future<void> showGoalsSheet(
@@ -1171,7 +1171,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(6),
-                  color: has ? color : const Color(0xFFF5EFE0),
+                  color: has ? color : const Color(0xFFEEF1F8),
                   border: isSel
                       ? Border.all(color: _kInk, width: 2)
                       : isToday

@@ -7,12 +7,12 @@ import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 
 // رنگ‌های تم روشن (کرم/طلایی مثل بقیه‌ی شیت‌ها)
-const _kCream = Color(0xFFFBF6EA);
+const _kCream = Color(0xFFFFFFFF);
 const _kCard = Colors.white;
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
+const _kGold = Color(0xFFC9962B);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF5B5F77);
+const _kBorder = Color(0xFFE4E6EE);
 const _kTeal = Color(0xFF2DD4BF);
 const _kPurple = Color(0xFF8F7BF0);
 

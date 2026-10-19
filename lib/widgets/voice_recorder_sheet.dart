@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../services/voice_service.dart';
 
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
-const _kCream = Color(0xFFFBF6EA);
+const _kGold = Color(0xFFC9962B);
+const _kInk = Color(0xFF000000);
+const _kMuted = Color(0xFF5B5F77);
+const _kBorder = Color(0xFFE4E6EE);
+const _kCream = Color(0xFFFFFFFF);
 const _kDanger = Color(0xFFE5484D);
 
 /// شیت پایین‌کشیدنی برای ضبط ویس.
@@ -143,7 +143,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
                       end: Alignment.bottomLeft,
                       colors: _recording
                           ? const [Color(0xFFE5484D), Color(0xFFB0181E)]
-                          : const [Color(0xFFC9972B), Color(0xFF8B6415)],
+                          : const [Color(0xFFC9962B), Color(0xFF8B6415)],
                     ),
                     boxShadow: [
                       BoxShadow(

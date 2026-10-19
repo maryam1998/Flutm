@@ -280,7 +280,7 @@ class _MapTabState extends State<MapTab> {
 
   Widget _toolBtn(IconData icon, String label, Color color, VoidCallback onTap,
       {bool primary = false}) {
-    final bg = primary ? const Color(0xFFC9972B) : Colors.transparent;
+    final bg = primary ? const Color(0xFFC9962B) : Colors.transparent;
     final fg = primary ? Colors.white : color;
     return Expanded(
       child: Material(
