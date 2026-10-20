@@ -785,21 +785,9 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
 }
     // ─── تقویم پیشرفت ───
   Widget _calendarSection(BeliefsStore store, FutureVersion? v) {
-    if (v == null) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: kBeliefsCream,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kBeliefsBorder),
-        ),
-        child: const Text(
-          'بعد از نوشتن متن خواسته، تقویم پیشرفت روزانه اینجا ساخته می‌شود.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.7),
-        ),
-      );
-    }
+    // تقویم همیشه دیده می‌شه؛ قبل از نوشتن متن، با یک نسخه‌ی خالیِ موقت (از امروز) نشون داده می‌شه.
+    final noText = v == null;
+    final cal = v ?? FutureVersion(startDate: _dayKey(DateTime.now()));
 
     final total = store.cycleDays;
 
@@ -807,14 +795,22 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         MiniCalendar90(
-          version: v,
+          version: cal,
           totalDays: total,
           dayKeyOf: _dayKey,
           isFuture: _isFutureDay,
           selectedKey: _selectedDay,
           onDayTap: (key) => setState(() => _selectedDay = key),
         ),
-        _dayInfo(v),
+        if (noText) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'بعد از نوشتن متن خواسته، روزهای خوانده‌شده اینجا ثبت می‌شوند.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.7),
+          ),
+        ],
+        _dayInfo(cal),
         if (store.cycleFinished) ...[
           const SizedBox(height: 10),
           _accentBox(
@@ -838,7 +834,8 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
                 () => _openCycleDaysDialog(store),
               ),
             ),
-            const SizedBox(width: 6),
+            if (!noText) const SizedBox(width: 6),
+            if (!noText)
             Expanded(
               child: _tinyBtn(
                 '🔄 ریست تقویم',
