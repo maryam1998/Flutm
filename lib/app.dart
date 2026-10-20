@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'screens/map_tab.dart';
 import 'screens/practice_tab.dart';
 import 'screens/shenakht/shenakht_tab.dart';
+import 'state/map_store.dart';
 import 'state/theme_store.dart';
 import 'widgets/angels_layer.dart';
 import 'widgets/background_layer.dart';
@@ -139,8 +140,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState s) {
     if (s == AppLifecycleState.paused ||
         s == AppLifecycleState.inactive ||
+        s == AppLifecycleState.hidden ||
         s == AppLifecycleState.detached) {
-      context.read<ThemeStore>();
+      // ذخیره‌ی فوری (بدون انتظار برای تأخیر ۹۰۰ms) تا با رفرش/بستن چیزی گم نشود
+      context.read<MapStore>().flush();
     }
   }
 

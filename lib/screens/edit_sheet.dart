@@ -649,7 +649,10 @@ class _EditSheetState extends State<EditSheet> {
           WalkerPhotoField(
             initial: me.images.map((e) => e.src).toList(),
             initialEmoji: walkerEmojiOf(me.extra),
-            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(me.extra, e)),
+            onEmojiChanged: (e) {
+              _edit(() => setWalkerEmoji(me.extra, e));
+              _store.flush();
+            },
             onChanged: (srcs) => _edit(() {
               // اندازه/جابه‌جایی عکس‌هایی که از قبل بودند حفظ می‌شود
               final old = {for (final i in me.images) i.src: i};
@@ -706,7 +709,10 @@ class _EditSheetState extends State<EditSheet> {
       WalkerPhotoField(
         initial: walkerPhotosOf(ex),
         initialEmoji: walkerEmojiOf(ex),
-        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(ex, e)),
+        onEmojiChanged: (e) {
+          _edit(() => setWalkerEmoji(ex, e));
+          _store.flush();
+        },
         onChanged: (v) => _edit(() {
           setWalkerPhotos(ex, v);
           if (v.isNotEmpty) {
@@ -800,9 +806,10 @@ class _EditSheetState extends State<EditSheet> {
       ],
       _bottomActions(
         saveLabel: 'ذخیره',
-        onSave: () {
+        onSave: () async {
           _store.changed();
-          Navigator.pop(context);
+          await _store.flush();
+          if (mounted) Navigator.pop(context);
         },
       ),
     ];
@@ -883,7 +890,10 @@ class _EditSheetState extends State<EditSheet> {
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
             initialEmoji: walkerEmojiOf(g.extra),
-            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(g.extra, e)),
+            onEmojiChanged: (e) {
+              _edit(() => setWalkerEmoji(g.extra, e));
+              _store.flush();
+            },
             onChanged: (v) => _edit(() {
               setWalkerPhotos(g.extra, v);
               if (v.isNotEmpty) {
@@ -1132,7 +1142,10 @@ class _EditSheetState extends State<EditSheet> {
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
         initialEmoji: walkerEmojiOf(a.extra),
-        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(a.extra, e)),
+        onEmojiChanged: (e) {
+          _edit(() => setWalkerEmoji(a.extra, e));
+          _store.flush();
+        },
         onChanged: (v) => _edit(() {
           setWalkerPhotos(a.extra, v);
           if (v.isNotEmpty) {
