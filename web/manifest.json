@@ -3,7 +3,7 @@
   "short_name": "مغز",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#EEF1F8",
+  "background_color": "#FFFFFF",
   "theme_color": "#EEF1F8",
   "description": "مغز",
   "orientation": "portrait-primary",

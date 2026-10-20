@@ -55,7 +55,7 @@ jobs:
           fi
 
       - name: Build web
-        run: flutter build web --release --no-web-resources-cdn --base-href "/Flutm/"
+        run: flutter build web --release --base-href "/Flutm/"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
