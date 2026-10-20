@@ -842,6 +842,19 @@ class _EditSheetState extends State<EditSheet> {
         title: 'انیمیشن روی مسیر',
         subtitle: 'عکس یا ویدیوی متحرکی که روی خط هدف حرکت می‌کند.',
         children: [
+          _switchTile(
+            title: 'نمایش انیمیشن',
+            subtitle: 'اگر خاموش باشد، انیمیشن این هدف روی نقشه نشان داده نمی‌شود',
+            value: g.extra['showWalker'] != false,
+            onChanged: (v) => _edit(() {
+              if (v) {
+                g.extra.remove('showWalker');
+              } else {
+                g.extra['showWalker'] = false;
+              }
+            }),
+          ),
+          const SizedBox(height: 10),
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
             onChanged: (v) => _edit(() {

@@ -784,6 +784,8 @@ class MapPainter extends CustomPainter {
 
   /// قدم‌زن هدف (آبی): کل تنه، رفت و برگشتی.
   void _walker(Canvas canvas, Goal g, geo.Cubic cp, Color col0) {
+    // کاربر «نمایش انیمیشن» را خاموش کرده → قدم‌زنِ این هدف کشیده نمی‌شود
+    if (g.extra['showWalker'] == false) return;
     final fcHex = g.extra['footColor'];
     final col = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, col0)
