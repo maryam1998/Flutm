@@ -645,6 +645,19 @@ class _EditSheetState extends State<EditSheet> {
             label: 'اسم',
             onChanged: (v) => _edit(() => me.name = v),
           ),
+          const PanelLabel('عکس‌ها و ایموجی'),
+          WalkerPhotoField(
+            initial: me.images.map((e) => e.src).toList(),
+            initialEmoji: walkerEmojiOf(me.extra),
+            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(me.extra, e)),
+            onChanged: (srcs) => _edit(() {
+              // اندازه/جابه‌جایی عکس‌هایی که از قبل بودند حفظ می‌شود
+              final old = {for (final i in me.images) i.src: i};
+              me.images = [
+                for (final src in srcs) old[src] ?? ImageItem(src: src),
+              ];
+            }),
+          ),
           const PanelLabel('رنگ'),
           _swatches(me.color, (c) => me.color = c),
           // «حال و هوای این فرکانس» فعلاً نشان داده نمی‌شود (داده‌اش نگه داشته می‌شود).
@@ -659,24 +672,6 @@ class _EditSheetState extends State<EditSheet> {
               maxLines: 3,
             ),
           ],
-        ],
-      ),
-      PanelCard(
-        icon: Icons.photo_library_rounded,
-        title: 'عکس‌ها و ایموجی',
-        children: [
-          WalkerPhotoField(
-            initial: me.images.map((e) => e.src).toList(),
-            initialEmoji: walkerEmojiOf(me.extra),
-            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(me.extra, e)),
-            onChanged: (srcs) => _edit(() {
-              // اندازه/جابه‌جایی عکس‌هایی که از قبل بودند حفظ می‌شود
-              final old = {for (final i in me.images) i.src: i};
-              me.images = [
-                for (final src in srcs) old[src] ?? ImageItem(src: src),
-              ];
-            }),
-          ),
         ],
       ),
       _bottomActions(
