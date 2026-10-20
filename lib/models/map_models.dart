@@ -225,6 +225,9 @@ class Goal implements MapHost {
   double radius;
   @override
   bool get isRing => false;
+
+  /// ضخامت خط مسیر (تنه‌ی «من ← هدف»)؛ ۰ = پیش‌فرض نقشه (۳)
+  double trunkWidth;
   double iconScale,
       feelingOffsetX,
       feelingOffsetY,
@@ -247,6 +250,7 @@ class Goal implements MapHost {
     this.freq = 'alpha',
     this.branchStyle = 'organic',
     this.trunkStyle = '',
+    this.trunkWidth = 0,
     this.feeling = '',
     this.color,
     this.x = 0,
@@ -277,8 +281,8 @@ class Goal implements MapHost {
         extra = extra ?? {};
 
   static const _known = {
-    'id', 'name', 'icon', 'freq', 'branchStyle', 'trunkStyle', 'feeling',
-    'color', 'x', 'y', 'radius', 'iconScale', 'feelingOffsetX',
+    'id', 'name', 'icon', 'freq', 'branchStyle', 'trunkStyle', 'trunkWidth',
+    'feeling', 'color', 'x', 'y', 'radius', 'iconScale', 'feelingOffsetX',
     'feelingOffsetY', 'feelingScale', 'labelDX', 'labelDY', 'labelSize',
     'reached', 'collapsed', 'createdAt', 'lastActivity', 'images', 'actions',
     'logs',
@@ -304,6 +308,7 @@ class Goal implements MapHost {
       branchStyle: kBranchStyles.containsKey(bs) ? bs : 'organic',
       trunkStyle:
           (trunk.isEmpty || kTrunkStyles.containsKey(trunk)) ? trunk : '',
+      trunkWidth: _d(j['trunkWidth'], 0).clamp(0.0, 16.0).toDouble(),
       feeling: _s(j['feeling'], ''),
       color: j['color'] is String ? j['color'] as String : null,
       x: _d(j['x'], 0),
@@ -338,6 +343,7 @@ class Goal implements MapHost {
         'freq': freq,
         'branchStyle': branchStyle,
         'trunkStyle': trunkStyle,
+        if (trunkWidth > 0) 'trunkWidth': trunkWidth,
         'feeling': feeling,
         'color': color,
         'x': x,

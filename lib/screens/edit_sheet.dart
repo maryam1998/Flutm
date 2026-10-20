@@ -7,6 +7,7 @@ import '../map/walker_photos.dart';
 import '../models/constants.dart';
 import '../models/map_models.dart';
 import '../state/map_store.dart';
+import '../widgets/goal_path_card.dart';
 import '../widgets/icon_photo_editor.dart';
 import '../widgets/web_color_picker.dart';
 
@@ -889,7 +890,18 @@ class _EditSheetState extends State<EditSheet> {
           g.iconScale = scale;
         }),
       ),
-      _swatches(g.color, (c) => g.color = c, settingsStyle: true),
+      // رنگ هدف + ضخامت و پیش‌نمایش زنده‌ی مسیر
+      GoalPathCard(
+        color: g.color,
+        width: g.trunkWidth,
+        styleKey: g.trunkStyle,
+        onColor: (hex) => _edit(() => g.color = hex),
+        onWidth: (w) => _edit(() => g.trunkWidth = w),
+        onReset: () => _edit(() {
+          g.trunkWidth = 0;
+          g.trunkStyle = '';
+        }),
+      ),
       _switchTile(
         title: 'به این هدف رسیدم',
         subtitle: 'روی نقشه از من می‌پرسه چه حسی دارم',

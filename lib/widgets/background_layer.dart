@@ -109,7 +109,9 @@ class _BackgroundLayerState extends State<BackgroundLayer> {
 
   Widget? _media(BackgroundStore bg) {
     Widget? m;
-    if (bg.kind == BgKind.image && bg.imageBytes != null) {
+    if ((bg.kind == BgKind.image || bg.kind == BgKind.anim) &&
+        bg.imageBytes != null) {
+      // GIF / WebP متحرک را خود Image.memory فریم‌به‌فریم پخش می‌کند
       m = Image.memory(
         bg.imageBytes!,
         fit: BoxFit.cover,

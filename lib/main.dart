@@ -6,7 +6,6 @@ import 'app.dart';
 import 'models/neural_container.dart';
 import 'services/boot_status.dart';
 import 'services/storage.dart';
-import 'services/web_cache_clean.dart';
 import 'state/abundance_store.dart';
 import 'state/angels_store.dart';
 import 'state/background_store.dart';
@@ -58,10 +57,6 @@ Future<void> main() async {
   if (!kIsWeb) runApp(const _BootSplash());
 
   // فونت وزیرمتن داخل خود برنامه است (pubspec) و دانلود/انتظاری ندارد.
-  // پاک‌سازی کش قدیمیِ وب هم موازی با خواندن داده‌ها انجام می‌شود (و فقط
-  // وقتی نسخه عوض شده باشد کار می‌کند).
-  final cacheClean = cleanOldWebCaches();
-
   final store = MapStore(StorageService());
   final theme = ThemeStore();
   final bg = BackgroundStore();
@@ -88,7 +83,6 @@ Future<void> main() async {
     shenakht.load(),
   ]);
 
-  await cacheClean;
 
   // «ثبت حس» با بستن ادمک (echw:commit در وب): همه‌ی تمرین‌های امروز که
   // انجام شده‌ن رنگ حس می‌گیرن؛ اگه هیچ تمرینی نبود انتخاب نگه داشته می‌شه.

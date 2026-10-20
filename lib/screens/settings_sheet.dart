@@ -569,7 +569,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                           if (bg.custom) ...[
                             const SizedBox(height: 14),
                             const Text(
-                                'تصویر یا ویدیوی پس‌زمینه (ویدیو بی‌صدا پخش می‌شود)',
+                                'عکس، GIF، WebP متحرک یا ویدیو (mp4، webm، mov، mkv ...) — ویدیو بی‌صدا پخش می‌شود',
                                 style:
                                     TextStyle(fontSize: 12, color: _kMuted)),
                             const SizedBox(height: 8),
@@ -585,7 +585,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                       border: Border.all(color: _kBorder),
                                     ),
                                     clipBehavior: Clip.antiAlias,
-                                    child: bg.kind == BgKind.image &&
+                                    child: (bg.kind == BgKind.image ||
+                                                bg.kind == BgKind.anim) &&
                                             bg.imageBytes != null
                                         ? Image.memory(bg.imageBytes!,
                                             fit: BoxFit.cover,
@@ -617,7 +618,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                       border: Border.all(color: _kBorder),
                                     ),
                                     child: const Text(
-                                      'انتخاب تصویر یا ویدیو…',
+                                      'انتخاب عکس، GIF یا ویدیو…',
                                       style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
@@ -625,6 +626,20 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                     ),
                                   ),
                                 ),
+                                if (bg.kind == BgKind.image)
+                                  TextButton(
+                                    onPressed: () async {
+                                      final err = await bg.cropCurrent(context);
+                                      if (err != null && context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                                SnackBar(content: Text(err)));
+                                      }
+                                    },
+                                    child: const Text('برش',
+                                        style: TextStyle(
+                                            fontSize: 12, color: _kGold)),
+                                  ),
                                 if (bg.hasBackground)
                                   TextButton(
                                     onPressed: () => bg.clear(),

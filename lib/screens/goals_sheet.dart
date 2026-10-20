@@ -1138,81 +1138,95 @@ class _GoalsSheetState extends State<GoalsSheet> {
     PeriodInfo pi,
     Color color,
   ) {
-    const cols = 12;
+    // ── مربع‌های تقویم: دقیقاً مثل `.gs-day` در Maghz (css/base-and-map.css) ──
+    // ۲۵×۲۵، گوشه ۷، فاصله ۴، چینش wrap؛ روزِ انجام‌شده با رنگ خود شاخه + «✓» تیره
+    const cell = 25.0;
+    const border = Color.fromRGBO(20, 24, 50, 0.30); // حاشیه‌ی پررنگ‌تر (مثل مغز روی پنل)
+    const emptyBg = Color.fromRGBO(110, 114, 140, 0.22);
+    const dim = Color(0xFF3F4258); // --text-dim (تیره‌تر)
+    const accent = Color(0xFFC9962B); // --accent
+    const mainInk = Color(0xFF000000); // --text-main
+    const doneInk = Color(0xFF12142A); // رنگ ✓ روی رنگ شاخه
+    final selD = _selDay[n.id] ?? pi.today;
     final cells = <Widget>[];
     for (var d = 0; d < pi.total; d++) {
       final date = DateTime(pi.start.year, pi.start.month, pi.start.day + d);
       final jk = jKey(date);
       final j = toJalaali(date.year, date.month, date.day);
       final has = truthy(n.logs[jk]);
-      final hasTime = nodeDaySecs(n, jk) > 0;
       final future = date.isAfter(pi.today);
       final isToday = date.isAtSameMomentAs(pi.today);
-      final selD = _selDay[n.id] ?? pi.today;
       final isSel = date.year == selD.year &&
           date.month == selD.month &&
           date.day == selD.day;
-      cells.add(
-        InkWell(
-          // لمس: روز تیک می‌خوره/برمی‌داره و کادر ساعت‌های همان روز زیر تقویم باز می‌شه
-          onTap: future
-              ? null
-              : () {
-                  setState(() => _selDay[n.id] = date);
-                  store.toggleLog(h, n, jk);
-                },
-          borderRadius: BorderRadius.circular(6),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: double.infinity,
-                height: double.infinity,
-                alignment: Alignment.center,
+      Widget c = SizedBox(
+        width: cell,
+        height: cell,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            // body: پس‌زمینه + حاشیه + (today: box-shadow 0 0 0 2px accent)
+            Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  color: has ? color : const Color(0xFFEEF1F8),
-                  border: isSel
-                      ? Border.all(color: _kInk, width: 2)
-                      : isToday
-                          ? Border.all(color: _kInk.withAlpha(120), width: 1.2)
-                          : Border.all(color: _kBorder, width: 1),
-                ),
-                child: Text(
-                  has ? '✓' : toFa(j.jd),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: has
-                        ? Colors.white
-                        : (future
-                            ? _kMuted.withValues(alpha: 0.5)
-                            : _kInk),
-                  ),
+                  borderRadius: BorderRadius.circular(7),
+                  color: has ? color : emptyBg,
+                  border: Border.all(
+                      color: has ? Color.lerp(color, Colors.black, 0.35)! : border,
+                      width: 1.2),
+                  boxShadow: isToday
+                      ? const [
+                          BoxShadow(
+                              color: accent, spreadRadius: 2, blurRadius: 0)
+                        ]
+                      : null,
                 ),
               ),
-              // نقطه‌ی زمان ثبت‌شده (گوشه‌ی پایین)
-              if (hasTime)
-                Positioned(
-                  bottom: 1,
-                  right: 1,
-                  child: Container(
-                    width: 5,
-                    height: 5,
+            ),
+            // sel: outline 2px --text-main با offset ۱px
+            if (isSel)
+              Positioned(
+                left: -3,
+                top: -3,
+                right: -3,
+                bottom: -3,
+                child: IgnorePointer(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: has ? Colors.white : color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: has ? color : Colors.transparent,
-                        width: 0.5,
-                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: mainInk, width: 2),
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+            Text(
+              has ? '✓' : toFa(j.jd),
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1,
+                fontWeight: has ? FontWeight.w800 : FontWeight.w400,
+                color: has ? doneInk : dim,
+              ),
+            ),
+          ],
         ),
       );
+      // .gs-day.future → opacity .35 و غیرقابل‌لمس
+      if (future) {
+        c = Opacity(opacity: 0.35, child: c);
+      } else {
+        c = GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          // لمس: روز انتخاب می‌شه و تیکش عوض می‌شه؛ کادر ساعت‌های همان روز زیر تقویم باز می‌شه
+          onTap: () {
+            setState(() => _selDay[n.id] = date);
+            store.toggleLog(h, n, jk);
+          },
+          child: c,
+        );
+      }
+      cells.add(c);
     }
     final sel = _selDay[n.id] ?? pi.today;
     final selJk = jKey(sel);
@@ -1225,17 +1239,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LayoutBuilder(builder: (ctx, box) {
-            final size = (box.maxWidth - (cols - 1) * 4) / cols;
-            return Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                for (final c in cells)
-                  SizedBox(width: size, height: size, child: c),
-              ],
-            );
-          }),
+          Wrap(spacing: 4, runSpacing: 4, children: cells),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,

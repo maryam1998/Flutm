@@ -86,6 +86,23 @@ class MediaBlob {
     return await f.exists() ? f.path : null;
   }
 
+  /// خواندن کامل بایت‌های یک مرجع (برای عکس‌های متحرک مثل GIF/WebP). null = پیدا نشد.
+  static Future<Uint8List?> readBytes(String ref) async {
+    if (!isRef(ref)) return null;
+    final id = idOf(ref);
+    try {
+      if (kIsWeb) {
+        final b = await AngelBlobStore.get(id);
+        return b?.bytes;
+      }
+      final d = await _dir();
+      final f = File('${d.path}/$id');
+      return await f.exists() ? await f.readAsBytes() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<void> delete(String ref) async {
     if (!isRef(ref)) return;
     final id = idOf(ref);

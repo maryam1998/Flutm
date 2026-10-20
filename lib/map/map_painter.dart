@@ -601,7 +601,8 @@ class MapPainter extends CustomPainter {
       final ts = (h is Goal && h.trunkStyle.isNotEmpty)
           ? h.trunkStyle
           : state.trunkStyle;
-      _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : 'dashed');
+      _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : 'dashed',
+          width: (h is Goal && h.trunkWidth > 0) ? h.trunkWidth : 3.0);
     }
     _pts..add(cp.p0)..add(cp.p3);
 
@@ -638,38 +639,47 @@ class MapPainter extends CustomPainter {
     ..moveTo(k.p0.dx, k.p0.dy)
     ..cubicTo(k.p1.dx, k.p1.dy, k.p2.dx, k.p2.dy, k.p3.dx, k.p3.dy);
 
-  void _trunk(Canvas c, geo.Cubic cp, Color col, String style) {
+  /// [width] = ضخامت پایه‌ی خط (پیش‌فرض ۳)؛ همه‌ی سبک‌ها نسبت به آن بزرگ/کوچک می‌شوند
+  void _trunk(Canvas c, geo.Cubic cp, Color col, String style,
+      {double width = 3.0}) {
+    final k = width / 3.0; // ضریب نسبت به ضخامت پیش‌فرض
+    // فاصله‌ی خط‌چین‌ها هم کمی با ضخامت رشد می‌کند تا خط ضخیم بدون فاصله نشود
+    final dk = k.clamp(0.7, 2.6).toDouble();
     switch (style) {
       case 'solid':
-        c.drawPath(_pathOf(cp), _stroke(col, 3, 0.9));
+        c.drawPath(_pathOf(cp), _stroke(col, 3 * k, 0.9));
       case 'dotted':
-        drawDashed(c, _pathOf(cp), _stroke(col, 3.6, 0.9), [0.1, 8]);
+        drawDashed(c, _pathOf(cp), _stroke(col, 3.6 * k, 0.9), [0.1, 8 * dk]);
       case 'dashdot':
-        drawDashed(c, _pathOf(cp),
-            _stroke(col, 3, 0.9, cap: StrokeCap.butt), [14, 7, 2, 7]);
+        drawDashed(
+            c,
+            _pathOf(cp),
+            _stroke(col, 3 * k, 0.9, cap: StrokeCap.butt),
+            [14 * dk, 7 * dk, 2 * dk, 7 * dk]);
       case 'long':
         drawDashed(c, _pathOf(cp),
-            _stroke(col, 3, 0.9, cap: StrokeCap.butt), [26, 13]);
+            _stroke(col, 3 * k, 0.9, cap: StrokeCap.butt), [26 * dk, 13 * dk]);
       case 'double':
         {
           final d = cp.p3 - cp.p0;
           final len = d.distance == 0 ? 1.0 : d.distance;
-          final n = Offset(-d.dy / len * 2.6, d.dx / len * 2.6);
-          for (final k in [1.0, -1.0]) {
-            final o = n * k;
+          final off = 2.6 * k + (k > 1 ? (k - 1) * 0.8 : 0);
+          final n = Offset(-d.dy / len * off, d.dx / len * off);
+          for (final sgn in [1.0, -1.0]) {
+            final o = n * sgn;
             c.drawPath(
                 _pathOf(geo.Cubic(cp.p0 + o, cp.p1 + o, cp.p2 + o, cp.p3 + o)),
-                _stroke(col, 1.6, 0.9));
+                _stroke(col, 1.6 * k, 0.9));
           }
         }
       case 'glow':
-        c.drawPath(_pathOf(cp), _stroke(col, 9, 0.16));
-        c.drawPath(_pathOf(cp), _stroke(col, 2.8, 0.95));
+        c.drawPath(_pathOf(cp), _stroke(col, 9 * k, 0.16));
+        c.drawPath(_pathOf(cp), _stroke(col, 2.8 * k, 0.95));
       case 'taper':
-        _taperedBezier(c, cp, col, 5.2, 1.6, 0.9);
+        _taperedBezier(c, cp, col, 5.2 * k, 1.6 * k, 0.9);
       default:
         drawDashed(c, _pathOf(cp),
-            _stroke(col, 3, 0.9, cap: StrokeCap.butt), [9, 9]);
+            _stroke(col, 3 * k, 0.9, cap: StrokeCap.butt), [9 * dk, 9 * dk]);
     }
   }
 
