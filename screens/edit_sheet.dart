@@ -9,6 +9,7 @@ import '../models/map_models.dart';
 import '../state/map_store.dart';
 import '../widgets/goal_path_card.dart';
 import '../widgets/icon_photo_editor.dart';
+import '../widgets/panel_kit.dart';
 import '../widgets/web_color_picker.dart';
 
 // ============================================================
@@ -402,25 +403,15 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  String _hexOf(Color c) {
-    int v(double x) => (x * 255).round().clamp(0, 255);
-    return '#${v(c.r).toRadixString(16).padLeft(2, '0')}'
-        '${v(c.g).toRadixString(16).padLeft(2, '0')}'
-        '${v(c.b).toRadixString(16).padLeft(2, '0')}';
-  }
-
   Widget _swatches(
     String? current,
     void Function(String) onPick, {
     List<String> extra = const [],
     VoidCallback? onInherit,
-    bool settingsStyle = false, // مثل «رنگ نوشته‌ها» در تنظیمات: بدون قطره‌چکان
   }) {
     final cur = (current ?? '').toLowerCase();
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (onInherit != null)
           GestureDetector(
@@ -447,37 +438,15 @@ class _EditSheetState extends State<EditSheet> {
               ),
             ),
           ),
-        // همان پالت و دیالوگ رنگ بخش «تنظیمات»
-        WebColorPicker(
-          value: hexColor(current, kWebPalette.first),
-          showCustom: !settingsStyle,
-          palette: [
-            ...kWebPalette,
-            for (final hex in extra) hexColor(hex),
-          ],
-          onChanged: (c) => _edit(() => onPick(_hexOf(c))),
+        if (onInherit != null) const SizedBox(height: 10),
+        // همان پالت و ظاهر کارت «ظاهر مسیر هدف»
+        GoalColorGrid(
+          noSelection: onInherit != null && cur.isEmpty,
+          color: hexColor(current, kWebPalette.first),
+          extra: [for (final hex in extra) hexColor(hex)],
+          onColor: (hex) => _edit(() => onPick(hex)),
         ),
-        if (settingsStyle)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: hexColor(current, kWebPalette.first),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _kBorder, width: 1.5),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'رنگ انتخابی: ${cur.isNotEmpty ? cur : _hexOf(kWebPalette.first)}',
-                style: const TextStyle(fontSize: 11.5, color: _kMuted),
-              ),
-            ],
-          )
-        else if (current != null && current.isNotEmpty)
+        if (current != null && current.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
@@ -491,63 +460,14 @@ class _EditSheetState extends State<EditSheet> {
   }
 
   Widget _shapeGrid(String current, void Function(String) onPick,
-      {bool inherit = false}) {
-    const _icons = {
-      'organic': Icons.gesture,
-      'straight': Icons.trending_flat,
-      'curve': Icons.trending_up,
-      'wave': Icons.waves,
-      'elbow': Icons.turn_right,
-      'step': Icons.stairs,
-      'zigzag': Icons.show_chart,
-      '': Icons.auto_awesome,
-    };
-    final keys = <String>[
-      if (inherit) '',
-      ...kBranchStyles.keys,
-    ];
-    return GridView.count(
-      crossAxisCount: 4,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: 1.1,
-      children: [
-        for (final k in keys)
-          GestureDetector(
-            onTap: () => _edit(() => onPick(k)),
-            child: Container(
-              decoration: BoxDecoration(
-                color: _kCard,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: current == k ? _kGold : _kBorder,
-                  width: current == k ? 2 : 1,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _icons[k] ?? Icons.help_outline,
-                    size: 28,
-                    color: current == k ? _kGold : _kMuted,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    k.isEmpty ? 'مثل مجموعه' : (kBranchStyles[k] ?? k),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight:
-                          current == k ? FontWeight.w700 : FontWeight.w500,
-                      color: current == k ? _kGold : _kInk,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+      {bool inherit = false, String inheritLabel = 'مثل مجموعه'}) {
+    return PanelChoiceGrid(
+      current: current,
+      onPick: (k) => _edit(() => onPick(k)),
+      preview: (k, c) => BranchShapePainter(k, c),
+      choices: [
+        if (inherit) PanelChoice('', inheritLabel),
+        for (final e in kBranchStyles.entries) PanelChoice(e.key, e.value),
       ],
     );
   }
@@ -613,12 +533,16 @@ class _EditSheetState extends State<EditSheet> {
     required ValueChanged<bool> onChanged,
   }) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: _kCard,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _kBorder),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0F141832), blurRadius: 12, offset: Offset(0, 3)),
+        ],
       ),
       child: Row(
         children: [
@@ -707,25 +631,38 @@ class _EditSheetState extends State<EditSheet> {
   List<Widget> _meBody() {
     final me = _s.me;
     return [
-      _textField(
-        ctlKey: 'me:name',
-        initial: me.name,
-        label: 'اسم',
-        onChanged: (v) => _edit(() => me.name = v),
+      PanelCard(
+        icon: Icons.person_rounded,
+        title: 'من',
+        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، رنگ و حال و هوای خودت.',
+        children: [
+          _textField(
+            ctlKey: 'me:name',
+            initial: me.name,
+            label: 'اسم',
+            onChanged: (v) => _edit(() => me.name = v),
+          ),
+          const PanelLabel('رنگ'),
+          _swatches(me.color, (c) => me.color = c),
+          const PanelLabel('حال و هوای این فرکانس (اختیاری)'),
+          _textField(
+            ctlKey: 'me:note',
+            initial: me.note,
+            label: 'مثلاً: آرامش، اطمینان، شوق...',
+            onChanged: (v) => _edit(() => me.note = v),
+            maxLines: 3,
+          ),
+        ],
       ),
-      _swatches(me.color, (c) => me.color = c),
-      _sectionLabel('حال و هوای این فرکانس (اختیاری)'),
-      _textField(
-        ctlKey: 'me:note',
-        initial: me.note,
-        label: 'مثلاً: آرامش، اطمینان، شوق...',
-        onChanged: (v) => _edit(() => me.note = v),
-        maxLines: 3,
-      ),
-      const SizedBox(height: 16),
-      MultiPhotoField(
-        initial: me.images,
-        onChange: (imgs) => _edit(() => me.images = imgs),
+      PanelCard(
+        icon: Icons.photo_library_rounded,
+        title: 'عکس‌ها',
+        children: [
+          MultiPhotoField(
+            initial: me.images,
+            onChange: (imgs) => _edit(() => me.images = imgs),
+          ),
+        ],
       ),
       _bottomActions(
         saveLabel: 'ذخیره',
@@ -758,6 +695,8 @@ class _EditSheetState extends State<EditSheet> {
     return [
       WalkerPhotoField(
         initial: walkerPhotosOf(ex),
+        initialEmoji: walkerEmojiOf(ex),
+        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(ex, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(ex, v);
           if (v.isNotEmpty) {
@@ -782,10 +721,10 @@ class _EditSheetState extends State<EditSheet> {
       if (act != null) ...[
         _slider(
           label: 'اندازه‌ی انیمیشن',
-          value: (act.footSize ?? 1.0).clamp(0.4, 2.5).toDouble(),
-          min: 0.4,
-          max: 2.5,
-          divisions: 21,
+          value: (act.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax).toDouble(),
+          min: kWalkerSizeMin,
+          max: kFootSizeMax,
+          divisions: 28,
           valueText: '${((act.footSize ?? 1.0) * 100).round()}٪',
           onChanged: (v) => _edit(() => act!.footSize = v),
         ),
@@ -808,11 +747,11 @@ class _EditSheetState extends State<EditSheet> {
         _slider(
           label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
           value: ((ex['walkerSize'] as num?)?.toDouble() ?? 1.0)
-              .clamp(0.4, 3.0)
+              .clamp(kWalkerSizeMin, kWalkerSizeMax)
               .toDouble(),
-          min: 0.4,
-          max: 3.0,
-          divisions: 26,
+          min: kWalkerSizeMin,
+          max: kWalkerSizeMax,
+          divisions: 38,
           valueText:
               '${(((ex['walkerSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
           onChanged: (v) => _edit(() => ex['walkerSize'] = v),
@@ -850,57 +789,97 @@ class _EditSheetState extends State<EditSheet> {
   // هدف
   // ============================================================
   List<Widget> _goalBody(Goal g) {
+    final walkerSize = ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0);
     return [
-      _sectionLabel('عکس انیمیشن'),
-      WalkerPhotoField(
-        initial: walkerPhotosOf(g.extra),
-        onChanged: (v) => _edit(() {
-          setWalkerPhotos(g.extra, v);
-          if (v.isNotEmpty) {
-            g.extra['walkerPlaying'] = true;
-            g.extra.remove('walkerPos');
-          }
-        }),
+      PanelCard(
+        icon: Icons.flag_rounded,
+        title: 'هدف',
+        children: [
+          _textField(
+            ctlKey: 'goal:${g.id}:name',
+            initial: g.name,
+            label: 'اسم هدف',
+            onChanged: (v) => _edit(() => g.name = v),
+          ),
+          const PanelLabel('آیکون و عکس'),
+          IconPhotoEditor(
+            initialIcon: g.icon,
+            initialImages: g.images,
+            initialScale: g.iconScale,
+            onChange: (icon, images, scale) => _edit(() {
+              g.icon = icon.isEmpty ? '🎯' : icon;
+              g.images = images;
+              g.iconScale = scale;
+            }),
+          ),
+        ],
       ),
-      _slider(
-        label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
-        value: ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
-            .clamp(0.4, 3.0),
-        min: 0.4,
-        max: 3.0,
-        divisions: 26,
-        valueText:
-            '${(((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
-        onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
-      ),
-      _textField(
-        ctlKey: 'goal:${g.id}:name',
-        initial: g.name,
-        label: 'اسم هدف',
-        onChanged: (v) => _edit(() => g.name = v),
-      ),
-      _sectionLabel('آیکون و عکس'),
-      IconPhotoEditor(
-        initialIcon: g.icon,
-        initialImages: g.images,
-        initialScale: g.iconScale,
-        onChange: (icon, images, scale) => _edit(() {
-          g.icon = icon.isEmpty ? '🎯' : icon;
-          g.images = images;
-          g.iconScale = scale;
-        }),
-      ),
-      // رنگ هدف + ضخامت و پیش‌نمایش زنده‌ی مسیر
+      // رنگ هدف + نوع خط + ضخامت، با پیش‌نمایش زنده‌ی مسیر
       GoalPathCard(
         color: g.color,
         width: g.trunkWidth,
         styleKey: g.trunkStyle,
         onColor: (hex) => _edit(() => g.color = hex),
         onWidth: (w) => _edit(() => g.trunkWidth = w),
+        onStyle: (v) => _edit(() => g.trunkStyle = v),
         onReset: () => _edit(() {
           g.trunkWidth = 0;
           g.trunkStyle = '';
         }),
+      ),
+      PanelCard(
+        icon: Icons.alt_route_rounded,
+        title: 'شکل اقدامات',
+        subtitle:
+            'اقدام‌هایی که از این هدف بیرون می‌آیند چطور خم شوند: مستقیم، قوسی، پله‌ای و… '
+            'هر اقدام می‌تواند شکل خودش را هم جدا داشته باشد.',
+        children: [
+          _shapeGrid(g.branchStyle,
+              (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
+        ],
+      ),
+      ..._branchesSection(g),
+      PanelCard(
+        icon: Icons.directions_walk_rounded,
+        title: 'انیمیشن روی مسیر',
+        subtitle: 'عکس یا ویدیوی متحرکی که روی خط هدف حرکت می‌کند.',
+        children: [
+          _switchTile(
+            title: 'نمایش انیمیشن',
+            subtitle: 'اگر خاموش باشد، انیمیشن این هدف روی نقشه نشان داده نمی‌شود',
+            value: g.extra['showWalker'] != false,
+            onChanged: (v) => _edit(() {
+              if (v) {
+                g.extra.remove('showWalker');
+              } else {
+                g.extra['showWalker'] = false;
+              }
+            }),
+          ),
+          const SizedBox(height: 10),
+          WalkerPhotoField(
+            initial: walkerPhotosOf(g.extra),
+            initialEmoji: walkerEmojiOf(g.extra),
+            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(g.extra, e)),
+            onChanged: (v) => _edit(() {
+              setWalkerPhotos(g.extra, v);
+              if (v.isNotEmpty) {
+                g.extra['walkerPlaying'] = true;
+                g.extra.remove('walkerPos');
+              }
+            }),
+          ),
+          const SizedBox(height: 6),
+          _slider(
+            label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
+            value: walkerSize.clamp(kWalkerSizeMin, kWalkerSizeMax),
+            min: kWalkerSizeMin,
+            max: kWalkerSizeMax,
+            divisions: 38,
+            valueText: '${(walkerSize * 100).round()}٪',
+            onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
+          ),
+        ],
       ),
       _switchTile(
         title: 'به این هدف رسیدم',
@@ -915,12 +894,6 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
-      // ترتیب و متن‌ها مثل Maghz: اول خطِ مسیر (#trunk-block)، بعد شکل شاخه‌ها
-      _sectionLabel('نوع خط مسیر این هدف (خطی که از «من» تا هدف کشیده می‌شه)'),
-      _trunkGrid(g),
-      _sectionLabel('شکل مسیر'),
-      _shapeGrid(g.branchStyle, (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
-      ..._branchesSection(g),
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
@@ -929,9 +902,7 @@ class _EditSheetState extends State<EditSheet> {
         },
         deleteLabel: 'حذف هدف',
         onDelete: () async {
-          if (!await _confirm('')) {
-            return;
-          }
+          if (!await _confirm('این هدف و همه‌ی اقدام‌هایش حذف بشه؟')) return;
           _store.deleteGoal(g.id);
           if (mounted) Navigator.pop(context);
         },
@@ -939,105 +910,68 @@ class _EditSheetState extends State<EditSheet> {
     ];
   }
 
-  Widget _trunkGrid(Goal g) {
-    final keys = <String>['', ...kTrunkStyles.keys];
-    final current = g.trunkStyle;
-    return GridView.count(
-      crossAxisCount: 4,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: 1.1,
-      children: [
-        for (final k in keys)
-          GestureDetector(
-            onTap: () => _edit(() => g.trunkStyle = k),
-            child: Container(
-              decoration: BoxDecoration(
-                color: _kCard,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: current == k ? _kGold : _kBorder,
-                  width: current == k ? 2 : 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(6),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 36,
-                    height: 18,
-                    child: CustomPaint(
-                      painter: _TrunkPreview(
-                        style: k.isEmpty ? 'dashed' : k,
-                        color: current == k ? _kGold : _kMuted,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    k.isEmpty ? 'مثل نقشه' : (kTrunkStyles[k] ?? k),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight:
-                          current == k ? FontWeight.w700 : FontWeight.w500,
-                      color: current == k ? _kGold : _kInk,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
   // ============================================================
   // حلقه (نشانه)
   // ============================================================
   List<Widget> _ringBody(Ring r) {
     return [
-      _textField(
-        ctlKey: 'ring:${r.id}:label',
-        initial: r.label,
-        label: 'عنوان نشانه',
-        onChanged: (v) => _edit(() => r.label = v),
+      PanelCard(
+        icon: Icons.stars_rounded,
+        title: 'نشانه',
+        children: [
+          _textField(
+            ctlKey: 'ring:${r.id}:label',
+            initial: r.label,
+            label: 'عنوان نشانه',
+            onChanged: (v) => _edit(() => r.label = v),
+          ),
+          const PanelLabel('آیکون و عکس'),
+          IconPhotoEditor(
+            initialIcon: r.icon,
+            initialImages: r.images,
+            initialScale: r.iconScale,
+            onChange: (icon, images, scale) => _edit(() {
+              r.icon = icon.isEmpty ? '🌟' : icon;
+              r.images = images;
+              r.iconScale = scale;
+            }),
+          ),
+          const PanelLabel('یادداشت'),
+          _textField(
+            ctlKey: 'ring:${r.id}:note',
+            initial: r.note,
+            label: 'چیزی که حس می‌کنی',
+            onChanged: (v) => _edit(() => r.note = v),
+            maxLines: 2,
+          ),
+        ],
       ),
-      _sectionLabel('آیکون و عکس'),
-      IconPhotoEditor(
-        initialIcon: r.icon,
-        initialImages: r.images,
-        initialScale: r.iconScale,
-        onChange: (icon, images, scale) => _edit(() {
-          r.icon = icon.isEmpty ? '🌟' : icon;
-          r.images = images;
-          r.iconScale = scale;
-        }),
+      PanelCard(
+        icon: Icons.palette_rounded,
+        title: 'ظاهر نشانه',
+        children: [
+          _slider(
+            label: 'اندازه‌ی دایره',
+            value: r.radius.clamp(16.0, 120.0).toDouble(),
+            min: 16,
+            max: 120,
+            divisions: 52,
+            valueText: '${(r.radius / 30 * 100).round()}٪',
+            onChanged: (v) => _edit(() => r.radius = v),
+          ),
+          const PanelLabel('رنگ'),
+          _swatches(r.color, (c) => r.color = c, extra: const [kRingColor]),
+        ],
       ),
-      _slider(
-        label: 'اندازه‌ی دایره',
-        value: r.radius.clamp(16.0, 120.0).toDouble(),
-        min: 16,
-        max: 120,
-        divisions: 52,
-        valueText: '${(r.radius / 30 * 100).round()}٪',
-        onChanged: (v) => _edit(() => r.radius = v),
+      PanelCard(
+        icon: Icons.alt_route_rounded,
+        title: 'شکل اقدامات',
+        subtitle: 'اقدام‌های این نشانه چطور خم شوند.',
+        children: [
+          _shapeGrid(r.branchStyle,
+              (v) => r.branchStyle = v.isEmpty ? 'organic' : v),
+        ],
       ),
-      _sectionLabel('رنگ'),
-      _swatches(r.color, (c) => r.color = c, extra: const [kRingColor]),
-      _sectionLabel('یادداشت'),
-      _textField(
-        ctlKey: 'ring:${r.id}:note',
-        initial: r.note,
-        label: 'چیزی که حس می‌کنی',
-        onChanged: (v) => _edit(() => r.note = v),
-        maxLines: 2,
-      ),
-      _sectionLabel('شکل مسیر'),
-      _shapeGrid(r.branchStyle, (v) => r.branchStyle = v.isEmpty ? 'organic' : v),
       ..._branchesSection(r),
       _bottomActions(
         saveLabel: 'ذخیره',
@@ -1056,38 +990,62 @@ class _EditSheetState extends State<EditSheet> {
   }
 
   // ============================================================
-  // شاخه (اکشن)
+  // اقدام (اکشن)
   // ============================================================
   List<Widget> _actionBody(MapHost host, ActionNode a) {
     final footPlaying = a.footPlaying;
     return [
-      _sectionLabel(''),
-      IconPhotoEditor(
-        supportsIcon: false,
-        supportsScale: false,
-        initialIcon: '',
-        initialImages: a.images,
-        initialScale: 1,
-        onChange: (_, images, __) => _edit(() => a.images = images),
+      PanelCard(
+        icon: Icons.eco_rounded,
+        title: 'اقدام',
+        children: [
+          _textField(
+            ctlKey: 'node:${a.id}',
+            initial: a.text,
+            label: 'متن اقدام',
+            onChanged: (v) => _edit(() => a.text = v),
+          ),
+          const PanelLabel('عکس'),
+          IconPhotoEditor(
+            supportsIcon: false,
+            supportsScale: false,
+            initialIcon: '',
+            initialImages: a.images,
+            initialScale: 1,
+            onChange: (_, images, __) => _edit(() => a.images = images),
+          ),
+        ],
       ),
-      _sectionLabel(''),
-      _textField(
-        ctlKey: 'node:${a.id}',
-        initial: a.text,
-        label: '',
-        onChanged: (v) => _edit(() => a.text = v),
-      ),
-      _sectionLabel(''),
-      _swatches(a.color, (c) => a.color = c,
-          onInherit: () => a.color = null),
-      _slider(
-        label: '',
-        value: a.weight.clamp(1.0, 10.0).toDouble(),
-        min: 1,
-        max: 10,
-        divisions: 9,
-        valueText: toFa(a.weight.round()),
-        onChanged: (v) => _edit(() => a.weight = v.roundToDouble()),
+      PanelCard(
+        icon: Icons.palette_rounded,
+        title: 'ظاهر اقدام',
+        children: [
+          const PanelLabel('رنگ'),
+          _swatches(a.color, (c) => a.color = c,
+              onInherit: () => a.color = null),
+          const PanelLabel('شکل این اقدام'),
+          _shapeGrid(a.style, (v) => a.style = v,
+              inherit: true, inheritLabel: 'مثل هدف'),
+          const SizedBox(height: 6),
+          _slider(
+            label: 'طول و اهمیت اقدام',
+            value: a.weight.clamp(1.0, 10.0).toDouble(),
+            min: 1,
+            max: 10,
+            divisions: 9,
+            valueText: toFa(a.weight.round()),
+            onChanged: (v) => _edit(() => a.weight = v.roundToDouble()),
+          ),
+          _slider(
+            label: 'اندازه‌ی نوشته روی نقشه',
+            value: a.labelSize ?? 14,
+            min: 8,
+            max: 60,
+            divisions: 52,
+            valueText: toFa((a.labelSize ?? 14).round()),
+            onChanged: (v) => _edit(() => a.labelSize = v),
+          ),
+        ],
       ),
       _switchTile(
         title: 'این یه کار روتینه',
@@ -1095,17 +1053,16 @@ class _EditSheetState extends State<EditSheet> {
         value: a.isRoutine,
         onChanged: (v) => _edit(() => a.isRoutine = v),
       ),
-      _sectionLabel(''),
-      _shapeGrid(a.style, (v) => a.style = v, inherit: true),
-
-      // ═══════════ قدم روی مسیر 👣 ═══════════
-      _sectionLabel('قدم روی مسیر 👣'),
+      PanelCard(
+        icon: Icons.directions_walk_rounded,
+        title: 'قدم روی مسیر 👣',
+        children: [
       _slider(
         label: 'اندازه‌ی قدم',
-        value: (a.footSize ?? 1.0).clamp(0.4, 2.5),
-        min: 0.4,
-        max: 2.5,
-        divisions: 21,
+        value: (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax),
+        min: kWalkerSizeMin,
+        max: kFootSizeMax,
+        divisions: 28,
         valueText: '${((a.footSize ?? 1.0) * 100).round()}٪',
         onChanged: (v) => _edit(() => a.footSize = v),
       ),
@@ -1148,9 +1105,11 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ),
       ),
-      _sectionLabel('عکس انیمیشن'),
+      const PanelLabel('عکس انیمیشن'),
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
+        initialEmoji: walkerEmojiOf(a.extra),
+        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(a.extra, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(a.extra, v);
           if (v.isNotEmpty) {
@@ -1167,67 +1126,65 @@ class _EditSheetState extends State<EditSheet> {
         ),
       ),
 
-      _slider(
-        label: 'اندازه‌ی نوشته روی نقشه',
-        value: a.labelSize ?? 14,
-        min: 8,
-        max: 60,
-        divisions: 52,
-        valueText: toFa((a.labelSize ?? 14).round()),
-        onChanged: (v) => _edit(() => a.labelSize = v),
+        ],
       ),
-
-      // زیرشاخه‌ها
-      const SizedBox(height: 8),
-      _sectionLabel(''),
-      ..._tree(host, a.children, 0),
-
-      const SizedBox(height: 12),
-      Row(
+      PanelCard(
+        icon: kShowSubActions
+            ? Icons.account_tree_rounded
+            : Icons.place_outlined,
+        title: kShowSubActions ? 'زیرشاخه‌ها' : 'جای اقدام',
         children: [
-          Expanded(
-            child: FilledButton.tonalIcon(
-              style: FilledButton.styleFrom(
-                backgroundColor: _kGold.withAlpha(30),
-                foregroundColor: _kGold,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (kShowSubActions || a.children.isNotEmpty) ...[
+            ..._tree(host, a.children, 0),
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              if (kShowSubActions)
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kGold.withAlpha(30),
+                    foregroundColor: _kGold,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    final c = _store.addSubBranch(host, a);
+                    setState(() => _focusId = c.id);
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('زیرشاخه',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ),
-              onPressed: () {
-                final c = _store.addSubBranch(host, a);
-                setState(() => _focusId = c.id);
-              },
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _kMuted,
-                side: const BorderSide(color: _kBorder),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              if (kShowSubActions) const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kMuted,
+                    side: const BorderSide(color: _kBorder),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    resetBranchPos(a);
+                    _store.changed();
+                    _store.toast?.call('اقدام به جای اولش برگشت');
+                  },
+                  icon: const Icon(Icons.restart_alt, size: 18),
+                  label: const Text('برگرداندن به جای اول',
+                      style: TextStyle(fontSize: 12)),
                 ),
               ),
-              onPressed: () {
-                resetBranchPos(a);
-                _store.changed();
-                _store.toast?.call('');
-              },
-              icon: const Icon(Icons.restart_alt, size: 18),
-              label: const Text('برگرداندن به جای اول',
-                  style: TextStyle(fontSize: 12)),
-            ),
+            ],
           ),
         ],
       ),
-
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
@@ -1236,7 +1193,7 @@ class _EditSheetState extends State<EditSheet> {
         },
         deleteLabel: 'حذف',
         onDelete: () async {
-          if (!await _confirm('')) return;
+          if (!await _confirm('این اقدام حذف بشه؟')) return;
           _store.deleteAction(host.id, a.id);
           if (!mounted) return;
           if (_back.isNotEmpty) {
@@ -1250,37 +1207,43 @@ class _EditSheetState extends State<EditSheet> {
   }
 
   // ------------------------------------------------------------
-  // لیست شاخه‌ها
+  // لیست اقدامات
   // ------------------------------------------------------------
   List<Widget> _branchesSection(MapHost host) {
     return [
-      _sectionLabel(''),
-      if (host.actions.isEmpty)
-        const Padding(
-          padding: EdgeInsets.only(top: 4, bottom: 8),
-          child: Text('',
-              style: TextStyle(color: _kMuted, fontSize: 12)),
-        ),
-      ..._tree(host, host.actions, 0),
-      Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _kGold,
-            side: const BorderSide(color: _kGold),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+      PanelCard(
+        icon: Icons.account_tree_rounded,
+        title: 'اقدامات',
+        subtitle: 'کارهای کوچکی که تو را به اینجا می‌رسانند. با ⚙ جزئیات هر اقدام را عوض کن.',
+        children: [
+          if (host.actions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text('هنوز اقدامی نیست.',
+                  style: TextStyle(color: _kMuted, fontSize: 12)),
+            ),
+          ..._tree(host, host.actions, 0),
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _kGold,
+                side: const BorderSide(color: _kGold),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                final a = _store.addBranch(host);
+                setState(() => _focusId = a.id);
+              },
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('افزودن اقدام',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
-          onPressed: () {
-            final a = _store.addBranch(host);
-            setState(() => _focusId = a.id);
-          },
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('',
-              style: TextStyle(fontWeight: FontWeight.w600)),
-        ),
+        ],
       ),
     ];
   }
@@ -1323,7 +1286,7 @@ class _EditSheetState extends State<EditSheet> {
                   decoration: const InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: '',
+                    hintText: 'متن اقدام',
                     hintStyle: TextStyle(color: _kMuted, fontSize: 12.5),
                     contentPadding: EdgeInsets.symmetric(vertical: 6),
                   ),
@@ -1342,7 +1305,7 @@ class _EditSheetState extends State<EditSheet> {
                     const BoxConstraints.tightFor(width: 30, height: 30),
                 icon: const Icon(Icons.close, size: 18, color: _kDanger),
                 onPressed: () async {
-                  if (!await _confirm('')) {
+                  if (!await _confirm('این اقدام حذف بشه؟')) {
                     return;
                   }
                   _store.deleteAction(host.id, a.id);
@@ -1357,98 +1320,4 @@ class _EditSheetState extends State<EditSheet> {
     }
     return out;
   }
-}
-
-// ============================================================
-// پیش‌نمایش خط (برای گرید تنه)
-// ============================================================
-class _TrunkPreview extends CustomPainter {
-  _TrunkPreview({required this.style, required this.color});
-  final String style;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..color = color;
-
-    final a = Offset(0, size.height * 0.8);
-    final b = Offset(size.width, size.height * 0.2);
-    final dir = (b - a);
-    final len = dir.distance;
-    final n = dir / len;
-
-    switch (style) {
-      case 'solid':
-        canvas.drawLine(a, b, p);
-      case 'dotted':
-        for (var i = 0; i < 8; i++) {
-          final pt = a + n * (len * i / 7);
-          canvas.drawCircle(pt, 1, Paint()..color = color);
-        }
-      case 'dashdot':
-        _dash(canvas, a, b, p, len, n, [4, 2, 1, 2]);
-      case 'long':
-        _dash(canvas, a, b, p, len, n, [7, 4]);
-      case 'double':
-        final perp = Offset(-n.dy, n.dx) * 1.3;
-        canvas.drawLine(a + perp, b + perp, p..strokeWidth = 1.3);
-        canvas.drawLine(
-            a - perp,
-            b - perp,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.3
-              ..strokeCap = StrokeCap.round
-              ..color = color);
-      case 'glow':
-        canvas.drawLine(
-            a,
-            b,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 5
-              ..strokeCap = StrokeCap.round
-              ..color = color.withAlpha(60));
-        canvas.drawLine(a, b, p..strokeWidth = 1.5);
-      case 'taper':
-        for (var i = 0; i < 6; i++) {
-          final p1 = a + n * (len * i / 6);
-          final p2 = a + n * (len * (i + 1) / 6);
-          canvas.drawLine(
-              p1,
-              p2,
-              Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 3 - i * 0.35
-                ..strokeCap = StrokeCap.round
-                ..color = color);
-        }
-      default:
-        _dash(canvas, a, b, p, len, n, [3, 3]);
-    }
-  }
-
-  void _dash(Canvas canvas, Offset a, Offset b, Paint p, double len,
-      Offset n, List<double> dashes) {
-    var d = 0.0;
-    var i = 0;
-    while (d < len) {
-      final seg = dashes[i % dashes.length];
-      if (i.isEven) {
-        final s = a + n * d;
-        final e = a + n * (d + seg > len ? len : d + seg);
-        canvas.drawLine(s, e, p);
-      }
-      d += seg;
-      i++;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _TrunkPreview old) =>
-      old.style != style || old.color != color;
 }
