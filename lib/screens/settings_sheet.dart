@@ -490,7 +490,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه‌ی رد پا ═══════════
                     Row(
                       children: [
-                        Flexible(child: _sectionTitle('اندازه‌ی انیمیشن حرکت در مسیر هدف 👣')),
+                        Flexible(child: _sectionTitle('اندازه‌ی انیمیشن 👣')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(

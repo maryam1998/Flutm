@@ -29,11 +29,15 @@ class WebColorPicker extends StatelessWidget {
   final ValueChanged<Color> onChanged;
   final List<Color> palette;
 
+  /// دکمه‌ی رنگ دلخواه (قطره‌چکان). در کادر ویرایش هدف خاموش است.
+  final bool showCustom;
+
   const WebColorPicker({
     super.key,
     required this.value,
     required this.onChanged,
     this.palette = kWebPalette,
+    this.showCustom = true,
   });
 
   @override
@@ -44,7 +48,7 @@ class WebColorPicker extends StatelessWidget {
       children: [
         for (final c in palette)
           _swatch(c, _same(c, value), () => onChanged(c)),
-        _customButton(context),
+        if (showCustom) _customButton(context),
       ],
     );
   }

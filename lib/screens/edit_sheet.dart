@@ -292,7 +292,7 @@ class _EditSheetState extends State<EditSheet> {
   String _title() {
     final t = _t;
     if (t is MeTarget) return 'من';
-    if (t is WalkerPhotosTarget) return 'عکس انیمیشن حرکت در مسیر هدف';
+    if (t is WalkerPhotosTarget) return 'عکس انیمیشن';
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal && g.name.isNotEmpty ? g.name : 'هدف';
@@ -413,6 +413,7 @@ class _EditSheetState extends State<EditSheet> {
     void Function(String) onPick, {
     List<String> extra = const [],
     VoidCallback? onInherit,
+    bool settingsStyle = false, // مثل «رنگ نوشته‌ها» در تنظیمات: بدون قطره‌چکان
   }) {
     final cur = (current ?? '').toLowerCase();
     return Wrap(
@@ -448,13 +449,34 @@ class _EditSheetState extends State<EditSheet> {
         // همان پالت و دیالوگ رنگ بخش «تنظیمات»
         WebColorPicker(
           value: hexColor(current, kWebPalette.first),
+          showCustom: !settingsStyle,
           palette: [
             ...kWebPalette,
             for (final hex in extra) hexColor(hex),
           ],
           onChanged: (c) => _edit(() => onPick(_hexOf(c))),
         ),
-        if (current != null && current.isNotEmpty)
+        if (settingsStyle)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: hexColor(current, kWebPalette.first),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _kBorder, width: 1.5),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'رنگ انتخابی: ${cur.isNotEmpty ? cur : _hexOf(kWebPalette.first)}',
+                style: const TextStyle(fontSize: 11.5, color: _kMuted),
+              ),
+            ],
+          )
+        else if (current != null && current.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
@@ -750,7 +772,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       const SizedBox(height: 8),
-      _sectionLabel('رنگ انیمیشن حرکت در مسیر هدف'),
+      _sectionLabel('رنگ انیمیشن'),
       _swatches(
         (ex['footColor'] as String?) ?? '',
         (c) => ex['footColor'] = c,
@@ -758,7 +780,7 @@ class _EditSheetState extends State<EditSheet> {
       ),
       if (act != null) ...[
         _slider(
-          label: 'اندازه‌ی انیمیشن حرکت در مسیر هدف',
+          label: 'اندازه‌ی انیمیشن',
           value: (act.footSize ?? 1.0).clamp(0.4, 2.5).toDouble(),
           min: 0.4,
           max: 2.5,
@@ -777,13 +799,13 @@ class _EditSheetState extends State<EditSheet> {
         ),
         _switchTile(
           title: 'در حال حرکت',
-          subtitle: 'روشن = انیمیشن حرکت در مسیر هدف فعال است',
+          subtitle: 'روشن = انیمیشن فعال است',
           value: act.footPlaying,
           onChanged: (v) => _edit(() => act!.footPlaying = v),
         ),
       ] else ...[
         _slider(
-          label: 'اندازه‌ی انیمیشن حرکت در مسیر هدف و دایره‌ی متصل',
+          label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
           value: ((ex['walkerSize'] as num?)?.toDouble() ?? 1.0)
               .clamp(0.4, 3.0)
               .toDouble(),
@@ -828,7 +850,7 @@ class _EditSheetState extends State<EditSheet> {
   // ============================================================
   List<Widget> _goalBody(Goal g) {
     return [
-      _sectionLabel('عکس انیمیشن حرکت در مسیر هدف'),
+      _sectionLabel('عکس انیمیشن'),
       WalkerPhotoField(
         initial: walkerPhotosOf(g.extra),
         onChanged: (v) => _edit(() {
@@ -840,7 +862,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       _slider(
-        label: 'اندازه‌ی انیمیشن حرکت در مسیر هدف و دایره‌ی متصل',
+        label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
         value: ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
             .clamp(0.4, 3.0),
         min: 0.4,
@@ -853,7 +875,7 @@ class _EditSheetState extends State<EditSheet> {
       _textField(
         ctlKey: 'goal:${g.id}:name',
         initial: g.name,
-        label: 'اسم',
+        label: 'اسم هدف',
         onChanged: (v) => _edit(() => g.name = v),
       ),
       _sectionLabel('آیکون و عکس'),
@@ -867,7 +889,7 @@ class _EditSheetState extends State<EditSheet> {
           g.iconScale = scale;
         }),
       ),
-      _swatches(g.color, (c) => g.color = c),
+      _swatches(g.color, (c) => g.color = c, settingsStyle: true),
       _switchTile(
         title: 'به این هدف رسیدم',
         subtitle: 'روی نقشه از من می‌پرسه چه حسی دارم',
@@ -1114,7 +1136,7 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ),
       ),
-      _sectionLabel('عکس انیمیشن حرکت در مسیر هدف'),
+      _sectionLabel('عکس انیمیشن'),
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
         onChanged: (v) => _edit(() {
