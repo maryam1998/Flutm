@@ -169,15 +169,16 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Text('اندازه‌ی ایکون و عکس',
+              const Text('اندازه',
                   style: TextStyle(fontSize: 12.5, color: _kMuted)),
               const SizedBox(width: 6),
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: const Color(0xFF2DD4BF),
-                    thumbColor: const Color(0xFF2DD4BF),
-                    inactiveTrackColor: _kBorder,
+                    activeTrackColor: _kGold,
+                    thumbColor: _kGold,
+                    inactiveTrackColor: const Color(0xFFD3D7E6),
+                    overlayColor: _kGold.withAlpha(40),
                     trackHeight: 4,
                   ),
                   child: Slider(
@@ -234,6 +235,8 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
               ),
           ],
         ),
+        // فاصله از چیزی که زیرِ این بخش می‌آید (مثلاً پالت رنگ)
+        const SizedBox(height: 20),
       ],
     );
   }
