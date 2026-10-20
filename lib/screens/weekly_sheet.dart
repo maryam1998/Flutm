@@ -241,7 +241,7 @@ class _WeeklySheet extends StatelessWidget {
           border: Border.all(color: _kBorder),
         ),
         child: const Text(
-          'هنوز روتینی نداری.\nتوی ویرایش یه شاخه، گزینه‌ی «این یه کار روتینه» رو تیک بزن.',
+          '',
           textAlign: TextAlign.center,
           style: TextStyle(color: _kMuted, height: 1.9, fontSize: 13),
         ),

@@ -327,7 +327,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
           controller: _search,
           onChanged: (v) => setState(() => _q = _norm(v.trim())),
           decoration: InputDecoration(
-            hintText: 'جست‌وجو در نام هدف و متن شاخه‌ها...',
+            hintText: '',
             prefixIcon: const Icon(Icons.search, color: kGoalsMuted),
             isDense: true,
             filled: true,
@@ -776,7 +776,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   _addCtl.clear();
                 }),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('شاخه'),
+                label: const Text(''),
               ),
             ),
           const SizedBox(height: 8),
@@ -914,7 +914,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  isSub ? 'زیرشاخه' : 'شاخه',
+                  '',
                   style: TextStyle(
                     fontSize: 10,
                     color: isSub ? color : Colors.black87,
@@ -927,7 +927,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(start: 6),
                     child: Text(
-                      'زیرِ «${parentName.isEmpty ? 'شاخه' : parentName}»',
+                      '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -979,7 +979,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: isSub ? 'نام زیرشاخه...' : 'نام شاخه...',
+                    hintText: '',
                     hintStyle: const TextStyle(color: kGoalsMuted),
                   ),
                 ),
@@ -1016,7 +1016,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   ),
                 ),
               ),
-              _iconBtn(Icons.add, 'افزودن زیرشاخه', () => setState(() {
+              _iconBtn(Icons.add, '', () => setState(() {
                     _addingFor = n.id;
                     _addCtl.clear();
                   })),
@@ -1101,7 +1101,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
       if (_addingFor == n.id)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: _addRow(store, h, n, 'نام زیرشاخه'),
+          child: _addRow(store, h, n, ''),
         ),
       ..._childrenList(store, h, n, pi, hostColor, depth),
     ];
@@ -1847,7 +1847,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             if (when.isNotEmpty) _detailRow('رسیدی در', when),
             _detailRow('روزهای انجام‌شده', toFa(dayCount)),
             if (childCount > 0)
-              _detailRow('زیرشاخه‌ها', toFa(childCount)),
+              _detailRow('', toFa(childCount)),
             if (totalSeconds > 0)
               _detailRow('مجموع زمان', fmtDur(totalSeconds)),
             if (days.isNotEmpty) ...[

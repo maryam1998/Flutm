@@ -462,13 +462,13 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ چک‌باکس‌ها ═══════════
                     _checkTile(
                       title:
-                          'نمایش «تاریخ» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                          '',
                       value: _showDates,
                       onChanged: (v) => setState(() => _showDates = v),
                     ),
                     _checkTile(
                       title:
-                          'نمایش «ساعت» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                          '',
                       value: _showTimes,
                       onChanged: (v) => setState(() => _showTimes = v),
                     ),
@@ -490,7 +490,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه‌ی رد پا ═══════════
                     Row(
                       children: [
-                        Flexible(child: _sectionTitle('اندازه‌ی رد پا 👣')),
+                        Flexible(child: _sectionTitle('اندازه‌ی انیمیشن حرکت در مسیر هدف 👣')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(

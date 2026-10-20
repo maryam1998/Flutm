@@ -157,7 +157,7 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
               )
             else
               const Expanded(
-                child: Text('عکس روی نوک شاخه نمایش داده می‌شود',
+                child: Text('',
                     style: TextStyle(fontSize: 12, color: _kMuted)),
               ),
 

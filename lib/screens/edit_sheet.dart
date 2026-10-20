@@ -292,7 +292,7 @@ class _EditSheetState extends State<EditSheet> {
   String _title() {
     final t = _t;
     if (t is MeTarget) return 'من';
-    if (t is WalkerPhotosTarget) return 'عکس پاها';
+    if (t is WalkerPhotosTarget) return 'عکس انیمیشن حرکت در مسیر هدف';
     if (t is GoalTarget) {
       final g = _s.findHost(t.id);
       return g is Goal && g.name.isNotEmpty ? g.name : 'هدف';
@@ -301,7 +301,7 @@ class _EditSheetState extends State<EditSheet> {
       final r = _s.findHost(t.id);
       return r is Ring && r.label.isNotEmpty ? r.label : 'نشانه';
     }
-    return 'ویرایش شاخه';
+    return '';
   }
 
   List<Widget>? _body() {
@@ -750,7 +750,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       const SizedBox(height: 8),
-      _sectionLabel('رنگ پا'),
+      _sectionLabel('رنگ انیمیشن حرکت در مسیر هدف'),
       _swatches(
         (ex['footColor'] as String?) ?? '',
         (c) => ex['footColor'] = c,
@@ -758,7 +758,7 @@ class _EditSheetState extends State<EditSheet> {
       ),
       if (act != null) ...[
         _slider(
-          label: 'اندازه‌ی پاها',
+          label: 'اندازه‌ی انیمیشن حرکت در مسیر هدف',
           value: (act.footSize ?? 1.0).clamp(0.4, 2.5).toDouble(),
           min: 0.4,
           max: 2.5,
@@ -777,13 +777,13 @@ class _EditSheetState extends State<EditSheet> {
         ),
         _switchTile(
           title: 'در حال حرکت',
-          subtitle: 'روشن = پاها راه می‌رن',
+          subtitle: 'روشن = انیمیشن حرکت در مسیر هدف فعال است',
           value: act.footPlaying,
           onChanged: (v) => _edit(() => act!.footPlaying = v),
         ),
       ] else ...[
         _slider(
-          label: 'اندازه‌ی پاها و دایره‌ی متصل',
+          label: 'اندازه‌ی انیمیشن حرکت در مسیر هدف و دایره‌ی متصل',
           value: ((ex['walkerSize'] as num?)?.toDouble() ?? 1.0)
               .clamp(0.4, 3.0)
               .toDouble(),
@@ -828,7 +828,7 @@ class _EditSheetState extends State<EditSheet> {
   // ============================================================
   List<Widget> _goalBody(Goal g) {
     return [
-      _sectionLabel('عکس پاهای متحرک'),
+      _sectionLabel('عکس انیمیشن حرکت در مسیر هدف'),
       WalkerPhotoField(
         initial: walkerPhotosOf(g.extra),
         onChanged: (v) => _edit(() {
@@ -840,7 +840,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       _slider(
-        label: 'اندازه‌ی پاها و دایره‌ی متصل',
+        label: 'اندازه‌ی انیمیشن حرکت در مسیر هدف و دایره‌ی متصل',
         value: ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
             .clamp(0.4, 3.0),
         min: 0.4,
@@ -884,7 +884,7 @@ class _EditSheetState extends State<EditSheet> {
       // ترتیب و متن‌ها مثل Maghz: اول خطِ مسیر (#trunk-block)، بعد شکل شاخه‌ها
       _sectionLabel('نوع خط مسیر این هدف (خطی که از «من» تا هدف کشیده می‌شه)'),
       _trunkGrid(g),
-      _sectionLabel('شکل شاخه‌ها (برای همه‌ی شاخه‌های این مجموعه)'),
+      _sectionLabel('شکل مسیر'),
       _shapeGrid(g.branchStyle, (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
       ..._branchesSection(g),
       _bottomActions(
@@ -895,7 +895,7 @@ class _EditSheetState extends State<EditSheet> {
         },
         deleteLabel: 'حذف هدف',
         onDelete: () async {
-          if (!await _confirm('هدف «${g.name}» با همه‌ی شاخه‌هاش حذف بشه؟')) {
+          if (!await _confirm('')) {
             return;
           }
           _store.deleteGoal(g.id);
@@ -1002,7 +1002,7 @@ class _EditSheetState extends State<EditSheet> {
         onChanged: (v) => _edit(() => r.note = v),
         maxLines: 2,
       ),
-      _sectionLabel('شکل شاخه‌ها'),
+      _sectionLabel('شکل مسیر'),
       _shapeGrid(r.branchStyle, (v) => r.branchStyle = v.isEmpty ? 'organic' : v),
       ..._branchesSection(r),
       _bottomActions(
@@ -1027,7 +1027,7 @@ class _EditSheetState extends State<EditSheet> {
   List<Widget> _actionBody(MapHost host, ActionNode a) {
     final footPlaying = a.footPlaying;
     return [
-      _sectionLabel('عکس روی شاخه'),
+      _sectionLabel(''),
       IconPhotoEditor(
         supportsIcon: false,
         supportsScale: false,
@@ -1036,18 +1036,18 @@ class _EditSheetState extends State<EditSheet> {
         initialScale: 1,
         onChange: (_, images, __) => _edit(() => a.images = images),
       ),
-      _sectionLabel('متن شاخه'),
+      _sectionLabel(''),
       _textField(
         ctlKey: 'node:${a.id}',
         initial: a.text,
-        label: 'متن شاخه',
+        label: '',
         onChanged: (v) => _edit(() => a.text = v),
       ),
-      _sectionLabel('رنگ شاخه'),
+      _sectionLabel(''),
       _swatches(a.color, (c) => a.color = c,
           onInherit: () => a.color = null),
       _slider(
-        label: 'قطر شاخه',
+        label: '',
         value: a.weight.clamp(1.0, 10.0).toDouble(),
         min: 1,
         max: 10,
@@ -1061,7 +1061,7 @@ class _EditSheetState extends State<EditSheet> {
         value: a.isRoutine,
         onChanged: (v) => _edit(() => a.isRoutine = v),
       ),
-      _sectionLabel('شکل این شاخه'),
+      _sectionLabel(''),
       _shapeGrid(a.style, (v) => a.style = v, inherit: true),
 
       // ═══════════ قدم روی مسیر 👣 ═══════════
@@ -1114,7 +1114,7 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ),
       ),
-      _sectionLabel('عکس پاهای متحرک'),
+      _sectionLabel('عکس انیمیشن حرکت در مسیر هدف'),
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
         onChanged: (v) => _edit(() {
@@ -1145,7 +1145,7 @@ class _EditSheetState extends State<EditSheet> {
 
       // زیرشاخه‌ها
       const SizedBox(height: 8),
-      _sectionLabel('زیرشاخه‌ها (${toFa(countActions(a.children))})'),
+      _sectionLabel(''),
       ..._tree(host, a.children, 0),
 
       const SizedBox(height: 12),
@@ -1166,7 +1166,7 @@ class _EditSheetState extends State<EditSheet> {
                 setState(() => _focusId = c.id);
               },
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('زیرشاخه',
+              label: const Text('',
                   style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
@@ -1184,7 +1184,7 @@ class _EditSheetState extends State<EditSheet> {
               onPressed: () {
                 resetBranchPos(a);
                 _store.changed();
-                _store.toast?.call('شاخه سرِ جای اولش برگشت');
+                _store.toast?.call('');
               },
               icon: const Icon(Icons.restart_alt, size: 18),
               label: const Text('برگرداندن به جای اول',
@@ -1202,7 +1202,7 @@ class _EditSheetState extends State<EditSheet> {
         },
         deleteLabel: 'حذف',
         onDelete: () async {
-          if (!await _confirm('این شاخه (و زیرشاخه‌هاش) حذف بشه؟')) return;
+          if (!await _confirm('')) return;
           _store.deleteAction(host.id, a.id);
           if (!mounted) return;
           if (_back.isNotEmpty) {
@@ -1220,11 +1220,11 @@ class _EditSheetState extends State<EditSheet> {
   // ------------------------------------------------------------
   List<Widget> _branchesSection(MapHost host) {
     return [
-      _sectionLabel('شاخه‌ها (${toFa(countActions(host.actions))})'),
+      _sectionLabel(''),
       if (host.actions.isEmpty)
         const Padding(
           padding: EdgeInsets.only(top: 4, bottom: 8),
-          child: Text('هنوز شاخه‌ای ثبت نشده.',
+          child: Text('',
               style: TextStyle(color: _kMuted, fontSize: 12)),
         ),
       ..._tree(host, host.actions, 0),
@@ -1244,7 +1244,7 @@ class _EditSheetState extends State<EditSheet> {
             setState(() => _focusId = a.id);
           },
           icon: const Icon(Icons.add, size: 18),
-          label: const Text('افزودن شاخه جدید',
+          label: const Text('',
               style: TextStyle(fontWeight: FontWeight.w600)),
         ),
       ),
@@ -1289,7 +1289,7 @@ class _EditSheetState extends State<EditSheet> {
                   decoration: const InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: 'عنوان شاخه',
+                    hintText: '',
                     hintStyle: TextStyle(color: _kMuted, fontSize: 12.5),
                     contentPadding: EdgeInsets.symmetric(vertical: 6),
                   ),
@@ -1308,7 +1308,7 @@ class _EditSheetState extends State<EditSheet> {
                     const BoxConstraints.tightFor(width: 30, height: 30),
                 icon: const Icon(Icons.close, size: 18, color: _kDanger),
                 onPressed: () async {
-                  if (!await _confirm('این شاخه (و زیرشاخه‌هاش) حذف بشه؟')) {
+                  if (!await _confirm('')) {
                     return;
                   }
                   _store.deleteAction(host.id, a.id);

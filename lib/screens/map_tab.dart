@@ -170,7 +170,7 @@ class _MapTabState extends State<MapTab> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'بی‌نهایت راه',
+                            'نقشه راه',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
