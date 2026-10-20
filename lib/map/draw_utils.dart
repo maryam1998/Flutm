@@ -13,7 +13,7 @@ enum LabelAlign { center, left, right }
 class TextCache {
   final _m = <String, TextPainter>{};
 
-  /// رنگ دور متن؛ توی تم روشن کرمی و توی تم تاریک تیره‌ست
+  /// رنگ دور متنِ گره/شاخه (`.node-label` / `.branch-label`): تم روشن #F4F6FB، تم تاریک #0A0C18
   Color outlineColor = const Color(0xFF0A0C18);
   void setOutline(Color c) {
     if (c == outlineColor) return;
@@ -21,8 +21,8 @@ class TextCache {
     _m.clear();
   }
 
-  TextPainter get(String text, double size, Color color, FontWeight w, {double? strokeW}) {
-    final key = '$text|${size.toStringAsFixed(1)}|${color.hashCode}|${w.index}|${strokeW ?? 0}';
+  TextPainter get(String text, double size, Color color, FontWeight w, {double? strokeW, Color? outlineOverride}) {
+    final key = '$text|${size.toStringAsFixed(1)}|${color.hashCode}|${w.index}|${strokeW ?? 0}|${outlineOverride?.hashCode ?? 0}';
     final hit = _m[key];
     if (hit != null) return hit;
     if (_m.length > 500) _m.clear();
@@ -37,7 +37,7 @@ class TextCache {
             ..style = PaintingStyle.stroke
             ..strokeWidth = strokeW
             ..strokeJoin = StrokeJoin.round
-            ..color = outlineColor),
+            ..color = outlineOverride ?? outlineColor),
     );
     final tp = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.rtl)..layout();
     return _m[key] = tp;
@@ -51,6 +51,7 @@ Rect drawText(
   Canvas c, String text, double x, double y, {
   required double size, required Color color, FontWeight weight = FontWeight.w600,
   LabelAlign align = LabelAlign.center, double? outline, bool vCenter = false,
+  Color? outlineColor,
 }) {
   if (text.isEmpty) return Rect.zero;
   final fill = textCache.get(text, size, color, weight);
@@ -58,7 +59,7 @@ Rect drawText(
   final left = switch (align) { LabelAlign.center => x - w / 2, LabelAlign.left => x, LabelAlign.right => x - w };
   final top = vCenter ? y - fill.height / 2 : y - fill.computeDistanceToActualBaseline(TextBaseline.alphabetic);
   if (outline != null) {
-    textCache.get(text, size, color, weight, strokeW: outline).paint(c, Offset(left, top));
+    textCache.get(text, size, color, weight, strokeW: outline, outlineOverride: outlineColor).paint(c, Offset(left, top));
   }
   fill.paint(c, Offset(left, top));
   return Rect.fromLTWH(left, top, w, fill.height);

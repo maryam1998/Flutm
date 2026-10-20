@@ -29,6 +29,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.35.x'   # همان نسخه‌ی Zflut که سریع بالا میاد
           cache: true
 
       - name: Generate web folder if missing
@@ -54,16 +55,7 @@ jobs:
           fi
 
       - name: Build web
-        run: flutter build web --release --base-href "/Flutm/" --pwa-strategy=none --no-web-resources-cdn
-
-      # هر دیپلوی یک شماره‌ی تازه می‌گیرد تا مرورگر نسخه‌ی قدیمی را نگه ندارد
-      - name: Cache-bust
-        run: |
-          V=$(date +%s)
-          cd build/web
-          sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=$V#g" index.html || true
-          sed -i "s#\"main.dart.js\"#\"main.dart.js?v=$V\"#g" flutter_bootstrap.js || true
-          grep -o "main.dart.js[^\"]*" flutter_bootstrap.js | head -1 || true
+        run: flutter build web --release --base-href "/Flutm/"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -1,15 +1,8 @@
 {{flutter_js}}
 {{flutter_build_config}}
 
-// ───────────────────────────────────────────────────────────────
-// شروع سریع‌تر:
-//  ۱) دانلود main.dart.js بلافاصله شروع می‌شود (قبلاً اول منتظر یک درخواست
-//     بررسیِ CanvasKit می‌ماند و بعد شروع می‌کرد).
-//  ۲) فایل‌های CanvasKit هم‌زمان با main.dart.js از خودِ سایت گرم می‌شوند
-//     (نه از gstatic که روی اینترنت ایران کند/قطعه).
-//  ۳) صفحه‌ی بارگذاری مرحله و ثانیه را نشان می‌دهد؛ با باز کردن آدرس با
-//     ‎?debug=1‎ زمانِ دقیق هر مرحله هم روی صفحه می‌ماند.
-// ───────────────────────────────────────────────────────────────
+// صفحه‌ی بارگذاری + نمایش مرحله و ثانیه (با ?debug=1 زمان هر مرحله هم می‌ماند).
+// خودِ بارگذاریِ فلاتر عمداً پیش‌فرض است (هیچ دستکاریِ CanvasKit/پیش‌دانلودی نیست).
 (function () {
   var boot = document.getElementById('boot');
   var msg = document.getElementById('boot-msg');
@@ -61,29 +54,16 @@
   // اگه به هر دلیلی رویداد نیومد، صفحه‌ی بارگذاری برای همیشه نمونه
   setTimeout(hideBoot, 45000);
 
-  // ── CanvasKit محلی: بدون مسدود کردن شروع ──
-  var chromiumVariant = !!(window.Intl && Intl.v8BreakIterator && Intl.Segmenter);
-  var canvasKitProbe = (async function () {
-    try {
-      var base = new URL('canvaskit/', document.baseURI).href;
-      var r = await fetch(base + 'canvaskit.js', { method: 'HEAD', cache: 'force-cache' });
-      if (!r.ok) return null;
-      // گرم‌کردن: موتور وقتی بعداً همین فایل را بخواهد از کش مرورگر می‌گیرد
-      var v = chromiumVariant ? 'chromium/' : '';
-      fetch(base + v + 'canvaskit.js', { cache: 'force-cache' }).catch(function () {});
-      fetch(base + v + 'canvaskit.wasm', { cache: 'force-cache' }).catch(function () {});
-      return base;
-    } catch (e) { return null; }
-  })();
-
+  // مثل Zflut (که سریع بالا میاد): لودر پیش‌فرضِ فلاتر، CanvasKit از CDN گوگل،
+  // و سرویس‌ورکر پیش‌فرض تا بار دوم به بعد همه‌چیز از کشِ خودِ مرورگر بیاد.
   _flutter.loader.load({
+    serviceWorkerSettings: {
+      serviceWorkerVersion: {{flutter_service_worker_version}},
+    },
     onEntrypointLoaded: async function (engineInitializer) {
       mark('main.dart.js');
       stage = 'راه‌اندازی موتور';
-      var base = await canvasKitProbe;
-      var cfg = {};
-      if (base) cfg.canvasKitBaseUrl = base;
-      var appRunner = await engineInitializer.initializeEngine(cfg);
+      var appRunner = await engineInitializer.initializeEngine();
       mark('engine');
       await appRunner.runApp();
     },

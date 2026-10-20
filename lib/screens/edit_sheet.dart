@@ -15,10 +15,11 @@ import '../widgets/web_color_picker.dart';
 // ============================================================
 const _kBg = Color(0xFFFFFFFF);
 const _kCard = Colors.white;
+const _kInputBg = Color(0xFFF1F2F8); // --input-bg
 const _kGold = Color(0xFFC9962B);
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF5B5F77);
-const _kBorder = Color(0xFFE4E6EE);
+const _kBorder = Color.fromRGBO(20, 24, 50, 0.10); // --panel-border
 const _kDanger = Color(0xFFE5484D);
 
 // ============================================================
@@ -74,28 +75,27 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'بستن',
-      barrierColor: Colors.black.withAlpha(60),
-      transitionDuration: const Duration(milliseconds: 220),
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (ctx, a1, a2) {
         final mq = MediaQuery.of(ctx);
-        final w = (mq.size.width * 0.78).clamp(270.0, 440.0).toDouble();
-        return SafeArea(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: 8,
-                bottom: 8 + mq.viewInsets.bottom,
-              ),
-              child: SizedBox(
-                width: w,
-                child: Material(
-                  color: Colors.transparent,
-                  child: Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: EditSheet(
-                        store: store, initial: target, panel: true),
-                  ),
+        // #panel{ position:fixed; top:0; bottom:64px; left:0; width:min(300px,86vw) }
+        final sw = mq.size.width * 0.86;
+        final w = sw < 300 ? sw : 300.0;
+        final kb = mq.viewInsets.bottom;
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: kb > 64 ? kb : 64),
+            child: SizedBox(
+              width: w,
+              height: double.infinity,
+              child: Material(
+                color: Colors.transparent,
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: EditSheet(
+                      store: store, initial: target, panel: true),
                 ),
               ),
             ),
@@ -328,15 +328,12 @@ class _EditSheetState extends State<EditSheet> {
   // ------------------------------------------------------------
   // اجزای مشترک
   // ------------------------------------------------------------
+  /// `#panel label.small`: ۱۱px، --text-dim، فاصله‌ی ۶ پایین
   Widget _sectionLabel(String s) => Padding(
-        padding: const EdgeInsets.only(top: 16, bottom: 8),
+        padding: const EdgeInsets.only(top: 10, bottom: 6),
         child: Text(
           s,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: _kMuted,
-          ),
+          style: const TextStyle(fontSize: 11, color: _kMuted),
         ),
       );
 
@@ -351,7 +348,14 @@ class _EditSheetState extends State<EditSheet> {
     bool autofocus = false,
     TextInputType? keyboard,
   }) {
-    return TextField(
+    const bd = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(9)),
+      borderSide: BorderSide(color: _kBorder),
+    );
+    // در Maghz این‌ها placeholder هستند، نه برچسب
+    final isHint =
+        label.startsWith('مثلاً') || label.startsWith('چیزی');
+    final field = TextField(
       controller: _c(ctlKey, initial),
       autofocus: autofocus,
       maxLines: maxLines,
@@ -360,33 +364,40 @@ class _EditSheetState extends State<EditSheet> {
       textAlign: center ? TextAlign.center : TextAlign.start,
       textDirection: TextDirection.rtl,
       style: TextStyle(
-        fontSize: center ? 22 : 14,
+        fontSize: center ? 22 : (maxLines > 1 ? 13 : 14),
         color: _kInk,
-        fontWeight: FontWeight.w500,
       ),
       onChanged: onChanged,
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: _kMuted, fontSize: 12.5),
         counterText: '',
+        hintText: isHint ? label : null,
+        hintStyle: const TextStyle(fontSize: 13, color: _kMuted),
         filled: true,
-        fillColor: _kCard,
+        fillColor: _kInputBg, // --input-bg
         isDense: true,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kGold, width: 1.5),
+            const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        border: bd,
+        enabledBorder: bd,
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(9)),
+          borderSide: BorderSide(color: _kGold),
         ),
       ),
+    );
+    // `label.small`: ۱۱px، --text-dim، فاصله‌ی ۶ از ورودی
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!isHint)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(label,
+                style: const TextStyle(fontSize: 11, color: _kMuted)),
+          ),
+        field,
+        const SizedBox(height: 10),
+      ],
     );
   }
 
@@ -676,10 +687,9 @@ class _EditSheetState extends State<EditSheet> {
       _textField(
         ctlKey: 'me:name',
         initial: me.name,
-        label: 'نام',
+        label: 'اسم',
         onChanged: (v) => _edit(() => me.name = v),
       ),
-      _sectionLabel('رنگ فرکانس'),
       _swatches(me.color, (c) => me.color = c),
       _sectionLabel('حال و هوای این فرکانس (اختیاری)'),
       _textField(
@@ -843,7 +853,7 @@ class _EditSheetState extends State<EditSheet> {
       _textField(
         ctlKey: 'goal:${g.id}:name',
         initial: g.name,
-        label: 'نام هدف',
+        label: 'اسم',
         onChanged: (v) => _edit(() => g.name = v),
       ),
       _sectionLabel('آیکون و عکس'),
@@ -857,7 +867,6 @@ class _EditSheetState extends State<EditSheet> {
           g.iconScale = scale;
         }),
       ),
-      _sectionLabel('رنگ فرکانس'),
       _swatches(g.color, (c) => g.color = c),
       _switchTile(
         title: 'به این هدف رسیدم',
@@ -872,10 +881,11 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
-      _sectionLabel('شکل شاخه‌ها (برای همه‌ی شاخه‌ها)'),
-      _shapeGrid(g.branchStyle, (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
-      _sectionLabel('شکل مسیر (تنه)'),
+      // ترتیب و متن‌ها مثل Maghz: اول خطِ مسیر (#trunk-block)، بعد شکل شاخه‌ها
+      _sectionLabel('نوع خط مسیر این هدف (خطی که از «من» تا هدف کشیده می‌شه)'),
       _trunkGrid(g),
+      _sectionLabel('شکل شاخه‌ها (برای همه‌ی شاخه‌های این مجموعه)'),
+      _shapeGrid(g.branchStyle, (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
       ..._branchesSection(g),
       _bottomActions(
         saveLabel: 'ذخیره',

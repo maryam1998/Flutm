@@ -191,8 +191,10 @@ class MapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // دورِ نوشته‌ها در Maghz همیشه تیره است (stroke:#0a0c18)، حتی در تم روشن
-    textCache.setOutline(const Color(0xFF0A0C18));
+    // Maghz: `.node-label` و `.branch-label` در تم روشن stroke:#f4f6fb دارند
+    // (نوشته‌ی مشکی ← دورِ سفید)؛ فقط `.feeling-label` (نشانه‌ها) همیشه #0a0c18 است.
+    textCache.setOutline(
+        isDark ? const Color(0xFF0A0C18) : const Color(0xFFF4F6FB));
     _pts.clear();
     _walkerPts.clear();
     hits.clear();
@@ -564,7 +566,8 @@ class MapPainter extends CustomPainter {
             size: r.labelSize ?? _labelSize('ring'),
             color: col,
             weight: FontWeight.w700,
-            outline: 3);
+            outline: 3,
+            outlineColor: const Color(0xFF0A0C18));
         lr = lr == null ? b : lr.expandToInclude(b);
       }
       if (lr != null) {
