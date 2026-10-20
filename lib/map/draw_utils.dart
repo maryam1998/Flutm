@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../theme/vazir_font.dart';
 
 import '../services/data_url_cache.dart';
+import '../services/media_kind.dart';
 
 Color withOp(Color c, double o) => c.withAlpha((o.clamp(0.0, 1.0) * 255).round());
 
@@ -113,11 +114,40 @@ void drawDashed(Canvas c, Path path, Paint p, List<double> dashes) {
 /// کش تصاویر data: URI برای رسم روی بوم.
 /// یک نمونه‌ی مشترک ([shared]) هست تا عکسِ تازه‌انتخاب‌شده همون لحظه‌ی انتخاب، پیش‌دیکُد (warm)
 /// بشه و موقع نشون دادن روی نقشه منتظر دیکُد نمونه.
+class _AnimFrames {
+  _AnimFrames(this.frames, this.ends, this.total);
+  final List<ui.Image> frames;
+  final List<int> ends; // زمان پایان هر فریم (میلی‌ثانیه، تجمعی)
+  final int total;
+
+  ui.Image at(double sec) {
+    if (frames.length == 1 || total <= 0) return frames.first;
+    final ms = ((sec * 1000).floor()) % total;
+    var lo = 0, hi = ends.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (ends[mid] > ms) {
+        hi = mid;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return frames[lo];
+  }
+}
+
 class NodeImageCache extends ChangeNotifier {
   static final NodeImageCache shared = NodeImageCache();
 
+  /// سقف حافظه‌ی فریم‌های یک عکس متحرک (بایت)
+  static const int _animMaxBytes = 48 * 1024 * 1024;
+  static const int _animWidth = 320;
+
   final _cache = <String, ui.Image>{};
   final _pending = <String>{};
+  final _anims = <String, _AnimFrames>{};
+  final _animPending = <String>{};
+  final _notAnim = <String>{};
 
   // کلید ارزان (به‌جای hashCode کل رشته‌ی چند مگابایتی که هر فریم محاسبه می‌شد)
   static String _key(String src) {
@@ -132,9 +162,16 @@ class NodeImageCache extends ChangeNotifier {
   /// آماده‌سازی بی‌صدا (بدون برگرداندن چیزی)
   void warm(String src) => get(src);
 
-  ui.Image? get(String src) {
+  /// [animate] = true و عکس متحرک (GIF / WebP / APNG) → فریمِ زمان [t] (ثانیه) برمی‌گردد؛
+  /// تا آماده‌شدن فریم‌ها (یا برای عکس ثابت) همان فریم اول است.
+  ui.Image? get(String src, {bool animate = false, double t = 0}) {
     if (src.isEmpty || !src.startsWith('data:')) return null;
     final k = _key(src);
+    if (animate) {
+      final an = _anims[k];
+      if (an != null) return an.at(t);
+      if (!_notAnim.contains(k) && _animPending.add(k)) _loadAnim(k, src);
+    }
     final hit = _cache[k];
     if (hit != null) return hit;
     if (_pending.add(k)) _load(k, src);
@@ -153,5 +190,63 @@ class NodeImageCache extends ChangeNotifier {
     } catch (_) {
       // تصویر نامعتبر یا فرمت پشتیبانی‌نشده (مثل SVG): در pending می‌مونه تا هر فریم دوباره تلاش نشه
     }
+  }
+
+  /// همه‌ی فریم‌های عکس متحرک را (با عرض کم و سقف حافظه) دیکُد می‌کند.
+  Future<void> _loadAnim(String key, String src) async {
+    try {
+      final bytes = DataUrlCache.bytes(src);
+      if (bytes == null || !MediaKind.isAnimatedImage(bytes)) {
+        _notAnim.add(key);
+        return;
+      }
+      var codec = await ui.instantiateImageCodec(bytes, targetWidth: _animWidth);
+      final n = codec.frameCount;
+      if (n <= 1) {
+        codec.dispose();
+        _notAnim.add(key);
+        return;
+      }
+      final first = await codec.getNextFrame();
+      final perFrame = first.image.width * first.image.height * 4;
+      if (perFrame * n > _animMaxBytes) {
+        // کوچک‌تر دیکُد کن تا در سقف حافظه جا شود
+        final k = math.sqrt(_animMaxBytes / (perFrame * n));
+        final w = math.max(48, (_animWidth * k).floor());
+        first.image.dispose();
+        codec.dispose();
+        codec = await ui.instantiateImageCodec(bytes, targetWidth: w);
+        final f0 = await codec.getNextFrame();
+        return _finishAnim(key, codec, f0, n);
+      }
+      return _finishAnim(key, codec, first, n);
+    } catch (_) {
+      _notAnim.add(key);
+    } finally {
+      _animPending.remove(key);
+    }
+  }
+
+  Future<void> _finishAnim(
+      String key, ui.Codec codec, ui.FrameInfo first, int n) async {
+    final frames = <ui.Image>[first.image];
+    final ends = <int>[];
+    var acc = 0;
+    int dur(ui.FrameInfo f) {
+      final ms = f.duration.inMilliseconds;
+      return ms < 20 ? 100 : ms; // GIFهای بدون زمان‌بندی: ۱۰۰ms
+    }
+
+    acc += dur(first);
+    ends.add(acc);
+    for (var i = 1; i < n; i++) {
+      final f = await codec.getNextFrame();
+      frames.add(f.image);
+      acc += dur(f);
+      ends.add(acc);
+    }
+    codec.dispose();
+    _anims[key] = _AnimFrames(frames, ends, acc);
+    notifyListeners();
   }
 }

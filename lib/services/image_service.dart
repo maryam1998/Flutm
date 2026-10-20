@@ -9,7 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import '../map/draw_utils.dart' show NodeImageCache;
 import '../widgets/photo_cropper.dart';
 import 'data_url_cache.dart';
+import 'fast_image.dart';
 import 'media_blob.dart';
+import 'media_kind.dart';
 
 /// عکس‌ها در ذخیره‌سازی به‌صورت base64 نگه‌داری می‌شن و با هر ذخیره کل لیست دوباره نوشته
 /// می‌شه؛ پس هرچه عکس سبک‌تر، همه‌چیز (افزودن، ذخیره، بالا اومدن برنامه) سریع‌تره.
@@ -45,6 +47,38 @@ Future<List<String>> _filesToDataUrls(List<XFile> files, String Function(String)
   return out;
 }
 
+/// نوع واقعی عکس از روی محتوا (بعد از کوچک‌سازی ممکنه با پسوند فرق کنه)
+String _sniffMime(Uint8List b, String name, String Function(String) mimeOf) {
+  if (b.length > 12) {
+    if (b[0] == 0x89 && b[1] == 0x50) return 'image/png';
+    if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) return 'image/gif';
+    if (b[0] == 0xFF && b[1] == 0xD8) return 'image/jpeg';
+    if (b[0] == 0x52 && b[1] == 0x49 && b[8] == 0x57 && b[9] == 0x45) {
+      return 'image/webp';
+    }
+  }
+  return mimeOf(name);
+}
+
+/// روی وب، image_picker با maxWidth/imageQuality عکس را روی canvas می‌کشد و GIF متحرک
+/// تبدیل به عکس ثابت می‌شود. پس اینجا بدون محدودیت انتخاب می‌کنیم؛ عکس متحرک (GIF/WebP/APNG)
+/// دست‌نخورده می‌ماند و فقط عکس‌های ثابت کوچک می‌شوند.
+Future<List<String>> _webFilesToDataUrls(
+    List<XFile> files, int maxSide, String Function(String) mimeOf) async {
+  final out = <String>[];
+  for (final f in files) {
+    var bytes = await f.readAsBytes();
+    if (!MediaKind.isAnimatedImage(bytes)) {
+      bytes = await fastDownscale(bytes, name: f.name, maxSide: maxSide);
+    }
+    final url = await _encodeDataUrl(_sniffMime(bytes, f.name, mimeOf), bytes);
+    DataUrlCache.seed(url, bytes);
+    NodeImageCache.shared.warm(url);
+    out.add(url);
+  }
+  return out;
+}
+
 class ImageService {
   static final _picker = ImagePicker();
 
@@ -68,6 +102,11 @@ class ImageService {
   /// (اسم قدیمی حفظ شده تا بقیه‌ی فایل‌ها نیازی به تغییر نداشته باشن.)
   static Future<List<String>> pickImagesCropped({BuildContext? context}) async {
     try {
+      if (kIsWeb) {
+        final wf = await _picker.pickMultiImage();
+        if (wf.isEmpty) return const [];
+        return await _webFilesToDataUrls(wf, _kMaxSide, _mimeOf);
+      }
       final files = await _picker.pickMultiImage(
         maxWidth: _kMaxSide.toDouble(),
         maxHeight: _kMaxSide.toDouble(),
@@ -88,6 +127,11 @@ class ImageService {
     int maxSide = 640,
   }) async {
     try {
+      if (kIsWeb) {
+        final wf = await _picker.pickImage(source: ImageSource.gallery);
+        if (wf == null) return null;
+        return (await _webFilesToDataUrls([wf], _kMaxSide, _mimeOf)).first;
+      }
       final f = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: _kMaxSide.toDouble(),
@@ -120,6 +164,8 @@ class ImageService {
           ? 'image/jpeg'
           : header.split(';').first;
       final bytes = base64Decode(src.substring(i + 1));
+      // برش، انیمیشن را به یک فریم تبدیل می‌کرد؛ عکس متحرک بدون تغییر می‌ماند
+      if (MediaKind.isAnimatedImage(bytes)) return null;
       final res = await showPhotoCropper(
         context,
         bytes,
@@ -139,6 +185,11 @@ class ImageService {
   /// یک عکس برای «چهره‌ی قدم‌زن» (دایره‌ی جلوی پاها)
   static Future<String?> pickSingleImage() async {
     try {
+      if (kIsWeb) {
+        final wf = await _picker.pickImage(source: ImageSource.gallery);
+        if (wf == null) return null;
+        return (await _webFilesToDataUrls([wf], 480, _mimeOf)).first;
+      }
       final f = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 480,

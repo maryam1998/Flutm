@@ -1039,7 +1039,7 @@ class MapPainter extends CustomPainter {
 
     ui.Image? faceImg;
     if (hasPhoto) {
-      faceImg = images.get(photo!);
+      faceImg = images.get(photo!, animate: true, t: _t);
       // اگر عکس نوبتی هنوز بارگذاری نشده، تا آماده شدن عکس اول نشون داده می‌شه
       if (faceImg == null && photos.isNotEmpty) faceImg = images.get(photos.first);
     }
