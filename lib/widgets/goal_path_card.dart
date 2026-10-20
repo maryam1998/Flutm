@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
+import 'panel_kit.dart';
 import 'web_color_picker.dart';
 
 const _kGold = Color(0xFFC9962B);
@@ -31,6 +32,7 @@ class GoalPathCard extends StatelessWidget {
     required this.styleKey,
     required this.onColor,
     required this.onWidth,
+    required this.onStyle,
     required this.onReset,
   });
 
@@ -45,6 +47,7 @@ class GoalPathCard extends StatelessWidget {
 
   final ValueChanged<String> onColor;
   final ValueChanged<double> onWidth;
+  final ValueChanged<String> onStyle;
   final VoidCallback onReset;
 
   static const double minW = 1;
@@ -181,6 +184,22 @@ class GoalPathCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           GoalColorGrid(color: col, onColor: onColor),
+          // ── نوع خط ──
+          const PanelLabel('نوع خط مسیر'),
+          const Text(
+            'ظاهرِ خطِ اصلی که از «من» تا این هدف کشیده می‌شود (فقط شکل خط؛ شکل خم‌شدنِ شاخه‌ها جدا و پایین‌تر است).',
+            style: TextStyle(fontSize: 11.5, height: 1.6, color: _kMuted),
+          ),
+          const SizedBox(height: 10),
+          PanelChoiceGrid(
+            current: styleKey,
+            onPick: onStyle,
+            preview: (k, c) => TrunkLinePainter(k.isEmpty ? 'dashed' : k, c),
+            choices: [
+              const PanelChoice('', 'مثل نقشه'),
+              for (final e in kTrunkStyles.entries) PanelChoice(e.key, e.value),
+            ],
+          ),
           const SizedBox(height: 18),
 
           // ── ضخامت ──

@@ -466,23 +466,44 @@ class _GratMiniCalendarState extends State<GratMiniCalendar> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // #gratitude-mini-cal: padding 14, surface, کادر line، گوشه‌ی ۱۴، overflow:hidden
+          // کارت تقویم: سفید با کادر و سایه‌ی ملایم، سرتیتر پیشرفت، شبکه، راهنما
           Container(
             padding: const EdgeInsets.all(14),
             clipBehavior: Clip.hardEdge,
             decoration: BoxDecoration(
-              color: pal.surface,
-              border: Border.all(color: pal.line),
-              borderRadius: BorderRadius.circular(14),
+              color: pal.isDark ? pal.surface : Colors.white,
+              border: Border.all(color: pal.panelBorder),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: pal.isDark
+                  ? null
+                  : const [
+                      BoxShadow(
+                          color: Color(0x0F141832),
+                          blurRadius: 12,
+                          offset: Offset(0, 3)),
+                    ],
             ),
-            child: GratPeriodGrid(
-              pal: pal,
-              store: store,
-              owner: '$_id:main',
-              start: start,
-              total: total,
-              doneSet: doneSet,
-              withEmotions: true,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CalHeader(
+                  pal: pal,
+                  done: math.min(doneCount, total),
+                  total: total,
+                ),
+                const SizedBox(height: 14),
+                GratPeriodGrid(
+                  pal: pal,
+                  store: store,
+                  owner: '$_id:main',
+                  start: start,
+                  total: total,
+                  doneSet: doneSet,
+                  withEmotions: true,
+                ),
+                const SizedBox(height: 12),
+                _CalLegend(pal: pal),
+              ],
             ),
           ),
           if (finished) ...[
@@ -612,6 +633,158 @@ class _GratMiniCalendarState extends State<GratMiniCalendar> {
       return;
     }
     await onOk(n);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//                 سرتیتر پیشرفت و راهنمای رنگ‌ها
+// ════════════════════════════════════════════════════════════════
+class _CalHeader extends StatelessWidget {
+  final GratPalette pal;
+  final int done, total;
+  const _CalHeader(
+      {required this.pal, required this.done, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final frac = total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0);
+    final pct = (frac * 100).round();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: pal.emerald500.withAlpha(36),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(Icons.calendar_month_rounded,
+                  size: 17, color: pal.emerald500),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text('مسیر شکرگذاری',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: pal.ink)),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: pal.emerald500.withAlpha(30),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${GratCal.faNum(done)} از ${GratCal.faNum(total)} روز',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: pal.isDark ? pal.emerald300 : pal.emerald700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Stack(
+                  children: [
+                    Container(
+                      height: 7,
+                      color: pal.isDark
+                          ? const Color(0xFF333750)
+                          : const Color(0xFFE3E6F0),
+                    ),
+                    FractionallySizedBox(
+                      alignment: Alignment.centerRight,
+                      widthFactor: frac,
+                      child: Container(
+                        height: 7,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                              colors: [pal.emerald500, pal.emerald700]),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text('${GratCal.faNum(pct)}٪',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: pal.textDim)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _CalLegend extends StatelessWidget {
+  final GratPalette pal;
+  const _CalLegend({required this.pal});
+
+  Widget _item(Widget swatch, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: TextDirection.rtl,
+        children: [
+          swatch,
+          const SizedBox(width: 5),
+          Text(label, style: TextStyle(fontSize: 10.5, color: pal.textDim)),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final e = _DayPainter.emptyColors(pal);
+    Widget box(Color fill, Color border, {double bw = 1.2, Widget? child}) =>
+        Container(
+          width: 14,
+          height: 14,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: border, width: bw),
+          ),
+          child: child,
+        );
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 14,
+      runSpacing: 6,
+      children: [
+        _item(
+          Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              gradient:
+                  LinearGradient(colors: [pal.emerald700, pal.emerald500]),
+            ),
+          ),
+          'انجام شده',
+        ),
+        _item(box(e.$1, e.$2), 'ثبت نشده'),
+        _item(box(e.$1, pal.accent, bw: 2), 'امروز'),
+        _item(
+            Opacity(opacity: 0.55, child: box(Colors.transparent, e.$2)),
+            'پیش‌رو'),
+      ],
+    );
   }
 }
 
@@ -756,11 +929,26 @@ class GratPeriodGrid extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('ماه ${GratCal.ord(d ~/ blockSize)}',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: pal.ink)),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      textDirection: TextDirection.rtl,
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: pal.gold500,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('ماه ${GratCal.ord(d ~/ blockSize)}',
+                            style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: pal.ink)),
+                      ],
+                    ),
                     Text(
                       '${GratCal.dayMonth(date)} تا ${GratCal.dayMonth(endDate)}',
                       style: TextStyle(fontSize: 10.5, color: pal.muted),
@@ -778,6 +966,7 @@ class GratPeriodGrid extends StatelessWidget {
             final selected = sel != null && sel.owner == owner && sel.key == key;
 
             cur.add(_DayCell(
+              index: d + 1,
               pal: pal,
               size: cell,
               date: date,
@@ -816,7 +1005,11 @@ class _DayCell extends StatelessWidget {
   final bool done, today, future, monthEnd, selected;
   final Color? ring;
 
+  /// شماره‌ی روز در دوره (۱ تا total)
+  final int index;
+
   const _DayCell({
+    required this.index,
     required this.pal,
     required this.size,
     required this.date,
@@ -855,7 +1048,7 @@ class _DayCell extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: () => _tap(context),
         child: Opacity(
-          opacity: future ? 0.3 : 1, // .future{opacity:.3}
+          opacity: future ? 0.6 : 1,
           child: CustomPaint(
             painter: _DayPainter(
               pal: pal,
@@ -868,7 +1061,17 @@ class _DayCell extends StatelessWidget {
             child: Center(
               child: done
                   ? const _CheckGlyph()
-                  : null,
+                  : Text(
+                      GratCal.faNum(index),
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: (size * 0.36).clamp(7.0, 10.0),
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        color: pal.textDim,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -889,7 +1092,7 @@ class _CheckGlyph extends StatelessWidget {
       softWrap: false,
       overflow: TextOverflow.visible,
       style: base.copyWith(
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w800,
         height: 1,
         color: Colors.white,
@@ -922,14 +1125,31 @@ class _DayPainter extends CustomPainter {
     required this.ring,
   });
 
+  /// (پرکردن, کادر) روزِ ثبت‌نشده — با کنتراست واضح روی کارت سفید/تیره
+  static (Color, Color) emptyColors(GratPalette pal) => pal.isDark
+      ? (const Color(0xFF282C3B), const Color(0xFF4A5070))
+      : (const Color(0xFFEEF0F7), const Color(0xFFC3C8DA));
+
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final r = RRect.fromRectAndRadius(rect, const Radius.circular(4));
+    final r = RRect.fromRectAndRadius(rect, const Radius.circular(5));
 
-    // box-shadow بیرونی (حلقه‌ی حس) — زیر پس‌زمینه کشیده می‌شه
+    // حلقه‌ی رنگ حس — زیر پس‌زمینه کشیده می‌شود
     if (ring != null) {
       canvas.drawRRect(r.inflate(2), Paint()..color = ring!);
+    }
+
+    final (emptyFill, emptyBorder) = emptyColors(pal);
+
+    // سایه‌ی ملایم زیر روزهای انجام‌شده
+    if (done) {
+      canvas.drawRRect(
+        r.shift(const Offset(0, 1.2)),
+        Paint()
+          ..color = pal.emerald700.withAlpha(70)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.6),
+      );
     }
 
     // پس‌زمینه
@@ -941,29 +1161,30 @@ class _DayPainter extends CustomPainter {
         colors: [pal.emerald700, pal.emerald500],
       ).createShader(rect);
     } else {
-      bg.color = pal.surface2;
+      bg.color = emptyFill;
     }
     canvas.drawRRect(r, bg);
 
-    // inset shadow ها
-    if (ring == null) {
-      if (monthEnd) {
-        canvas.save();
-        canvas.clipRRect(r);
-        canvas.drawRect(
-          Rect.fromLTWH(0, size.height - 3, size.width, 3),
-          Paint()..color = pal.gold500,
-        );
-        canvas.restore();
-      } else if (!done) {
-        canvas.drawDRRect(r, r.deflate(1), Paint()..color = pal.line);
-      }
+    // کادر روزِ ثبت‌نشده (پررنگ و واضح)
+    if (!done && ring == null) {
+      canvas.drawDRRect(r, r.deflate(1.2), Paint()..color = emptyBorder);
     }
 
-    // outline
+    // نوار طلایی آخرِ هر ماه
+    if (monthEnd && ring == null) {
+      canvas.save();
+      canvas.clipRRect(r);
+      canvas.drawRect(
+        Rect.fromLTWH(0, size.height - 3, size.width, 3),
+        Paint()..color = pal.gold500,
+      );
+      canvas.restore();
+    }
+
+    // امروز: حلقه‌ی طلاییِ ضخیم با فاصله‌ی کوچک
     if (today) {
       canvas.drawDRRect(
-          r.inflate(1.5), r, Paint()..color = pal.emerald500);
+          r.inflate(2.6), r.inflate(0.8), Paint()..color = pal.accent);
     } else if (selected) {
       canvas.drawDRRect(
           r.inflate(3), r.inflate(1), Paint()..color = pal.ink);
@@ -1024,9 +1245,9 @@ class _PastPeriodState extends State<_PastPeriod> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: pal.surface,
-        border: Border.all(color: pal.line),
-        borderRadius: BorderRadius.circular(12),
+        color: pal.isDark ? pal.surface : Colors.white,
+        border: Border.all(color: pal.panelBorder),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
