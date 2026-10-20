@@ -362,7 +362,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
           onChanged: (v) => setState(() => _q = _norm(v.trim())),
           style: const TextStyle(fontSize: 14, color: kGoalsInk),
           decoration: InputDecoration(
-            hintText: 'جست‌وجو در اهداف و شاخه‌ها…',
+            hintText: 'جست‌وجو در اهداف و اقدامات…',
             hintStyle: const TextStyle(fontSize: 13, color: kGoalsMuted),
             prefixIcon:
                 const Icon(Icons.search_rounded, color: kGoalsMuted, size: 20),
@@ -546,6 +546,36 @@ class _GoalsSheetState extends State<GoalsSheet> {
         visualDensity: VisualDensity.compact,
       );
 
+  /// دکمه‌ی کوچک و برچسب‌دار زیر هر اقدام
+  Widget _miniAction(IconData i, String label, VoidCallback onTap,
+      {Color? color, bool active = false}) {
+    final c = color ?? kGoalsMuted;
+    return Material(
+      color: active ? c.withAlpha(30) : Colors.white,
+      shape: StadiumBorder(
+          side: BorderSide(color: active ? c : kGoalsBorder)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(i, size: 15, color: c),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color: c,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _tag(String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
         decoration: BoxDecoration(
@@ -627,7 +657,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                                   'نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
                             if (stale) _tag('کم‌فعالیت'),
                             _metaChip(Icons.account_tree_rounded,
-                                branches == 0 ? 'بدون شاخه' : '${toFa(branches)} شاخه'),
+                                branches == 0 ? 'بدون اقدام' : '${toFa(branches)} اقدام'),
                             if (ago.isNotEmpty)
                               _metaChip(Icons.schedule_rounded, ago),
                           ],
@@ -921,7 +951,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
               ),
             ),
 
-          // شاخه‌ها
+          // اقدامات
           if (h.actions.isEmpty && !adding)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 4),
@@ -934,7 +964,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
 
           const SizedBox(height: 6),
 
-          // دکمه افزودن شاخه
+          // دکمه افزودن اقدام
           if (adding)
             _addRow(store, h, null, 'نام (مثلاً گوش دادن به پادکست)')
           else
@@ -946,7 +976,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   _addCtl.clear();
                 }),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('افزودن شاخه'),
+                label: const Text('افزودن اقدام'),
               ),
             ),
           const SizedBox(height: 8),
@@ -1084,7 +1114,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  isSub ? 'زیرشاخه' : 'شاخه',
+                  'اقدام',
                   style: TextStyle(
                     fontSize: 10,
                     color: isSub ? color : Colors.black87,
@@ -1092,7 +1122,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   ),
                 ),
               ),
-              if (isSub)
+              if (isSub && kShowSubActions)
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(start: 6),
@@ -1149,7 +1179,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: 'نام شاخه',
+                    hintText: 'نام اقدام',
                     hintStyle: const TextStyle(color: kGoalsMuted),
                   ),
                 ),
@@ -1188,33 +1218,45 @@ class _GoalsSheetState extends State<GoalsSheet> {
               ),
             ],
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _iconBtn(Icons.add_rounded, 'زیرشاخه', () => setState(() {
-                    _addingFor = n.id;
-                    _addCtl.clear();
-                  })),
-              _iconBtn(
-                Icons.calendar_month_outlined,
-                'روزها',
-                () => setState(() {
-                  if (!_daysOpen.remove(n.id)) _daysOpen.add(n.id);
-                }),
-                color: daysOpen ? color : null,
-              ),
-              _iconBtn(
-                n.extra['achieved'] == true
-                    ? Icons.emoji_events
-                    : Icons.emoji_events_outlined,
-                'دستاورد',
-                () => _toggleAchieved(store, h, n),
-                color: n.extra['achieved'] == true
-                    ? const Color(0xFFF4C542)
-                    : null,
-              ),
-              _iconBtn(Icons.close, 'حذف', () => _confirmDelete(store, h, n)),
-            ],
+          Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 4, right: 2, left: 2),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (kShowSubActions)
+                  _miniAction(Icons.add_rounded, 'زیرشاخه', () => setState(() {
+                        _addingFor = n.id;
+                        _addCtl.clear();
+                      })),
+                _miniAction(
+                  Icons.calendar_month_outlined,
+                  'روزها',
+                  () => setState(() {
+                    if (!_daysOpen.remove(n.id)) _daysOpen.add(n.id);
+                  }),
+                  color: daysOpen ? color : null,
+                  active: daysOpen,
+                ),
+                _miniAction(
+                  n.extra['achieved'] == true
+                      ? Icons.emoji_events
+                      : Icons.emoji_events_outlined,
+                  'دستاورد',
+                  () => _toggleAchieved(store, h, n),
+                  color: n.extra['achieved'] == true
+                      ? const Color(0xFFF4C542)
+                      : null,
+                  active: n.extra['achieved'] == true,
+                ),
+                _miniAction(
+                  Icons.delete_outline_rounded,
+                  'حذف',
+                  () => _confirmDelete(store, h, n),
+                  color: const Color(0xFFE5484D),
+                ),
+              ],
+            ),
           ),
           if (timerRunning(n))
             const Padding(
@@ -1265,10 +1307,19 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
 
     final tile = Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: tileBody,
+      padding: const EdgeInsets.only(bottom: 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(
+                color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: tileBody,
+        ),
       ),
     );
 

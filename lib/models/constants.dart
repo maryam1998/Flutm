@@ -8,6 +8,16 @@ const kDefaultImgSize = 50.0;
 const kIconScaleMin = 0.5;
 const kIconScaleMax = 3.0;
 
+/// دکمه/برچسب «زیرشاخه» فعلاً مخفی است (نام نهایی هنوز انتخاب نشده).
+/// برای برگرداندن، فقط این مقدار را true کنید.
+const kShowSubActions = false;
+
+/// سقف اندازه‌ی انیمیشن روی مسیر (ضریب؛ ۱.۰ = ۱۰۰٪)
+const kWalkerSizeMin = 0.4;
+const kWalkerSizeMax = 8.0; // هدف / قدم‌زن اصلی (تا ۸۰۰٪)
+const kFootSizeMax = 6.0; // قدم هر اقدام (تا ۶۰۰٪)
+const kFootScaleMax = 5.0; // مقیاس کلی قدم‌ها در تنظیمات (تا ۵۰۰٪)
+
 class FreqBand {
   final String label, hz, desc;
   final String color;

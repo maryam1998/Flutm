@@ -90,7 +90,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
         kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
-    _footScale = s.footScale.clamp(0.4, 3.0).toDouble();
+    _footScale = s.footScale.clamp(kWalkerSizeMin, kFootScaleMax).toDouble();
     _userName = s.userName;
     _nameCtrl = TextEditingController(text: _userName);
   }
@@ -518,9 +518,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                         overlayColor: _kGold.withValues(alpha: 0.15),
                       ),
                       child: Slider(
-                        min: 0.4,
-                        max: 3.0,
-                        divisions: 26,
+                        min: kWalkerSizeMin,
+                        max: kFootScaleMax,
+                        divisions: 23,
                         value: _footScale,
                         label: '${(_footScale * 100).round()}٪',
                         onChanged: (v) => setState(() => _footScale = v),

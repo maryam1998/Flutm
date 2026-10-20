@@ -187,7 +187,7 @@ class GoalPathCard extends StatelessWidget {
           // ── نوع خط ──
           const PanelLabel('نوع خط مسیر'),
           const Text(
-            'ظاهرِ خطِ اصلی که از «من» تا این هدف کشیده می‌شود (فقط شکل خط؛ شکل خم‌شدنِ شاخه‌ها جدا و پایین‌تر است).',
+            'ظاهرِ خطِ اصلی که از «من» تا این هدف کشیده می‌شود (فقط شکل خط؛ شکل خم‌شدنِ اقدامات جدا و پایین‌تر است).',
             style: TextStyle(fontSize: 11.5, height: 1.6, color: _kMuted),
           ),
           const SizedBox(height: 10),

@@ -804,8 +804,9 @@ class MapPainter extends CustomPainter {
       speed: speed.toDouble(),
       manualT: manualT,
       baseSize: 20.0 *
-          state.footScale.clamp(0.4, 3.0) *
-          ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0).clamp(0.4, 3.0),
+          state.footScale.clamp(kWalkerSizeMin, kFootScaleMax) *
+          ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
+              .clamp(kWalkerSizeMin, kWalkerSizeMax),
       trailCount: 5,
       hitType: 'walker',
       hitId: g.id,
@@ -825,8 +826,8 @@ class MapPainter extends CustomPainter {
         : color0;
     final n = _logCount(a);
     final route = _RouteCurve(routePts);
-    final sizeMul = state.footScale.clamp(0.4, 3.0);
-    final footMul = (a.footSize ?? 1.0).clamp(0.4, 2.5);
+    final sizeMul = state.footScale.clamp(kWalkerSizeMin, kFootScaleMax);
+    final footMul = (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax);
     final size = baseSize * 1.2 * sizeMul * footMul;
     final len = math.max(route.length, 1.0);
 

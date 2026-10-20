@@ -719,10 +719,10 @@ class _EditSheetState extends State<EditSheet> {
       if (act != null) ...[
         _slider(
           label: 'اندازه‌ی انیمیشن',
-          value: (act.footSize ?? 1.0).clamp(0.4, 2.5).toDouble(),
-          min: 0.4,
-          max: 2.5,
-          divisions: 21,
+          value: (act.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax).toDouble(),
+          min: kWalkerSizeMin,
+          max: kFootSizeMax,
+          divisions: 28,
           valueText: '${((act.footSize ?? 1.0) * 100).round()}٪',
           onChanged: (v) => _edit(() => act!.footSize = v),
         ),
@@ -745,11 +745,11 @@ class _EditSheetState extends State<EditSheet> {
         _slider(
           label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
           value: ((ex['walkerSize'] as num?)?.toDouble() ?? 1.0)
-              .clamp(0.4, 3.0)
+              .clamp(kWalkerSizeMin, kWalkerSizeMax)
               .toDouble(),
-          min: 0.4,
-          max: 3.0,
-          divisions: 26,
+          min: kWalkerSizeMin,
+          max: kWalkerSizeMax,
+          divisions: 38,
           valueText:
               '${(((ex['walkerSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
           onChanged: (v) => _edit(() => ex['walkerSize'] = v),
@@ -827,10 +827,10 @@ class _EditSheetState extends State<EditSheet> {
       ),
       PanelCard(
         icon: Icons.alt_route_rounded,
-        title: 'شکل شاخه‌ها',
+        title: 'شکل اقدامات',
         subtitle:
-            'شاخه‌هایی که از این هدف بیرون می‌آیند چطور خم شوند: مستقیم، قوسی، پله‌ای و… '
-            'هر شاخه می‌تواند شکل خودش را هم جدا داشته باشد.',
+            'اقدام‌هایی که از این هدف بیرون می‌آیند چطور خم شوند: مستقیم، قوسی، پله‌ای و… '
+            'هر اقدام می‌تواند شکل خودش را هم جدا داشته باشد.',
         children: [
           _shapeGrid(g.branchStyle,
               (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
@@ -855,10 +855,10 @@ class _EditSheetState extends State<EditSheet> {
           const SizedBox(height: 6),
           _slider(
             label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
-            value: walkerSize.clamp(0.4, 3.0),
-            min: 0.4,
-            max: 3.0,
-            divisions: 26,
+            value: walkerSize.clamp(kWalkerSizeMin, kWalkerSizeMax),
+            min: kWalkerSizeMin,
+            max: kWalkerSizeMax,
+            divisions: 38,
             valueText: '${(walkerSize * 100).round()}٪',
             onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
           ),
@@ -885,7 +885,7 @@ class _EditSheetState extends State<EditSheet> {
         },
         deleteLabel: 'حذف هدف',
         onDelete: () async {
-          if (!await _confirm('این هدف و همه‌ی شاخه‌هایش حذف بشه؟')) return;
+          if (!await _confirm('این هدف و همه‌ی اقدام‌هایش حذف بشه؟')) return;
           _store.deleteGoal(g.id);
           if (mounted) Navigator.pop(context);
         },
@@ -948,8 +948,8 @@ class _EditSheetState extends State<EditSheet> {
       ),
       PanelCard(
         icon: Icons.alt_route_rounded,
-        title: 'شکل شاخه‌ها',
-        subtitle: 'شاخه‌های این نشانه چطور خم شوند.',
+        title: 'شکل اقدامات',
+        subtitle: 'اقدام‌های این نشانه چطور خم شوند.',
         children: [
           _shapeGrid(r.branchStyle,
               (v) => r.branchStyle = v.isEmpty ? 'organic' : v),
@@ -973,19 +973,19 @@ class _EditSheetState extends State<EditSheet> {
   }
 
   // ============================================================
-  // شاخه (اکشن)
+  // اقدام (اکشن)
   // ============================================================
   List<Widget> _actionBody(MapHost host, ActionNode a) {
     final footPlaying = a.footPlaying;
     return [
       PanelCard(
         icon: Icons.eco_rounded,
-        title: 'شاخه',
+        title: 'اقدام',
         children: [
           _textField(
             ctlKey: 'node:${a.id}',
             initial: a.text,
-            label: 'متن شاخه',
+            label: 'متن اقدام',
             onChanged: (v) => _edit(() => a.text = v),
           ),
           const PanelLabel('عکس'),
@@ -1001,17 +1001,17 @@ class _EditSheetState extends State<EditSheet> {
       ),
       PanelCard(
         icon: Icons.palette_rounded,
-        title: 'ظاهر شاخه',
+        title: 'ظاهر اقدام',
         children: [
           const PanelLabel('رنگ'),
           _swatches(a.color, (c) => a.color = c,
               onInherit: () => a.color = null),
-          const PanelLabel('شکل این شاخه'),
+          const PanelLabel('شکل این اقدام'),
           _shapeGrid(a.style, (v) => a.style = v,
               inherit: true, inheritLabel: 'مثل هدف'),
           const SizedBox(height: 6),
           _slider(
-            label: 'طول و اهمیت شاخه',
+            label: 'طول و اهمیت اقدام',
             value: a.weight.clamp(1.0, 10.0).toDouble(),
             min: 1,
             max: 10,
@@ -1042,10 +1042,10 @@ class _EditSheetState extends State<EditSheet> {
         children: [
       _slider(
         label: 'اندازه‌ی قدم',
-        value: (a.footSize ?? 1.0).clamp(0.4, 2.5),
-        min: 0.4,
-        max: 2.5,
-        divisions: 21,
+        value: (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax),
+        min: kWalkerSizeMin,
+        max: kFootSizeMax,
+        divisions: 28,
         valueText: '${((a.footSize ?? 1.0) * 100).round()}٪',
         onChanged: (v) => _edit(() => a.footSize = v),
       ),
@@ -1110,13 +1110,18 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       PanelCard(
-        icon: Icons.account_tree_rounded,
-        title: 'زیرشاخه‌ها',
+        icon: kShowSubActions
+            ? Icons.account_tree_rounded
+            : Icons.place_outlined,
+        title: kShowSubActions ? 'زیرشاخه‌ها' : 'جای اقدام',
         children: [
-          ..._tree(host, a.children, 0),
-          const SizedBox(height: 10),
+          if (kShowSubActions || a.children.isNotEmpty) ...[
+            ..._tree(host, a.children, 0),
+            const SizedBox(height: 10),
+          ],
           Row(
             children: [
+              if (kShowSubActions)
               Expanded(
                 child: FilledButton.tonalIcon(
                   style: FilledButton.styleFrom(
@@ -1136,7 +1141,7 @@ class _EditSheetState extends State<EditSheet> {
                       style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ),
-              const SizedBox(width: 8),
+              if (kShowSubActions) const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
@@ -1150,7 +1155,7 @@ class _EditSheetState extends State<EditSheet> {
                   onPressed: () {
                     resetBranchPos(a);
                     _store.changed();
-                    _store.toast?.call('شاخه به جای اولش برگشت');
+                    _store.toast?.call('اقدام به جای اولش برگشت');
                   },
                   icon: const Icon(Icons.restart_alt, size: 18),
                   label: const Text('برگرداندن به جای اول',
@@ -1169,7 +1174,7 @@ class _EditSheetState extends State<EditSheet> {
         },
         deleteLabel: 'حذف',
         onDelete: () async {
-          if (!await _confirm('این شاخه و زیرشاخه‌هایش حذف بشه؟')) return;
+          if (!await _confirm('این اقدام حذف بشه؟')) return;
           _store.deleteAction(host.id, a.id);
           if (!mounted) return;
           if (_back.isNotEmpty) {
@@ -1183,19 +1188,19 @@ class _EditSheetState extends State<EditSheet> {
   }
 
   // ------------------------------------------------------------
-  // لیست شاخه‌ها
+  // لیست اقدامات
   // ------------------------------------------------------------
   List<Widget> _branchesSection(MapHost host) {
     return [
       PanelCard(
         icon: Icons.account_tree_rounded,
-        title: 'شاخه‌ها',
-        subtitle: 'کارهای کوچکی که تو را به اینجا می‌رسانند. با ⚙ جزئیات هر شاخه را عوض کن.',
+        title: 'اقدامات',
+        subtitle: 'کارهای کوچکی که تو را به اینجا می‌رسانند. با ⚙ جزئیات هر اقدام را عوض کن.',
         children: [
           if (host.actions.isEmpty)
             const Padding(
               padding: EdgeInsets.only(bottom: 8),
-              child: Text('هنوز شاخه‌ای نیست.',
+              child: Text('هنوز اقدامی نیست.',
                   style: TextStyle(color: _kMuted, fontSize: 12)),
             ),
           ..._tree(host, host.actions, 0),
@@ -1215,7 +1220,7 @@ class _EditSheetState extends State<EditSheet> {
                 setState(() => _focusId = a.id);
               },
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('افزودن شاخه',
+              label: const Text('افزودن اقدام',
                   style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
@@ -1262,7 +1267,7 @@ class _EditSheetState extends State<EditSheet> {
                   decoration: const InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: 'متن شاخه',
+                    hintText: 'متن اقدام',
                     hintStyle: TextStyle(color: _kMuted, fontSize: 12.5),
                     contentPadding: EdgeInsets.symmetric(vertical: 6),
                   ),
@@ -1281,7 +1286,7 @@ class _EditSheetState extends State<EditSheet> {
                     const BoxConstraints.tightFor(width: 30, height: 30),
                 icon: const Icon(Icons.close, size: 18, color: _kDanger),
                 onPressed: () async {
-                  if (!await _confirm('این شاخه حذف بشه؟')) {
+                  if (!await _confirm('این اقدام حذف بشه؟')) {
                     return;
                   }
                   _store.deleteAction(host.id, a.id);
