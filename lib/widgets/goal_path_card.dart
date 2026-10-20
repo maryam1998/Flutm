@@ -180,45 +180,7 @@ class GoalPathCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              for (final c in [...kWebPalette, ..._kMoreColors])
-                _Swatch(
-                  color: c,
-                  active: _hex(c) == hex,
-                  onTap: () => onColor(_hex(c)),
-                ),
-              // رنگ دلخواه (چرخه‌ی رنگ کامل)
-              GestureDetector(
-                onTap: () async {
-                  final picked =
-                      await showWebColorDialog(context, initial: col);
-                  if (picked != null) onColor(_hex(picked));
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const SweepGradient(colors: [
-                      Color(0xFFFF4D4D),
-                      Color(0xFFFFD93D),
-                      Color(0xFF6BFF6B),
-                      Color(0xFF4DFFEA),
-                      Color(0xFF4D79FF),
-                      Color(0xFFD14DFF),
-                      Color(0xFFFF4D4D),
-                    ]),
-                    border: Border.all(color: const Color(0x22000000), width: 1.5),
-                  ),
-                  child: const Icon(Icons.add, size: 18, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
+          GoalColorGrid(color: col, onColor: onColor),
           const SizedBox(height: 18),
 
           // ── ضخامت ──
@@ -300,6 +262,72 @@ class GoalPathCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// شبکه‌ی رنگِ مشترک برای همه‌ی بخش‌های هدف‌گذاری (همان ظاهر کارت «ظاهر مسیر هدف»):
+/// ۸ رنگ پیش‌فرض نقشه + ۴ رنگ بیشتر + رنگ دلخواه (چرخه‌ی رنگ). رنگ انتخاب‌شده تیک دارد.
+/// [extra] رنگ‌های اضافه‌ی خاص یک بخش (مثلاً رنگ حلقه) را به انتهای پالت می‌افزاید.
+class GoalColorGrid extends StatelessWidget {
+  const GoalColorGrid({
+    super.key,
+    required this.color,
+    required this.onColor,
+    this.extra = const [],
+    this.noSelection = false,
+  });
+
+  /// true ⇒ هیچ رنگی تیک نمی‌خورد (مثلاً وقتی «مثل هدف» انتخاب شده)
+  final bool noSelection;
+  final Color color;
+  final ValueChanged<String> onColor;
+  final List<Color> extra;
+
+  @override
+  Widget build(BuildContext context) {
+    final hex = GoalPathCard._hex(color);
+    final all = <Color>[...kWebPalette, ..._kMoreColors];
+    for (final e in extra) {
+      if (!all.any((c) => GoalPathCard._hex(c) == GoalPathCard._hex(e))) all.add(e);
+    }
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final c in all)
+          _Swatch(
+            color: c,
+            active: !noSelection && GoalPathCard._hex(c) == hex,
+            onTap: () => onColor(GoalPathCard._hex(c)),
+          ),
+        // رنگ دلخواه (چرخه‌ی رنگ کامل)
+        GestureDetector(
+          onTap: () async {
+            final picked = await showWebColorDialog(context, initial: color);
+            if (picked != null) onColor(GoalPathCard._hex(picked));
+          },
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const SweepGradient(colors: [
+                Color(0xFFFF4D4D),
+                Color(0xFFFFD93D),
+                Color(0xFF6BFF6B),
+                Color(0xFF4DFFEA),
+                Color(0xFF4D79FF),
+                Color(0xFFD14DFF),
+                Color(0xFFFF4D4D),
+              ]),
+              border: Border.all(color: const Color(0x22000000), width: 1.5),
+            ),
+            child: const Icon(Icons.add, size: 18, color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 }

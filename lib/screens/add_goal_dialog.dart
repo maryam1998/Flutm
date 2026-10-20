@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/constants.dart';
 import '../state/map_store.dart';
+import '../widgets/goal_path_card.dart';
 
 /// دیالوگ «هدف جدید»؛ هدف روی یک جای خالی دور «من» ساخته میشه
 Future<void> showAddGoalDialog(BuildContext context) async {
@@ -79,24 +80,9 @@ class _AddGoalDialogState extends State<_AddGoalDialog> {
               ),
             ),
             const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final hex in kPalette)
-                  GestureDetector(
-                    onTap: () => setState(() => _color = hex),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: hexColor(hex),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _color == hex ? Colors.white : Colors.transparent, width: 3),
-                      ),
-                    ),
-                  ),
-              ],
+            GoalColorGrid(
+              color: hexColor(_color),
+              onColor: (hex) => setState(() => _color = hex),
             ),
           ],
         ),

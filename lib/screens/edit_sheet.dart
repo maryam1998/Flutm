@@ -402,25 +402,15 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  String _hexOf(Color c) {
-    int v(double x) => (x * 255).round().clamp(0, 255);
-    return '#${v(c.r).toRadixString(16).padLeft(2, '0')}'
-        '${v(c.g).toRadixString(16).padLeft(2, '0')}'
-        '${v(c.b).toRadixString(16).padLeft(2, '0')}';
-  }
-
   Widget _swatches(
     String? current,
     void Function(String) onPick, {
     List<String> extra = const [],
     VoidCallback? onInherit,
-    bool settingsStyle = false, // مثل «رنگ نوشته‌ها» در تنظیمات: بدون قطره‌چکان
   }) {
     final cur = (current ?? '').toLowerCase();
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (onInherit != null)
           GestureDetector(
@@ -447,37 +437,15 @@ class _EditSheetState extends State<EditSheet> {
               ),
             ),
           ),
-        // همان پالت و دیالوگ رنگ بخش «تنظیمات»
-        WebColorPicker(
-          value: hexColor(current, kWebPalette.first),
-          showCustom: !settingsStyle,
-          palette: [
-            ...kWebPalette,
-            for (final hex in extra) hexColor(hex),
-          ],
-          onChanged: (c) => _edit(() => onPick(_hexOf(c))),
+        if (onInherit != null) const SizedBox(height: 10),
+        // همان پالت و ظاهر کارت «ظاهر مسیر هدف»
+        GoalColorGrid(
+          noSelection: onInherit != null && cur.isEmpty,
+          color: hexColor(current, kWebPalette.first),
+          extra: [for (final hex in extra) hexColor(hex)],
+          onColor: (hex) => _edit(() => onPick(hex)),
         ),
-        if (settingsStyle)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: hexColor(current, kWebPalette.first),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _kBorder, width: 1.5),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'رنگ انتخابی: ${cur.isNotEmpty ? cur : _hexOf(kWebPalette.first)}',
-                style: const TextStyle(fontSize: 11.5, color: _kMuted),
-              ),
-            ],
-          )
-        else if (current != null && current.isNotEmpty)
+        if (current != null && current.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
