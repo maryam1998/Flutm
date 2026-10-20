@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
+import '../services/fast_image.dart';
 import '../state/angels_store.dart';
 import '../state/background_store.dart';
 import '../state/map_store.dart';
@@ -15,37 +16,43 @@ import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
 import 'motivation_sheet.dart';
 
-const _kCream = Color(0xFFFBF6EA);
-const _kCard = Colors.white;
-const _kGold = Color(0xFFC9972B);
-const _kInk = Color(0xFF2A2218);
-const _kMuted = Color(0xFF7A6B57);
-const _kBorder = Color(0xFFE0D5C0);
+// پالت دقیقِ Maghz (html[data-theme="light"] در css/base-and-map.css)
+const _kCream = Color.fromRGBO(255, 255, 255, 0.92); // --panel-bg
+const _kCard = Color(0xFFF1F2F8); // --input-bg
+const _kGold = Color(0xFFC9962B); // --accent
+const _kInk = Color(0xFF000000); // --text-main
+const _kMuted = Color(0xFF5B5F77); // --text-dim
+const _kBorder = Color.fromRGBO(20, 24, 50, 0.10); // --panel-border
 const _kDanger = Color(0xFFE5484D);
 
-/// منوی همبرگری: از سمت چپ باز می‌شود، کل صفحه را نمی‌گیرد.
+/// پنجره‌ی تنظیمات — مثل `.overlay` + `.modal` در Maghz:
+/// پرده‌ی rgba(5,6,14,.6)، کادر وسط‌صفحه تا min(360px, 90vw)، گوشه ۱۸،
+/// پس‌زمینه‌ی نیمه‌شفاف (--panel-bg) تا پس‌زمینه‌ی برنامه پشتش دیده شود.
 Future<void> showSettingsSheet(BuildContext context) {
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'بستن تنظیمات',
-    barrierColor: Colors.black.withAlpha(100),
-    transitionDuration: const Duration(milliseconds: 260),
+    barrierColor: const Color.fromRGBO(5, 6, 14, 0.6),
+    transitionDuration: const Duration(milliseconds: 200),
     pageBuilder: (ctx, _, __) {
-      final w = MediaQuery.sizeOf(ctx).width;
-      return Align(
-        alignment: Alignment.centerLeft,
+      final sz = MediaQuery.sizeOf(ctx);
+      final w = sz.width * 0.9 < 360 ? sz.width * 0.9 : 360.0;
+      return Center(
         child: SizedBox(
-          width: (w * 0.78).clamp(260.0, 340.0).toDouble(),
-          height: double.infinity,
+          width: w,
+          height: sz.height - 40,
           child: const _SettingsSheet(),
         ),
       );
     },
-    transitionBuilder: (_, anim, __, child) => SlideTransition(
-      position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)
-          .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-      child: child,
+    transitionBuilder: (_, anim, __, child) => FadeTransition(
+      opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.96, end: 1).animate(
+            CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
     ),
   );
 }
@@ -195,7 +202,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       final res = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: true,
-        withData: true,
+        // روی موبایل/دسکتاپ فقط مسیر کافیه؛ روی وب بایت‌ها لازمه
+        withData: kIsWeb,
       );
       if (res == null) return;
       for (final f in res.files) {
@@ -210,7 +218,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         final kind = _kindOf(f.name, bytes);
         bool ok = false;
         if (kind == 'image') {
-          ok = await angels.addImage(bytes);
+          // فرشته‌ها کوچیک نمایش داده می‌شن؛ عکس خام چندمگابایتی فقط ذخیره و بالا اومدن رو کند می‌کرد
+          final small =
+              await fastDownscale(bytes, name: f.name, maxSide: 1280);
+          ok = await angels.addImage(small);
         } else if (kind == 'video') {
           ok = await angels.addVideo(
             name: f.name,
@@ -240,9 +251,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   Widget build(BuildContext context) {
     return Material(
       color: _kCream,
-      elevation: 12,
-      borderRadius:
-          const BorderRadius.horizontal(right: Radius.circular(22)),
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: _kBorder),
+      ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
         child: Column(
@@ -448,13 +462,13 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ چک‌باکس‌ها ═══════════
                     _checkTile(
                       title:
-                          'نمایش «تاریخ» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                          '',
                       value: _showDates,
                       onChanged: (v) => setState(() => _showDates = v),
                     ),
                     _checkTile(
                       title:
-                          'نمایش «ساعت» ثبت هدف‌ها و شاخه‌ها روی صفحه اصلی',
+                          '',
                       value: _showTimes,
                       onChanged: (v) => setState(() => _showTimes = v),
                     ),
@@ -476,7 +490,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     // ═══════════ اندازه‌ی رد پا ═══════════
                     Row(
                       children: [
-                        Flexible(child: _sectionTitle('اندازه‌ی رد پا 👣')),
+                        Flexible(child: _sectionTitle('اندازه‌ی انیمیشن 👣')),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -531,133 +545,121 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                       builder: (_, bg, __) => Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text('رنگ پس‌زمینه‌ی اپ',
-                              style:
-                                  TextStyle(fontSize: 12, color: _kMuted)),
-                          const SizedBox(height: 8),
-                          WebColorPicker(
-                            value: bg.color ?? Colors.white,
-                            onChanged: (c) => bg.setColor(c),
-                          ),
-                          if (bg.color != null)
-                            Align(
-                              alignment: AlignmentDirectional.centerStart,
-                              child: TextButton(
-                                onPressed: () => bg.setColor(null),
-                                child: const Text('بازگشت به رنگ پیش‌فرض',
-                                    style: TextStyle(fontSize: 12)),
-                              ),
-                            ),
-                          const SizedBox(height: 10),
                           Row(
                             children: [
                               Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _kInk,
-                                    side: const BorderSide(color: _kBorder),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    final ok = await bg.pickImage();
-                                    if (ok && context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
-                                              content: Text(
-                                                  'تصویر پس‌زمینه ثبت شد')));
-                                    }
-                                  },
-                                  icon: const Icon(Icons.image_outlined,
-                                      size: 18),
-                                  label: const Text('تصویر (jpg/png/gif)',
-                                      style: TextStyle(fontSize: 12)),
+                                child: _bgModeBtn(
+                                  icon: Icons.crop_square_rounded,
+                                  label: 'ساده (Calm)',
+                                  active: !bg.custom,
+                                  onTap: () => bg.setCustom(false),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _kInk,
-                                    side: const BorderSide(color: _kBorder),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    final ok = await bg.pickVideo();
-                                    if (ok && context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
-                                              content:
-                                                  Text('ویدیو پس‌زمینه ثبت شد')));
-                                    }
-                                  },
-                                  icon: const Icon(Icons.videocam_outlined,
-                                      size: 18),
-                                  label: const Text('ویدیو (بی‌صدا)',
-                                      style: TextStyle(fontSize: 12)),
+                                child: _bgModeBtn(
+                                  icon: Icons.image_outlined,
+                                  label: 'پس‌زمینه دلخواه',
+                                  active: bg.custom,
+                                  onTap: () => bg.setCustom(true),
                                 ),
                               ),
-                              if (bg.hasBackground) ...[
-                                const SizedBox(width: 6),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: _kDanger),
-                                  onPressed: () => bg.clear(),
-                                ),
-                              ],
                             ],
                           ),
-                          if (bg.hasBackground) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              bg.kind == BgKind.image
-                                  ? 'تصویر فعال'
-                                  : 'ویدیو فعال',
-                              style: const TextStyle(
-                                  fontSize: 11, color: _kMuted),
-                            ),
-                            const SizedBox(height: 10),
+                          if (bg.custom) ...[
+                            const SizedBox(height: 14),
+                            const Text(
+                                'عکس، GIF، WebP متحرک یا ویدیو (mp4، webm، mov، mkv ...) — ویدیو بی‌صدا پخش می‌شود',
+                                style:
+                                    TextStyle(fontSize: 12, color: _kMuted)),
+                            const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Text('محو بودن پس‌زمینه (Blur)',
-                                    style: TextStyle(
-                                        fontSize: 12, color: _kMuted)),
-                                Expanded(
-                                  child: Slider(
-                                    min: 0,
-                                    max: 20,
-                                    divisions: 20,
-                                    value: bg.blur,
-                                    activeColor: _kGold,
-                                    inactiveColor: _kBorder,
-                                    onChanged: (v) => bg.setBlur(v),
+                                if (bg.hasBackground) ...[
+                                  Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: _kCard,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: _kBorder),
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: (bg.kind == BgKind.image ||
+                                                bg.kind == BgKind.anim) &&
+                                            bg.imageBytes != null
+                                        ? Image.memory(bg.imageBytes!,
+                                            fit: BoxFit.cover,
+                                            gaplessPlayback: true)
+                                        : const Center(
+                                            child: Icon(
+                                                Icons.play_circle_outline,
+                                                color: _kGold,
+                                                size: 26)),
+                                  ),
+                                  const SizedBox(width: 10),
+                                ],
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () async {
+                                    final err = await bg.pickAndSet(context);
+                                    if (err != null && context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                              SnackBar(content: Text(err)));
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: _kCard,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: _kBorder),
+                                    ),
+                                    child: const Text(
+                                      'انتخاب عکس، GIF یا ویدیو…',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _kInk),
+                                    ),
                                   ),
                                 ),
+                                if (bg.hasBackground)
+                                  TextButton(
+                                    onPressed: () => bg.clear(),
+                                    child: const Text('حذف پس‌زمینه',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFFC96B6B))),
+                                  ),
                               ],
                             ),
-                            Row(
-                              children: [
-                                const Text('شفافیت پس‌زمینه',
-                                    style: TextStyle(
-                                        fontSize: 12, color: _kMuted)),
-                                Expanded(
-                                  child: Slider(
-                                    min: 0.1,
-                                    max: 1.0,
-                                    value: bg.opacity,
-                                    activeColor: _kGold,
-                                    inactiveColor: _kBorder,
-                                    onChanged: (v) => bg.setOpacity(v),
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 12),
+                            const Text('محو بودن پس‌زمینه (Blur)',
+                                style:
+                                    TextStyle(fontSize: 12, color: _kMuted)),
+                            Slider(
+                              min: 0,
+                              max: 20,
+                              divisions: 20,
+                              value: bg.blur,
+                              activeColor: _kGold,
+                              inactiveColor: _kBorder,
+                              onChanged: (v) => bg.setBlur(v),
+                            ),
+                            const Text('شفافیت پس‌زمینه',
+                                style:
+                                    TextStyle(fontSize: 12, color: _kMuted)),
+                            Slider(
+                              min: 10,
+                              max: 100,
+                              divisions: 90,
+                              value: (bg.opacity * 100).clamp(10, 100),
+                              activeColor: _kGold,
+                              inactiveColor: _kBorder,
+                              onChanged: (v) => bg.setOpacity(v / 100),
                             ),
                           ],
                         ],
@@ -1047,6 +1049,41 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           ],
         ),
       );
+
+  /// دکمه‌ی حالت پس‌زمینه (مثل `.bgmode-btn` در وب)
+  Widget _bgModeBtn({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          color: active ? const Color.fromRGBO(244, 197, 66, 0.12) : _kCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: active ? _kGold : _kBorder),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: active ? _kInk : _kMuted),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: active ? _kInk : _kMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _angelSlider({
     required String label,
