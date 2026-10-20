@@ -16,6 +16,7 @@ import '../theme/grat_palette.dart';
 import '../widgets/audio_clip_view.dart';
 import '../widgets/grat_media.dart';
 import '../widgets/gratitude_slideshow.dart';
+import '../widgets/grat_period_calendar.dart';
 import '../widgets/neural_pathway.dart';
 import '../widgets/inline_voice_button.dart';
 import '../services/image_service.dart';
@@ -72,9 +73,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
             _CounterCard(store: store, pal: pal),
             const SizedBox(height: 8),
             _ThemeBanner(info: info, pal: pal, pastCount: store.pastPeriods.length),
-            const SizedBox(height: 14),
-            _MiniCalendar(store: store, pal: pal),
-            const SizedBox(height: 14),
+            // .quick-add margin:4px 18px 16px
+            const SizedBox(height: 4),
             _Composer(
               pal: pal,
               prompt: info.prompt,
@@ -95,7 +95,28 @@ class _GratitudeTabState extends State<GratitudeTab> {
               onRemoveVideo: (i) => setState(() => _pendingVideos.removeAt(i)),
               onSubmit: _submit,
             ),
-            const SizedBox(height: 20),
+            // .quick-add margin-bottom:16 (با margin-top:10 عنوان ادغام می‌شه)
+            const SizedBox(height: 16),
+            // <div class="items-title" style="margin-top:10px">📅 تقویم شکرگذاری</div>
+            // .items-title: font-size:13px; font-weight:800; margin: 22px 0 10px (بدون حاشیه‌ی کنار)
+            Text(
+              '📅 تقویم شکرگذاری',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: pal.ink,
+              ),
+            ),
+            // عنوان margin-bottom:10 با #hist-gratitude-mini-cal margin-top:14 ادغام می‌شه → 14
+            const SizedBox(height: 14),
+            // #hist-gratitude-mini-cal + #hist-gratitude-mini-cal-info (margin:0 در راستای افقی)
+            GratMiniCalendar(
+              store: store,
+              pal: pal,
+              variant: GratCalVariant.history,
+            ),
+            // .section-label margin-top:26 (۸ تاش را خودِ _SectionLabel دارد)
+            const SizedBox(height: 18),
             _SectionLabel(
               icon: Icons.psychology_alt_outlined,
               title: 'مسیر عصبی شکرگذاری',
@@ -737,7 +758,7 @@ class _ThemeBanner extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            '🧭 دوره‌ی ${pastCount > 0 ? '${_MiniCalendar.ord(pastCount)} — ' : ''}${_toFa(info.totalDays)} روزه — ${info.phaseShort}',
+                            '🧭 دوره‌ی ${pastCount > 0 ? '${GratMiniCalendar.ord(pastCount)} — ' : ''}${_toFa(info.totalDays)} روزه — ${info.phaseShort}',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.85),
                               fontSize: 11,
@@ -799,637 +820,6 @@ class _ThemeBanner extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//                       تقویم کوچک ۱۵ستونی
-// ════════════════════════════════════════════════════════════════
-class _MiniCalendar extends StatelessWidget {
-  final GratitudeStore store;
-  final GratPalette pal;
-  final double horizontal;
-  const _MiniCalendar({
-    required this.store,
-    required this.pal,
-    this.horizontal = 18,
-  });
-
-  static const _monthOrd = [
-    'اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم',
-    'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم',
-  ];
-  static const _jalaliMonths = [
-    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
-  ];
-
-  static String ord(int i) =>
-      i >= 0 && i < _monthOrd.length ? _monthOrd[i] : _toFa(i + 1);
-
-  @override
-  Widget build(BuildContext context) {
-    final start = _parseKey(store.journeyStart);
-    final total = store.journeyDays;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final doneSet = store.doneDayKeys;
-
-    final grid = _PeriodGrid(
-      pal: pal,
-      store: store,
-      start: start,
-      total: total,
-      doneSet: doneSet,
-      withEmotions: true,
-    );
-
-    // دوره تموم شده؟ (today >= start + total)
-    final end = DateTime(start.year, start.month, start.day + total);
-    final finished = !today.isBefore(end);
-    var doneCount = 0;
-    for (var d = 0; d < total; d++) {
-      if (doneSet.contains(_key(DateTime(start.year, start.month, start.day + d)))) {
-        doneCount++;
-      }
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontal),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: pal.surface,
-              border: Border.all(color: pal.line),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: grid,
-          ),
-          const SizedBox(height: 10),
-          if (finished) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE6CD8E).withValues(alpha: 0.25),
-                border: Border.all(color: pal.gold300),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '🎉🥳 دوره‌ی ${ord(store.pastPeriods.length)} رو تموم کردی! '
-                '${_toFa(doneCount < total ? doneCount : total)} روز از ${_toFa(total)} روز شکرگذاری کردی.\n'
-                'برای ادامه دوره‌ی بعدی رو شروع کن — دوره‌های قبلی همین‌جا می‌مونن.',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  height: 1.8,
-                  color: pal.ink,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            _TinyBtn(
-              pal: pal,
-              gold: true,
-              label: '▶️ شروع دوره‌ی ${ord(store.pastPeriods.length + 1)}',
-              onTap: () => _askDays(
-                context,
-                title: 'دوره‌ی ${ord(store.pastPeriods.length + 1)} چند روزه باشه؟',
-                initial: total,
-                onOk: (n) async {
-                  await store.startNewJourney(days: n);
-                  _snack(context, 'دوره‌ی ${ord(store.pastPeriods.length)} شروع شد 🌱');
-                },
-              ),
-            ),
-          ] else
-            _TinyBtn(
-              pal: pal,
-              icon: Icons.light_mode_outlined,
-              label: 'روزهای دوره (الان ${_toFa(total)} روزه)',
-              onTap: () => _askDays(
-                context,
-                title: 'دوره‌ی ${ord(store.pastPeriods.length)} چند روزه باشه؟',
-                initial: total,
-                onOk: (n) async {
-                  await store.setJourneyDays(n);
-                  _snack(context, 'دوره روی ${_toFa(n)} روز تنظیم شد 🌱');
-                },
-              ),
-            ),
-          if (store.pastPeriods.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            for (var i = store.pastPeriods.length - 1; i >= 0; i--) ...[
-              _PastPeriod(
-                pal: pal,
-                store: store,
-                index: i,
-                doneSet: doneSet,
-              ),
-              if (i > 0) const SizedBox(height: 6),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
-  static void _snack(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      duration: const Duration(milliseconds: 1600),
-      behavior: SnackBarBehavior.floating,
-    ));
-  }
-
-  /// معادل window.prompt وب برای تعداد روزهای دوره
-  static Future<void> _askDays(
-    BuildContext context, {
-    required String title,
-    required int initial,
-    required Future<void> Function(int n) onOk,
-  }) async {
-    final ctrl = TextEditingController(text: '$initial');
-    final n = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title, style: const TextStyle(fontSize: 14)),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          textDirection: TextDirection.ltr,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
-          FilledButton(
-            onPressed: () {
-              final v = int.tryParse(_normDigits(ctrl.text.trim()));
-              Navigator.pop(ctx, (v != null && v >= 1) ? v : -1);
-            },
-            child: const Text('تأیید'),
-          ),
-        ],
-      ),
-    );
-    if (n == null) return;
-    if (n < 1) {
-      if (context.mounted) _snack(context, 'یه عدد معتبر بزرگ‌تر از صفر وارد کن');
-      return;
-    }
-    await onOk(n);
-  }
-
-  static String _normDigits(String s) {
-    const fa = '۰۱۲۳۴۵۶۷۸۹';
-    const ar = '٠١٢٣٤٥٦٧٨٩';
-    final b = StringBuffer();
-    for (final c in s.split('')) {
-      final i = fa.indexOf(c);
-      final j = ar.indexOf(c);
-      b.write(i >= 0 ? '$i' : (j >= 0 ? '$j' : c));
-    }
-    return b.toString();
-  }
-
-  static DateTime _parseKey(String k) {
-    final p = k.split('-').map((e) => int.tryParse(e) ?? 1).toList();
-    if (p.length != 3) return DateTime.now();
-    return DateTime(p[0], p[1], p[2]);
-  }
-
-  static String _key(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  /// تبدیل دقیق میلادی → شمسی (همان الگوریتم jalaali-js در models/jalali.dart)
-  static (int, int, int) _toJalali(int gy, int gm, int gd) {
-    final j = jal.toJalaali(gy, gm, gd);
-    return (j.jy, j.jm, j.jd);
-  }
-
-  static const _weekdays = [
-    'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه', 'یکشنبه',
-  ];
-
-  /// متن تولتیپ هر روز: «شنبه ۲۵ مهر ۱۴۰۵ / امروز — ثبت نشده»
-  static String dayTitle(DateTime d) {
-    final j = _toJalali(d.year, d.month, d.day);
-    return '${_weekdays[d.weekday - 1]} ${_toFa(j.$3)} ${_jalaliMonths[j.$2 - 1]} ${_toFa(j.$1)}';
-  }
-}
-
-/// شبکه‌ی ۱۵ ستونه‌ی یک دوره — periodGridHtml وب
-class _PeriodGrid extends StatelessWidget {
-  final GratPalette pal;
-  final GratitudeStore store;
-  final DateTime start;
-  final int total;
-  final Set<String> doneSet;
-  final bool withEmotions;
-  final void Function(String dayKey)? onTapDone;
-
-  const _PeriodGrid({
-    required this.pal,
-    required this.store,
-    required this.start,
-    required this.total,
-    required this.doneSet,
-    this.withEmotions = false,
-    this.onTapDone,
-  });
-
-  static const cols = 15;
-  static const gap = 3.0;
-  static const blockSize = 30;
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final todayKey = _MiniCalendar._key(today);
-
-    final children = <Widget>[];
-    var row = <Widget>[];
-
-    void flush() {
-      if (row.isEmpty) return;
-      while (row.length < cols) {
-        row.add(const Expanded(child: SizedBox()));
-      }
-      children.add(Padding(
-        padding: const EdgeInsets.only(bottom: gap),
-        child: Row(
-          textDirection: TextDirection.rtl,
-          children: [
-            for (var i = 0; i < row.length; i++) ...[
-              if (i > 0) const SizedBox(width: gap),
-              row[i],
-            ],
-          ],
-        ),
-      ));
-      row = <Widget>[];
-    }
-
-    for (var d = 0; d < total; d++) {
-      final date = DateTime(start.year, start.month, start.day + d);
-      final key = _MiniCalendar._key(date);
-
-      if (d % blockSize == 0) {
-        flush();
-        final endIdx = (d + blockSize - 1) < total ? d + blockSize - 1 : total - 1;
-        final endDate = DateTime(start.year, start.month, start.day + endIdx);
-        final jF = _MiniCalendar._toJalali(date.year, date.month, date.day);
-        final jT = _MiniCalendar._toJalali(endDate.year, endDate.month, endDate.day);
-        children.add(Padding(
-          padding: EdgeInsets.only(top: d == 0 ? 0 : 8, bottom: 3),
-          child: Row(
-            textDirection: TextDirection.rtl,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('ماه ${_MiniCalendar.ord(d ~/ blockSize)}',
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: pal.ink)),
-              Text(
-                '${_toFa(jF.$3)} ${_MiniCalendar._jalaliMonths[jF.$2 - 1]} تا '
-                '${_toFa(jT.$3)} ${_MiniCalendar._jalaliMonths[jT.$2 - 1]}',
-                style: TextStyle(fontSize: 10.5, color: pal.muted),
-              ),
-            ],
-          ),
-        ));
-      }
-
-      final done = doneSet.contains(key);
-      final monthEnd = (d % blockSize == blockSize - 1) || d == total - 1;
-      Color? ring;
-      if (withEmotions && done) {
-        final hex = store.dayRingColor(key);
-        if (hex != null) {
-          try {
-            ring = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
-          } catch (_) {}
-        }
-      }
-
-      String? emoText;
-      if (withEmotions && done) {
-        final names = store
-            .emotionIdsForDay(key)
-            .map(emotionById)
-            .whereType<Emotion>()
-            .toList()
-          ..sort((a, b) => b.freq.compareTo(a.freq));
-        if (names.isNotEmpty) emoText = names.map((e) => e.fa).join('، ');
-      }
-
-      row.add(Expanded(
-        child: _DayCell(
-          pal: pal,
-          date: date,
-          emotionsText: emoText,
-          done: done,
-          today: key == todayKey,
-          future: date.isAfter(today),
-          monthEnd: monthEnd,
-          ring: ring,
-          onTap: (done && onTapDone != null) ? () => onTapDone!(key) : null,
-        ),
-      ));
-      if (row.length == cols) flush();
-    }
-    flush();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
-    );
-  }
-}
-
-/// یک روز — .mini-cal-day وب
-class _DayCell extends StatefulWidget {
-  final DateTime date;
-  final String? emotionsText;
-  final bool done, today, future, monthEnd;
-  final Color? ring;
-  final VoidCallback? onTap;
-  final GratPalette pal;
-
-  const _DayCell({
-    required this.pal,
-    required this.date,
-    this.emotionsText,
-    required this.done,
-    required this.today,
-    required this.future,
-    required this.monthEnd,
-    this.ring,
-    this.onTap,
-  });
-
-  @override
-  State<_DayCell> createState() => _DayCellState();
-}
-
-class _DayCellState extends State<_DayCell> {
-  final _tipKey = GlobalKey<TooltipState>();
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = widget.pal;
-    final done = widget.done, today = widget.today;
-    final future = widget.future, monthEnd = widget.monthEnd;
-    final ring = widget.ring;
-    final hasRing = ring != null;
-    final status = future
-        ? 'هنوز نرسیده'
-        : (today
-            ? (done ? 'امروز — ثبت شده' : 'امروز — ثبت نشده')
-            : (done ? 'ثبت شده' : 'ثبت نشده'));
-    return Tooltip(
-      key: _tipKey,
-      richMessage: TextSpan(children: [
-        TextSpan(
-          text: '${_MiniCalendar.dayTitle(widget.date)}\n',
-          style: const TextStyle(
-              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
-        ),
-        TextSpan(
-          text: status,
-          style: const TextStyle(color: Color(0xFFD7E3E8), fontSize: 11),
-        ),
-        if (widget.emotionsText != null)
-          TextSpan(
-            text: '\nحس: ${widget.emotionsText}',
-            style: const TextStyle(color: Color(0xFFFFE9A8), fontSize: 11),
-          ),
-      ]),
-      textAlign: TextAlign.center,
-      preferBelow: false,
-      triggerMode: TooltipTriggerMode.manual,
-      showDuration: const Duration(milliseconds: 1800),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12303D),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      // تپ روی هر روز: تولتیپ تاریخ + وضعیت + حس‌های ثبت‌شده از ادمک
-      onTap: widget.onTap ?? () => _tipKey.currentState?.ensureTooltipVisible(),
-      onLongPress: () => _tipKey.currentState?.ensureTooltipVisible(),
-      child: Opacity(
-        opacity: future ? 0.3 : 1,
-        child: AspectRatio(
-          aspectRatio: 1,
-          child: LayoutBuilder(builder: (ctx, box) {
-            final r = BorderRadius.circular(4);
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: Container(
-              decoration: BoxDecoration(
-                borderRadius: r,
-                gradient: done
-                    ? LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [pal.emerald700, pal.emerald500],
-                      )
-                    : null,
-                // خط دور روز خالی (فقط وقتی done/حلقه نیست)
-                border: (done || hasRing)
-                    ? null
-                    : Border.all(color: pal.line, width: 1),
-              ),
-              // حلقه‌ی رنگ حس: به‌صورت کادرِ روی سلول (نه سایه — سایه‌ی فلاتر
-              // داخل سلول خالی هم رنگ می‌ریخت و روز بنفش/آبی توپر می‌شد)
-              foregroundDecoration: hasRing
-                  ? BoxDecoration(
-                      borderRadius: r,
-                      border: Border.all(color: ring!, width: 2.4),
-                    )
-                  : null,
-              child: ClipRRect(
-                borderRadius: r,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (done)
-                      Icon(Icons.check,
-                          size: box.maxWidth * 0.62, color: Colors.white),
-                    if (monthEnd && !hasRing)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: 3,
-                        child: ColoredBox(color: pal.gold500),
-                      ),
-                  ],
-                ),
-              ),
-                  ),
-                ),
-                // کادر «امروز» — بیرونِ سلول
-                if (today)
-                  Positioned(
-                    left: hasRing ? -4.5 : -2,
-                    right: hasRing ? -4.5 : -2,
-                    top: hasRing ? -4.5 : -2,
-                    bottom: hasRing ? -4.5 : -2,
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: pal.emerald500, width: 2),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          }),
-        ),
-      ),
-      ),
-    );
-  }
-}
-
-/// دکمه‌ی .btn.tiny وب
-class _TinyBtn extends StatelessWidget {
-  final GratPalette pal;
-  final String label;
-  final IconData? icon;
-  final bool gold;
-  final VoidCallback onTap;
-  const _TinyBtn({
-    required this.pal,
-    required this.label,
-    required this.onTap,
-    this.icon,
-    this.gold = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: gold ? pal.accent : pal.card,
-      borderRadius: BorderRadius.circular(9),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(9),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: gold ? pal.accent : pal.line),
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 15, color: pal.ink),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: gold ? FontWeight.w600 : FontWeight.w400,
-                  color: gold ? const Color(0xFF221800) : pal.ink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// دوره‌ی تمام‌شده‌ی قبلی — details.mini-cal-past وب
-class _PastPeriod extends StatefulWidget {
-  final GratPalette pal;
-  final GratitudeStore store;
-  final int index;
-  final Set<String> doneSet;
-  const _PastPeriod({
-    required this.pal,
-    required this.store,
-    required this.index,
-    required this.doneSet,
-  });
-
-  @override
-  State<_PastPeriod> createState() => _PastPeriodState();
-}
-
-class _PastPeriodState extends State<_PastPeriod> {
-  bool _open = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = widget.pal;
-    final pd = widget.store.pastPeriods[widget.index];
-    final days = (pd['days'] as int?) ?? 28;
-    final start = _MiniCalendar._parseKey(pd['startDate']?.toString() ?? '');
-    var done = 0;
-    for (var d = 0; d < days; d++) {
-      if (widget.doneSet.contains(
-          _MiniCalendar._key(DateTime(start.year, start.month, start.day + d)))) {
-        done++;
-      }
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: pal.surface,
-        border: Border.all(color: pal.line),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _open = !_open),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '✅ دوره‌ی ${_MiniCalendar.ord(widget.index)} — ${_toFa(days)} روزه',
-                  style: TextStyle(
-                      fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.ink),
-                ),
-                Text(
-                  '${_toFa(done)} / ${_toFa(days)}',
-                  style: TextStyle(
-                      fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.ink),
-                ),
-              ],
-            ),
-          ),
-          if (_open) ...[
-            const SizedBox(height: 10),
-            _PeriodGrid(
-              pal: pal,
-              store: widget.store,
-              start: start,
-              total: days,
-              doneSet: widget.doneSet,
-            ),
-          ],
-        ],
       ),
     );
   }
@@ -2277,16 +1667,16 @@ class GratitudePeriodCalendar extends StatelessWidget {
   const GratitudePeriodCalendar({super.key});
 
   /// «اول، دوم، …» برای شماره‌ی دوره
-  static String ord(int i) => _MiniCalendar.ord(i);
+  static String ord(int i) => GratMiniCalendar.ord(i);
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<GratitudeStore>();
     if (!store.loaded) return const SizedBox.shrink();
-    return _MiniCalendar(
+    return GratMiniCalendar(
       store: store,
       pal: GratPalette.of(context),
-      horizontal: 0,
+      variant: GratCalVariant.home,
     );
   }
 }

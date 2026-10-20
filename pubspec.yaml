@@ -51,3 +51,7 @@ flutter:
     - family: NotoEmoji
       fonts:
         - asset: assets/google_fonts/NotoEmojiSubset.ttf
+    # گلیفِ ✓ (U+2713) که تقویم شکرگذاری وب با متنِ «✓» می‌کشه — فقط همین یک نویسه (زیرمجموعه‌ی DejaVu Sans)
+    - family: GratCheck
+      fonts:
+        - asset: assets/google_fonts/GratCheck.ttf
