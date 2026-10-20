@@ -40,12 +40,16 @@ Future<void> showGoalsSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
     ),
+    elevation: 16,
     clipBehavior: Clip.antiAlias,
+    barrierColor: Colors.transparent, // نقشه پشتش دیده می‌شود
     builder: (ctx) => goalsLightSheet(DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.9,
-      minChildSize: 0.4,
-      maxChildSize: 0.97,
+      initialChildSize: 0.46,
+      minChildSize: 0.26,
+      maxChildSize: 0.92,
+      snap: true,
+      snapSizes: const [0.26, 0.46, 0.92],
       builder: (_, controller) => GoalsSheet(
         controller: controller,
         parentContext: context,
@@ -942,7 +946,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   _addCtl.clear();
                 }),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text(''),
+                label: const Text('افزودن شاخه'),
               ),
             ),
           const SizedBox(height: 8),
@@ -1062,10 +1066,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
     final isSub = depth > 0;
 
     final tileBody = Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 6, 6),
       decoration: BoxDecoration(
-        color: isSub ? const Color(0xFFFFFCF4) : kGoalsBg,
-        border: BorderDirectional(start: BorderSide(color: color, width: 3)),
+        color: isSub ? const Color(0xFFFFFCF4) : kPanelField,
+        border: BorderDirectional(start: BorderSide(color: color, width: 4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1080,7 +1084,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '',
+                  isSub ? 'زیرشاخه' : 'شاخه',
                   style: TextStyle(
                     fontSize: 10,
                     color: isSub ? color : Colors.black87,
@@ -1093,7 +1097,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(start: 6),
                     child: Text(
-                      '',
+                      parentName.isEmpty ? '' : 'از «$parentName»',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1145,7 +1149,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: '',
+                    hintText: 'نام شاخه',
                     hintStyle: const TextStyle(color: kGoalsMuted),
                   ),
                 ),
@@ -1182,7 +1186,12 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   ),
                 ),
               ),
-              _iconBtn(Icons.add, '', () => setState(() {
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _iconBtn(Icons.add_rounded, 'زیرشاخه', () => setState(() {
                     _addingFor = n.id;
                     _addCtl.clear();
                   })),
@@ -1258,7 +1267,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
     final tile = Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: tileBody,
       ),
     );
