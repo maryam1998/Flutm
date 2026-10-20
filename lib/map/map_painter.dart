@@ -191,8 +191,8 @@ class MapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    textCache.setOutline(
-        isDark ? const Color(0xFF0A0C18) : const Color(0xFFF4F6FB));
+    // دورِ نوشته‌ها در Maghz همیشه تیره است (stroke:#0a0c18)، حتی در تم روشن
+    textCache.setOutline(const Color(0xFF0A0C18));
     _pts.clear();
     _walkerPts.clear();
     hits.clear();

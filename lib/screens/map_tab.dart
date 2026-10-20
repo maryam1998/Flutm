@@ -9,10 +9,12 @@ import '../services/storage.dart';
 import '../state/background_store.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
+import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'goals_sheet.dart';
+import 'help_dialog.dart';
 import 'settings_sheet.dart';
 import 'time_sheet.dart';
 
@@ -130,7 +132,8 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
 
-          // نوار بالا — بدون دکمه‌ی تنظیمات
+          // نوار بالا — مثل `#topbar` در Maghz: راست = آیکون + نام اپ،
+          // چپ = دکمه‌ی تم (☀️/🌙) و راهنما (؟)
           Positioned(
             top: 0,
             left: 0,
@@ -138,57 +141,130 @@ class _MapTabState extends State<MapTab> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: Row(
                   children: [
-                    _roundBtn(
-                      Icons.more_vert,
-                      ink,
-                      () => _showTopMenu(store),
+                    // برند (لمس = منوی بکاپ و حالت تغییر اندازه)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _showTopMenu(store),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(9),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color.fromRGBO(0, 0, 0, 0.25),
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.asset('assets/icon-192.png',
+                                fit: BoxFit.cover),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'بی‌نهایت راه',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
+                              color: wp.textMain,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const Spacer(),
-                    if (_resizeMode)
-                      Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF5EC8F0)
-                              .withValues(alpha: 0.24),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: const Color(0xFF5EC8F0)),
-                        ),
-                        child: Text('تغییر اندازه',
-                            style: TextStyle(fontSize: 11, color: ink)),
-                      ),
-                    _roundBtn(
-                      Icons.open_in_full,
-                      _resizeMode ? const Color(0xFF5EC8F0) : ink,
-                      () => setState(() => _resizeMode = !_resizeMode),
+                    _circleBtn(
+                      Text(isDark ? '🌙' : '☀️',
+                          style: const TextStyle(fontSize: 14, height: 1)),
+                      () => context.read<ThemeStore>().toggle(),
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: wp.panelBg,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: wp.panelBorder),
-                      ),
-                      child: ListenableBuilder(
-                        listenable: cam,
-                        builder: (_, __) => Text(
-                          '${(cam.scale * 100).round()}٪',
-                          style: TextStyle(fontSize: 12, color: ink),
-                        ),
-                      ),
+                    const SizedBox(width: 8),
+                    _circleBtn(
+                      Icon(Icons.help_outline, size: 16, color: wp.textDim),
+                      () => showHelpDialog(context),
                     ),
                   ],
                 ),
               ),
             ),
           ),
+
+          // عدد زوم — `#zoom-readout`: چپ، بالای نوار ابزار
+          Positioned(
+            left: 12,
+            bottom: 74,
+            child: IgnorePointer(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: wp.panelBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: wp.panelBorder),
+                ),
+                child: ListenableBuilder(
+                  listenable: cam,
+                  builder: (_, __) => Text(
+                    '${(cam.scale * 100).round()}٪',
+                    style: TextStyle(fontSize: 10.5, color: wp.textDim),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          if (_resizeMode)
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 128,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+                  decoration: BoxDecoration(
+                    color: wp.panelBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: wp.accent),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'حالت تغییر اندازه روشن است؛ با دو انگشت روی نوشته، آیکون یا گره بکش. بیرون از آن‌ها، پینچ نقشه را زوم می‌کند.',
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              height: 1.7,
+                              color: wp.textMain),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: wp.accent,
+                          foregroundColor: const Color(0xFF221800),
+                          minimumSize: const Size(0, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                        ),
+                        onPressed: () => setState(() => _resizeMode = false),
+                        child: const Text('تمام',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // نشانگر ذخیره
           Positioned(
@@ -261,7 +337,7 @@ class _MapTabState extends State<MapTab> {
     ));
   }
 
-  Widget _roundBtn(IconData icon, Color color, VoidCallback onTap) {
+  Widget _circleBtn(Widget child, VoidCallback onTap) {
     final wp = WebPalette.of(context);
     return Material(
       color: wp.panelBg,
@@ -269,11 +345,7 @@ class _MapTabState extends State<MapTab> {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(icon, size: 20, color: color),
-        ),
+        child: SizedBox(width: 30, height: 30, child: Center(child: child)),
       ),
     );
   }
@@ -317,11 +389,19 @@ class _MapTabState extends State<MapTab> {
   void _showTopMenu(MapStore store) {
     showMenu<String>(
       context: context,
-      items: const [
-        PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
-        PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
+      position: RelativeRect.fromLTRB(
+          MediaQuery.sizeOf(context).width - 220, 90, 16, 0),
+      items: [
+        PopupMenuItem(
+            value: 'resize',
+            child: Text(_resizeMode
+                ? 'خاموش کردن حالت تغییر اندازه'
+                : 'حالت تغییر اندازه')),
+        const PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
+        const PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
       ],
     ).then((v) {
+      if (v == 'resize') setState(() => _resizeMode = !_resizeMode);
       if (v == 'in') _import(context, store);
       if (v == 'out') _export(context, store);
     });
