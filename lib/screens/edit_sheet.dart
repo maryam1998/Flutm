@@ -712,19 +712,6 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       const SizedBox(height: 8),
-      _switchTile(
-        title: 'نمایش روی نقشه',
-        subtitle: 'اگر خاموش باشد، انیمیشن روی نقشه نشان داده نمی‌شود',
-        value: ex['showWalker'] != false,
-        onChanged: (v) => _edit(() {
-          if (v) {
-            ex.remove('showWalker');
-          } else {
-            ex['showWalker'] = false;
-          }
-        }),
-      ),
-      const SizedBox(height: 8),
       _sectionLabel('رنگ انیمیشن'),
       _swatches(
         (ex['footColor'] as String?) ?? '',
