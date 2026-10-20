@@ -823,6 +823,8 @@ class MapPainter extends CustomPainter {
   void _branchWalker(Canvas canvas, List<Offset> routePts, int lane,
       ActionNode a, Color color0, double baseSize, String hostId) {
     if (routePts.length < 2) return;
+    // کاربر «نمایش روی نقشه» را خاموش کرده → انیمیشن این اقدام کشیده نمی‌شود
+    if (a.extra['showWalker'] == false) return;
     final fcHex = a.extra['footColor'];
     final color = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, color0)
