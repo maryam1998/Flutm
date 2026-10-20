@@ -32,9 +32,6 @@ sealed class EditTarget {
   String get key;
 }
 
-/// نمایش کادر «حال و هوای این فرکانس» در شیتِ «من» (فعلاً خاموش)
-const bool kShowMeNote = false;
-
 class MeTarget extends EditTarget {
   const MeTarget();
   @override
@@ -637,7 +634,7 @@ class _EditSheetState extends State<EditSheet> {
       PanelCard(
         icon: Icons.person_rounded,
         title: 'من',
-        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، رنگ و عکس یا ایموجی خودت.',
+        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، رنگ و حال و هوای خودت.',
         children: [
           _textField(
             ctlKey: 'me:name',
@@ -645,36 +642,26 @@ class _EditSheetState extends State<EditSheet> {
             label: 'اسم',
             onChanged: (v) => _edit(() => me.name = v),
           ),
-          const PanelLabel('عکس‌ها و ایموجی'),
-          WalkerPhotoField(
-            initial: me.images.map((e) => e.src).toList(),
-            initialEmoji: walkerEmojiOf(me.extra),
-            onEmojiChanged: (e) {
-              _edit(() => setWalkerEmoji(me.extra, e));
-              _store.flush();
-            },
-            onChanged: (srcs) => _edit(() {
-              // اندازه/جابه‌جایی عکس‌هایی که از قبل بودند حفظ می‌شود
-              final old = {for (final i in me.images) i.src: i};
-              me.images = [
-                for (final src in srcs) old[src] ?? ImageItem(src: src),
-              ];
-            }),
-          ),
           const PanelLabel('رنگ'),
           _swatches(me.color, (c) => me.color = c),
-          // «حال و هوای این فرکانس» فعلاً نشان داده نمی‌شود (داده‌اش نگه داشته می‌شود).
-          // برای فعال کردن دوباره، kShowMeNote را true کن.
-          if (kShowMeNote) ...[
-            const PanelLabel('حال و هوای این فرکانس (اختیاری)'),
-            _textField(
-              ctlKey: 'me:note',
-              initial: me.note,
-              label: 'مثلاً: آرامش، اطمینان، شوق...',
-              onChanged: (v) => _edit(() => me.note = v),
-              maxLines: 3,
-            ),
-          ],
+          const PanelLabel('حال و هوای این فرکانس (اختیاری)'),
+          _textField(
+            ctlKey: 'me:note',
+            initial: me.note,
+            label: 'مثلاً: آرامش، اطمینان، شوق...',
+            onChanged: (v) => _edit(() => me.note = v),
+            maxLines: 3,
+          ),
+        ],
+      ),
+      PanelCard(
+        icon: Icons.photo_library_rounded,
+        title: 'عکس‌ها',
+        children: [
+          MultiPhotoField(
+            initial: me.images,
+            onChange: (imgs) => _edit(() => me.images = imgs),
+          ),
         ],
       ),
       _bottomActions(
@@ -709,10 +696,7 @@ class _EditSheetState extends State<EditSheet> {
       WalkerPhotoField(
         initial: walkerPhotosOf(ex),
         initialEmoji: walkerEmojiOf(ex),
-        onEmojiChanged: (e) {
-          _edit(() => setWalkerEmoji(ex, e));
-          _store.flush();
-        },
+        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(ex, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(ex, v);
           if (v.isNotEmpty) {
@@ -806,10 +790,9 @@ class _EditSheetState extends State<EditSheet> {
       ],
       _bottomActions(
         saveLabel: 'ذخیره',
-        onSave: () async {
+        onSave: () {
           _store.changed();
-          await _store.flush();
-          if (mounted) Navigator.pop(context);
+          Navigator.pop(context);
         },
       ),
     ];
@@ -890,10 +873,7 @@ class _EditSheetState extends State<EditSheet> {
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
             initialEmoji: walkerEmojiOf(g.extra),
-            onEmojiChanged: (e) {
-              _edit(() => setWalkerEmoji(g.extra, e));
-              _store.flush();
-            },
+            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(g.extra, e)),
             onChanged: (v) => _edit(() {
               setWalkerPhotos(g.extra, v);
               if (v.isNotEmpty) {
@@ -1142,10 +1122,7 @@ class _EditSheetState extends State<EditSheet> {
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
         initialEmoji: walkerEmojiOf(a.extra),
-        onEmojiChanged: (e) {
-          _edit(() => setWalkerEmoji(a.extra, e));
-          _store.flush();
-        },
+        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(a.extra, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(a.extra, v);
           if (v.isNotEmpty) {

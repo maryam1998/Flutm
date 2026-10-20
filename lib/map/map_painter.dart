@@ -346,29 +346,7 @@ class MapPainter extends CustomPainter {
     hits.add(HitEntry(
         type: 'me', id: '', kind: HitKind.node, center: c, radius: r));
 
-    final meEmoji = walkerEmojiOf(me.extra);
-    if (meEmoji.isNotEmpty) {
-      // ایموجی به‌جای عکس/دایره‌ی پیش‌فرض
-      canvas.drawCircle(c, r, Paint()..color = withOp(meColor, 0.18));
-      canvas.drawCircle(
-          c,
-          r,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 3.5
-            ..color = meColor);
-      drawText(canvas, meEmoji, c.dx, c.dy,
-          size: r * 1.3, color: const Color(0xFF000000), vCenter: true);
-      final lr = drawText(canvas, me.name, c.dx + me.labelDX,
-          c.dy + r + 12 + me.labelDY,
-          size: me.labelSize ?? _labelSize('me'),
-          color: tc,
-          weight: FontWeight.w700,
-          outline: 3);
-      if (me.name.isNotEmpty) {
-        hits.add(HitEntry(type: 'me', id: '', kind: HitKind.label, rect: lr));
-      }
-    } else if (me.images.isEmpty) {
+    if (me.images.isEmpty) {
       canvas.drawCircle(c, r, Paint()..color = meColor);
       canvas.drawCircle(
           c,
