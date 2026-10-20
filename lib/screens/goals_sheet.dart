@@ -16,6 +16,7 @@ import 'edit_sheet.dart';
 import '../theme/app_theme.dart';
 import '../widgets/emoji_stack.dart';
 import '../widgets/icon_photo_editor.dart';
+import '../widgets/panel_kit.dart';
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
 
@@ -36,11 +37,15 @@ Future<void> showGoalsSheet(
     useSafeArea: true,
     showDragHandle: true,
     backgroundColor: kGoalsBg,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+    ),
+    clipBehavior: Clip.antiAlias,
     builder: (ctx) => goalsLightSheet(DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.85,
+      initialChildSize: 0.9,
       minChildSize: 0.4,
-      maxChildSize: 0.95,
+      maxChildSize: 0.97,
       builder: (_, controller) => GoalsSheet(
         controller: controller,
         parentContext: context,
@@ -275,12 +280,27 @@ class _GoalsSheetState extends State<GoalsSheet> {
         Row(
           children: [
             const Text('اهداف من',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kGoalsInk)),
-            const SizedBox(width: 8),
-            Text(countText,
-                style: const TextStyle(fontSize: 12, color: kGoalsMuted)),
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w800, color: kGoalsInk)),
+            if (countText.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: kPanelField,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(countText,
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: kGoalsMuted)),
+              ),
+            ],
+            const SizedBox(width: 6),
             IconButton(
-              icon: const Icon(Icons.insights, size: 20, color: kGoalsGold),
+              icon: const Icon(Icons.insights_rounded,
+                  size: 20, color: kGoalsGold),
               tooltip: 'نگاه هفته',
               onPressed: () => showWeeklySheet(context, store.state),
               padding: EdgeInsets.zero,
@@ -288,65 +308,80 @@ class _GoalsSheetState extends State<GoalsSheet> {
               visualDensity: VisualDensity.compact,
             ),
             const Spacer(),
-            FilledButton.tonalIcon(
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: kGoalsGold,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13)),
+                textStyle:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
               onPressed: () {
                 Navigator.pop(context);
                 widget.onAddGoal();
               },
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('هدف جدید'),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
 
-        // تب‌ها
-        Wrap(
-          spacing: 8,
-          children: [
-            ChoiceChip(
-              label: Text('اهداف در جریان',
-                  style: TextStyle(color: _tab == 0 ? Colors.white : kGoalsInk)),
-              selected: _tab == 0,
-              onSelected: (_) => setState(() => _tab = 0),
-            ),
-            ChoiceChip(
-              label: Text(
-                'اهداف محقق‌شده${reached.isEmpty ? '' : ' (${toFa(reached.length)})'}',
-                style: TextStyle(color: _tab == 1 ? Colors.white : kGoalsInk),
+        // تب‌ها (قطعه‌ای)
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: kPanelField,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _seg('در جریان', active.length, _tab == 0,
+                    () => setState(() => _tab = 0)),
               ),
-              selected: _tab == 1,
-              onSelected: (_) => setState(() => _tab = 1),
-            ),
-          ],
+              Expanded(
+                child: _seg('محقق‌شده', reached.length, _tab == 1,
+                    () => setState(() => _tab = 1)),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
         // جست‌وجو
         TextField(
           controller: _search,
           onChanged: (v) => setState(() => _q = _norm(v.trim())),
+          style: const TextStyle(fontSize: 14, color: kGoalsInk),
           decoration: InputDecoration(
-            hintText: '',
-            prefixIcon: const Icon(Icons.search, color: kGoalsMuted),
+            hintText: 'جست‌وجو در اهداف و شاخه‌ها…',
+            hintStyle: const TextStyle(fontSize: 13, color: kGoalsMuted),
+            prefixIcon:
+                const Icon(Icons.search_rounded, color: kGoalsMuted, size: 20),
             isDense: true,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: kPanelField,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: kGoalsBorder),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: kGoalsBorder),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: kGoalsGold, width: 1.5),
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
 
         // لیست
         if (rows.isEmpty)
@@ -396,9 +431,106 @@ class _GoalsSheetState extends State<GoalsSheet> {
 
   BoxDecoration _cardDeco(Color c) => BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.withAlpha(210), width: 1.4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: kPanelBorder),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x14141832), blurRadius: 14, offset: Offset(0, 4)),
+        ],
       );
+
+  /// کارت سفید با نوار رنگیِ هدف در لبه‌ی شروع
+  Widget _accentCard(Color color, Widget child, {EdgeInsets? padding}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: _cardDeco(color),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(19),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 5)
+                  .add(padding ?? EdgeInsets.zero),
+              child: child,
+            ),
+            PositionedDirectional(
+              start: 0,
+              top: 0,
+              bottom: 0,
+              width: 5,
+              child: ColoredBox(color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _seg(String label, int n, bool on, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: on ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: on
+              ? const [
+                  BoxShadow(
+                      color: Color(0x1A141832),
+                      blurRadius: 6,
+                      offset: Offset(0, 2)),
+                ]
+              : null,
+        ),
+        child: Text(
+          n > 0 ? '$label · ${toFa(n)}' : label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+            color: on ? kGoalsInk : kGoalsMuted,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _metaChip(IconData i, String t) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(i, size: 13, color: kGoalsMuted),
+          const SizedBox(width: 3),
+          Text(t, style: const TextStyle(fontSize: 11, color: kGoalsMuted)),
+        ],
+      );
+
+  Widget _action(IconData i, String label, Color color, VoidCallback onTap) =>
+      Expanded(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(i, size: 17, color: color),
+                const SizedBox(width: 5),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: color)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  static int _countAll(List<ActionNode> l) =>
+      l.fold(0, (n, a) => n + 1 + _countAll(a.children));
 
   Widget _iconBtn(IconData i, String tip, VoidCallback onTap, {Color? color}) =>
       IconButton(
@@ -433,28 +565,30 @@ class _GoalsSheetState extends State<GoalsSheet> {
         h is Ring ? store.state.goals.where((g) => g.id == h.goalId).toList() : <Goal>[];
     final ago = _ago(h.lastActivity);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: _cardDeco(color),
-      child: Column(
+    final branches = _countAll(h.actions);
+    const divider = VerticalDivider(width: 1, thickness: 1, color: kGoalsBorder);
+
+    return _accentCard(
+      color,
+      Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(14),
             onTap: () => setState(() {
               if (!_open.remove(h.id)) _open.add(h.id);
               _addingFor = null;
             }),
             child: Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.fromLTRB(10, 14, 6, 12),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (reorderIndex != null)
                     ReorderableDragStartListener(
                       index: reorderIndex,
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 2),
-                        child: Icon(Icons.drag_indicator,
+                        padding: EdgeInsets.fromLTRB(0, 14, 4, 0),
+                        child: Icon(Icons.drag_indicator_rounded,
                             size: 20, color: kGoalsMuted),
                       ),
                     ),
@@ -463,75 +597,108 @@ class _GoalsSheetState extends State<GoalsSheet> {
                     onTap: () => setState(() {
                       if (!_editing.remove(h.id)) _editing.add(h.id);
                     }),
-                    child: _Avatar(host: h, color: color, size: 56),
+                    child: _Avatar(host: h, color: color, size: 52),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(_name(h),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 16,
+                                height: 1.35,
+                                fontWeight: FontWeight.w800,
+                                color: kGoalsInk)),
+                        const SizedBox(height: 5),
                         Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 6,
+                          spacing: 10,
+                          runSpacing: 4,
                           children: [
-                            Text(_name(h),
-                                style: const TextStyle(
-                                    fontSize: 16,
-                                    height: 1.35,
-                                    fontWeight: FontWeight.w800,
-                                    color: kGoalsInk)),
                             if (h.isRing)
                               _tag(
                                   'نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
                             if (stale) _tag('کم‌فعالیت'),
+                            _metaChip(Icons.account_tree_rounded,
+                                branches == 0 ? 'بدون شاخه' : '${toFa(branches)} شاخه'),
+                            if (ago.isNotEmpty)
+                              _metaChip(Icons.schedule_rounded, ago),
                           ],
                         ),
-                        if (ago.isNotEmpty)
-                          Text(ago,
-                              style: const TextStyle(
-                                  fontSize: 11, color: kGoalsMuted)),
                         if (r.hit.isNotEmpty)
-                          Text('↳ ${r.hit}',
-                              style: TextStyle(fontSize: 12, color: color),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: power / 100,
-                            minHeight: 7,
-                            color: color,
-                            backgroundColor: kGoalsBorder,
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('↳ ${r.hit}',
+                                style: TextStyle(fontSize: 12, color: color),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
                           ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(5),
+                                child: LinearProgressIndicator(
+                                  value: power / 100,
+                                  minHeight: 6,
+                                  color: color,
+                                  backgroundColor: kGoalsBorder,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('${toFa(power.round())}٪',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: kGoalsMuted)),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  _iconBtn(
-                    isOpen ? Icons.expand_less : Icons.expand_more,
-                    'باز یا بسته کردن',
-                    () => setState(() {
-                      if (!_open.remove(h.id)) _open.add(h.id);
-                      _addingFor = null;
-                    }),
+                  const SizedBox(width: 2),
+                  AnimatedRotation(
+                    turns: isOpen ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(Icons.expand_more_rounded,
+                          size: 24, color: kGoalsMuted),
+                    ),
                   ),
-                  if (h is Goal)
-                    _iconBtn(Icons.check_circle_outline, 'به این هدف رسیدم',
-                        () => _reach(store, h)),
-                  _iconBtn(Icons.my_location, 'نمایش روی نقشه', () {
-                    Navigator.pop(context);
-                    widget.onShowOnMap(h);
-                  }),
-                  _iconBtn(Icons.edit_outlined, 'ویرایش', () {
-                    Navigator.pop(context);
-                    showEditSheet(
-                      widget.parentContext,
-                      h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
-                    );
-                  }),
                 ],
               ),
+            ),
+          ),
+          // نوار کارهای سریع
+          const Divider(height: 1, thickness: 1, color: kGoalsBorder),
+          SizedBox(
+            height: 42,
+            child: Row(
+              children: [
+                if (h is Goal) ...[
+                  _action(Icons.check_circle_outline_rounded, 'رسیدم',
+                      const Color(0xFF178A7C), () => _reach(store, h)),
+                  divider,
+                ],
+                _action(Icons.my_location_rounded, 'روی نقشه', kGoalsMuted, () {
+                  Navigator.pop(context);
+                  widget.onShowOnMap(h);
+                }),
+                divider,
+                _action(Icons.edit_outlined, 'ویرایش', kGoalsGold, () {
+                  Navigator.pop(context);
+                  showEditSheet(
+                    widget.parentContext,
+                    h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
+                  );
+                }),
+              ],
             ),
           ),
           if (_editing.contains(h.id)) _editPanel(store, h, color),
@@ -623,13 +790,12 @@ class _GoalsSheetState extends State<GoalsSheet> {
       final j = toJalaali(d.year, d.month, d.day);
       when = 'محقق‌شده در ${toFa(j.jy)}/${toFa(j.jm)}/${toFa(j.jd)}';
     }
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: _cardDeco(color),
-      child: Row(
+    return _accentCard(
+      color,
+      padding: const EdgeInsets.all(12),
+      Row(
         children: [
-          _Avatar(host: g, color: color),
+          _Avatar(host: g, color: color, size: 48),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
