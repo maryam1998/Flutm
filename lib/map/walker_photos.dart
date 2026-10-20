@@ -25,3 +25,18 @@ void setWalkerPhotos(Map<String, dynamic> extra, List<String> photos) {
     extra['walkerPhoto'] = photos.first;
   }
 }
+
+/// ایموجیِ قدم‌زن (به‌جای دایره‌ی جلوی پاها). اگر پر باشد، به‌جای عکس/GIF نشان داده می‌شود.
+String walkerEmojiOf(Map<String, dynamic> extra) {
+  final e = extra['walkerEmoji'];
+  return e is String ? e.trim() : '';
+}
+
+void setWalkerEmoji(Map<String, dynamic> extra, String emoji) {
+  final e = emoji.trim();
+  if (e.isEmpty) {
+    extra.remove('walkerEmoji');
+  } else {
+    extra['walkerEmoji'] = e;
+  }
+}

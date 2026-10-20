@@ -507,7 +507,15 @@ class _WItem {
 class WalkerPhotoField extends StatefulWidget {
   final List<String> initial;
   final void Function(List<String> photos) onChanged;
-  const WalkerPhotoField({super.key, this.initial = const [], required this.onChanged});
+  final String initialEmoji;
+  final void Function(String emoji)? onEmojiChanged;
+  const WalkerPhotoField({
+    super.key,
+    this.initial = const [],
+    required this.onChanged,
+    this.initialEmoji = '',
+    this.onEmojiChanged,
+  });
 
   @override
   State<WalkerPhotoField> createState() => _WalkerPhotoFieldState();
@@ -516,13 +524,21 @@ class WalkerPhotoField extends StatefulWidget {
 class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
   final List<_WItem> _items = [];
   int _seq = 0;
+  late final TextEditingController _emojiCtl;
 
   @override
   void initState() {
     super.initState();
+    _emojiCtl = TextEditingController(text: widget.initialEmoji);
     for (final s in widget.initial) {
       if (s.isNotEmpty) _items.add(_WItem(_seq++, s));
     }
+  }
+
+  @override
+  void dispose() {
+    _emojiCtl.dispose();
+    super.dispose();
   }
 
   void _emit() => widget.onChanged(_items.map((e) => e.src).toList());
@@ -558,11 +574,102 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     _emit();
   }
 
+  Widget _defaultDot() => Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: _kGold, width: 2),
+        ),
+        alignment: Alignment.center,
+        child: Container(
+          width: 10,
+          height: 10,
+          decoration: const BoxDecoration(shape: BoxShape.circle, color: _kGold),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (widget.onEmojiChanged != null) ...[
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _kCard,
+                  border: Border.all(color: _kBorder, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                clipBehavior: Clip.antiAlias,
+                child: _emojiCtl.text.trim().isNotEmpty
+                    ? EmojiStack(icon: _emojiCtl.text, size: 58)
+                    : (_items.isNotEmpty &&
+                            DataUrlCache.bytes(_items.first.src) != null
+                        ? Image.memory(
+                            DataUrlCache.bytes(_items.first.src)!,
+                            width: 58,
+                            height: 58,
+                            cacheWidth: 240,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _defaultDot(),
+                          )
+                        : _defaultDot()),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _emojiCtl,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 20, color: _kInk),
+                  decoration: InputDecoration(
+                    hintText: 'ایموجی',
+                    hintStyle: const TextStyle(color: _kMuted),
+                    filled: true,
+                    fillColor: _kCard,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _kBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _kBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _kGold, width: 1.5),
+                    ),
+                  ),
+                  onChanged: (v) {
+                    // فقط یک ایموجی (ایموجی ترکیبی/پرچم یک واحد حساب می‌شود)
+                    final one = splitIcons(v).take(1).join();
+                    if (one != v) {
+                      _emojiCtl.value = TextEditingValue(
+                        text: one,
+                        selection: TextSelection.collapsed(offset: one.length),
+                      );
+                    }
+                    setState(() {});
+                    widget.onEmojiChanged!(one);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6, bottom: 12),
+            child: Text(
+              'پیش‌فرض همان دایره است. اگر ایموجی بگذاری به‌جای دایره‌ی متصل به پاها نمایش داده می‌شود (روی عکس/GIF هم اولویت دارد)؛ برای برگشت، ایموجی را پاک کن.',
+              style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
+            ),
+          ),
+        ],
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),

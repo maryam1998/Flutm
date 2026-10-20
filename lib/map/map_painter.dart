@@ -814,6 +814,7 @@ class MapPainter extends CustomPainter {
       hitId: g.id,
       hostId: g.id,
       photos: walkerPhotosOf(g.extra),
+      emoji: walkerEmojiOf(g.extra),
     );
   }
 
@@ -889,6 +890,7 @@ class MapPainter extends CustomPainter {
       hostId: hostId,
       withBody: false,
       photos: walkerPhotosOf(a.extra),
+      emoji: walkerEmojiOf(a.extra),
     );
   }
 
@@ -913,6 +915,7 @@ class MapPainter extends CustomPainter {
     required String hostId,
     bool withBody = true,
     List<String> photos = const [],
+    String emoji = '',
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -939,7 +942,9 @@ class MapPainter extends CustomPainter {
     final dir = returning ? -1.0 : 1.0;
 
     // ─── فقط عکس انتخاب‌شده (اولی) نشون داده می‌شه؛ بقیه فقط ذخیره‌ان ───
-    final String? photo = photos.isNotEmpty ? photos.first : null;
+    // ایموجی (اگر گذاشته شده) جای عکس/دایره را می‌گیرد
+    final hasEmoji = emoji.isNotEmpty;
+    final String? photo = (!hasEmoji && photos.isNotEmpty) ? photos.first : null;
 
     // ─── فاز قدم ───
     final stepPhase = playing ? (tt * speed) % 1.0 : 0.0;
@@ -1011,8 +1016,8 @@ class MapPainter extends CustomPainter {
     final hasPhoto = photo != null && photo.isNotEmpty;
     final pulseRate = playing ? (1.0 + speed * 0.5) : 0.4;
     final pulse =
-        hasPhoto ? 1.0 : 0.94 + math.sin(tt * pulseRate * 2 * math.pi) * 0.06;
-    final bodyR = (hasPhoto
+        (hasPhoto || hasEmoji) ? 1.0 : 0.94 + math.sin(tt * pulseRate * 2 * math.pi) * 0.06;
+    final bodyR = ((hasPhoto || hasEmoji)
             ? math.max(18.0, baseSize * 1.1)
             : math.max(8.0, baseSize * 0.45)) *
         pulse;
@@ -1045,7 +1050,23 @@ class MapPainter extends CustomPainter {
       // اگر عکس نوبتی هنوز بارگذاری نشده، تا آماده شدن عکس اول نشون داده می‌شه
       if (faceImg == null && photos.isNotEmpty) faceImg = images.get(photos.first);
     }
-    if (faceImg != null) {
+    if (hasEmoji) {
+      // ایموجی به‌جای دایره (بدون قاب)، وسط همان جایگاه
+      final tp = textCache.get(emoji, bodyR * 1.9, const Color(0xFF000000),
+          FontWeight.w400);
+      tp.paint(canvas, bodyPos - Offset(tp.width / 2, tp.height / 2));
+      if (!playing) {
+        final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
+        final br = math.max(7.0, bodyR * 0.34);
+        canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFF000000), 0.62));
+        final tri = Path()
+          ..moveTo(bc.dx - br * 0.28, bc.dy - br * 0.45)
+          ..lineTo(bc.dx + br * 0.5, bc.dy)
+          ..lineTo(bc.dx - br * 0.28, bc.dy + br * 0.45)
+          ..close();
+        canvas.drawPath(tri, Paint()..color = const Color(0xFFFFFFFF));
+      }
+    } else if (faceImg != null) {
       // عکس کاربر داخل دایره
       final dst = Rect.fromCircle(center: bodyPos, radius: bodyR);
       final side = math.min(faceImg.width, faceImg.height).toDouble();

@@ -695,6 +695,8 @@ class _EditSheetState extends State<EditSheet> {
     return [
       WalkerPhotoField(
         initial: walkerPhotosOf(ex),
+        initialEmoji: walkerEmojiOf(ex),
+        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(ex, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(ex, v);
           if (v.isNotEmpty) {
@@ -857,6 +859,8 @@ class _EditSheetState extends State<EditSheet> {
           const SizedBox(height: 10),
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
+            initialEmoji: walkerEmojiOf(g.extra),
+            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(g.extra, e)),
             onChanged: (v) => _edit(() {
               setWalkerPhotos(g.extra, v);
               if (v.isNotEmpty) {
@@ -1104,6 +1108,8 @@ class _EditSheetState extends State<EditSheet> {
       const PanelLabel('عکس انیمیشن'),
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
+        initialEmoji: walkerEmojiOf(a.extra),
+        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(a.extra, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(a.extra, v);
           if (v.isNotEmpty) {
