@@ -751,7 +751,7 @@ class _EditSheetState extends State<EditSheet> {
               .toDouble(),
           min: kWalkerSizeMin,
           max: kWalkerSizeMax,
-          divisions: 38,
+          divisions: kWalkerSizeDivisions,
           valueText:
               '${(((ex['walkerSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
           onChanged: (v) => _edit(() => ex['walkerSize'] = v),
@@ -875,7 +875,7 @@ class _EditSheetState extends State<EditSheet> {
             value: walkerSize.clamp(kWalkerSizeMin, kWalkerSizeMax),
             min: kWalkerSizeMin,
             max: kWalkerSizeMax,
-            divisions: 38,
+            divisions: kWalkerSizeDivisions,
             valueText: '${(walkerSize * 100).round()}٪',
             onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
           ),

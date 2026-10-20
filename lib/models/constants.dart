@@ -14,7 +14,8 @@ const kShowSubActions = false;
 
 /// سقف اندازه‌ی انیمیشن روی مسیر (ضریب؛ ۱.۰ = ۱۰۰٪)
 const kWalkerSizeMin = 0.4;
-const kWalkerSizeMax = 8.0; // هدف / قدم‌زن اصلی (تا ۸۰۰٪)
+const kWalkerSizeMax = 20.0; // هدف / قدم‌زن اصلی (تا ۲۰۰۰٪)
+const kWalkerSizeDivisions = 98; // گام ۲۰٪ (۰.۴ تا ۲۰)
 const kFootSizeMax = 6.0; // قدم هر اقدام (تا ۶۰۰٪)
 const kFootScaleMax = 5.0; // مقیاس کلی قدم‌ها در تنظیمات (تا ۵۰۰٪)
 
