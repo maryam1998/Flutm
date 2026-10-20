@@ -32,6 +32,9 @@ sealed class EditTarget {
   String get key;
 }
 
+/// نمایش کادر «حال و هوای این فرکانس» در شیتِ «من» (فعلاً خاموش)
+const bool kShowMeNote = false;
+
 class MeTarget extends EditTarget {
   const MeTarget();
   @override
@@ -634,7 +637,7 @@ class _EditSheetState extends State<EditSheet> {
       PanelCard(
         icon: Icons.person_rounded,
         title: 'من',
-        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، رنگ و حال و هوای خودت.',
+        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، رنگ و عکس یا ایموجی خودت.',
         children: [
           _textField(
             ctlKey: 'me:name',
@@ -644,23 +647,35 @@ class _EditSheetState extends State<EditSheet> {
           ),
           const PanelLabel('رنگ'),
           _swatches(me.color, (c) => me.color = c),
-          const PanelLabel('حال و هوای این فرکانس (اختیاری)'),
-          _textField(
-            ctlKey: 'me:note',
-            initial: me.note,
-            label: 'مثلاً: آرامش، اطمینان، شوق...',
-            onChanged: (v) => _edit(() => me.note = v),
-            maxLines: 3,
-          ),
+          // «حال و هوای این فرکانس» فعلاً نشان داده نمی‌شود (داده‌اش نگه داشته می‌شود).
+          // برای فعال کردن دوباره، kShowMeNote را true کن.
+          if (kShowMeNote) ...[
+            const PanelLabel('حال و هوای این فرکانس (اختیاری)'),
+            _textField(
+              ctlKey: 'me:note',
+              initial: me.note,
+              label: 'مثلاً: آرامش، اطمینان، شوق...',
+              onChanged: (v) => _edit(() => me.note = v),
+              maxLines: 3,
+            ),
+          ],
         ],
       ),
       PanelCard(
         icon: Icons.photo_library_rounded,
-        title: 'عکس‌ها',
+        title: 'عکس‌ها و ایموجی',
         children: [
-          MultiPhotoField(
-            initial: me.images,
-            onChange: (imgs) => _edit(() => me.images = imgs),
+          WalkerPhotoField(
+            initial: me.images.map((e) => e.src).toList(),
+            initialEmoji: walkerEmojiOf(me.extra),
+            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(me.extra, e)),
+            onChanged: (srcs) => _edit(() {
+              // اندازه/جابه‌جایی عکس‌هایی که از قبل بودند حفظ می‌شود
+              final old = {for (final i in me.images) i.src: i};
+              me.images = [
+                for (final src in srcs) old[src] ?? ImageItem(src: src),
+              ];
+            }),
           ),
         ],
       ),
