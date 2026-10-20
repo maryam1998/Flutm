@@ -574,6 +574,21 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     _emit();
   }
 
+  Widget _defaultDot() => Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: _kGold, width: 2),
+        ),
+        alignment: Alignment.center,
+        child: Container(
+          width: 10,
+          height: 10,
+          decoration: const BoxDecoration(shape: BoxShape.circle, color: _kGold),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -583,18 +598,28 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
           Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
-                alignment: Alignment.center,
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _kCard,
                   border: Border.all(color: _kBorder, width: 1.5),
                 ),
-                child: _emojiCtl.text.trim().isEmpty
-                    ? const Icon(Icons.emoji_emotions_outlined,
-                        color: _kMuted, size: 24)
-                    : EmojiStack(icon: _emojiCtl.text, size: 52),
+                alignment: Alignment.center,
+                clipBehavior: Clip.antiAlias,
+                child: _emojiCtl.text.trim().isNotEmpty
+                    ? EmojiStack(icon: _emojiCtl.text, size: 58)
+                    : (_items.isNotEmpty &&
+                            DataUrlCache.bytes(_items.first.src) != null
+                        ? Image.memory(
+                            DataUrlCache.bytes(_items.first.src)!,
+                            width: 58,
+                            height: 58,
+                            cacheWidth: 240,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _defaultDot(),
+                          )
+                        : _defaultDot()),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -603,11 +628,11 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 20, color: _kInk),
                   decoration: InputDecoration(
-                    hintText: 'ایموجی به‌جای دایره',
-                    hintStyle: const TextStyle(color: _kMuted, fontSize: 13),
+                    hintText: 'ایموجی',
+                    hintStyle: const TextStyle(color: _kMuted),
                     filled: true,
                     fillColor: _kCard,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 13),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: _kBorder),
@@ -640,7 +665,7 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
           const Padding(
             padding: EdgeInsets.only(top: 6, bottom: 12),
             child: Text(
-              'اگر ایموجی بگذاری، به‌جای عکس/GIF جلوی پاها نمایش داده می‌شود؛ برای برگشت به عکس، ایموجی را پاک کن.',
+              'پیش‌فرض همان دایره است. اگر ایموجی بگذاری به‌جای دایره‌ی متصل به پاها نمایش داده می‌شود (روی عکس/GIF هم اولویت دارد)؛ برای برگشت، ایموجی را پاک کن.',
               style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
             ),
           ),
