@@ -13,6 +13,7 @@ import 'format_bar.dart'
 import 'grat_media.dart';
 import 'media_slideshow.dart';
 import 'inline_voice_button.dart';
+import '../services/quiet_snack.dart';
 
 const Color _kEmerald300 = Color(0xFF54B3A4);
 const Color _kEmerald700 = Color(0xFF0F5B53);
@@ -30,7 +31,7 @@ String _fa(int n) => _faStr(n.toString());
 
 void _toast(BuildContext context, String msg) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  ScaffoldMessenger.of(context).quietSnack(SnackBar(
     content: Text(msg),
     duration: const Duration(milliseconds: 1800),
     behavior: SnackBarBehavior.floating,

@@ -712,6 +712,19 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       const SizedBox(height: 8),
+      _switchTile(
+        title: 'نمایش روی نقشه',
+        subtitle: 'اگر خاموش باشد، این انیمیشن روی نقشه نشان داده نمی‌شود',
+        value: ex['showWalker'] != false,
+        onChanged: (v) => _edit(() {
+          if (v) {
+            ex.remove('showWalker');
+          } else {
+            ex['showWalker'] = false;
+          }
+        }),
+      ),
+      const SizedBox(height: 8),
       _sectionLabel('رنگ انیمیشن'),
       _swatches(
         (ex['footColor'] as String?) ?? '',
@@ -720,11 +733,11 @@ class _EditSheetState extends State<EditSheet> {
       ),
       if (act != null) ...[
         _slider(
-          label: 'اندازه‌ی انیمیشن',
+          label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
           value: (act.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax).toDouble(),
           min: kWalkerSizeMin,
           max: kFootSizeMax,
-          divisions: 28,
+          divisions: kWalkerSizeDivisions,
           valueText: '${((act.footSize ?? 1.0) * 100).round()}٪',
           onChanged: (v) => _edit(() => act!.footSize = v),
         ),
@@ -1057,12 +1070,24 @@ class _EditSheetState extends State<EditSheet> {
         icon: Icons.directions_walk_rounded,
         title: 'قدم روی مسیر 👣',
         children: [
+      _switchTile(
+        title: 'نمایش انیمیشن',
+        subtitle: 'اگر خاموش باشد، انیمیشن این شاخه روی نقشه نشان داده نمی‌شود',
+        value: a.extra['showWalker'] != false,
+        onChanged: (v) => _edit(() {
+          if (v) {
+            a.extra.remove('showWalker');
+          } else {
+            a.extra['showWalker'] = false;
+          }
+        }),
+      ),
       _slider(
-        label: 'اندازه‌ی قدم',
+        label: 'اندازه‌ی قدم و دایره‌ی متصل',
         value: (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax),
         min: kWalkerSizeMin,
         max: kFootSizeMax,
-        divisions: 28,
+        divisions: kWalkerSizeDivisions,
         valueText: '${((a.footSize ?? 1.0) * 100).round()}٪',
         onChanged: (v) => _edit(() => a.footSize = v),
       ),

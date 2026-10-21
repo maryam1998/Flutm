@@ -21,6 +21,7 @@ import '../widgets/neural_pathway.dart';
 import '../widgets/inline_voice_button.dart';
 import '../services/image_service.dart';
 import '../services/media_blob.dart';
+import '../services/quiet_snack.dart';
 
 // ════════════════════════════════════════════════════════════════
 class GratitudeTab extends StatefulWidget {
@@ -346,7 +347,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
 
   static void _toast(BuildContext context, String msg) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).quietSnack(SnackBar(
       content: Text(msg),
       duration: const Duration(milliseconds: 1600),
       behavior: SnackBarBehavior.floating,

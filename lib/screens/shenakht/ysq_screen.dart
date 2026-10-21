@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../data/shenakht/ysq_questions.dart';
 import '../../state/shenakht_store.dart';
 import 'shenakht_tab.dart';
+import '../../services/quiet_snack.dart';
 
 class YsqScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -68,7 +69,7 @@ class _YsqScreenState extends State<YsqScreen> {
     setState(() => _index = target);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
+      ..quietSnack(SnackBar(
         content: Text(
           '${_faNum(check.missing.length)} سؤال بی‌جواب مونده — از این‌جا ادامه بده',
         ),
@@ -83,7 +84,7 @@ class _YsqScreenState extends State<YsqScreen> {
       // همه جواب داده شدن
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
+        ..quietSnack(const SnackBar(
           content: Text('همه‌ی سؤال‌ها جواب داده شدن ✅'),
           duration: Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,

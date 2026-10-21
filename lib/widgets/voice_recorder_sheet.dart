@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/voice_service.dart';
+import '../services/quiet_snack.dart';
 
 const _kGold = Color(0xFFC9962B);
 const _kInk = Color(0xFF000000);
@@ -69,7 +70,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
       if (ok) _elapsed = Duration.zero;
     });
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).quietSnack(
         const SnackBar(
             content: Text('دسترسی به میکروفون داده نشد یا ضبط شروع نشد')),
       );
@@ -84,7 +85,7 @@ class _VoiceRecorderSheetState extends State<VoiceRecorderSheet> {
     setState(() => _recording = false);
     if (save) {
       if (src == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).quietSnack(
           const SnackBar(
               content: Text('ضبط ذخیره نشد؛ دوباره امتحان کن')),
         );

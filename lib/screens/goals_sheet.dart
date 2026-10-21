@@ -19,6 +19,7 @@ import '../widgets/icon_photo_editor.dart';
 import '../widgets/panel_kit.dart';
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
+import '../services/quiet_snack.dart';
 
 const _kGold = Color(0xFFC9962B);
 const _kInk = Color(0xFF000000);
@@ -810,7 +811,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
     _open.remove(g.id);
     store.reachGoal(g);
     ScaffoldMessenger.of(widget.parentContext)
-        .showSnackBar(const SnackBar(content: Text('🏆 هدف محقق شد!')));
+        .quietSnack(const SnackBar(content: Text('🏆 هدف محقق شد!')));
   }
 
   // ------------------------------------------------------------------ کارت محقق‌شده
@@ -2264,7 +2265,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             onPressed: () {
               final n = _parseDays(c.text);
               if (n == null) {
-                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                ScaffoldMessenger.of(ctx).quietSnack(SnackBar(
                     content:
                         Text('عدد بین ۱ تا ${toFa(kPcMaxDays)} وارد کن')));
                 return;

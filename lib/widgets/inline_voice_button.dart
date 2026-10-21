@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/voice_service.dart';
+import '../services/quiet_snack.dart';
 
 /// ضبط صدای درجا (بدون کادر/شیت):
 /// یک بار تپ = شروع ضبط، بار دوم تپ = پایان ضبط و بلافاصله `onRecorded` صدا می‌شه
@@ -54,7 +55,7 @@ class _InlineMicButtonState extends State<InlineMicButton> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
+      ..quietSnack(SnackBar(
         content: Text(m),
         duration: const Duration(milliseconds: 1800),
         behavior: SnackBarBehavior.floating,

@@ -15,6 +15,7 @@ import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
 import 'motivation_sheet.dart';
+import '../services/quiet_snack.dart';
 
 // پالت دقیقِ Maghz (html[data-theme="light"] در css/base-and-map.css)
 const _kCream = Color.fromRGBO(255, 255, 255, 0.92); // --panel-bg
@@ -122,7 +123,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.userName = _nameCtrl.text.trim();
     store.changed();
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).quietSnack(
       const SnackBar(content: Text('تنظیمات ذخیره شد')),
     );
   }
@@ -240,7 +241,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       failed++;
     }
     if (!mounted || failed == 0) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).quietSnack(SnackBar(
       content: Text(added > 0
           ? '$added فایل اضافه شد؛ ${failed.toString()} فایل پشتیبانی نشد'
           : 'فایل اضافه نشد؛ فرمت پشتیبانی نمی‌شود یا فایل خوانده نشد'),
@@ -605,7 +606,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                     final err = await bg.pickAndSet(context);
                                     if (err != null && context.mounted) {
                                       ScaffoldMessenger.of(context)
-                                          .showSnackBar(
+                                          .quietSnack(
                                               SnackBar(content: Text(err)));
                                     }
                                   },
@@ -632,7 +633,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                                       final err = await bg.cropCurrent(context);
                                       if (err != null && context.mounted) {
                                         ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                            .quietSnack(
                                                 SnackBar(content: Text(err)));
                                       }
                                     },
@@ -891,7 +892,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                           ),
                         ),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(context).quietSnack(
                             const SnackBar(
                               content: Text(
                                   'خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),
