@@ -13,14 +13,6 @@ const _kMuted = Color(0xFF5B5F77);
 const _kBorder = Color.fromRGBO(23, 138, 124, 0.28);
 const _kField = Color(0xFFF1F2F8);
 
-/// رنگ‌های بیشتر برای هدف (علاوه بر ۸ رنگ پیش‌فرض نقشه)
-const _kMoreColors = <Color>[
-  Color(0xFFE5484D), // قرمز
-  Color(0xFF2DD4BF), // فیروزه‌ای تیره
-  Color(0xFF3B82F6), // آبی
-  Color(0xFF22C55E), // سبز
-];
-
 /// کارت «ظاهر مسیر هدف»: پیش‌نمایش زنده + رنگ هدف + ضخامت خط مسیر.
 ///
 /// ضخامت: ۱ تا ۱۲ (پیش‌فرض نقشه ۳). مقدار `0` یعنی «پیش‌فرض».
@@ -233,9 +225,11 @@ class GoalPathCard extends StatelessWidget {
   }
 }
 
-/// شبکه‌ی رنگِ مشترک برای همه‌ی بخش‌های هدف‌گذاری (همان ظاهر کارت «ظاهر مسیر هدف»):
-/// ۸ رنگ پیش‌فرض نقشه + ۴ رنگ بیشتر + رنگ دلخواه (چرخه‌ی رنگ). رنگ انتخاب‌شده تیک دارد.
-/// [extra] رنگ‌های اضافه‌ی خاص یک بخش (مثلاً رنگ حلقه) را به انتهای پالت می‌افزاید.
+/// انتخاب رنگِ مشترک برای همه‌ی بخش‌های هدف‌گذاری (شاخه، زیرشاخه، هدف، من، ...).
+///
+/// به‌جای شبکه‌ی شلوغِ رنگ‌ها، فقط یک مستطیل با رنگِ انتخاب‌شده نشان داده می‌شود؛
+/// با لمس آن، پالت رنگ (دیالوگ «Select color») باز می‌شود.
+/// [extra] فقط برای سازگاری با فراخوانی‌های قبلی مانده و دیگر استفاده نمی‌شود.
 class GoalColorGrid extends StatelessWidget {
   const GoalColorGrid({
     super.key,
@@ -245,7 +239,7 @@ class GoalColorGrid extends StatelessWidget {
     this.noSelection = false,
   });
 
-  /// true ⇒ هیچ رنگی تیک نمی‌خورد (مثلاً وقتی «مثل هدف» انتخاب شده)
+  /// true ⇒ هنوز رنگی انتخاب نشده (مثلاً وقتی «مثل هدف» انتخاب شده)
   final bool noSelection;
   final Color color;
   final ValueChanged<String> onColor;
@@ -253,78 +247,29 @@ class GoalColorGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hex = GoalPathCard._hex(color);
-    final all = <Color>[...kWebPalette, ..._kMoreColors];
-    for (final e in extra) {
-      if (!all.any((c) => GoalPathCard._hex(c) == GoalPathCard._hex(e))) all.add(e);
-    }
-    return Wrap(
-      spacing: 9,
-      runSpacing: 9,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        for (final c in all)
-          _Swatch(
-            color: c,
-            active: !noSelection && GoalPathCard._hex(c) == hex,
-            onTap: () => onColor(GoalPathCard._hex(c)),
-          ),
-        // رنگ دلخواه (چرخه‌ی رنگ کامل)
-        GestureDetector(
-          onTap: () async {
-            final picked = await showWebColorDialog(context, initial: color);
-            if (picked != null) onColor(GoalPathCard._hex(picked));
-          },
-          child: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const SweepGradient(colors: [
-                Color(0xFFFF4D4D),
-                Color(0xFFFFD93D),
-                Color(0xFF6BFF6B),
-                Color(0xFF4DFFEA),
-                Color(0xFF4D79FF),
-                Color(0xFFD14DFF),
-                Color(0xFFFF4D4D),
-              ]),
-              border: Border.all(color: const Color(0x22000000), width: 1.5),
+    final iconColor =
+        (noSelection || color.computeLuminance() > 0.6) ? _kMuted : Colors.white;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: GestureDetector(
+        onTap: () async {
+          final picked = await showWebColorDialog(context, initial: color);
+          if (picked != null) onColor(GoalPathCard._hex(picked));
+        },
+        child: Container(
+          width: 92,
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: noSelection ? _kField : color,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: noSelection ? _kBorder : const Color(0x55000000),
+              width: noSelection ? 1.2 : 1.6,
             ),
-            child: const Icon(Icons.add, size: 16, color: Colors.white),
           ),
+          child: Icon(Icons.colorize_rounded, size: 20, color: iconColor),
         ),
-      ],
-    );
-  }
-}
-
-class _Swatch extends StatelessWidget {
-  const _Swatch(
-      {required this.color, required this.active, required this.onTap});
-  final Color color;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: active ? _kInk : const Color(0x22000000),
-            width: active ? 2.5 : 1.2,
-          ),
-        ),
-        child: active
-            ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-            : null,
       ),
     );
   }
