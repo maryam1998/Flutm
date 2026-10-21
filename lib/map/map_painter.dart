@@ -167,15 +167,26 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  String _formatStamp(int ts) {
+  /// نمایش تاریخ/ساعتِ هر گره: انتخابِ خودِ گره (extra) یا تنظیم کلی
+  bool _showDateOf(Map<String, dynamic> extra) {
+    final v = extra['showDate'];
+    return v is bool ? v : state.showDateStamps;
+  }
+
+  bool _showTimeOf(Map<String, dynamic> extra) {
+    final v = extra['showTime'];
+    return v is bool ? v : state.showTimeStamps;
+  }
+
+  String _formatStamp(int ts, Map<String, dynamic> extra) {
     try {
       final d = DateTime.fromMillisecondsSinceEpoch(ts);
       final parts = <String>[];
-      if (state.showDateStamps) {
+      if (_showDateOf(extra)) {
         final j = toJalaali(d.year, d.month, d.day);
         parts.add('${toFa(j.jy)}/${toFa(j.jm)}/${toFa(j.jd)}');
       }
-      if (state.showTimeStamps) {
+      if (_showTimeOf(extra)) {
         parts.add(
             '${toFa(d.hour.toString().padLeft(2, '0'))}:${toFa(d.minute.toString().padLeft(2, '0'))}');
       }
@@ -522,10 +533,10 @@ class MapPainter extends CustomPainter {
           type: 'goal', id: g.id, kind: HitKind.label, rect: lr));
     }
 
-    if ((state.showDateStamps || state.showTimeStamps) &&
+    if ((_showDateOf(g.extra) || _showTimeOf(g.extra)) &&
         g.createdAt != null &&
         g.createdAt! > 0) {
-      final stamp = _formatStamp(g.createdAt!);
+      final stamp = _formatStamp(g.createdAt!, g.extra);
       if (stamp.isNotEmpty) {
         drawText(
             canvas,
@@ -1556,10 +1567,10 @@ class MapPainter extends CustomPainter {
       }
 
       final cAt = a.extra['createdAt'];
-      if ((state.showDateStamps || state.showTimeStamps) &&
+      if ((_showDateOf(a.extra) || _showTimeOf(a.extra)) &&
           cAt is num &&
           cAt > 0) {
-        final stamp = _formatStamp(cAt.toInt());
+        final stamp = _formatStamp(cAt.toInt(), a.extra);
         if (stamp.isNotEmpty) {
           drawText(canvas, stamp, lx, ly + lines.length * 16,
               size: math.max(9, fs * 0.62),

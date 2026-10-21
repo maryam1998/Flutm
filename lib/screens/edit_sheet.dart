@@ -469,6 +469,32 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
+  /// نمایش تاریخ و ساعت ثبتِ یک گره روی نقشه (جدا برای هر گره).
+  /// اگر انتخاب نشده باشد، همان تنظیم کلیِ نقشه اعمال می‌شود.
+  Widget _stampCard(Map<String, dynamic> extra) {
+    bool val(String key, bool global) {
+      final v = extra[key];
+      return v is bool ? v : global;
+    }
+
+    return PanelCard(
+      icon: Icons.schedule_rounded,
+      title: 'تاریخ و ساعت روی نقشه',
+      children: [
+        _switchTile(
+          title: 'نمایش تاریخ',
+          value: val('showDate', _s.showDateStamps),
+          onChanged: (v) => _edit(() => extra['showDate'] = v),
+        ),
+        _switchTile(
+          title: 'نمایش ساعت',
+          value: val('showTime', _s.showTimeStamps),
+          onChanged: (v) => _edit(() => extra['showTime'] = v),
+        ),
+      ],
+    );
+  }
+
   Widget _shapeGrid(String current, void Function(String) onPick,
       {bool inherit = false, String inheritLabel = 'مثل مجموعه'}) {
     return PanelChoiceGrid(
@@ -895,6 +921,7 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
+      _stampCard(g.extra),
       // رنگ هدف + نوع خط + ضخامت، با پیش‌نمایش زنده‌ی مسیر
       GoalPathCard(
         color: g.color,
@@ -1108,12 +1135,11 @@ class _EditSheetState extends State<EditSheet> {
           const PanelLabel('رنگ'),
           _swatches(a.color, (c) => a.color = c,
               onInherit: () => a.color = null),
-          const PanelLabel('شکل این اقدام'),
           _shapeGrid(a.style, (v) => a.style = v,
               inherit: true, inheritLabel: 'مثل هدف'),
           const SizedBox(height: 6),
           _slider(
-            label: 'طول و اهمیت اقدام',
+            label: 'ضخامت',
             value: a.weight.clamp(1.0, 10.0).toDouble(),
             min: 1,
             max: 10,
@@ -1122,7 +1148,7 @@ class _EditSheetState extends State<EditSheet> {
             onChanged: (v) => _edit(() => a.weight = v.roundToDouble()),
           ),
           _slider(
-            label: 'اندازه‌ی دایره‌ی نوک',
+            label: 'اندازه‌ی دایره‌ی روتین',
             value: ((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0)
                 .clamp(0.3, 8.0)
                 .toDouble(),
@@ -1141,6 +1167,7 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
+      _stampCard(a.extra),
       _switchTile(
         title: 'این یه کار روتینه',
         subtitle: 'هر روز تکرار می‌شه، هفته‌ای یه بار نگاه کن',
