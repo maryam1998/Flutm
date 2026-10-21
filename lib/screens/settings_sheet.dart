@@ -15,7 +15,8 @@ import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
-import 'motivation_sheet.dart';
+import '../models/motivation_item.dart';
+import '../state/motivation_store.dart';
 import '../services/quiet_snack.dart';
 
 // پالت دقیقِ Maghz (html[data-theme="light"] در css/base-and-map.css)
@@ -86,6 +87,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late double _walkerHaloScale;
   late String _userName;
   late TextEditingController _nameCtrl;
+  final _motInput = TextEditingController();
+  final _motEditCtl = TextEditingController();
+  String? _motEditId;
+  bool _motArchivedOpen = false;
   bool _inited = false;
 
   @override
@@ -118,6 +123,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _motInput.dispose();
+    _motEditCtl.dispose();
     super.dispose();
   }
 
@@ -933,25 +940,194 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 
   Widget _motivationCard() {
+    final store = context.watch<MotivationStore>();
+    final active = store.active;
+    final archived = store.archived;
+    InputBorder ob(Color c, [double w = 1]) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: c, width: w),
+        );
+    Future<void> add() async {
+      final t = _motInput.text.trim();
+      if (t.isEmpty) return;
+      await store.add(t);
+      _motInput.clear();
+      if (mounted) FocusScope.of(context).unfocus();
+    }
+
     return _card(
       icon: Icons.format_quote_rounded,
       title: 'جمله‌های انگیزه‌بخش',
       children: [
-        OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _kInk,
-            side: const BorderSide(color: _kBorder),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          onPressed: () => showMotivationSheet(context),
-          icon: const Icon(Icons.auto_awesome, size: 18, color: _kGold),
-          label: const Text('مدیریت جمله‌های انگیزه‌بخش',
-              style: TextStyle(fontSize: 12.5)),
+        _switchRow(
+          title: 'نمایش نوار در همه‌ی تب‌ها',
+          value: store.showBar,
+          onChanged: (v) => store.setShowBar(v),
         ),
+        const _Hair(),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _motInput,
+                maxLines: 3,
+                minLines: 1,
+                onSubmitted: (_) => add(),
+                style: const TextStyle(fontSize: 13, color: _kInk),
+                decoration: InputDecoration(
+                  hintText: 'مثلاً: هر روز یک قدم به رویاهات نزدیک‌تر...',
+                  hintStyle: const TextStyle(fontSize: 12, color: _kMuted),
+                  isDense: true,
+                  filled: true,
+                  fillColor: _kField,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 12),
+                  border: ob(_kBorder),
+                  enabledBorder: ob(_kBorder),
+                  focusedBorder: ob(_kGold, 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: _kGold,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: add,
+              child: const Text('افزودن',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (active.isEmpty && archived.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Text('هنوز جمله‌ای نداری.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _kMuted, fontSize: 12)),
+          )
+        else ...[
+          for (final it in active) _motTile(it, store, archived: false),
+          if (archived.isNotEmpty) ...[
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () =>
+                  setState(() => _motArchivedOpen = !_motArchivedOpen),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                        _motArchivedOpen
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                        color: _kMuted),
+                    const SizedBox(width: 6),
+                    Text('بایگانی (${toFa(archived.length)})',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _kMuted)),
+                  ],
+                ),
+              ),
+            ),
+            if (_motArchivedOpen)
+              for (final it in archived) _motTile(it, store, archived: true),
+          ],
+        ],
       ],
+    );
+  }
+
+  Widget _motTile(MotivationItem it, MotivationStore store,
+      {required bool archived}) {
+    final editing = _motEditId == it.id;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.fromLTRB(10, 6, 2, 6),
+      decoration: BoxDecoration(
+        color: _kField,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder),
+      ),
+      child: editing
+          ? Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _motEditCtl,
+                    autofocus: true,
+                    minLines: 1,
+                    maxLines: 4,
+                    style: const TextStyle(fontSize: 13, color: _kInk),
+                    decoration: const InputDecoration(
+                        isDense: true, border: InputBorder.none),
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.check_rounded,
+                      size: 20, color: _kGold),
+                  onPressed: () async {
+                    final t = _motEditCtl.text.trim();
+                    if (t.isNotEmpty) await store.update(it.id, t);
+                    if (mounted) setState(() => _motEditId = null);
+                  },
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 18, color: _kMuted),
+                  onPressed: () => setState(() => _motEditId = null),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: Text(it.text,
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.7,
+                          color: archived ? _kMuted : _kInk)),
+                ),
+                if (!archived) ...[
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 18, color: _kMuted),
+                    onPressed: () => setState(() {
+                      _motEditId = it.id;
+                      _motEditCtl.text = it.text;
+                    }),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.archive_outlined,
+                        size: 18, color: _kMuted),
+                    onPressed: () => store.archive(it.id),
+                  ),
+                ] else
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.unarchive_outlined,
+                        size: 18, color: _kGold),
+                    onPressed: () => store.unarchive(it.id),
+                  ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 18, color: _kDanger),
+                  onPressed: () => store.remove(it.id),
+                ),
+              ],
+            ),
     );
   }
 
