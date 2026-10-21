@@ -78,6 +78,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late bool _showDates;
   late bool _showTimes;
   late bool _showRingLinks;
+  late bool _haloMe, _haloGoal, _haloAction, _haloSub, _haloRing;
   late bool _showEmotionWidget;
   late String _trunkStyle;
   late double _footScale;
@@ -97,6 +98,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showDates = s.showDateStamps;
     _showTimes = s.showTimeStamps;
     _showRingLinks = s.showRingLinks;
+    _haloMe = s.haloMe;
+    _haloGoal = s.haloGoal;
+    _haloAction = s.haloAction;
+    _haloSub = s.haloSub;
+    _haloRing = s.haloRing;
     _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
         kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
@@ -132,6 +138,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.showDateStamps = _showDates;
     s.showTimeStamps = _showTimes;
     s.showRingLinks = _showRingLinks;
+    s.haloMe = _haloMe;
+    s.haloGoal = _haloGoal;
+    s.haloAction = _haloAction;
+    s.haloSub = _haloSub;
+    s.haloRing = _haloRing;
     s.showEmotionWidget = _showEmotionWidget;
     s.trunkStyle = _trunkStyle;
     s.footScale = _footScale;
@@ -611,9 +622,39 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             store.changedNow();
           },
         ),
+        const _Hair(),
+        _switchRow(
+          title: 'نمایش تاریخ (هدف، شاخه، زیرشاخه)',
+          value: _showDates,
+          onChanged: (v) => setState(() => _showDates = v),
+        ),
+        const _Hair(),
+        _switchRow(
+          title: 'نمایش ساعت (هدف، شاخه، زیرشاخه)',
+          value: _showTimes,
+          onChanged: (v) => setState(() => _showTimes = v),
+        ),
+        const _Hair(),
+        _haloRow('هاله‌ی دور «من»', _haloMe, (v) => _haloMe = v),
+        const _Hair(),
+        _haloRow('هاله‌ی دور هدف', _haloGoal, (v) => _haloGoal = v),
+        const _Hair(),
+        _haloRow('هاله‌ی دور شاخه', _haloAction, (v) => _haloAction = v),
+        const _Hair(),
+        _haloRow('هاله‌ی دور زیرشاخه', _haloSub, (v) => _haloSub = v),
+        const _Hair(),
+        _haloRow('هاله‌ی دور «نزدیک شدن به هدف»', _haloRing,
+            (v) => _haloRing = v),
       ],
     );
   }
+
+  Widget _haloRow(String title, bool value, void Function(bool) set) =>
+      _switchRow(
+        title: title,
+        value: value,
+        onChanged: (v) => setState(() => set(v)),
+      );
 
   /// پس‌زمینه
   Widget _backgroundCard() {

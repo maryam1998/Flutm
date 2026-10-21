@@ -546,6 +546,8 @@ class MapState {
   String textColor, trunkStyle;
   double fontSize;
   bool showDateStamps, showTimeStamps, showRingLinks, showEmotionWidget;
+  // هاله‌ی دور «من»، هدف، شاخه، زیرشاخه و «نزدیک شدن به هدف» (پیش‌فرض: خاموش)
+  bool haloMe, haloGoal, haloAction, haloSub, haloRing;
   String userName;
   double footScale;
   Map<String, dynamic> extra;
@@ -557,10 +559,15 @@ class MapState {
     this.textColor = kDefaultTextColor,
     this.trunkStyle = 'dashed',
     this.fontSize = 14,
-    this.showDateStamps = true,
-    this.showTimeStamps = true,
+    this.showDateStamps = false,
+    this.showTimeStamps = false,
     this.showRingLinks = false,
     this.showEmotionWidget = true,
+    this.haloMe = false,
+    this.haloGoal = false,
+    this.haloAction = false,
+    this.haloSub = false,
+    this.haloRing = false,
     this.userName = '',
     this.footScale = 1.0,
     Map<String, dynamic>? extra,
@@ -573,6 +580,7 @@ class MapState {
     'me', 'goals', 'rings', 'textColor', 'trunkStyle', 'fontSize',
     'showDateStamps', 'showTimeStamps', 'showRingLinks', 'showEmotionWidget',
     'userName', 'footScale',
+    'haloMe', 'haloGoal', 'haloAction', 'haloSub', 'haloRing', 'stampsOffV2',
   };
 
   factory MapState.fromJson(dynamic raw) {
@@ -581,6 +589,8 @@ class MapState {
     var fs = _d(j['fontSize'], 14);
     if (fs < 8) fs = 14;
     final extra = _rest(j, _known)..remove('_lite');
+    // یک‌بار: تاریخ/ساعتِ ذخیره‌شده‌ی قبلی (که پیش‌فرضِ روشن بود) خاموش می‌شود
+    final stampsMigrated = j['stampsOffV2'] == true;
     return MapState(
       me: MeNode.fromJson(j['me']),
       goals: j['goals'] is List
@@ -592,8 +602,15 @@ class MapState {
       textColor: _s(j['textColor'], kDefaultTextColor),
       trunkStyle: kTrunkStyles.containsKey(ts) ? ts : 'dashed',
       fontSize: fs,
-      showDateStamps: _b(j['showDateStamps'], true),
-      showTimeStamps: _b(j['showTimeStamps'], true),
+      showDateStamps:
+          stampsMigrated ? _b(j['showDateStamps'], false) : false,
+      showTimeStamps:
+          stampsMigrated ? _b(j['showTimeStamps'], false) : false,
+      haloMe: _b(j['haloMe'], false),
+      haloGoal: _b(j['haloGoal'], false),
+      haloAction: _b(j['haloAction'], false),
+      haloSub: _b(j['haloSub'], false),
+      haloRing: _b(j['haloRing'], false),
       showRingLinks: _b(j['showRingLinks'], false),
       showEmotionWidget: _b(j['showEmotionWidget'], true),
       userName: _s(j['userName'], ''),
@@ -614,6 +631,12 @@ class MapState {
         'showTimeStamps': showTimeStamps,
         'showRingLinks': showRingLinks,
         'showEmotionWidget': showEmotionWidget,
+        'haloMe': haloMe,
+        'haloGoal': haloGoal,
+        'haloAction': haloAction,
+        'haloSub': haloSub,
+        'haloRing': haloRing,
+        'stampsOffV2': true,
         'userName': userName,
         'footScale': footScale,
         '_savedAt': DateTime.now().millisecondsSinceEpoch,

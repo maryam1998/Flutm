@@ -178,6 +178,12 @@ class MapPainter extends CustomPainter {
     return v is bool ? v : state.showTimeStamps;
   }
 
+  /// هاله‌ی هر گره: انتخابِ خودِ گره (extra['showHalo']) یا تنظیم کلی (پیش‌فرض خاموش)
+  bool _haloOn(Map<String, dynamic> extra, bool global) {
+    final v = extra['showHalo'];
+    return v is bool ? v : global;
+  }
+
   String _formatStamp(int ts, Map<String, dynamic> extra) {
     try {
       final d = DateTime.fromMillisecondsSinceEpoch(ts);
@@ -379,8 +385,10 @@ class MapPainter extends CustomPainter {
     final r = me.radius;
     final u = userFrequencyState(state);
     final band = kFreqBands[u.band]!;
-    _aura(canvas, c, r, u);
-    _halo(canvas, c, hexColor(band.color), r, 1, u.band);
+    if (_haloOn(me.extra, state.haloMe)) {
+      _aura(canvas, c, r, u);
+      _halo(canvas, c, hexColor(band.color), r, 1, u.band);
+    }
     final meColor = hexColor(me.color.isEmpty ? band.color : me.color);
     _addCircleBounds(c, r);
     hits.add(HitEntry(
@@ -508,7 +516,9 @@ class MapPainter extends CustomPainter {
     final r0 = g.radius;
     final c = Offset(g.x, g.y);
     final col = hexColor(g.color, hexColor(kPalette[0]));
-    _halo(canvas, c, col, r0 * math.max(1.0, g.iconScale), 1, g.freq);
+    if (_haloOn(g.extra, state.haloGoal)) {
+      _halo(canvas, c, col, r0 * math.max(1.0, g.iconScale), 1, g.freq);
+    }
     _nodeIcon(canvas, c, r0, g.images, g.icon, col, g.iconScale, tc);
     final r = r0 * g.iconScale;
     _addCircleBounds(c, r);
@@ -605,7 +615,9 @@ class MapPainter extends CustomPainter {
     final rad = r.radius;
     final col = hexColor(r.color, hexColor(kRingColor));
     final big = rad * math.max(1.0, r.iconScale);
-    _halo(canvas, c, col, big, 1.2, null);
+    if (_haloOn(r.extra, state.haloRing)) {
+      _halo(canvas, c, col, big, 1.2, null);
+    }
     _nodeIcon(canvas, c, rad, r.images, r.icon, col, r.iconScale, tc);
     _addCircleBounds(c, rad * r.iconScale);
     hits.add(HitEntry(
@@ -1426,7 +1438,7 @@ class MapPainter extends CustomPainter {
 
   void _twig(Canvas canvas, MapHost h, Color hostColor, Offset originPt,
       double originDir, ActionNode a, int side, double scale, Color tc,
-      {List<Offset>? route, int trunkLane = 0}) {
+      {List<Offset>? route, int trunkLane = 0, int depth = 0}) {
     final weight = a.weight == 0 ? 5.0 : a.weight;
     final color = (a.color != null && a.color!.isNotEmpty)
         ? hexColor(a.color, hostColor)
@@ -1454,6 +1466,11 @@ class MapPainter extends CustomPainter {
       _taperedPoly(canvas, geom.poly!, color, baseW, tipW, 0.92);
     } else {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
+    }
+
+    if (_haloOn(a.extra, depth == 0 ? state.haloAction : state.haloSub)) {
+      final tipR0 = math.max(1.8, 2 + weight * 0.28 * scale) * cs;
+      _halo(canvas, end, color, math.max(tipR0 * 1.6, 9.0 * scale), 1, null);
     }
 
     if (route != null) {
@@ -1500,7 +1517,9 @@ class MapPainter extends CustomPainter {
         }
         _twig(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
             scale * 0.72, tc,
-            route: route == null ? null : childRoute, trunkLane: trunkLane);
+            route: route == null ? null : childRoute,
+            trunkLane: trunkLane,
+            depth: depth + 1);
       }
     } else if (a.images.isNotEmpty) {
       final radius = math.max(1.8, 2 + weight * 0.28 * scale);

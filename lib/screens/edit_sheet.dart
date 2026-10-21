@@ -506,6 +506,24 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
+  /// نمایش هاله‌ی دور یک گره (جدا برای هر گره). اگر انتخاب نشده باشد،
+  /// همان تنظیم کلیِ نقشه (پیش‌فرض: خاموش) اعمال می‌شود.
+  Widget _haloCard(Map<String, dynamic> extra, bool global) {
+    final v = extra['showHalo'];
+    return _card(
+      icon: Icons.blur_circular_rounded,
+      title: 'هاله',
+      collapsible: true,
+      children: [
+        _switchTile(
+          title: 'نمایش هاله',
+          value: v is bool ? v : global,
+          onChanged: (b) => _edit(() => extra['showHalo'] = b),
+        ),
+      ],
+    );
+  }
+
   Widget _shapeGrid(String current, void Function(String) onPick,
       {bool inherit = false, String inheritLabel = 'مثل مجموعه'}) {
     return PanelChoiceGrid(
@@ -784,6 +802,7 @@ class _EditSheetState extends State<EditSheet> {
           _swatches(me.color, (c) => me.color = c),
         ],
       ),
+      _haloCard(me.extra, _s.haloMe),
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
@@ -972,6 +991,7 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _stampCard(g.extra),
+      _haloCard(g.extra, _s.haloGoal),
       // رنگ هدف + نوع خط + ضخامت، با پیش‌نمایش زنده‌ی مسیر
       GoalPathCard(
         color: g.color,
@@ -1120,6 +1140,7 @@ class _EditSheetState extends State<EditSheet> {
           _swatches(r.color, (c) => r.color = c, extra: const [kRingColor]),
         ],
       ),
+      _haloCard(r.extra, _s.haloRing),
       _card(
         icon: Icons.text_fields_rounded,
         title: 'نوشته‌ی نشانه',
@@ -1235,6 +1256,8 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _stampCard(a.extra),
+      _haloCard(a.extra,
+          host.actions.any((x) => x.id == a.id) ? _s.haloAction : _s.haloSub),
       _switchTile(
         boxed: true,
         title: 'این یه کار روتینه',
