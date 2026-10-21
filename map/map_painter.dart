@@ -28,6 +28,21 @@ double _easeInOut(double t) {
   return 1 - u * u / 2;
 }
 
+/// وضعیتِ زنده‌ی هر قدم‌زن (فقط در حافظه): موقعیتِ لحظه‌ای روی مسیر، تا بعد از
+/// توقف (لمس طولانی) دقیقاً از همان‌جا ادامه بدهد و نپرد.
+class _WalkerRt {
+  double? cyc; // موقعیت در چرخه‌ی رفت‌وبرگشت (کسری از ۰ تا ۱؛ با زوم نمی‌پرد)
+  double lastTt = 0;
+  bool playing = false;
+  double? lastBodyT; // آخرین موقعیتِ کشیده‌شده
+  bool lastRet = false; // آخرین جهت (برگشت؟)
+  double? frozenT; // موقعیتِ لحظه‌ی توقف (یا جایی که کاربر کشید)
+  bool frozenRet = false;
+  double? seenManual; // آخرین walkerPos/footPos دیده‌شده؛ برای تشخیص کشیدنِ دستی
+}
+
+final Map<String, _WalkerRt> _walkerRt = {};
+
 /// منحنی عمومی برای قدم‌زن: t بین ۰ و ۱
 abstract class _Curve {
   Offset at(double t);
@@ -924,22 +939,57 @@ class MapPainter extends CustomPainter {
     final mine = <Offset>[];
 
     // ─── موقعیت بدنه + جهت (رفت / برگشت) ───
+    // موقعیت به‌صورت تجمعی نگه داشته می‌شود (نه از ساعت سراسری) تا بعد از
+    // توقف و ادامه، قدم‌زن از همان نقطه‌ی توقف راه بیفتد و نپرد.
+    final st = _walkerRt.putIfAbsent('$hitType:$hitId', _WalkerRt.new);
+    final cycleLen = totalSteps * 2.0;
     double bodyT;
     bool returning = false;
+    double cyc = 0;
     if (playing) {
-      final tSteps = tt * speed;
-      final cycleLen = totalSteps * 2.0;
-      final cycle = tSteps % cycleLen;
-      double stepNum;
-      if (cycle < totalSteps) {
-        stepNum = cycle;
+      if (!st.playing || st.cyc == null) {
+        final fz = st.frozenT;
+        if (fz != null) {
+          // ادامه از نقطه‌ی توقف، با همان جهتِ قبل
+          final step = ((fz - tMin) / range).clamp(0.0, 1.0) * totalSteps;
+          cyc = (st.frozenRet ? cycleLen - step : step) % cycleLen;
+        } else {
+          cyc = (tt * speed) % cycleLen;
+        }
+        st.frozenT = null;
       } else {
-        stepNum = cycleLen - cycle;
+        var dt = tt - st.lastTt;
+        if (dt < 0 || dt > 1.0) dt = 0;
+        cyc = (st.cyc! * cycleLen + dt * speed) % cycleLen;
+      }
+      st.cyc = cyc / cycleLen;
+      st.lastTt = tt;
+      st.playing = true;
+      double stepNum;
+      if (cyc < totalSteps) {
+        stepNum = cyc;
+      } else {
+        stepNum = cycleLen - cyc;
         returning = true;
       }
       bodyT = tMin + (stepNum / totalSteps).clamp(0.0, 1.0) * range;
+      st.lastBodyT = bodyT;
+      st.lastRet = returning;
     } else {
-      bodyT = (manualT ?? (tMin + range / 2)).clamp(tMin, tMax);
+      if (st.playing) {
+        // همین الان متوقف شد → موقعیت و جهتِ آخر را نگه دار
+        st.frozenT = st.lastBodyT;
+        st.frozenRet = st.lastRet;
+      }
+      // کاربر با انگشت جابه‌جا کرده → موقعیت جدید
+      if (manualT != null && manualT != st.seenManual) {
+        st.frozenT = manualT;
+      }
+      st.seenManual = manualT;
+      st.playing = false;
+      st.cyc = null;
+      bodyT = (st.frozenT ?? manualT ?? (tMin + range / 2)).clamp(tMin, tMax);
+      returning = st.frozenRet;
     }
     final dir = returning ? -1.0 : 1.0;
 
@@ -949,7 +999,7 @@ class MapPainter extends CustomPainter {
     final String? photo = (!hasEmoji && photos.isNotEmpty) ? photos.first : null;
 
     // ─── فاز قدم ───
-    final stepPhase = playing ? (tt * speed) % 1.0 : 0.0;
+    final stepPhase = playing ? cyc % 1.0 : 0.0;
     final leftSwinging = stepPhase < 0.5;
     final swingPhase = leftSwinging ? stepPhase * 2 : (stepPhase - 0.5) * 2;
     final swingEase = _easeInOut(swingPhase);

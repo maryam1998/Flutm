@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/emotion.dart';
+import '../models/future_version.dart';
 import '../models/jalali.dart' as jal;
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
@@ -643,8 +644,13 @@ class _GratMiniCalendarState extends State<GratMiniCalendar> {
 class _CalHeader extends StatelessWidget {
   final GratPalette pal;
   final int done, total;
-  const _CalHeader(
-      {required this.pal, required this.done, required this.total});
+  final String title;
+  const _CalHeader({
+    required this.pal,
+    required this.done,
+    required this.total,
+    this.title = 'مسیر شکرگذاری',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -668,7 +674,7 @@ class _CalHeader extends StatelessWidget {
             ),
             const SizedBox(width: 9),
             Expanded(
-              child: Text('مسیر شکرگذاری',
+              child: Text(title,
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -852,6 +858,13 @@ class GratPeriodGrid extends StatelessWidget {
   /// داخل .mini-cal-inner (دوره‌ی قبلی) padding سرتیتر 6/2 است نه 8/3
   final bool inner;
 
+  /// کلید روز (پیش‌فرض YYYY-MM-DD با صفر)؛ تقویم باورها کلید بدون صفر دارد
+  final String Function(DateTime)? keyOf;
+
+  /// متن وضعیت داخل حباب؛ پیش‌فرض متن شکرگذاری
+  final String Function(String key, bool done, bool today, bool future)?
+      statusOf;
+
   const GratPeriodGrid({
     super.key,
     required this.pal,
@@ -862,6 +875,8 @@ class GratPeriodGrid extends StatelessWidget {
     this.store,
     this.withEmotions = false,
     this.inner = false,
+    this.keyOf,
+    this.statusOf,
   });
 
   static const cols = 15;
@@ -884,7 +899,8 @@ class GratPeriodGrid extends StatelessWidget {
       // grid-template-columns: repeat(15, minmax(0,1fr)); gap:3px
       final cell = (box.maxWidth - gap * (cols - 1)) / cols;
       final today = GratCal.today();
-      final todayKey = GratCal.key(today);
+      final kf = keyOf ?? GratCal.key;
+      final todayKey = kf(today);
 
       return ValueListenableBuilder<_CalSel?>(
         valueListenable: _calSelection,
@@ -914,7 +930,7 @@ class GratPeriodGrid extends StatelessWidget {
 
           for (var d = 0; d < total; d++) {
             final date = DateTime(start.year, start.month, start.day + d);
-            final key = GratCal.key(date);
+            final key = kf(date);
 
             if (d % blockSize == 0) {
               flush();
@@ -979,6 +995,7 @@ class GratPeriodGrid extends StatelessWidget {
               ring: _ringFor(key, done),
               selected: selected,
               owner: owner,
+              statusOf: statusOf,
             ));
             if (cur.length == cols) flush();
           }
@@ -1005,6 +1022,8 @@ class _DayCell extends StatelessWidget {
   final String owner;
   final bool done, today, future, monthEnd, selected;
   final Color? ring;
+  final String Function(String key, bool done, bool today, bool future)?
+      statusOf;
 
   /// شماره‌ی روز در دوره (۱ تا total)
   final int index;
@@ -1022,13 +1041,19 @@ class _DayCell extends StatelessWidget {
     required this.monthEnd,
     required this.selected,
     this.ring,
+    this.statusOf,
   });
 
   void _tap(BuildContext context) {
     // کلیک روی .mini-cal-day[data-cal-key]: .selected + حبابِ تاریخ
     _calSelection.value = _CalSel(owner, dayKey);
-    var status = future ? 'هنوز نرسیده' : (done ? '✓ ثبت شده' : 'ثبت نشده');
-    if (today) status = 'امروز — $status';
+    final status = statusOf != null
+        ? statusOf!(dayKey, done, today, future)
+        : () {
+            var st = future ? 'هنوز نرسیده' : (done ? '✓ ثبت شده' : 'ثبت نشده');
+            if (today) st = 'امروز — $st';
+            return st;
+          }();
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
     final tl = box.localToGlobal(Offset.zero);
@@ -1281,6 +1306,327 @@ class _PastPeriodState extends State<_PastPeriod> {
               total: days,
               doneSet: widget.doneSet,
               inner: true,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//        تقویم دوره‌ی باورها — همان طراحی تقویم شکرگذاری
+// ════════════════════════════════════════════════════════════════
+class BeliefsPeriodCalendar extends StatefulWidget {
+  final GratPalette pal;
+
+  /// تاریخ شروع دوره‌ی فعلی ('YYYY-M-D')
+  final String startKey;
+  final int total;
+  final Set<String> readDays;
+  final Map<String, int> readTimes;
+
+  /// دوره‌های تمام‌شده‌ی قبلی (از اولین تا آخرین)
+  final List<FutureReadCycle> cycles;
+  final bool finished;
+
+  /// هنوز متنی نوشته نشده (تقویم خالی و موقت)
+  final bool noText;
+  final VoidCallback onDays;
+  final VoidCallback onReset;
+
+  const BeliefsPeriodCalendar({
+    super.key,
+    required this.pal,
+    required this.startKey,
+    required this.total,
+    required this.readDays,
+    required this.readTimes,
+    required this.cycles,
+    required this.finished,
+    required this.noText,
+    required this.onDays,
+    required this.onReset,
+  });
+
+  @override
+  State<BeliefsPeriodCalendar> createState() => _BeliefsPeriodCalendarState();
+}
+
+class _BeliefsPeriodCalendarState extends State<BeliefsPeriodCalendar> {
+  late final String _id = 'bcal${identityHashCode(this)}';
+  ScrollPosition? _pos;
+
+  static String _bKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
+
+  static String _fmtTime(int ms) {
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    return GratCal.toFa2(
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}');
+  }
+
+  static String Function(String, bool, bool, bool) _statusFn(
+      Map<String, int> times) {
+    return (key, done, today, future) {
+      var st = future
+          ? 'هنوز نرسیده'
+          : (done
+              ? (times[key] != null
+                  ? '✓ خوانده شد — ساعت ${_fmtTime(times[key]!)}'
+                  : '✓ خوانده شد')
+              : 'خوانده نشده');
+      if (today) st = 'امروز — $st';
+      return st;
+    };
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final p = Scrollable.maybeOf(context)?.position;
+    if (p != _pos) {
+      _pos?.removeListener(_CalBubble.hide);
+      _pos = p;
+      _pos?.addListener(_CalBubble.hide);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pos?.removeListener(_CalBubble.hide);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = widget.pal;
+    final total = widget.total;
+    final start = GratCal.parseKey(widget.startKey);
+    var doneCount = 0;
+    for (var d = 0; d < total; d++) {
+      if (widget.readDays
+          .contains(_bKey(DateTime(start.year, start.month, start.day + d)))) {
+        doneCount++;
+      }
+    }
+    final pastCount = widget.cycles.length;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              color: pal.isDark ? pal.surface : Colors.white,
+              border: Border.all(color: pal.panelBorder),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: pal.isDark
+                  ? null
+                  : const [
+                      BoxShadow(
+                          color: Color(0x0F141832),
+                          blurRadius: 12,
+                          offset: Offset(0, 3)),
+                    ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CalHeader(
+                  pal: pal,
+                  title: 'مسیر باورها',
+                  done: math.min(doneCount, total),
+                  total: total,
+                ),
+                const SizedBox(height: 14),
+                GratPeriodGrid(
+                  pal: pal,
+                  owner: '$_id:main',
+                  start: start,
+                  total: total,
+                  doneSet: widget.readDays,
+                  keyOf: _bKey,
+                  statusOf: _statusFn(widget.readTimes),
+                ),
+                const SizedBox(height: 12),
+                _CalLegend(pal: pal),
+              ],
+            ),
+          ),
+          if (widget.noText) ...[
+            const SizedBox(height: 8),
+            Text(
+              'بعد از نوشتن متن خواسته، روزهای خوانده‌شده اینجا ثبت می‌شوند.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11.5, color: pal.muted, height: 1.7),
+            ),
+          ],
+          if (widget.finished) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(230, 205, 142, .25),
+                border: Border.all(color: pal.gold300),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '🎉🥳 دوره‌ی ${GratCal.ord(pastCount)} رو تموم کردی! '
+                '${GratCal.faNum(math.min(doneCount, total))} روز از ${GratCal.faNum(total)} روز متنت رو خوندی.\n'
+                'برای شروع دوره‌ی بعدی تقویم رو ریست کن — دوره‌های قبلی همین‌جا می‌مونن.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  height: 1.8,
+                  leadingDistribution: TextLeadingDistribution.even,
+                  color: pal.ink,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _CalBtn(
+              pal: pal,
+              gold: true,
+              label: '▶️ شروع دوره‌ی ${GratCal.ord(pastCount + 1)}',
+              onTap: widget.onReset,
+            ),
+            const SizedBox(height: 8),
+            _CalBtn(
+              pal: pal,
+              label: '⚙️ روزهای دوره (الان ${GratCal.faNum(total)} روزه)',
+              onTap: widget.onDays,
+            ),
+          ] else ...[
+            const SizedBox(height: 10),
+            _CalBtn(
+              pal: pal,
+              label: '⚙️ روزهای دوره (الان ${GratCal.faNum(total)} روزه)',
+              onTap: widget.onDays,
+            ),
+            if (!widget.noText) ...[
+              const SizedBox(height: 8),
+              _CalBtn(
+                pal: pal,
+                label: '🔄 ریست تقویم',
+                onTap: widget.onReset,
+              ),
+            ],
+          ],
+          if (pastCount > 0) ...[
+            const SizedBox(height: 10),
+            for (var i = pastCount - 1; i >= 0; i--) ...[
+              _PastCycle(
+                pal: pal,
+                cycle: widget.cycles[i],
+                index: i,
+                fallbackDays: total,
+                owner: '$_id:past$i',
+              ),
+              if (i > 0) const SizedBox(height: 6),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// دوره‌ی تمام‌شده‌ی قبلیِ باورها — مثل details.mini-cal-past
+class _PastCycle extends StatefulWidget {
+  final GratPalette pal;
+  final FutureReadCycle cycle;
+  final int index, fallbackDays;
+  final String owner;
+  const _PastCycle({
+    required this.pal,
+    required this.cycle,
+    required this.index,
+    required this.fallbackDays,
+    required this.owner,
+  });
+
+  @override
+  State<_PastCycle> createState() => _PastCycleState();
+}
+
+class _PastCycleState extends State<_PastCycle> {
+  bool _open = false;
+
+  /// طول دوره: از شروع تا روز ریست؛ حداقل تا آخرین روز خوانده‌شده
+  int _days(DateTime start) {
+    final c = widget.cycle;
+    var days = widget.fallbackDays;
+    if (c.endDate != null) {
+      days = GratCal.parseKey(c.endDate!).difference(start).inDays;
+    }
+    for (final k in c.readDays) {
+      final n = GratCal.parseKey(k).difference(start).inDays + 1;
+      if (n > days) days = n;
+    }
+    return days.clamp(1, 1000);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = widget.pal;
+    final c = widget.cycle;
+    final start = GratCal.parseKey(c.startDate);
+    final days = _days(start);
+    final read = c.readDays.toSet();
+    String bKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
+    var done = 0;
+    for (var d = 0; d < days; d++) {
+      if (read.contains(bKey(DateTime(start.year, start.month, start.day + d)))) {
+        done++;
+      }
+    }
+    final head = TextStyle(
+        fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.ink);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: pal.isDark ? pal.surface : Colors.white,
+        border: Border.all(color: pal.panelBorder),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _open = !_open),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    '✅ دوره‌ی ${GratCal.ord(widget.index)} — ${GratCal.faNum(days)} روزه',
+                    style: head,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text('${GratCal.faNum(done)} / ${GratCal.faNum(days)}',
+                    style: head),
+              ],
+            ),
+          ),
+          if (_open) ...[
+            const SizedBox(height: 10),
+            GratPeriodGrid(
+              pal: pal,
+              owner: widget.owner,
+              start: start,
+              total: days,
+              doneSet: read,
+              inner: true,
+              keyOf: bKey,
+              statusOf: _BeliefsPeriodCalendarState._statusFn(c.readTimes),
             ),
           ],
         ],

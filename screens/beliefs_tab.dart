@@ -12,7 +12,8 @@ import '../utils/edit_mark.dart';
 import '../widgets/belief_visual_section.dart';
 import '../widgets/breath_circle.dart';
 import '../widgets/format_bar.dart';
-import '../widgets/mini_calendar_90.dart';
+import '../widgets/grat_period_calendar.dart';
+import '../theme/grat_palette.dart';
 import '../widgets/neural_pathway.dart';
 import '../widgets/nothing_scene.dart';
 import '../widgets/quantum_connect.dart';
@@ -792,107 +793,17 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
 
     final total = store.cycleDays;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        MiniCalendar90(
-          version: cal,
-          totalDays: total,
-          dayKeyOf: _dayKey,
-          isFuture: _isFutureDay,
-          selectedKey: _selectedDay,
-          onDayTap: (key) => setState(() => _selectedDay = key),
-        ),
-        if (noText) ...[
-          const SizedBox(height: 8),
-          const Text(
-            'بعد از نوشتن متن خواسته، روزهای خوانده‌شده اینجا ثبت می‌شوند.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.7),
-          ),
-        ],
-        _dayInfo(cal),
-        if (store.cycleFinished) ...[
-          const SizedBox(height: 10),
-          _accentBox(
-            bg: _kYellow.withValues(alpha: 0.12),
-            accent: kBeliefsGold,
-            padding: const EdgeInsets.all(10),
-            radius: 10,
-            child: Text(
-              '🎉 این دوره‌ی ${_toFa(total)} روزه تموم شد — ${_toFa(store.readDayCount)} روز از ${_toFa(total)} روز خوندی. برای شروع دوره‌ی تازه، تقویم رو ریست کن.',
-              style: const TextStyle(
-                  fontSize: 11.5, color: kBeliefsInk, height: 1.7),
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _tinyBtn(
-                '⚙ روزهای دوره (الان ${_toFa(total)} روزه)',
-                () => _openCycleDaysDialog(store),
-              ),
-            ),
-            if (!noText) const SizedBox(width: 6),
-            if (!noText)
-            Expanded(
-              child: _tinyBtn(
-                '🔄 ریست تقویم',
-                () => _confirmResetCalendar(store),
-                gold: store.cycleFinished,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _dayInfo(FutureVersion v) {
-    final key = _selectedDay;
-    if (key == null) return const SizedBox.shrink();
-
-    final date = _parseDayKey(key);
-    final read = v.readDays.contains(key);
-    final ms = v.readTimes[key];
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    String status;
-    if (read) {
-      status = ms != null
-          ? '✓ خوانده شد — ساعت ${_fmtTime(ms)}'
-          : '✓ خوانده شد — ساعت ثبت نشده (قدیمی)';
-    } else if (date.isAfter(today)) {
-      status = 'هنوز نرسیده';
-    } else {
-      status = 'خوانده نشده';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: kBeliefsCream,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: kBeliefsBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(MiniCalendar90.faDateFull(date),
-              style: const TextStyle(fontSize: 11.5, color: kBeliefsInk)),
-          const SizedBox(height: 3),
-          Text(status,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: read ? FontWeight.w800 : FontWeight.w400,
-                color: read ? _kEmerald700 : kBeliefsMuted,
-              )),
-        ],
-      ),
+    return BeliefsPeriodCalendar(
+      pal: GratPalette.of(context),
+      startKey: cal.startDate,
+      total: total,
+      readDays: cal.readDays.toSet(),
+      readTimes: cal.readTimes,
+      cycles: cal.cycles,
+      finished: store.cycleFinished,
+      noText: noText,
+      onDays: () => _openCycleDaysDialog(store),
+      onReset: () => _confirmResetCalendar(store),
     );
   }
 
