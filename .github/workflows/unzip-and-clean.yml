@@ -5,6 +5,7 @@ on:
     paths:
       - '**.zip'
       - '.github/workflows/unzip-and-clean.yml'
+      - '.github/scripts/place_zip.sh'
   workflow_dispatch:
 
 permissions:
@@ -45,26 +46,11 @@ jobs:
 
             for z in "${zips[@]}"; do
               echo "==> $z"
-              tmp=$(mktemp -d)
-              unzip -q -o "$z" -d "$tmp"
-
-              # توکن پیش‌فرض اجازه‌ی ساخت/تغییر workflow ندارد؛ پس پوشه‌ی .github داخل zip نادیده گرفته میشه
-              # (با PAT این خط اثری نداره چون اجازه داره، ولی بی‌ضرره)
-              if [ -z "${{ secrets.PAT }}" ]; then
-                find "$tmp" -type d -name .github -prune -exec rm -rf {} +
-              fi
-
-              # اگه همه‌چیز داخل یک پوشه‌ی اصلی بود (مثل maghz_flutter/)، اون پوشه برداشته میشه
-              entries=( "$tmp"/* )
-              if [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ]; then
-                src="${entries[0]}"
-              else
-                src="$tmp"
-              fi
-
-              # فایل‌ها و پوشه‌ها کنار خود zip ساخته میشن (با همون ساختار)
-              cp -a "$src"/. "$(dirname "$z")"/
-              rm -rf "$tmp"
+              # ساختار داخل zip هرچی باشه، فایل‌ها سرِ جای درست (lib/ و …) قرار می‌گیرن
+              # و پوشه‌های اضافیِ کنار lib (map/ screens/ … ) پاک میشن
+              # توکن پیش‌فرض اجازه‌ی تغییر workflow ندارد؛ پس پوشه‌ی .github داخل zip نادیده گرفته میشه
+              if [ -z "${{ secrets.PAT }}" ]; then allow_wf=no; else allow_wf=yes; fi
+              bash .github/scripts/place_zip.sh "$z" "$PWD" "$allow_wf"
               git rm -q -f "$z"
             done
 
