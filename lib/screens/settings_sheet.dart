@@ -602,7 +602,14 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           title: 'ویجت شناورِ «آدم و احساسات»',
           subtitle: 'روی صفحه در تمام تب‌ها دیده می‌شود',
           value: _showEmotionWidget,
-          onChanged: (v) => setState(() => _showEmotionWidget = v),
+          // مثل کلیدهای «پیش‌زمینه»: همان لحظه اعمال می‌شود (قبلاً فقط با زدنِ
+          // «ذخیره‌ی تنظیمات» ویجت مخفی می‌شد و با «انصراف/بستن» هیچ اثری نداشت).
+          onChanged: (v) {
+            setState(() => _showEmotionWidget = v);
+            final store = context.read<MapStore>();
+            store.state.showEmotionWidget = v;
+            store.changedNow();
+          },
         ),
       ],
     );
@@ -1015,16 +1022,25 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               ),
             ),
             const SizedBox(width: 8),
-            Switch(
-              value: value,
-              activeThumbColor: Colors.white,
-              activeTrackColor: _kGold,
-              inactiveTrackColor: const Color(0xFFE3E5EE),
-              inactiveThumbColor: Colors.white,
-              trackOutlineColor:
-                  const WidgetStatePropertyAll(Colors.transparent),
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onChanged: onChanged,
+            // کلید کوچک‌تر (حدود ۷۰٪ اندازه‌ی استاندارد متریال)؛ FittedBox هم ظاهر
+            // و هم ناحیه‌ی لمس را کوچک می‌کند.
+            SizedBox(
+              width: 36,
+              height: 22,
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: Switch(
+                  value: value,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: _kGold,
+                  inactiveTrackColor: const Color(0xFFE3E5EE),
+                  inactiveThumbColor: Colors.white,
+                  trackOutlineColor:
+                      const WidgetStatePropertyAll(Colors.transparent),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: onChanged,
+                ),
+              ),
             ),
           ],
         ),
