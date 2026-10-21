@@ -761,7 +761,7 @@ class _EditSheetState extends State<EditSheet> {
 
   /// صدای تاکیدی (ضبط/پخش) ذخیره‌شده در extra
   Widget _voiceField(Map<String, dynamic> ex, String key, String idKey,
-      {String label = 'صدای تاکیدی'}) {
+      {String label = ''}) {
     final cur = ex[key];
     return NodeVoiceField(
       key: ValueKey('voice-$idKey-$key'),

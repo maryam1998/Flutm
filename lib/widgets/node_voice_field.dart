@@ -16,7 +16,7 @@ class NodeVoiceField extends StatefulWidget {
     super.key,
     required this.initial,
     required this.onChanged,
-    this.label = 'صدای تاکیدی',
+    this.label = '',
   });
 
   /// data-URL صدای ذخیره‌شده (خالی = بدون صدا)
@@ -44,7 +44,7 @@ class _NodeVoiceFieldState extends State<NodeVoiceField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        PanelLabel(widget.label),
+        if (widget.label.isNotEmpty) PanelLabel(widget.label),
         if (has) ...[
           AudioClipView(
             key: ValueKey(_src.length ^ _src.hashCode),
