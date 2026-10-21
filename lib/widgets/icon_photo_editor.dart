@@ -812,13 +812,7 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
             ),
           ],
         ),
-        const Padding(
-          padding: EdgeInsets.only(top: 6, bottom: 12),
-          child: Text(
-            'اگر ایموجی بگذاری، به‌جای دایره‌ی «من» روی نقشه نمایش داده می‌شود (روی عکس هم اولویت دارد)؛ برای برگشت، ایموجی را پاک کن.',
-            style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
-          ),
-        ),
+        const SizedBox(height: 12),
       ],
     );
   }

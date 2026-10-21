@@ -23,6 +23,7 @@ const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF5B5F77);
 const _kBorder = Color.fromRGBO(23, 138, 124, 0.28); // کادر سبز هماهنگ با تب‌ها
 const _kDanger = Color(0xFFE5484D);
+const _kMeBaseRadius = 34.0; // اندازه‌ی پیش‌فرض دایره‌ی «من»
 
 // ============================================================
 // انواع هدف ویرایش
@@ -748,7 +749,6 @@ class _EditSheetState extends State<EditSheet> {
       _card(
         icon: Icons.person_rounded,
         title: 'من',
-        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، عکس یا ایموجی و رنگ خودت.',
         children: [
           _textField(
             ctlKey: 'me:name',
@@ -769,6 +769,15 @@ class _EditSheetState extends State<EditSheet> {
                 me.extra['emoji'] = t;
               }
             }),
+          ),
+          _slider(
+            label: 'اندازه',
+            value: (me.radius / _kMeBaseRadius).clamp(0.6, 4.0).toDouble(),
+            min: 0.6,
+            max: 4.0,
+            divisions: 34,
+            valueText: '${(me.radius / _kMeBaseRadius * 100).round()}٪',
+            onChanged: (v) => _edit(() => me.radius = _kMeBaseRadius * v),
           ),
           const SizedBox(height: 8),
           const PanelLabel('رنگ'),
