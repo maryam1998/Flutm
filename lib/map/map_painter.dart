@@ -361,7 +361,24 @@ class MapPainter extends CustomPainter {
     hits.add(HitEntry(
         type: 'me', id: '', kind: HitKind.node, center: c, radius: r));
 
-    if (me.images.isEmpty) {
+    final meEmoji = (me.extra['emoji'] is String)
+        ? (me.extra['emoji'] as String).trim()
+        : '';
+    if (meEmoji.isNotEmpty) {
+      // ایموجیِ «من» به‌جای دایره/عکس — همه‌ی ایموجی‌ها
+      final tp = textCache.get(
+          meEmoji, r * 1.9, const Color(0xFF000000), FontWeight.w400);
+      tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+      if (me.name.isNotEmpty) {
+        final lr = drawText(canvas, me.name, c.dx + me.labelDX,
+            c.dy + r * 1.05 + me.labelDY,
+            size: me.labelSize ?? _labelSize('me'),
+            color: tc,
+            weight: FontWeight.w700,
+            outline: 3);
+        hits.add(HitEntry(type: 'me', id: '', kind: HitKind.label, rect: lr));
+      }
+    } else if (me.images.isEmpty) {
       canvas.drawCircle(c, r, Paint()..color = meColor);
       canvas.drawCircle(
           c,

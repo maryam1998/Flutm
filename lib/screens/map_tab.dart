@@ -183,6 +183,15 @@ class _MapTabState extends State<MapTab> {
                       ),
                     ),
                     const Spacer(),
+                    // جمع/باز کردن همه — بالای صفحه تا با انگشت اشتباهی لمس نشه
+                    if (store.hasCollapsible) ...[
+                      _circleBtn(
+                        Icon(anyOpen ? Icons.unfold_less : Icons.unfold_more,
+                            size: 17, color: wp.textDim),
+                        () => store.collapseAll(anyOpen),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     _circleBtn(
                       Text(isDark ? '🌙' : '☀️',
                           style: const TextStyle(fontSize: 14, height: 1)),
@@ -267,25 +276,6 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
 
-          // نشانگر ذخیره
-          Positioned(
-            bottom: 90,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ValueListenableBuilder<int>(
-                  valueListenable: store.lastSaved,
-                  builder: (_, ts, __) {
-                    if (ts == 0) return const SizedBox.shrink();
-                    return _SaveIndicator(key: ValueKey(ts));
-                  },
-                ),
-              ),
-            ),
-          ),
-
           // نوار ابزار پایین — دکمه‌ی تنظیمات اضافه شد
           Positioned(
             left: 8,
@@ -315,13 +305,6 @@ class _MapTabState extends State<MapTab> {
                     _toolBtn(Icons.fit_screen, 'نمایش همه', ink, _fit),
                     _toolBtn(
                         Icons.stars_outlined, 'نشانه', ink, store.addRing),
-                    if (store.hasCollapsible)
-                      _toolBtn(
-                        anyOpen ? Icons.unfold_less : Icons.unfold_more,
-                        anyOpen ? 'جمع همه' : 'باز همه',
-                        ink,
-                        () => store.collapseAll(anyOpen),
-                      ),
                     _toolBtn(
                       Icons.settings,
                       'تنظیمات',

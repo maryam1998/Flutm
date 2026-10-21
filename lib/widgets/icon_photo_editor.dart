@@ -703,7 +703,15 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
 class MultiPhotoField extends StatefulWidget {
   final List<ImageItem> initial;
   final void Function(List<ImageItem> images) onChange;
-  const MultiPhotoField({super.key, required this.initial, required this.onChange});
+  final String initialEmoji;
+  final void Function(String emoji)? onEmojiChanged;
+  const MultiPhotoField({
+    super.key,
+    required this.initial,
+    required this.onChange,
+    this.initialEmoji = '',
+    this.onEmojiChanged,
+  });
 
   @override
   State<MultiPhotoField> createState() => _MultiPhotoFieldState();
@@ -718,10 +726,113 @@ class _MItem {
 class _MultiPhotoFieldState extends State<MultiPhotoField> {
   final List<_MItem> _items = [];
   int _seq = 0;
+  late final TextEditingController _emojiCtl;
+
+  @override
+  void dispose() {
+    _emojiCtl.dispose();
+    super.dispose();
+  }
+
+  Widget _defaultDot() => Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: _kGold, width: 2),
+        ),
+        alignment: Alignment.center,
+        child: Container(
+          width: 10,
+          height: 10,
+          decoration: const BoxDecoration(shape: BoxShape.circle, color: _kGold),
+        ),
+      );
+
+  Widget _emojiRow() {
+    final bytes = _items.isNotEmpty ? DataUrlCache.bytes(_items.first.item.src) : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _kCard,
+                border: Border.all(color: _kBorder, width: 1.5),
+              ),
+              alignment: Alignment.center,
+              clipBehavior: Clip.antiAlias,
+              child: _emojiCtl.text.trim().isNotEmpty
+                  ? EmojiStack(icon: _emojiCtl.text, size: 58)
+                  : (bytes != null
+                      ? Image.memory(bytes,
+                          width: 58,
+                          height: 58,
+                          cacheWidth: 240,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _defaultDot())
+                      : _defaultDot()),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _emojiCtl,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 20, color: _kInk),
+                decoration: InputDecoration(
+                  hintText: 'ایموجی',
+                  hintStyle: const TextStyle(color: _kMuted),
+                  filled: true,
+                  fillColor: _kCard,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _kBorder),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _kBorder),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _kGold, width: 1.5),
+                  ),
+                ),
+                onChanged: (v) {
+                  // فقط یک ایموجی (ترکیبی/پرچم یک واحد حساب می‌شود)
+                  final one = splitIcons(v).take(1).join();
+                  if (one != v) {
+                    _emojiCtl.value = TextEditingValue(
+                      text: one,
+                      selection: TextSelection.collapsed(offset: one.length),
+                    );
+                  }
+                  setState(() {});
+                  widget.onEmojiChanged!(one);
+                },
+              ),
+            ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 6, bottom: 12),
+          child: Text(
+            'اگر ایموجی بگذاری، به‌جای دایره‌ی «من» روی نقشه نمایش داده می‌شود (روی عکس هم اولویت دارد)؛ برای برگشت، ایموجی را پاک کن.',
+            style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    _emojiCtl = TextEditingController(text: widget.initialEmoji);
     for (final im in widget.initial) {
       if (im.src.isNotEmpty) _items.add(_MItem(_seq++, im));
     }
@@ -763,6 +874,7 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (widget.onEmojiChanged != null) _emojiRow(),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),

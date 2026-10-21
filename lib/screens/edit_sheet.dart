@@ -634,7 +634,7 @@ class _EditSheetState extends State<EditSheet> {
       PanelCard(
         icon: Icons.person_rounded,
         title: 'من',
-        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، رنگ و حال و هوای خودت.',
+        subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، عکس یا ایموجی و رنگ خودت.',
         children: [
           _textField(
             ctlKey: 'me:name',
@@ -642,26 +642,23 @@ class _EditSheetState extends State<EditSheet> {
             label: 'اسم',
             onChanged: (v) => _edit(() => me.name = v),
           ),
-          const PanelLabel('رنگ'),
-          _swatches(me.color, (c) => me.color = c),
-          const PanelLabel('حال و هوای این فرکانس (اختیاری)'),
-          _textField(
-            ctlKey: 'me:note',
-            initial: me.note,
-            label: 'مثلاً: آرامش، اطمینان، شوق...',
-            onChanged: (v) => _edit(() => me.note = v),
-            maxLines: 3,
-          ),
-        ],
-      ),
-      PanelCard(
-        icon: Icons.photo_library_rounded,
-        title: 'عکس‌ها',
-        children: [
+          const SizedBox(height: 4),
           MultiPhotoField(
             initial: me.images,
             onChange: (imgs) => _edit(() => me.images = imgs),
+            initialEmoji: (me.extra['emoji'] as String? ?? '').trim(),
+            onEmojiChanged: (e) => _edit(() {
+              final t = e.trim();
+              if (t.isEmpty) {
+                me.extra.remove('emoji');
+              } else {
+                me.extra['emoji'] = t;
+              }
+            }),
           ),
+          const SizedBox(height: 8),
+          const PanelLabel('رنگ'),
+          _swatches(me.color, (c) => me.color = c),
         ],
       ),
       _bottomActions(
