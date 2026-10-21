@@ -753,7 +753,6 @@ class _EditSheetState extends State<EditSheet> {
       const SizedBox(height: 8),
       _switchTile(
         title: 'نمایش روی نقشه',
-        subtitle: 'اگر خاموش باشد، این انیمیشن روی نقشه نشان داده نمی‌شود',
         value: ex['showWalker'] != false,
         onChanged: (v) => _edit(() {
           if (v) {
@@ -915,11 +914,9 @@ class _EditSheetState extends State<EditSheet> {
       PanelCard(
         icon: Icons.directions_walk_rounded,
         title: 'انیمیشن روی مسیر',
-        subtitle: 'عکس یا ویدیوی متحرکی که روی خط هدف حرکت می‌کند.',
         children: [
           _switchTile(
             title: 'نمایش انیمیشن',
-            subtitle: 'اگر خاموش باشد، انیمیشن این هدف روی نقشه نشان داده نمی‌شود',
             value: g.extra['showWalker'] != false,
             onChanged: (v) => _edit(() {
               if (v) {
@@ -1147,7 +1144,6 @@ class _EditSheetState extends State<EditSheet> {
         children: [
       _switchTile(
         title: 'نمایش انیمیشن',
-        subtitle: 'اگر خاموش باشد، انیمیشن این شاخه روی نقشه نشان داده نمی‌شود',
         value: a.extra['showWalker'] != false,
         onChanged: (v) => _edit(() {
           if (v) {

@@ -598,8 +598,8 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
           Row(
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _kCard,
@@ -608,14 +608,14 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
                 alignment: Alignment.center,
                 clipBehavior: Clip.antiAlias,
                 child: _emojiCtl.text.trim().isNotEmpty
-                    ? EmojiStack(icon: _emojiCtl.text, size: 58)
+                    ? EmojiStack(icon: _emojiCtl.text, size: 44)
                     : (_items.isNotEmpty &&
                             DataUrlCache.bytes(_items.first.src) != null
                         ? Image.memory(
                             DataUrlCache.bytes(_items.first.src)!,
-                            width: 58,
-                            height: 58,
-                            cacheWidth: 240,
+                            width: 44,
+                            height: 44,
+                            cacheWidth: 180,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => _defaultDot(),
                           )
@@ -626,13 +626,13 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
                 child: TextField(
                   controller: _emojiCtl,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 20, color: _kInk),
+                  style: const TextStyle(fontSize: 16, color: _kInk),
                   decoration: InputDecoration(
                     hintText: 'ایموجی',
                     hintStyle: const TextStyle(color: _kMuted),
                     filled: true,
                     fillColor: _kCard,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 9),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: _kBorder),
@@ -662,13 +662,7 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
               ),
             ],
           ),
-          const Padding(
-            padding: EdgeInsets.only(top: 6, bottom: 12),
-            child: Text(
-              'پیش‌فرض همان دایره است. اگر ایموجی بگذاری به‌جای دایره‌ی متصل به پاها نمایش داده می‌شود (روی عکس/GIF هم اولویت دارد)؛ برای برگشت، ایموجی را پاک کن.',
-              style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
-            ),
-          ),
+          const SizedBox(height: 10),
         ],
         Align(
           alignment: AlignmentDirectional.centerStart,
@@ -757,8 +751,8 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
         Row(
           children: [
             Container(
-              width: 58,
-              height: 58,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: _kCard,
@@ -767,11 +761,11 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
               alignment: Alignment.center,
               clipBehavior: Clip.antiAlias,
               child: _emojiCtl.text.trim().isNotEmpty
-                  ? EmojiStack(icon: _emojiCtl.text, size: 58)
+                  ? EmojiStack(icon: _emojiCtl.text, size: 44)
                   : (bytes != null
                       ? Image.memory(bytes,
-                          width: 58,
-                          height: 58,
+                          width: 44,
+                          height: 44,
                           cacheWidth: 240,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _defaultDot())
@@ -782,13 +776,13 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
               child: TextField(
                 controller: _emojiCtl,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 20, color: _kInk),
+                style: const TextStyle(fontSize: 16, color: _kInk),
                 decoration: InputDecoration(
                   hintText: 'ایموجی',
                   hintStyle: const TextStyle(color: _kMuted),
                   filled: true,
                   fillColor: _kCard,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 9),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: _kBorder),
