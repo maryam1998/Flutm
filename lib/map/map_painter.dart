@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/constants.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
+import '../theme/vazir_font.dart';
 import '../state/goal_ops.dart';
 import 'camera.dart';
 import 'draw_utils.dart';
@@ -1350,7 +1351,10 @@ class MapPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: emoji,
-        style: TextStyle(fontSize: size, color: color),
+        style: TextStyle(
+            fontSize: size,
+            color: color,
+            fontFamilyFallback: GoogleFonts.emojiFallback),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

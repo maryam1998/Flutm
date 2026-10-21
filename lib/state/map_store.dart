@@ -34,23 +34,44 @@ class MapStore extends ChangeNotifier {
     }
   }
 
-  /// فقط ذخیره‌ی با تأخیر (بدون بازسازی UI). موقع درگ استفاده میشه چون painter خودش هر فریم دوباره می‌کشه
-  void touch() {
+  /// ذخیره‌ی با تأخیر (بدون بازسازی UI). موقع درگ استفاده میشه چون painter خودش هر فریم دوباره می‌کشه
+  void touch() => _schedule(const Duration(milliseconds: 900));
+
+  void _schedule(Duration d) {
+    _dirty = true;
     _timer?.cancel();
-    _timer = Timer(const Duration(milliseconds: 900), flush);
+    _timer = Timer(d, flush);
   }
 
   /// بعد از هر تغییر ساختاری صدا بزن: لینک خودکار حلقه‌ها، آپدیت UI و ذخیره
+  /// (ذخیره‌ی ۲۵۰ میلی‌ثانیه بعد از آخرین تغییر؛ قبلاً ۹۰۰ بود و اگه کاربر
+  /// فوراً رفرش می‌کرد، تغییر گم می‌شد)
   void changed() {
     for (final m in autoLinkRings(state)) {
       toast?.call(m);
     }
     notifyListeners();
-    touch();
+    _schedule(const Duration(milliseconds: 250));
   }
+
+  /// مثل [changed] ولی **همین الان** روی حافظه می‌نویسه — برای ایموجی/آیکون،
+  /// دکمه‌ی «ذخیره»، افزودن و حذف؛ تا با رفرش یا بستن صفحه چیزی گم نشه.
+  Future<void> changedNow() {
+    for (final m in autoLinkRings(state)) {
+      toast?.call(m);
+    }
+    notifyListeners();
+    return flush();
+  }
+
+  bool _dirty = false;
+
+  /// اگه تغییرِ ذخیره‌نشده‌ای مونده باشه همین الان می‌نویسه (موقع رفتن صفحه به پس‌زمینه / رفرش)
+  Future<void> flushIfDirty() => _dirty ? flush() : Future<void>.value();
 
   Future<void> flush() async {
     _timer?.cancel();
+    _dirty = false;
     try {
       await _storage.write(jsonEncode(state.toJson()));
       lastSaved.value = DateTime.now().millisecondsSinceEpoch;
@@ -99,7 +120,7 @@ class MapStore extends ChangeNotifier {
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
     state.goals.add(g);
-    changed();
+    changedNow();
     return g;
   }
 
@@ -107,7 +128,7 @@ class MapStore extends ChangeNotifier {
     final r = newRingNearMe(state);
     state.ringsCollapsed = false;
     state.rings.add(r);
-    changed();
+    changedNow();
     toast?.call('نشانه اضافه شد — روی مسیر یک هدف ببرش تا خودکار زیرمجموعه‌اش شود');
     return r;
   }
@@ -136,12 +157,12 @@ class MapStore extends ChangeNotifier {
       if (r.goalId == id) r.goalId = '';
     }
     state.goals.removeWhere((g) => g.id == id);
-    changed();
+    changedNow();
   }
 
   void deleteRing(String id) {
     state.rings.removeWhere((r) => r.id == id);
-    changed();
+    changedNow();
   }
 
   void deleteAction(String hostId, String actionId) {

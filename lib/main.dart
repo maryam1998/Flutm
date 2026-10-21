@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'models/neural_container.dart';
 import 'services/boot_status.dart';
+import 'services/page_exit.dart';
 import 'services/storage.dart';
 import 'state/abundance_store.dart';
 import 'state/angels_store.dart';
@@ -59,6 +60,8 @@ Future<void> main() async {
 
   // فونت وزیرمتن داخل خود برنامه است (pubspec) و دانلود/انتظاری ندارد.
   final store = MapStore(StorageService());
+  // رفرش/بستن/رفتن تب به پس‌زمینه: هر تغییرِ ذخیره‌نشده‌ی نقشه فوراً نوشته شود
+  onPageExit(() => store.flushIfDirty());
   final theme = ThemeStore();
   final bg = BackgroundStore();
   final motivation = MotivationStore();

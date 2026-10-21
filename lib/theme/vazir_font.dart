@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 /// جایگزین محلیِ پکیج google_fonts.
@@ -16,8 +17,13 @@ class GoogleFonts {
   /// فونت ایموجیِ سبکِ داخل برنامه (فقط ایموجی‌های استفاده‌شده، ~۲۵۰KB).
   /// بدون این، فلاتر وب برای هر ایموجی فونت ۱۰ مگابایتی را از fonts.gstatic.com
   /// می‌گیرد که روی اینترنت ایران کند یا قطع است و صفحه را ده‌ها ثانیه نگه می‌دارد.
+  ///
+  /// فقط روی **وب** لازم است. اندروید/iOS خودشان فونت ایموجی سیستم را دارند و
+  /// فلاتر خودکار از آن استفاده می‌کند؛ پس آنجا فونت داخل برنامه صدا زده نمی‌شود
+  /// (همه‌ی ایموجی‌ها، پرچم‌ها و رنگ‌پوست‌ها بی‌نقص و با ظاهر خودِ گوشی).
   static const String emojiFamily = 'NotoEmoji';
-  static const List<String> emojiFallback = [emojiFamily];
+  static final List<String> emojiFallback =
+      kIsWeb ? const [emojiFamily] : const <String>[];
 
   static TextStyle vazirmatn({
     TextStyle? textStyle,

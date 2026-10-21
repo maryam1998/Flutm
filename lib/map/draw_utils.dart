@@ -28,7 +28,7 @@ class TextCache {
     if (hit != null) return hit;
     if (_m.length > 500) _m.clear();
     final style = GoogleFonts.vazirmatn().copyWith(
-      fontFamilyFallback: const ['NotoEmoji', 'Segoe UI', 'Tahoma', 'Noto Sans', 'Noto Color Emoji', 'Segoe UI Emoji', 'Apple Color Emoji'],
+      fontFamilyFallback: [...GoogleFonts.emojiFallback, 'Segoe UI', 'Tahoma', 'Noto Sans', 'Noto Color Emoji', 'Segoe UI Emoji', 'Apple Color Emoji'],
       fontSize: size,
       fontWeight: w,
       color: strokeW == null ? color : null,

@@ -19,8 +19,8 @@ import 'motivation_sheet.dart';
 import '../services/quiet_snack.dart';
 
 // پالت دقیقِ Maghz (html[data-theme="light"] در css/base-and-map.css)
-const _kCream = Color.fromRGBO(255, 255, 255, 0.92); // --panel-bg
-const _kCard = Color(0xFFF1F2F8); // --input-bg
+const _kSheet = Color.fromRGBO(246, 247, 251, 0.98); // کفِ پنجره
+const _kField = Color(0xFFF4F5FA); // زمینه‌ی ورودی/کلید
 const _kGold = Color(0xFFC9962B); // --accent
 const _kInk = Color(0xFF000000); // --text-main
 const _kMuted = Color(0xFF5B5F77); // --text-dim
@@ -39,11 +39,11 @@ Future<void> showSettingsSheet(BuildContext context) {
     transitionDuration: const Duration(milliseconds: 200),
     pageBuilder: (ctx, _, __) {
       final sz = MediaQuery.sizeOf(ctx);
-      final w = sz.width * 0.9 < 360 ? sz.width * 0.9 : 360.0;
+      final w = sz.width * 0.94 < 420 ? sz.width * 0.94 : 420.0;
       return Center(
         child: SizedBox(
           width: w,
-          height: sz.height - 40,
+          height: sz.height - 32,
           child: const _SettingsSheet(),
         ),
       );
@@ -68,6 +68,7 @@ class _SettingsSheet extends StatefulWidget {
 class _SettingsSheetState extends State<_SettingsSheet> {
   late Color _textColor;
   late double _fontSize;
+  late double _uiScale;
   bool _applyToAll = true;
   late bool _showDates;
   late bool _showTimes;
@@ -86,7 +87,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _inited = true;
     final s = context.read<MapStore>().state;
     _textColor = _parseTextColor(s.textColor);
-    _fontSize = s.fontSize.clamp(8.0, 28.0).toDouble();
+    _fontSize = s.fontSize.clamp(8.0, 40.0).toDouble();
+    _uiScale = context.read<ThemeStore>().textScale;
     _showDates = s.showDateStamps;
     _showTimes = s.showTimeStamps;
     _showRingLinks = s.showRingLinks;
@@ -129,7 +131,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.trunkStyle = _trunkStyle;
     s.footScale = _footScale;
     s.userName = _nameCtrl.text.trim();
-    store.changed();
+    store.changedNow();
+    context.read<ThemeStore>().setTextScale(_uiScale);
     Navigator.pop(context);
     ScaffoldMessenger.of(context).quietSnack(
       const SnackBar(content: Text('تنظیمات ذخیره شد')),
@@ -278,672 +281,907 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     ));
   }
 
+  // ───────────────────────── ساخت صفحه ─────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: _kCream,
+      color: _kSheet,
       elevation: 0,
       shadowColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         side: const BorderSide(color: _kBorder),
       ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.max,
           children: [
-            const SizedBox(height: 10),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'تنظیمات',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: _kInk,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(0, 36),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('انصراف',
-                        style: TextStyle(color: _kMuted, fontSize: 12.5)),
-                  ),
-                  const SizedBox(width: 2),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _kGold,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 36),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    onPressed: _save,
-                    child: const Text('ذخیره',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 13)),
-                  ),
-                ],
-              ),
-            ),
+            _header(),
             const Divider(height: 1, color: _kBorder),
-
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ═══════════ تم ═══════════
-                    Consumer<ThemeStore>(
-                      builder: (_, theme, __) => _tile(
-                        title: 'تم تاریک',
-                        subtitle: theme.isDark
-                            ? 'پس‌زمینه‌ی تیره با متن روشن'
-                            : 'پس‌زمینه‌ی روشن',
-                        trailing: Switch(
-                          value: theme.isDark,
-                          activeThumbColor: _kGold,
-                          onChanged: (v) => theme.setDark(v),
-                        ),
-                      ),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ ایمیل ورود ═══════════
-                    _sectionTitle('ایمیل ورود'),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _kCard,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
-                      ),
-                      child: const Text(
-                        '—',
-                        style: TextStyle(fontSize: 13, color: _kMuted),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'در نسخه‌ی Flutter هنوز ورود پیاده نشده',
-                      style: TextStyle(fontSize: 10.5, color: _kMuted),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ نام شما ═══════════
-                    _sectionTitle(
-                        'نام شما (در بخش دوستان با همین نام نمایش داده می‌شود)'),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _nameCtrl,
-                      textDirection: TextDirection.rtl,
-                      style: const TextStyle(fontSize: 13, color: _kInk),
-                      decoration: InputDecoration(
-                        hintText: 'مثلاً مریم',
-                        hintStyle: const TextStyle(
-                            fontSize: 12, color: _kMuted),
-                        filled: true,
-                        fillColor: _kCard,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: _kBorder),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: _kBorder),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: _kGold, width: 1.5),
-                        ),
-                      ),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ رنگ نوشته‌ها ═══════════
-                    _sectionTitle('رنگ نوشته‌ها'),
-                    const SizedBox(height: 10),
-                    WebColorPicker(
-                      value: _textColor,
-                      onChanged: (c) => setState(() => _textColor = c),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: _textColor,
-                            shape: BoxShape.circle,
-                            border:
-                                Border.all(color: _kBorder, width: 1.5),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'رنگ انتخابی: ${_hexFromColor(_textColor)}',
-                          style: const TextStyle(
-                              fontSize: 11.5, color: _kMuted),
-                        ),
-                      ],
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ اندازه فونت ═══════════
-                    Row(
-                      children: [
-                        Flexible(
-                            child: _sectionTitle('اندازه فونت (پیش‌فرض ۱۴)')),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: _kGold.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            toFa(_fontSize.round()),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _kGold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: _kGold,
-                        thumbColor: _kGold,
-                        inactiveTrackColor: _kBorder,
-                        overlayColor: _kGold.withValues(alpha: 0.15),
-                      ),
-                      child: Slider(
-                        min: 8,
-                        max: 28,
-                        divisions: 20,
-                        value: _fontSize,
-                        label: toFa(_fontSize.round()),
-                        onChanged: (v) => setState(() => _fontSize = v),
-                      ),
-                    ),
-                    _checkTile(
-                      title:
-                          'اعمال روی همه‌ی نوشته‌ها (اندازه و رنگِ اختصاصیِ تک‌تک هدف‌ها و اقدام‌ها پاک شود)',
-                      value: _applyToAll,
-                      onChanged: (v) => setState(() => _applyToAll = v),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ چک‌باکس‌ها ═══════════
-                    _checkTile(
-                      title:
-                          '',
-                      value: _showDates,
-                      onChanged: (v) => setState(() => _showDates = v),
-                    ),
-                    _checkTile(
-                      title:
-                          '',
-                      value: _showTimes,
-                      onChanged: (v) => setState(() => _showTimes = v),
-                    ),
-                    _checkTile(
-                      title:
-                          'نمایش خط‌چینِ اتصال نشانه‌های نزدیکی به هدف',
-                      value: _showRingLinks,
-                      onChanged: (v) => setState(() => _showRingLinks = v),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ نوع خط پیش‌فرض ═══════════
-                    _sectionTitle(
-                        'نوع خط پیش‌فرض مسیر اهداف (برای هر هدف جداگانه هم می‌شه عوضش کرد)'),
-                    const SizedBox(height: 10),
-                    _trunkPicker(),
-                    const _SectionDivider(),
-
-                    // ═══════════ اندازه‌ی رد پا ═══════════
-                    Row(
-                      children: [
-                        Flexible(child: _sectionTitle('اندازه‌ی انیمیشن 👣')),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: _kGold.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${(_footScale * 100).round()}٪',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _kGold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: _kGold,
-                        thumbColor: _kGold,
-                        inactiveTrackColor: _kBorder,
-                        overlayColor: _kGold.withValues(alpha: 0.15),
-                      ),
-                      child: Slider(
-                        min: kWalkerSizeMin,
-                        max: kFootScaleMax,
-                        divisions: 23,
-                        value: _footScale,
-                        label: '${(_footScale * 100).round()}٪',
-                        onChanged: (v) => setState(() => _footScale = v),
-                      ),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ ویجت شناور احساسات ═══════════
-                    _checkTile(
-                      title:
-                          'نمایش ویجت شناور «آدم و احساسات» روی صفحه (در تمام تب‌ها)',
-                      value: _showEmotionWidget,
-                      onChanged: (v) =>
-                          setState(() => _showEmotionWidget = v),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ پس‌زمینه ═══════════
-                    _sectionTitle('پس‌زمینه'),
-                    const SizedBox(height: 10),
-                    Consumer<BackgroundStore>(
-                      builder: (_, bg, __) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _bgModeBtn(
-                                  icon: Icons.crop_square_rounded,
-                                  label: 'ساده (Calm)',
-                                  active: !bg.custom,
-                                  onTap: () => bg.setCustom(false),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _bgModeBtn(
-                                  icon: Icons.image_outlined,
-                                  label: 'پس‌زمینه دلخواه',
-                                  active: bg.custom,
-                                  onTap: () => bg.setCustom(true),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (bg.custom) ...[
-                            const SizedBox(height: 14),
-                            const Text(
-                                'عکس، GIF، WebP متحرک یا ویدیو (mp4، webm، mov، mkv ...) — ویدیو بی‌صدا پخش می‌شود',
-                                style:
-                                    TextStyle(fontSize: 12, color: _kMuted)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                if (bg.hasBackground) ...[
-                                  Container(
-                                    width: 52,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: _kCard,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: _kBorder),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: (bg.kind == BgKind.image ||
-                                                bg.kind == BgKind.anim) &&
-                                            bg.imageBytes != null
-                                        ? Image.memory(bg.imageBytes!,
-                                            fit: BoxFit.cover,
-                                            gaplessPlayback: true)
-                                        : const Center(
-                                            child: Icon(
-                                                Icons.play_circle_outline,
-                                                color: _kGold,
-                                                size: 26)),
-                                  ),
-                                  const SizedBox(width: 10),
-                                ],
-                                InkWell(
-                                  borderRadius: BorderRadius.circular(10),
-                                  onTap: () async {
-                                    final err = await bg.pickAndSet(context);
-                                    if (err != null && context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .quietSnack(
-                                              SnackBar(content: Text(err)));
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: _kCard,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: _kBorder),
-                                    ),
-                                    child: const Text(
-                                      'انتخاب عکس، GIF یا ویدیو…',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: _kInk),
-                                    ),
-                                  ),
-                                ),
-                                if (bg.kind == BgKind.image)
-                                  TextButton(
-                                    onPressed: () async {
-                                      final err = await bg.cropCurrent(context);
-                                      if (err != null && context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .quietSnack(
-                                                SnackBar(content: Text(err)));
-                                      }
-                                    },
-                                    child: const Text('برش',
-                                        style: TextStyle(
-                                            fontSize: 12, color: _kGold)),
-                                  ),
-                                if (bg.hasBackground)
-                                  TextButton(
-                                    onPressed: () => bg.clear(),
-                                    child: const Text('حذف پس‌زمینه',
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFFC96B6B))),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            const Text('محو بودن پس‌زمینه (Blur)',
-                                style:
-                                    TextStyle(fontSize: 12, color: _kMuted)),
-                            Slider(
-                              min: 0,
-                              max: 20,
-                              divisions: 20,
-                              value: bg.blur,
-                              activeColor: _kGold,
-                              inactiveColor: _kBorder,
-                              onChanged: (v) => bg.setBlur(v),
-                            ),
-                            const Text('شفافیت پس‌زمینه',
-                                style:
-                                    TextStyle(fontSize: 12, color: _kMuted)),
-                            Slider(
-                              min: 10,
-                              max: 100,
-                              divisions: 90,
-                              value: (bg.opacity * 100).clamp(10, 100),
-                              activeColor: _kGold,
-                              inactiveColor: _kBorder,
-                              onChanged: (v) => bg.setOpacity(v / 100),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ angels ═══════════
-                    _sectionTitle('افزودن موارد بیشتر به پیش‌زمینه'),
-                    const SizedBox(height: 10),
-                    Consumer<AngelsStore>(
-                      builder: (_, angels, __) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (angels.hasAssets)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                for (final im in angels.images)
-                                  _angelImageThumb(
-                                    bytes: im.bytes,
-                                    onDelete: () =>
-                                        angels.removeImage(im.id),
-                                  ),
-                                for (final v in angels.videos)
-                                  _angelVideoThumb(
-                                    name: v.name,
-                                    onDelete: () =>
-                                        angels.removeVideo(v.id),
-                                  ),
-                              ],
-                            ),
-                          if (angels.hasAssets)
-                            const SizedBox(height: 10),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _kInk,
-                              side: const BorderSide(color: _kBorder),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 11),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () => _addAngelFiles(angels),
-                            icon: const Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 18),
-                            label: const Text(
-                                '＋ افزودن عکس / GIF / ویدیو',
-                                style: TextStyle(fontSize: 12.5)),
-                          ),
-                          const SizedBox(height: 10),
-                          _checkTile(
-                            title: 'نمایش روی همه‌ی تب‌ها',
-                            value: angels.on,
-                            onChanged: (v) => angels.setOn(v),
-                          ),
-                          _checkTile(
-                            title:
-                                'نمایش روی عکس‌ها و ویدیوها در حالت تمام‌صفحه',
-                            value: angels.fs,
-                            onChanged: (v) => angels.setFs(v),
-                          ),
-                          const SizedBox(height: 4),
-                          _angelSlider(
-                            label: 'اندازه',
-                            value: angels.size,
-                            min: 60,
-                            max: 320,
-                            onChanged: (v) => angels.setSize(v),
-                          ),
-                          _angelSlider(
-                            label: 'سرعت',
-                            value: angels.speed,
-                            min: 1,
-                            max: 12,
-                            onChanged: (v) => angels.setSpeed(v),
-                          ),
-                          _angelSlider(
-                            label: 'شفافیت',
-                            value: angels.opacity * 100,
-                            min: 20,
-                            max: 100,
-                            onChanged: (v) => angels.setOpacity(v / 100),
-                          ),
-                          _checkTile(
-                            title: 'محو کردن لبه‌ها',
-                            value: angels.soft,
-                            onChanged: (v) => angels.setSoft(v),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _kCard,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _kBorder),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: angels.blend,
-                                isExpanded: true,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: _kInk,
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'normal',
-                                    child: Text('حالت: عادی'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'screen',
-                                    child: Text('حالت: محو تیره‌ها'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'multiply',
-                                    child: Text('حالت: محو سفیدها'),
-                                  ),
-                                ],
-                                onChanged: (v) {
-                                  if (v != null) angels.setBlend(v);
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const _SectionDivider(),
-
-                    // ═══════════ جمله‌های انگیزه‌بخش ═══════════
-                    _sectionTitle('جمله‌های انگیزه‌بخش'),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _kInk,
-                          side: const BorderSide(color: _kBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => showMotivationSheet(context),
-                        icon: const Icon(Icons.auto_awesome,
-                            size: 18, color: _kGold),
-                        label: const Text(
-                            'مدیریت جمله‌های انگیزه‌بخش',
-                            style: TextStyle(fontSize: 12.5)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ═══════════ دکمه‌های پایین ═══════════
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _kMuted,
-                              side: const BorderSide(color: _kBorder),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('انصراف',
-                                style: TextStyle(fontSize: 13.5)),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: 2,
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _kGold,
-                              foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: _save,
-                            child: const Text(
-                              'ذخیره',
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    // ═══════════ خروج از حساب ═══════════
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _kDanger,
-                          side: const BorderSide(color: _kDanger),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).quietSnack(
-                            const SnackBar(
-                              content: Text(
-                                  'خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.logout, size: 18),
-                        label: const Text('خروج از حساب',
-                            style: TextStyle(fontSize: 13)),
-                      ),
-                    ),
+                    _appearanceCard(),
+                    _profileCard(),
+                    _mapTextCard(),
+                    _mapDisplayCard(),
+                    _pathCard(),
+                    _backgroundCard(),
+                    _foregroundCard(),
+                    _motivationCard(),
+                    _logoutButton(),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
+            _footer(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ───────────────────────── سربرگ و پایین ─────────────────────────
+
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: _kGold.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.tune_rounded, color: _kGold, size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('تنظیمات',
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: _kInk)),
+                SizedBox(height: 1),
+                Text('ظاهر برنامه، نقشه و پس‌زمینه',
+                    style: TextStyle(fontSize: 11.5, color: _kMuted)),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'بستن بدون ذخیره',
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close_rounded, color: _kMuted, size: 22),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footer() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: _kBorder)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _kMuted,
+                side: const BorderSide(color: _kBorder),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('انصراف', style: TextStyle(fontSize: 13.5)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: _kGold,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _save,
+              icon: const Icon(Icons.check_rounded, size: 20),
+              label: const Text('ذخیره‌ی تنظیمات',
+                  style:
+                      TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ───────────────────────── کارت‌ها ─────────────────────────
+
+  /// ظاهر برنامه: تم + اندازه‌ی نوشته‌ی کل برنامه
+  Widget _appearanceCard() {
+    final cur = context.watch<ThemeStore>().textScale;
+    final rel = _uiScale / cur; // پیش‌نمایشِ زنده نسبت به اندازه‌ی فعلیِ برنامه
+    return _card(
+      icon: Icons.palette_outlined,
+      title: 'ظاهر برنامه',
+      subtitle: 'تم و اندازه‌ی نوشته‌ی همه‌ی بخش‌ها',
+      children: [
+        Consumer<ThemeStore>(
+          builder: (_, theme, __) => _switchRow(
+            title: 'تم تاریک',
+            subtitle: theme.isDark
+                ? 'پس‌زمینه‌ی تیره با متن روشن'
+                : 'پس‌زمینه‌ی روشن',
+            value: theme.isDark,
+            onChanged: (v) => theme.setDark(v),
+          ),
+        ),
+        const _Hair(),
+        _sliderBlock(
+          label: 'اندازه‌ی نوشته‌های برنامه',
+          hint: 'روی همه‌ی صفحه‌ها، کادرها و دکمه‌ها اعمال می‌شود',
+          valueText: '${toFa((_uiScale * 100).round())}٪',
+          value: _uiScale,
+          min: ThemeStore.kTextScaleMin,
+          max: ThemeStore.kTextScaleMax,
+          divisions: 16,
+          onChanged: (v) => setState(() => _uiScale = v),
+          onReset: _uiScale == 1.0 ? null : () => setState(() => _uiScale = 1.0),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: _kField,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('نمونه‌ی نوشته',
+                  textScaler: TextScaler.linear(rel),
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: _kInk)),
+              const SizedBox(height: 2),
+              Text('اینطوری نوشته‌های برنامه دیده می‌شوند.',
+                  textScaler: TextScaler.linear(rel),
+                  style: const TextStyle(fontSize: 12.5, color: _kMuted)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// حساب و پروفایل
+  Widget _profileCard() {
+    return _card(
+      icon: Icons.person_outline_rounded,
+      title: 'حساب و پروفایل',
+      children: [
+        _fieldLabel('ایمیل ورود'),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: _kField,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kBorder),
+          ),
+          child: const Text('—',
+              style: TextStyle(fontSize: 13, color: _kMuted)),
+        ),
+        const SizedBox(height: 4),
+        const Text('در نسخه‌ی Flutter هنوز ورود پیاده نشده',
+            style: TextStyle(fontSize: 10.5, color: _kMuted)),
+        const _Hair(),
+        _fieldLabel('نام شما'),
+        TextField(
+          controller: _nameCtrl,
+          textDirection: TextDirection.rtl,
+          style: const TextStyle(fontSize: 13.5, color: _kInk),
+          decoration: _inputDeco('مثلاً مریم'),
+        ),
+        const SizedBox(height: 4),
+        const Text('در بخش دوستان با همین نام نمایش داده می‌شود',
+            style: TextStyle(fontSize: 10.5, color: _kMuted)),
+      ],
+    );
+  }
+
+  /// نوشته‌های نقشه: رنگ و اندازه
+  Widget _mapTextCard() {
+    return _card(
+      icon: Icons.text_fields_rounded,
+      title: 'نوشته‌های نقشه',
+      subtitle: 'نام هدف‌ها، اقدام‌ها و نشانه‌ها روی نقشه',
+      children: [
+        _fieldLabel('رنگ نوشته‌ها'),
+        WebColorPicker(
+          value: _textColor,
+          onChanged: (c) => setState(() => _textColor = c),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: _textColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: _kBorder, width: 1.5),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text('رنگ انتخابی: ${_hexFromColor(_textColor)}',
+                style: const TextStyle(fontSize: 11.5, color: _kMuted)),
+          ],
+        ),
+        const _Hair(),
+        _sliderBlock(
+          label: 'اندازه‌ی فونتِ نقشه',
+          hint: 'پیش‌فرض ۱۴',
+          valueText: toFa(_fontSize.round()),
+          value: _fontSize,
+          min: 8,
+          max: 40,
+          divisions: 32,
+          onChanged: (v) => setState(() => _fontSize = v),
+          onReset: _fontSize.round() == 14
+              ? null
+              : () => setState(() => _fontSize = 14),
+        ),
+        const SizedBox(height: 2),
+        // پیش‌نمایش با همان اندازه‌ی واقعیِ نقشه (بدون اثر اندازه‌ی نوشته‌ی برنامه)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF9AA3C0),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'نمونه‌ی نوشته‌ی نقشه',
+            textAlign: TextAlign.center,
+            textScaler: TextScaler.noScaling,
+            style: TextStyle(
+                fontSize: _fontSize,
+                fontWeight: FontWeight.w600,
+                color: _textColor),
+          ),
+        ),
+        const SizedBox(height: 6),
+        _switchRow(
+          title: 'اعمال روی همه‌ی نوشته‌ها',
+          subtitle:
+              'اندازه و رنگِ اختصاصیِ تک‌تک هدف‌ها و اقدام‌ها پاک می‌شود',
+          value: _applyToAll,
+          onChanged: (v) => setState(() => _applyToAll = v),
+        ),
+      ],
+    );
+  }
+
+  /// نمایش روی نقشه
+  Widget _mapDisplayCard() {
+    return _card(
+      icon: Icons.map_outlined,
+      title: 'نمایش روی نقشه',
+      children: [
+        _switchRow(
+          title: 'نمایش تاریخ',
+          subtitle: 'تاریخ شمسیِ آخرین فعالیت زیر نام هدف‌ها و اقدام‌ها',
+          value: _showDates,
+          onChanged: (v) => setState(() => _showDates = v),
+        ),
+        const _Hair(),
+        _switchRow(
+          title: 'نمایش ساعت',
+          subtitle: 'ساعتِ آخرین فعالیت زیر نام هدف‌ها و اقدام‌ها',
+          value: _showTimes,
+          onChanged: (v) => setState(() => _showTimes = v),
+        ),
+        const _Hair(),
+        _switchRow(
+          title: 'خط‌چینِ اتصال نشانه‌ها',
+          subtitle: 'اتصال نشانه‌های نزدیک به هدف',
+          value: _showRingLinks,
+          onChanged: (v) => setState(() => _showRingLinks = v),
+        ),
+        const _Hair(),
+        _switchRow(
+          title: 'ویجت شناورِ «آدم و احساسات»',
+          subtitle: 'روی صفحه در تمام تب‌ها دیده می‌شود',
+          value: _showEmotionWidget,
+          onChanged: (v) => setState(() => _showEmotionWidget = v),
+        ),
+      ],
+    );
+  }
+
+  /// مسیر هدف‌ها و انیمیشن
+  Widget _pathCard() {
+    return _card(
+      icon: Icons.route_outlined,
+      title: 'مسیر و انیمیشن',
+      subtitle: 'برای هر هدف جداگانه هم می‌شود عوضشان کرد',
+      children: [
+        _fieldLabel('نوع خطِ پیش‌فرضِ مسیر اهداف'),
+        _trunkPicker(),
+        const _Hair(),
+        _sliderBlock(
+          label: 'اندازه‌ی انیمیشن 👣',
+          valueText: '${toFa((_footScale * 100).round())}٪',
+          value: _footScale,
+          min: kWalkerSizeMin,
+          max: kFootScaleMax,
+          divisions: 23,
+          onChanged: (v) => setState(() => _footScale = v),
+        ),
+      ],
+    );
+  }
+
+  /// پس‌زمینه
+  Widget _backgroundCard() {
+    return _card(
+      icon: Icons.wallpaper_outlined,
+      title: 'پس‌زمینه',
+      children: [
+        Consumer<BackgroundStore>(
+          builder: (_, bg, __) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _bgModeBtn(
+                      icon: Icons.crop_square_rounded,
+                      label: 'ساده (Calm)',
+                      active: !bg.custom,
+                      onTap: () => bg.setCustom(false),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _bgModeBtn(
+                      icon: Icons.image_outlined,
+                      label: 'پس‌زمینه‌ی دلخواه',
+                      active: bg.custom,
+                      onTap: () => bg.setCustom(true),
+                    ),
+                  ),
+                ],
+              ),
+              if (bg.custom) ...[
+                const SizedBox(height: 14),
+                const Text(
+                    'عکس، GIF، WebP متحرک یا ویدیو (mp4، webm، mov، mkv ...) — ویدیو بی‌صدا پخش می‌شود',
+                    style: TextStyle(fontSize: 11.5, color: _kMuted)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (bg.hasBackground)
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: _kField,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _kBorder),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: (bg.kind == BgKind.image ||
+                                    bg.kind == BgKind.anim) &&
+                                bg.imageBytes != null
+                            ? Image.memory(bg.imageBytes!,
+                                fit: BoxFit.cover, gaplessPlayback: true)
+                            : const Center(
+                                child: Icon(Icons.play_circle_outline,
+                                    color: _kGold, size: 26)),
+                      ),
+                    _pillButton(
+                      icon: Icons.add_photo_alternate_outlined,
+                      label: 'انتخاب عکس، GIF یا ویدیو',
+                      onTap: () async {
+                        final err = await bg.pickAndSet(context);
+                        if (err != null && context.mounted) {
+                          ScaffoldMessenger.of(context)
+                              .quietSnack(SnackBar(content: Text(err)));
+                        }
+                      },
+                    ),
+                    if (bg.kind == BgKind.image)
+                      _pillButton(
+                        icon: Icons.crop_rounded,
+                        label: 'برش',
+                        onTap: () async {
+                          final err = await bg.cropCurrent(context);
+                          if (err != null && context.mounted) {
+                            ScaffoldMessenger.of(context)
+                                .quietSnack(SnackBar(content: Text(err)));
+                          }
+                        },
+                      ),
+                    if (bg.hasBackground)
+                      _pillButton(
+                        icon: Icons.delete_outline_rounded,
+                        label: 'حذف',
+                        color: _kDanger,
+                        onTap: () => bg.clear(),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _sliderBlock(
+                  label: 'محو بودن پس‌زمینه (Blur)',
+                  valueText: toFa(bg.blur.round()),
+                  value: bg.blur,
+                  min: 0,
+                  max: 20,
+                  divisions: 20,
+                  onChanged: (v) => bg.setBlur(v),
+                ),
+                _sliderBlock(
+                  label: 'شفافیت پس‌زمینه',
+                  valueText: '${toFa((bg.opacity * 100).round())}٪',
+                  value: (bg.opacity * 100).clamp(10, 100).toDouble(),
+                  min: 10,
+                  max: 100,
+                  divisions: 90,
+                  onChanged: (v) => bg.setOpacity(v / 100),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// پیش‌زمینه (فرشته‌ها)
+  Widget _foregroundCard() {
+    return _card(
+      icon: Icons.auto_awesome_motion_outlined,
+      title: 'پیش‌زمینه',
+      subtitle: 'افزودن عکس، GIF یا ویدیو که روی صفحه شناور می‌شود',
+      children: [
+        Consumer<AngelsStore>(
+          builder: (_, angels, __) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (angels.hasAssets) ...[
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final im in angels.images)
+                      _angelImageThumb(
+                        bytes: im.bytes,
+                        onDelete: () => angels.removeImage(im.id),
+                      ),
+                    for (final v in angels.videos)
+                      _angelVideoThumb(
+                        name: v.name,
+                        onDelete: () => angels.removeVideo(v.id),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _kInk,
+                  side: const BorderSide(color: _kBorder),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => _addAngelFiles(angels),
+                icon: const Icon(Icons.add_photo_alternate_outlined,
+                    size: 18, color: _kGold),
+                label: const Text('افزودن عکس / GIF / ویدیو',
+                    style: TextStyle(fontSize: 12.5)),
+              ),
+              const SizedBox(height: 8),
+              _switchRow(
+                title: 'نمایش روی همه‌ی تب‌ها',
+                value: angels.on,
+                onChanged: (v) => angels.setOn(v),
+              ),
+              const _Hair(),
+              _switchRow(
+                title: 'نمایش روی عکس‌ها و ویدیوها',
+                subtitle: 'در حالت تمام‌صفحه',
+                value: angels.fs,
+                onChanged: (v) => angels.setFs(v),
+              ),
+              const _Hair(),
+              _switchRow(
+                title: 'محو کردن لبه‌ها',
+                value: angels.soft,
+                onChanged: (v) => angels.setSoft(v),
+              ),
+              const SizedBox(height: 6),
+              _sliderBlock(
+                label: 'اندازه',
+                valueText: toFa(angels.size.round()),
+                value: angels.size,
+                min: 60,
+                max: 320,
+                onChanged: (v) => angels.setSize(v),
+              ),
+              _sliderBlock(
+                label: 'سرعت',
+                valueText: toFa(angels.speed.round()),
+                value: angels.speed,
+                min: 1,
+                max: 12,
+                onChanged: (v) => angels.setSpeed(v),
+              ),
+              _sliderBlock(
+                label: 'شفافیت',
+                valueText: '${toFa((angels.opacity * 100).round())}٪',
+                value: angels.opacity * 100,
+                min: 20,
+                max: 100,
+                onChanged: (v) => angels.setOpacity(v / 100),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _kField,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kBorder),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: angels.blend,
+                    isExpanded: true,
+                    borderRadius: BorderRadius.circular(12),
+                    style: const TextStyle(fontSize: 13, color: _kInk),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'normal', child: Text('حالت: عادی')),
+                      DropdownMenuItem(
+                          value: 'screen', child: Text('حالت: محو تیره‌ها')),
+                      DropdownMenuItem(
+                          value: 'multiply', child: Text('حالت: محو سفیدها')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) angels.setBlend(v);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _motivationCard() {
+    return _card(
+      icon: Icons.format_quote_rounded,
+      title: 'جمله‌های انگیزه‌بخش',
+      children: [
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _kInk,
+            side: const BorderSide(color: _kBorder),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: () => showMotivationSheet(context),
+          icon: const Icon(Icons.auto_awesome, size: 18, color: _kGold),
+          label: const Text('مدیریت جمله‌های انگیزه‌بخش',
+              style: TextStyle(fontSize: 12.5)),
+        ),
+      ],
+    );
+  }
+
+  Widget _logoutButton() {
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _kDanger,
+        side: BorderSide(color: _kDanger.withValues(alpha: 0.6)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      onPressed: () {
+        ScaffoldMessenger.of(context).quietSnack(
+          const SnackBar(
+            content: Text('خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),
+          ),
+        );
+      },
+      icon: const Icon(Icons.logout_rounded, size: 18),
+      label: const Text('خروج از حساب', style: TextStyle(fontSize: 13)),
+    );
+  }
+
+  // ───────────────────────── ابزارهای ظاهری ─────────────────────────
+
+  Widget _card({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required List<Widget> children,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kBorder),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0F141832), blurRadius: 10, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _kGold.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: _kGold),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: _kInk)),
+                    if (subtitle != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(subtitle,
+                            style: const TextStyle(
+                                fontSize: 11, color: _kMuted)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _fieldLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w700, color: _kInk)),
+      );
+
+  InputDecoration _inputDeco(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 12, color: _kMuted),
+        filled: true,
+        fillColor: _kField,
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _kBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _kBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _kGold, width: 1.5),
+        ),
+      );
+
+  Widget _valueChip(String text) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(
+          color: _kGold.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+              fontSize: 12.5, fontWeight: FontWeight.w800, color: _kGold),
+        ),
+      );
+
+  /// ردیفِ کلید (Switch) با عنوان و توضیح — به‌جای چک‌باکس
+  Widget _switchRow({
+    required String title,
+    String? subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => onChanged(!value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _kInk)),
+                  if (subtitle != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(subtitle,
+                          style:
+                              const TextStyle(fontSize: 11, color: _kMuted)),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Switch(
+              value: value,
+              activeThumbColor: Colors.white,
+              activeTrackColor: _kGold,
+              inactiveTrackColor: const Color(0xFFE3E5EE),
+              inactiveThumbColor: Colors.white,
+              trackOutlineColor:
+                  const WidgetStatePropertyAll(Colors.transparent),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// اسلایدر با عنوان، مقدار و دکمه‌ی بازنشانی
+  Widget _sliderBlock({
+    required String label,
+    String? hint,
+    required String valueText,
+    required double value,
+    required double min,
+    required double max,
+    int? divisions,
+    required ValueChanged<double> onChanged,
+    VoidCallback? onReset,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(label,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _kInk)),
+            ),
+            if (onReset != null)
+              TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: onReset,
+                child: const Text('پیش‌فرض',
+                    style: TextStyle(fontSize: 11.5, color: _kGold)),
+              ),
+            _valueChip(valueText),
+          ],
+        ),
+        if (hint != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(hint,
+                style: const TextStyle(fontSize: 11, color: _kMuted)),
+          ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            activeTrackColor: _kGold,
+            thumbColor: _kGold,
+            inactiveTrackColor: const Color(0xFFE3E5EE),
+            overlayColor: _kGold.withValues(alpha: 0.15),
+            activeTickMarkColor: Colors.transparent,
+            inactiveTickMarkColor: Colors.transparent,
+          ),
+          child: Slider(
+            min: min,
+            max: max,
+            divisions: divisions,
+            value: value.clamp(min, max).toDouble(),
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _pillButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color color = _kInk,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: _kField,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 17, color: color == _kInk ? _kGold : color),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600, color: color)),
           ],
         ),
       ),
@@ -961,31 +1199,15 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           width: 58,
           height: 58,
           decoration: BoxDecoration(
-            color: _kCard,
+            color: _kField,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _kBorder),
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.memory(bytes,
-              fit: BoxFit.cover, gaplessPlayback: true),
+          child:
+              Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
         ),
-        Positioned(
-          top: -4,
-          right: -4,
-          child: GestureDetector(
-            onTap: onDelete,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Colors.black87,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close,
-                  size: 12, color: Colors.white),
-            ),
-          ),
-        ),
+        _thumbClose(onDelete),
       ],
     );
   }
@@ -1001,103 +1223,34 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           width: 58,
           height: 58,
           decoration: BoxDecoration(
-            color: _kCard,
+            color: _kField,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _kBorder),
           ),
           child: const Center(
-            child: Icon(Icons.play_circle_outline,
-                color: _kGold, size: 28),
+            child: Icon(Icons.play_circle_outline, color: _kGold, size: 28),
           ),
         ),
-        Positioned(
-          top: -4,
-          right: -4,
-          child: GestureDetector(
-            onTap: onDelete,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Colors.black87,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close,
-                  size: 12, color: Colors.white),
-            ),
-          ),
-        ),
+        _thumbClose(onDelete),
       ],
     );
   }
 
-  Widget _sectionTitle(String text) => Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          color: _kMuted,
-        ),
-      );
-
-  Widget _tile({
-    required String title,
-    String? subtitle,
-    required Widget trailing,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: _kInk)),
-                  if (subtitle != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(subtitle,
-                          style: const TextStyle(
-                              fontSize: 11.5, color: _kMuted)),
-                    ),
-                ],
-              ),
+  Widget _thumbClose(VoidCallback onDelete) => Positioned(
+        top: -5,
+        right: -5,
+        child: GestureDetector(
+          onTap: onDelete,
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
             ),
-            trailing,
-          ],
-        ),
-      );
-
-  Widget _checkTile({
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            Checkbox(
-              value: value,
-              activeColor: _kGold,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
-              side: const BorderSide(color: _kBorder, width: 1.5),
-              onChanged: (v) => onChanged(v ?? false),
-            ),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 12.5, color: _kInk),
-              ),
-            ),
-          ],
+            child: const Icon(Icons.close, size: 12, color: Colors.white),
+          ),
         ),
       );
 
@@ -1109,62 +1262,31 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
         decoration: BoxDecoration(
-          color: active ? const Color.fromRGBO(244, 197, 66, 0.12) : _kCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: active ? _kGold : _kBorder),
+          color: active ? const Color.fromRGBO(244, 197, 66, 0.14) : _kField,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: active ? _kGold : _kBorder, width: active ? 1.6 : 1),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 20, color: active ? _kInk : _kMuted),
+            Icon(icon, size: 21, color: active ? _kGold : _kMuted),
             const SizedBox(height: 4),
             Text(
               label,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: active ? _kInk : _kMuted,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _angelSlider({
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 60,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: _kMuted),
-            ),
-          ),
-          Expanded(
-            child: Slider(
-              min: min,
-              max: max,
-              value: value.clamp(min, max),
-              activeColor: _kGold,
-              inactiveColor: _kBorder,
-              onChanged: onChanged,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1176,21 +1298,23 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 8,
       mainAxisSpacing: 8,
-      childAspectRatio: 1.05,
+      childAspectRatio: 0.95,
       children: [
         for (final e in kTrunkStyles.entries)
           GestureDetector(
             onTap: () => setState(() => _trunkStyle = e.key),
             child: Container(
               decoration: BoxDecoration(
-                color: _kCard,
+                color: _trunkStyle == e.key
+                    ? const Color.fromRGBO(244, 197, 66, 0.14)
+                    : _kField,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _trunkStyle == e.key ? _kGold : _kBorder,
-                  width: _trunkStyle == e.key ? 2 : 1,
+                  width: _trunkStyle == e.key ? 1.8 : 1,
                 ),
               ),
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1200,9 +1324,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     child: CustomPaint(
                       painter: _TrunkPreviewPainter(
                         style: e.key,
-                        color: _trunkStyle == e.key
-                            ? _kGold
-                            : _kMuted,
+                        color: _trunkStyle == e.key ? _kGold : _kMuted,
                       ),
                     ),
                   ),
@@ -1212,9 +1334,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: _trunkStyle == e.key
-                          ? FontWeight.w700
+                          ? FontWeight.w800
                           : FontWeight.w500,
-                      color: _trunkStyle == e.key ? _kGold : _kInk,
+                      color: _trunkStyle == e.key ? _kInk : _kMuted,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -1229,11 +1351,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   }
 }
 
-class _SectionDivider extends StatelessWidget {
-  const _SectionDivider();
+/// خطِ نازکِ جداکننده‌ی بین ردیف‌های داخل کارت
+class _Hair extends StatelessWidget {
+  const _Hair();
   @override
   Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 10),
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: Divider(height: 1, color: _kBorder),
       );
 }

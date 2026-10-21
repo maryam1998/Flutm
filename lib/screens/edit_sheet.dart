@@ -157,6 +157,8 @@ class _EditSheetState extends State<EditSheet> {
 
   @override
   void dispose() {
+    // هر تغییرِ ذخیره‌نشده همین الان نوشته شود (بستن کادر با کشیدن/بیرون‌زدن)
+    _store.flushIfDirty();
     for (final c in _ctl.values) {
       c.dispose();
     }
@@ -176,6 +178,13 @@ class _EditSheetState extends State<EditSheet> {
   void _edit(VoidCallback fn) {
     setState(fn);
     _store.changed();
+  }
+
+  /// مثل [_edit] ولی همان لحظه روی حافظه می‌نویسد (ایموجی/آیکون): با رفرشِ
+  /// فوریِ صفحه هم چیزی گم نمی‌شود.
+  void _editNow(VoidCallback fn) {
+    setState(fn);
+    _store.changedNow();
   }
 
   Future<bool> _confirm(String msg) async {
@@ -689,7 +698,7 @@ class _EditSheetState extends State<EditSheet> {
             initial: me.images,
             onChange: (imgs) => _edit(() => me.images = imgs),
             initialEmoji: (me.extra['emoji'] as String? ?? '').trim(),
-            onEmojiChanged: (e) => _edit(() {
+            onEmojiChanged: (e) => _editNow(() {
               final t = e.trim();
               if (t.isEmpty) {
                 me.extra.remove('emoji');
@@ -706,7 +715,7 @@ class _EditSheetState extends State<EditSheet> {
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
-          _store.changed();
+          _store.changedNow();
           Navigator.pop(context);
         },
       ),
@@ -735,7 +744,7 @@ class _EditSheetState extends State<EditSheet> {
       WalkerPhotoField(
         initial: walkerPhotosOf(ex),
         initialEmoji: walkerEmojiOf(ex),
-        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(ex, e)),
+        onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(ex, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(ex, v);
           if (v.isNotEmpty) {
@@ -829,7 +838,7 @@ class _EditSheetState extends State<EditSheet> {
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
-          _store.changed();
+          _store.changedNow();
           Navigator.pop(context);
         },
       ),
@@ -857,7 +866,7 @@ class _EditSheetState extends State<EditSheet> {
             initialIcon: g.icon,
             initialImages: g.images,
             initialScale: g.iconScale,
-            onChange: (icon, images, scale) => _edit(() {
+            onChange: (icon, images, scale) => _editNow(() {
               g.icon = icon.isEmpty ? '🎯' : icon;
               g.images = images;
               g.iconScale = scale;
@@ -930,7 +939,7 @@ class _EditSheetState extends State<EditSheet> {
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
             initialEmoji: walkerEmojiOf(g.extra),
-            onEmojiChanged: (e) => _edit(() => setWalkerEmoji(g.extra, e)),
+            onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(g.extra, e)),
             onChanged: (v) => _edit(() {
               setWalkerPhotos(g.extra, v);
               if (v.isNotEmpty) {
@@ -967,7 +976,7 @@ class _EditSheetState extends State<EditSheet> {
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
-          _store.changed();
+          _store.changedNow();
           Navigator.pop(context);
         },
         deleteLabel: 'حذف هدف',
@@ -1000,7 +1009,7 @@ class _EditSheetState extends State<EditSheet> {
             initialIcon: r.icon,
             initialImages: r.images,
             initialScale: r.iconScale,
-            onChange: (icon, images, scale) => _edit(() {
+            onChange: (icon, images, scale) => _editNow(() {
               r.icon = icon.isEmpty ? '🌟' : icon;
               r.images = images;
               r.iconScale = scale;
@@ -1052,7 +1061,7 @@ class _EditSheetState extends State<EditSheet> {
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
-          _store.changed();
+          _store.changedNow();
           Navigator.pop(context);
         },
         deleteLabel: 'حذف نشانه',
@@ -1205,7 +1214,7 @@ class _EditSheetState extends State<EditSheet> {
       WalkerPhotoField(
         initial: walkerPhotosOf(a.extra),
         initialEmoji: walkerEmojiOf(a.extra),
-        onEmojiChanged: (e) => _edit(() => setWalkerEmoji(a.extra, e)),
+        onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(a.extra, e)),
         onChanged: (v) => _edit(() {
           setWalkerPhotos(a.extra, v);
           if (v.isNotEmpty) {
@@ -1284,7 +1293,7 @@ class _EditSheetState extends State<EditSheet> {
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
-          _store.changed();
+          _store.changedNow();
           Navigator.pop(context);
         },
         deleteLabel: 'حذف',

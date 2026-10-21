@@ -3,16 +3,30 @@ import '../services/app_prefs.dart';
 
 class ThemeStore extends ChangeNotifier {
   static const _key = 'appTheme';
+  static const _scaleKey = 'appTextScale';
+
+  /// حدودِ «اندازه‌ی نوشته‌های برنامه» (۱٫۰ = ۱۰۰٪ = پیش‌فرض)
+  static const double kTextScaleMin = 0.8;
+  static const double kTextScaleMax = 1.6;
+
   ThemeMode _mode = ThemeMode.light;
+  double _textScale = 1.0;
 
   ThemeMode get mode => _mode;
   bool get isDark => _mode == ThemeMode.dark;
+
+  /// ضریب اندازه‌ی نوشته‌ی کل برنامه (همه‌ی صفحه‌ها، کادرها و دکمه‌ها)
+  double get textScale => _textScale;
 
   Future<void> load() async {
     try {
       final sp = await AppPrefs.getInstance();
       final v = sp.getString(_key);
       _mode = (v == 'dark') ? ThemeMode.dark : ThemeMode.light;
+      final sc = sp.getDouble(_scaleKey);
+      if (sc != null) {
+        _textScale = sc.clamp(kTextScaleMin, kTextScaleMax).toDouble();
+      }
     } catch (_) {
       _mode = ThemeMode.light;
     }
@@ -25,6 +39,17 @@ class ThemeStore extends ChangeNotifier {
     try {
       final sp = await AppPrefs.getInstance();
       await sp.setString(_key, dark ? 'dark' : 'light');
+    } catch (_) {}
+  }
+
+  Future<void> setTextScale(double v) async {
+    final nv = v.clamp(kTextScaleMin, kTextScaleMax).toDouble();
+    if ((nv - _textScale).abs() < 0.001) return;
+    _textScale = nv;
+    notifyListeners();
+    try {
+      final sp = await AppPrefs.getInstance();
+      await sp.setDouble(_scaleKey, nv);
     } catch (_) {}
   }
 

@@ -40,13 +40,19 @@ class MaghzApp extends StatelessWidget {
       theme: _light,
       darkTheme: _dark,
       themeMode: theme.mode,
-      builder: (context, child) => Stack(
-        textDirection: TextDirection.rtl,
-        children: [
-          child ?? const SizedBox.shrink(),
-          const AngelsLayer(),
-          const EmotionWidgetLayer(),
-        ],
+      // «اندازه‌ی نوشته‌های برنامه» (تنظیمات) روی کل برنامه اعمال می‌شود:
+      // همه‌ی صفحه‌ها، کادرها، دیالوگ‌ها و دکمه‌ها (چون بالای Navigator است).
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(theme.textScale)),
+        child: Stack(
+          textDirection: TextDirection.rtl,
+          children: [
+            child ?? const SizedBox.shrink(),
+            const AngelsLayer(),
+            const EmotionWidgetLayer(),
+          ],
+        ),
       ),
       home: const Shell(),
     );
