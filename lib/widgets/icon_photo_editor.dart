@@ -647,8 +647,8 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
                     ),
                   ),
                   onChanged: (v) {
-                    // فقط یک ایموجی (ایموجی ترکیبی/پرچم یک واحد حساب می‌شود)
-                    final one = splitIcons(v).take(1).join();
+                    // تا ۳ ایموجی (ایموجی ترکیبی/پرچم یک واحد حساب می‌شود)
+                    final one = splitIcons(v).join();
                     if (one != v) {
                       _emojiCtl.value = TextEditingValue(
                         text: one,
@@ -797,8 +797,8 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
                   ),
                 ),
                 onChanged: (v) {
-                  // فقط یک ایموجی (ترکیبی/پرچم یک واحد حساب می‌شود)
-                  final one = splitIcons(v).take(1).join();
+                  // تا ۳ ایموجی (ترکیبی/پرچم یک واحد حساب می‌شود)
+                  final one = splitIcons(v).join();
                   if (one != v) {
                     _emojiCtl.value = TextEditingValue(
                       text: one,

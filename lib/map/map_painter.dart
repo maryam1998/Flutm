@@ -377,22 +377,56 @@ class MapPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// ایموجی کوچک روی گوشه‌ی بالا-راستِ یک دایره‌ی عکس (وقتی هم عکس هست هم ایموجی)
+  /// ایموجی(ها)ی کوچک روی گوشه‌ی بالا-راستِ یک دایره‌ی عکس/GIF.
+  /// تا ۳ ایموجی کنار هم در یک کپسول مرتب نشان داده می‌شود؛
+  /// لبه‌ی راستِ کپسول همان‌جای نشان تک‌ایموجی می‌ماند و به سمت داخل بزرگ می‌شود.
   void _emojiBadge(Canvas canvas, Offset c, double r, String emoji) {
-    final e = emoji.characters.where((x) => x.trim().isNotEmpty).take(1).join();
-    if (e.isEmpty) return;
+    final list = emoji.characters.where((x) => x.trim().isNotEmpty).take(3).toList();
+    if (list.isEmpty) return;
     final br = math.max(9.0, r * 0.46);
+    final fs = br * (list.length == 1 ? 1.35 : 1.15);
     final bc = c + Offset(r * 0.72, -r * 0.72);
-    canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFFFFFFFF), 0.92));
-    canvas.drawCircle(
-        bc,
-        br,
+    if (list.length == 1) {
+      canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFFFFFFFF), 0.92));
+      canvas.drawCircle(
+          bc,
+          br,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2
+            ..color = withOp(const Color(0xFF000000), 0.18));
+      final tp = textCache.get(list.first, fs, const Color(0xFF000000), FontWeight.w400);
+      tp.paint(canvas, bc - Offset(tp.width / 2, tp.height / 2));
+      return;
+    }
+    final tps = [
+      for (final e in list)
+        textCache.get(e, fs, const Color(0xFF000000), FontWeight.w400)
+    ];
+    final gap = br * 0.12;
+    final pad = br * 0.32;
+    var inner = gap * (tps.length - 1);
+    for (final t in tps) {
+      inner += t.width;
+    }
+    final w = inner + pad * 2;
+    final h = br * 2;
+    // لبه‌ی راست ثابت، رشد به سمت چپ
+    final cx = bc.dx + br - w / 2;
+    final rect = Rect.fromCenter(center: Offset(cx, bc.dy), width: w, height: h);
+    final rr = RRect.fromRectAndRadius(rect, Radius.circular(br));
+    canvas.drawRRect(rr, Paint()..color = withOp(const Color(0xFFFFFFFF), 0.92));
+    canvas.drawRRect(
+        rr,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.2
           ..color = withOp(const Color(0xFF000000), 0.18));
-    final tp = textCache.get(e, br * 1.35, const Color(0xFF000000), FontWeight.w400);
-    tp.paint(canvas, bc - Offset(tp.width / 2, tp.height / 2));
+    var x = rect.left + pad;
+    for (final t in tps) {
+      t.paint(canvas, Offset(x, bc.dy - t.height / 2));
+      x += t.width + gap;
+    }
   }
 
   // ───────────────────────── من ─────────────────────────
