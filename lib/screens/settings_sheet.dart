@@ -21,10 +21,10 @@ import '../services/quiet_snack.dart';
 // پالت دقیقِ Maghz (html[data-theme="light"] در css/base-and-map.css)
 const _kSheet = Color.fromRGBO(246, 247, 251, 0.98); // کفِ پنجره
 const _kField = Color(0xFFF4F5FA); // زمینه‌ی ورودی/کلید
-const _kGold = Color(0xFFC9962B); // --accent
+const _kGold = Color(0xFF178A7C); // سبز هماهنگ با بقیه‌ی تب‌ها (emerald500)
 const _kInk = Color(0xFF000000); // --text-main
 const _kMuted = Color(0xFF5B5F77); // --text-dim
-const _kBorder = Color.fromRGBO(20, 24, 50, 0.10); // --panel-border
+const _kBorder = Color.fromRGBO(23, 138, 124, 0.28); // کادرهای سبز هماهنگ با تب‌ها
 const _kDanger = Color(0xFFE5484D);
 
 /// پنجره‌ی تنظیمات — مثل `.overlay` + `.modal` در Maghz:
@@ -315,8 +315,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _appearanceCard(),
-                    _mapTextCard(),
                     _mapDisplayCard(),
                     _pathCard(),
                     _backgroundCard(),
@@ -341,16 +339,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
       child: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: _kGold.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.tune_rounded, color: _kGold, size: 22),
-          ),
-          const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,9 +348,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         color: _kInk)),
-                SizedBox(height: 1),
-                Text('ظاهر برنامه، نقشه و پس‌زمینه',
-                    style: TextStyle(fontSize: 11.5, color: _kMuted)),
               ],
             ),
           ),
@@ -402,20 +387,31 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           const SizedBox(width: 10),
           Expanded(
             flex: 2,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: _kGold,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0A3D38), Color(0xFF0F5B53)],
                 ),
+                borderRadius: BorderRadius.circular(14),
               ),
-              onPressed: _save,
-              icon: const Icon(Icons.check_rounded, size: 20),
-              label: const Text('ذخیره‌ی تنظیمات',
-                  style:
-                      TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800)),
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: _save,
+                icon: const Icon(Icons.check_rounded, size: 20),
+                label: const Text('ذخیره‌ی تنظیمات',
+                    style:
+                        TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800)),
+              ),
             ),
           ),
         ],
@@ -603,27 +599,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       icon: Icons.map_outlined,
       title: 'نمایش روی نقشه',
       children: [
-        _switchRow(
-          title: 'نمایش تاریخ',
-          subtitle: 'تاریخ شمسیِ آخرین فعالیت زیر نام هدف‌ها و اقدام‌ها',
-          value: _showDates,
-          onChanged: (v) => setState(() => _showDates = v),
-        ),
-        const _Hair(),
-        _switchRow(
-          title: 'نمایش ساعت',
-          subtitle: 'ساعتِ آخرین فعالیت زیر نام هدف‌ها و اقدام‌ها',
-          value: _showTimes,
-          onChanged: (v) => setState(() => _showTimes = v),
-        ),
-        const _Hair(),
-        _switchRow(
-          title: 'خط‌چینِ اتصال نشانه‌ها',
-          subtitle: 'اتصال نشانه‌های نزدیک به هدف',
-          value: _showRingLinks,
-          onChanged: (v) => setState(() => _showRingLinks = v),
-        ),
-        const _Hair(),
         _switchRow(
           title: 'ویجت شناورِ «آدم و احساسات»',
           subtitle: 'روی صفحه در تمام تب‌ها دیده می‌شود',
