@@ -377,6 +377,24 @@ class MapPainter extends CustomPainter {
     canvas.restore();
   }
 
+  /// ایموجی کوچک روی گوشه‌ی بالا-راستِ یک دایره‌ی عکس (وقتی هم عکس هست هم ایموجی)
+  void _emojiBadge(Canvas canvas, Offset c, double r, String emoji) {
+    final e = emoji.characters.where((x) => x.trim().isNotEmpty).take(1).join();
+    if (e.isEmpty) return;
+    final br = math.max(9.0, r * 0.46);
+    final bc = c + Offset(r * 0.72, -r * 0.72);
+    canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFFFFFFFF), 0.92));
+    canvas.drawCircle(
+        bc,
+        br,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = withOp(const Color(0xFF000000), 0.18));
+    final tp = textCache.get(e, br * 1.35, const Color(0xFF000000), FontWeight.w400);
+    tp.paint(canvas, bc - Offset(tp.width / 2, tp.height / 2));
+  }
+
   // ───────────────────────── من ─────────────────────────
 
   void _drawMe(Canvas canvas, Color tc) {
@@ -397,8 +415,8 @@ class MapPainter extends CustomPainter {
     final meEmoji = (me.extra['emoji'] is String)
         ? (me.extra['emoji'] as String).trim()
         : '';
-    if (meEmoji.isNotEmpty) {
-      // ایموجیِ «من» به‌جای دایره/عکس — همه‌ی ایموجی‌ها
+    if (meEmoji.isNotEmpty && me.images.isEmpty) {
+      // ایموجیِ «من» (وقتی عکس نیست؛ اگر عکس هم باشد هر دو نشان داده می‌شوند) — همه‌ی ایموجی‌ها
       final tp = textCache.get(
           meEmoji, r * 1.9, const Color(0xFF000000), FontWeight.w400);
       tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
@@ -444,7 +462,7 @@ class MapPainter extends CustomPainter {
           color: tc,
           weight: FontWeight.w700);
     } else {
-      final im = images.get(me.images.first.src);
+      final im = images.get(me.images.first.src, animate: true, t: _t);
       if (im != null) {
         _circleImage(canvas, c, r, im);
       } else {
@@ -457,6 +475,7 @@ class MapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3.5
             ..color = meColor);
+      if (meEmoji.isNotEmpty) _emojiBadge(canvas, c, r, meEmoji);
       final lr = drawText(canvas, me.name, c.dx + me.labelDX,
           c.dy + 6 + me.labelDY,
           size: me.labelSize ?? _labelSize('me'),
@@ -474,7 +493,7 @@ class MapPainter extends CustomPainter {
       String icon, Color color, double iconScale, Color tc) {
     final r = r0 * iconScale;
     if (imgs.isNotEmpty && imgs.first.src.isNotEmpty) {
-      final im = images.get(imgs.first.src);
+      final im = images.get(imgs.first.src, animate: true, t: _t);
       if (im != null) {
         _circleImage(canvas, c, r, im);
         canvas.drawCircle(
@@ -487,6 +506,7 @@ class MapPainter extends CustomPainter {
       } else {
         canvas.drawCircle(c, r, Paint()..color = withOp(color, 0.4));
       }
+      if (icon.trim().isNotEmpty) _emojiBadge(canvas, c, r, icon);
     } else if (icon.trim().isNotEmpty) {
       final cs = icon.characters.where((e) => e.trim().isNotEmpty).take(3).toList();
       if (cs.length <= 1) {
@@ -1058,7 +1078,7 @@ class MapPainter extends CustomPainter {
     // ─── فقط عکس انتخاب‌شده (اولی) نشون داده می‌شه؛ بقیه فقط ذخیره‌ان ───
     // ایموجی (اگر گذاشته شده) جای عکس/دایره را می‌گیرد
     final hasEmoji = emoji.isNotEmpty;
-    final String? photo = (!hasEmoji && photos.isNotEmpty) ? photos.first : null;
+    final String? photo = photos.isNotEmpty ? photos.first : null;
 
     // ─── فاز قدم ───
     final stepPhase = playing ? cyc % 1.0 : 0.0;
@@ -1167,7 +1187,7 @@ class MapPainter extends CustomPainter {
       // اگر عکس نوبتی هنوز بارگذاری نشده، تا آماده شدن عکس اول نشون داده می‌شه
       if (faceImg == null && photos.isNotEmpty) faceImg = images.get(photos.first);
     }
-    if (hasEmoji) {
+    if (hasEmoji && faceImg == null) {
       // ایموجی به‌جای دایره (بدون قاب)، وسط همان جایگاه
       final tp = textCache.get(emoji, bodyR * 1.9, const Color(0xFF000000),
           FontWeight.w400);
@@ -1202,6 +1222,7 @@ class MapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.2
             ..color = withOp(col, 0.95));
+      if (hasEmoji) _emojiBadge(canvas, bodyPos, bodyR, emoji);
       if (!playing) {
         // نشان ▶ : با یک تپ دوباره راه می‌افته
         final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
@@ -1540,7 +1561,7 @@ class MapPainter extends CustomPainter {
             math.sin(ang) * radius * 0.7 + e.dy);
         final rect = Rect.fromCenter(
             center: end + off, width: e.size, height: e.size);
-        final im = images.get(e.src);
+        final im = images.get(e.src, animate: true, t: _t);
         if (im != null) {
           paintImage(
               canvas: canvas, rect: rect, image: im, fit: BoxFit.contain);

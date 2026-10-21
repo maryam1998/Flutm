@@ -10,6 +10,7 @@ import '../map/draw_utils.dart' show NodeImageCache;
 import '../widgets/photo_cropper.dart';
 import 'data_url_cache.dart';
 import 'fast_image.dart';
+import 'img_downscale.dart';
 import 'media_blob.dart';
 import 'media_kind.dart';
 
@@ -79,6 +80,26 @@ Future<List<String>> _webFilesToDataUrls(
   return out;
 }
 
+/// موبایل/دسکتاپ: بدون محدودیتِ انتخابگر (که GIF متحرک را به عکس ثابت تبدیل می‌کرد)
+/// انتخاب می‌کنیم؛ عکس متحرک و PNG دست‌نخورده می‌مانند و بقیه کوچک می‌شوند.
+Future<List<String>> _nativeFilesToDataUrls(List<XFile> files, int maxSide,
+    int quality, String Function(String) mimeOf) async {
+  final out = <String>[];
+  for (final f in files) {
+    var bytes = await f.readAsBytes();
+    final sniff = _sniffMime(bytes, f.name, mimeOf);
+    if (!MediaKind.isAnimatedImage(bytes) && sniff == 'image/jpeg') {
+      final small = await downscaleToJpeg(bytes, maxSide, quality);
+      if (small != null && small.length < bytes.length) bytes = small;
+    }
+    final url = await _encodeDataUrl(_sniffMime(bytes, f.name, mimeOf), bytes);
+    DataUrlCache.seed(url, bytes);
+    NodeImageCache.shared.warm(url);
+    out.add(url);
+  }
+  return out;
+}
+
 class ImageService {
   static final _picker = ImagePicker();
 
@@ -107,13 +128,9 @@ class ImageService {
         if (wf.isEmpty) return const [];
         return await _webFilesToDataUrls(wf, _kMaxSide, _mimeOf);
       }
-      final files = await _picker.pickMultiImage(
-        maxWidth: _kMaxSide.toDouble(),
-        maxHeight: _kMaxSide.toDouble(),
-        imageQuality: _kQuality,
-      );
+      final files = await _picker.pickMultiImage();
       if (files.isEmpty) return const [];
-      return await _filesToDataUrls(files, _mimeOf);
+      return await _nativeFilesToDataUrls(files, _kMaxSide, _kQuality, _mimeOf);
     } catch (e) {
       debugPrint('pickImagesCropped failed: $e');
       return const [];
@@ -132,14 +149,10 @@ class ImageService {
         if (wf == null) return null;
         return (await _webFilesToDataUrls([wf], _kMaxSide, _mimeOf)).first;
       }
-      final f = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: _kMaxSide.toDouble(),
-        maxHeight: _kMaxSide.toDouble(),
-        imageQuality: _kQuality,
-      );
+      final f = await _picker.pickImage(source: ImageSource.gallery);
       if (f == null) return null;
-      return (await _filesToDataUrls([f], _mimeOf)).first;
+      return (await _nativeFilesToDataUrls([f], _kMaxSide, _kQuality, _mimeOf))
+          .first;
     } catch (e) {
       debugPrint('pickSingleCropped failed: $e');
       return null;
@@ -190,14 +203,9 @@ class ImageService {
         if (wf == null) return null;
         return (await _webFilesToDataUrls([wf], 480, _mimeOf)).first;
       }
-      final f = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 480,
-        maxHeight: 480,
-        imageQuality: 85,
-      );
+      final f = await _picker.pickImage(source: ImageSource.gallery);
       if (f == null) return null;
-      return (await _filesToDataUrls([f], _mimeOf)).first;
+      return (await _nativeFilesToDataUrls([f], 480, 85, _mimeOf)).first;
     } catch (e) {
       debugPrint('pickSingleImage failed: $e');
       return null;
