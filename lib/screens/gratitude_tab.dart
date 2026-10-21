@@ -100,21 +100,27 @@ class _GratitudeTabState extends State<GratitudeTab> {
             const SizedBox(height: 16),
             // <div class="items-title" style="margin-top:10px">📅 تقویم شکرگذاری</div>
             // .items-title: font-size:13px; font-weight:800; margin: 22px 0 10px (بدون حاشیه‌ی کنار)
-            Text(
-              '📅 تقویم شکرگذاری',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: pal.ink,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Text(
+                '📅 تقویم شکرگذاری',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: pal.ink,
+                ),
               ),
             ),
             // عنوان margin-bottom:10 با #hist-gratitude-mini-cal margin-top:14 ادغام می‌شه → 14
             const SizedBox(height: 14),
             // #hist-gratitude-mini-cal + #hist-gratitude-mini-cal-info (margin:0 در راستای افقی)
-            GratMiniCalendar(
-              store: store,
-              pal: pal,
-              variant: GratCalVariant.history,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: GratMiniCalendar(
+                store: store,
+                pal: pal,
+                variant: GratCalVariant.history,
+              ),
             ),
             // .section-label margin-top:26 (۸ تاش را خودِ _SectionLabel دارد)
             const SizedBox(height: 18),
@@ -124,7 +130,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
               pal: pal,
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
               child: NeuralPathway(
                 container: store.neural,
                 label: 'شکرگذاری',
@@ -137,7 +143,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
             if (store.entries.any(
                 (e) => e.source != 'purchase' && e.images.isNotEmpty))
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
                 child: GratitudeSlideshow(
                   store: store,
                   onOpenAlbum: (key) => _openAlbumAll(store, key),

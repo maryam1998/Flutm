@@ -431,10 +431,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
   // ───────────────────────── کارت‌ها ─────────────────────────
 
-  /// ظاهر برنامه: تم + اندازه‌ی نوشته‌ی کل برنامه
+  /// ظاهر برنامه: تم + اندازه‌ی فونت کل برنامه (px، پیش‌فرض ۱۴)
+  static const double _kBaseFont = 14.0;
+
   Widget _appearanceCard() {
-    final cur = context.watch<ThemeStore>().textScale;
-    final rel = _uiScale / cur; // پیش‌نمایشِ زنده نسبت به اندازه‌ی فعلیِ برنامه
     return _card(
       icon: Icons.palette_outlined,
       title: 'ظاهر برنامه',
@@ -452,18 +452,24 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         ),
         const _Hair(),
         _sliderBlock(
-          label: 'اندازه‌ی نوشته‌های برنامه',
-          hint: 'روی همه‌ی صفحه‌ها، کادرها و دکمه‌ها اعمال می‌شود',
-          valueText: '${toFa((_uiScale * 100).round())}٪',
-          value: _uiScale,
-          min: ThemeStore.kTextScaleMin,
-          max: ThemeStore.kTextScaleMax,
-          divisions: 16,
-          onChanged: (v) => setState(() => _uiScale = v),
-          onReset: _uiScale == 1.0 ? null : () => setState(() => _uiScale = 1.0),
+          label: 'اندازه‌ی فونت برنامه',
+          hint: 'پیش‌فرض ۱۴ — روی همه‌ی صفحه‌ها، کادرها و دکمه‌ها اعمال می‌شود',
+          valueText: toFa((_uiScale * _kBaseFont).round()),
+          value: (_uiScale * _kBaseFont).roundToDouble(),
+          min: (ThemeStore.kTextScaleMin * _kBaseFont).roundToDouble(),
+          max: (ThemeStore.kTextScaleMax * _kBaseFont).roundToDouble(),
+          divisions: ((ThemeStore.kTextScaleMax - ThemeStore.kTextScaleMin) *
+                  _kBaseFont)
+              .round(),
+          onChanged: (v) => setState(() => _uiScale = v.roundToDouble() / _kBaseFont),
+          onReset: (_uiScale * _kBaseFont).round() == _kBaseFont.round()
+              ? null
+              : () => setState(() => _uiScale = 1.0),
         ),
         const SizedBox(height: 4),
+        // پیش‌نمایش با اندازه‌ی واقعیِ انتخاب‌شده (بر حسب px، نه درصد)
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: _kField,
@@ -474,15 +480,16 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('نمونه‌ی نوشته',
-                  textScaler: TextScaler.linear(rel),
-                  style: const TextStyle(
-                      fontSize: 15,
+                  textScaler: TextScaler.noScaling,
+                  style: TextStyle(
+                      fontSize: _uiScale * _kBaseFont,
                       fontWeight: FontWeight.w800,
                       color: _kInk)),
               const SizedBox(height: 2),
               Text('اینطوری نوشته‌های برنامه دیده می‌شوند.',
-                  textScaler: TextScaler.linear(rel),
-                  style: const TextStyle(fontSize: 12.5, color: _kMuted)),
+                  textScaler: TextScaler.noScaling,
+                  style: TextStyle(
+                      fontSize: _uiScale * _kBaseFont, color: _kMuted)),
             ],
           ),
         ),

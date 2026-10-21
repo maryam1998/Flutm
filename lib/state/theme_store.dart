@@ -5,9 +5,9 @@ class ThemeStore extends ChangeNotifier {
   static const _key = 'appTheme';
   static const _scaleKey = 'appTextScale';
 
-  /// حدودِ «اندازه‌ی نوشته‌های برنامه» (۱٫۰ = ۱۰۰٪ = پیش‌فرض)
-  static const double kTextScaleMin = 0.8;
-  static const double kTextScaleMax = 1.6;
+  /// حدودِ «اندازه‌ی نوشته‌های برنامه» (۱٫۰ = ۱۴px = پیش‌فرض)
+  static const double kTextScaleMin = 11 / 14; // ۱۱px
+  static const double kTextScaleMax = 22 / 14; // ۲۲px
 
   ThemeMode _mode = ThemeMode.light;
   double _textScale = 1.0;
