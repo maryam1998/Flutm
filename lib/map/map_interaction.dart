@@ -184,17 +184,17 @@ class MapInteraction {
   }
 
   double _defaultLabelSize(String type, String id) {
-    final fs = store.state.fontSize;
+    final fs = store.state.fontSize.clamp(8.0, 60.0).toDouble();
     switch (type) {
       case 'me':
-        return math.max(14.0, fs) + 3;
+        return fs + 3;
       case 'goal':
-        return math.max(14.0, fs);
+        return fs;
       case 'ring':
-        return math.max(14.0, fs) - 2;
+        return fs - 2;
       default:
         final sc = hits.geom[id]?.scale ?? 1.0;
-        return math.max(12.0, fs * math.min(1.0, sc + 0.3));
+        return math.max(8.0, fs * math.min(1.0, sc + 0.3));
     }
   }
 

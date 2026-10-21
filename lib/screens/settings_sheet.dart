@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
+import '../models/map_models.dart';
 import '../services/fast_image.dart';
 import '../state/angels_store.dart';
 import '../state/background_store.dart';
@@ -67,6 +68,7 @@ class _SettingsSheet extends StatefulWidget {
 class _SettingsSheetState extends State<_SettingsSheet> {
   late Color _textColor;
   late double _fontSize;
+  bool _applyToAll = true;
   late bool _showDates;
   late bool _showTimes;
   late bool _showRingLinks;
@@ -112,8 +114,14 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   void _save() {
     final store = context.read<MapStore>();
     final s = store.state;
-    s.textColor = _hexFromColor(_textColor);
+    final newColor = _hexFromColor(_textColor);
+    final styleChanged =
+        newColor != s.textColor || (_fontSize - s.fontSize).abs() > 0.01;
+    s.textColor = newColor;
     s.fontSize = _fontSize;
+    // اندازه/رنگ اختصاصیِ تک‌تک گره‌ها روی تنظیم کلی غلبه می‌کند؛
+    // با این گزینه همه به تنظیم کلی برمی‌گردند تا تغییر واقعاً دیده شود.
+    if (_applyToAll && styleChanged) _clearNodeStyles(s);
     s.showDateStamps = _showDates;
     s.showTimeStamps = _showTimes;
     s.showRingLinks = _showRingLinks;
@@ -126,6 +134,28 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     ScaffoldMessenger.of(context).quietSnack(
       const SnackBar(content: Text('تنظیمات ذخیره شد')),
     );
+  }
+
+  void _clearNodeStyles(MapState s) {
+    void acts(List<ActionNode> list) {
+      for (final a in list) {
+        a.labelSize = null;
+        a.extra.remove('labelColor');
+        acts(a.children);
+      }
+    }
+
+    s.me.labelSize = null;
+    for (final g in s.goals) {
+      g.labelSize = null;
+      g.extra.remove('labelColor');
+      acts(g.actions);
+    }
+    for (final r in s.rings) {
+      r.labelSize = null;
+      r.extra.remove('labelColor');
+      acts(r.actions);
+    }
   }
 
   String _hexFromColor(Color c) {
@@ -457,6 +487,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                         label: toFa(_fontSize.round()),
                         onChanged: (v) => setState(() => _fontSize = v),
                       ),
+                    ),
+                    _checkTile(
+                      title:
+                          'اعمال روی همه‌ی نوشته‌ها (اندازه و رنگِ اختصاصیِ تک‌تک هدف‌ها و اقدام‌ها پاک شود)',
+                      value: _applyToAll,
+                      onChanged: (v) => setState(() => _applyToAll = v),
                     ),
                     const _SectionDivider(),
 

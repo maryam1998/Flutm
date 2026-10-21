@@ -408,6 +408,7 @@ class _EditSheetState extends State<EditSheet> {
     void Function(String) onPick, {
     List<String> extra = const [],
     VoidCallback? onInherit,
+    String inheritText = 'مثل هدف',
   }) {
     final cur = (current ?? '').toLowerCase();
     return Column(
@@ -429,7 +430,7 @@ class _EditSheetState extends State<EditSheet> {
                 ),
               ),
               child: Text(
-                'مثل هدف',
+                inheritText,
                 style: TextStyle(
                   fontSize: 12,
                   color: cur.isEmpty ? _kGold : _kMuted,
@@ -470,6 +471,47 @@ class _EditSheetState extends State<EditSheet> {
         for (final e in kBranchStyles.entries) PanelChoice(e.key, e.value),
       ],
     );
+  }
+
+  /// اندازه و رنگ نوشته‌ی یک گره (هدف / اقدام / زیراقدام / نشانه).
+  /// اگر اندازه‌ی اختصاصی نباشد، همان اندازه‌ی کلیِ تنظیمات نشان داده می‌شود.
+  List<Widget> _labelStyleControls({
+    required double defaultSize,
+    required double? size,
+    required void Function(double?) onSize,
+    required Map<String, dynamic> extra,
+  }) {
+    final eff = (size ?? defaultSize).clamp(8.0, 60.0).toDouble();
+    return [
+      _slider(
+        label: 'اندازه‌ی نوشته',
+        value: eff,
+        min: 8,
+        max: 60,
+        divisions: 52,
+        valueText: size == null
+            ? '${toFa(eff.round())} (کلی)'
+            : toFa(eff.round()),
+        onChanged: (v) => _edit(() => onSize(v.roundToDouble())),
+      ),
+      if (size != null)
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            onPressed: () => _edit(() => onSize(null)),
+            child: const Text('برگرداندن به اندازه‌ی تنظیمات کلی',
+                style: TextStyle(fontSize: 12, color: _kGold)),
+          ),
+        ),
+      const PanelLabel('رنگ نوشته'),
+      _swatches(
+        (extra['labelColor'] as String?) ?? '',
+        (c) => extra['labelColor'] = c,
+        onInherit: () => extra.remove('labelColor'),
+        inheritText: 'مثل تنظیمات کلی',
+        extra: const ['#000000', '#ffffff'],
+      ),
+    ];
   }
 
   Widget _slider({
@@ -824,6 +866,27 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
+      PanelCard(
+        icon: Icons.text_fields_rounded,
+        title: 'دایره و نوشته‌ی هدف',
+        children: [
+          _slider(
+            label: 'اندازه‌ی دایره',
+            value: g.radius.clamp(12.0, 90.0).toDouble(),
+            min: 12,
+            max: 90,
+            divisions: 78,
+            valueText: '${(g.radius / 20 * 100).round()}٪',
+            onChanged: (v) => _edit(() => g.radius = v.roundToDouble()),
+          ),
+          ..._labelStyleControls(
+            defaultSize: _s.fontSize,
+            size: g.labelSize,
+            onSize: (v) => g.labelSize = v,
+            extra: g.extra,
+          ),
+        ],
+      ),
       // رنگ هدف + نوع خط + ضخامت، با پیش‌نمایش زنده‌ی مسیر
       GoalPathCard(
         color: g.color,
@@ -971,6 +1034,12 @@ class _EditSheetState extends State<EditSheet> {
           ),
           const PanelLabel('رنگ'),
           _swatches(r.color, (c) => r.color = c, extra: const [kRingColor]),
+          ..._labelStyleControls(
+            defaultSize: _s.fontSize - 2,
+            size: r.labelSize,
+            onSize: (v) => r.labelSize = v,
+            extra: r.extra,
+          ),
         ],
       ),
       PanelCard(
@@ -1047,13 +1116,22 @@ class _EditSheetState extends State<EditSheet> {
             onChanged: (v) => _edit(() => a.weight = v.roundToDouble()),
           ),
           _slider(
-            label: 'اندازه‌ی نوشته روی نقشه',
-            value: a.labelSize ?? 14,
-            min: 8,
-            max: 60,
-            divisions: 52,
-            valueText: toFa((a.labelSize ?? 14).round()),
-            onChanged: (v) => _edit(() => a.labelSize = v),
+            label: 'اندازه‌ی دایره‌ی نوک',
+            value: ((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0)
+                .clamp(0.3, 8.0)
+                .toDouble(),
+            min: 0.3,
+            max: 8.0,
+            divisions: 77,
+            valueText:
+                '${(((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+            onChanged: (v) => _edit(() => a.extra['circleScale'] = v),
+          ),
+          ..._labelStyleControls(
+            defaultSize: _s.fontSize,
+            size: a.labelSize,
+            onSize: (v) => a.labelSize = v,
+            extra: a.extra,
           ),
         ],
       ),

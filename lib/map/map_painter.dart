@@ -139,7 +139,20 @@ class MapPainter extends CustomPainter {
     return hexColor(c, auto);
   }
 
-  double _fs() => math.max(14, state.fontSize);
+  double _fs() => state.fontSize.clamp(8.0, 60.0).toDouble();
+
+  /// رنگ نوشته‌ی اختصاصی هر گره (extra['labelColor']) یا رنگ کلی
+  Color _tcOf(Map<String, dynamic> extra, Color tc) {
+    final v = extra['labelColor'];
+    if (v is String && v.isNotEmpty) return hexColor(v, tc);
+    return tc;
+  }
+
+  /// ضریب اندازه‌ی دایره‌ی نوک اقدام/زیراقدام (extra['circleScale'])
+  double _circleScaleOf(ActionNode a) {
+    final v = a.extra['circleScale'];
+    return v is num ? v.toDouble().clamp(0.3, 8.0).toDouble() : 1.0;
+  }
   double _labelSize(String type, [double scale = 1]) {
     switch (type) {
       case 'me':
@@ -149,7 +162,7 @@ class MapPainter extends CustomPainter {
       case 'ring':
         return _fs() - 2;
       default:
-        return math.max(12, state.fontSize * math.min(1.0, scale + 0.3));
+        return math.max(8, _fs() * math.min(1.0, scale + 0.3));
     }
   }
 
@@ -407,7 +420,7 @@ class MapPainter extends CustomPainter {
       canvas.drawLine(
           Offset(c.dx, cy2 - s * 0.5), Offset(c.dx, cy2 + s * 0.5), lp);
       drawText(canvas, me.name, c.dx, c.dy + r * 0.62,
-          size: math.max(9, state.fontSize - 4),
+          size: math.max(8, _fs() - 4),
           color: tc,
           weight: FontWeight.w700);
     } else {
@@ -496,10 +509,11 @@ class MapPainter extends CustomPainter {
 
     var off = -(r0 + 22);
     if (r > r0) off += (off < 0 ? -1 : 1) * (r - r0);
+    final gtc = _tcOf(g.extra, tc);
     final lr = drawText(
         canvas, g.name, c.dx + g.labelDX, c.dy + off + g.labelDY,
         size: g.labelSize ?? _labelSize('goal'),
-        color: tc,
+        color: gtc,
         weight: FontWeight.w600,
         outline: 3);
     if (g.name.isNotEmpty) {
@@ -518,19 +532,20 @@ class MapPainter extends CustomPainter {
             c.dx + g.labelDX,
             c.dy + off + g.labelDY + (g.labelSize ?? _labelSize('goal')) * 1.15,
             size: math.max(9, (g.labelSize ?? _labelSize('goal')) * 0.62),
-            color: withOp(tc, 0.6),
+            color: withOp(gtc, 0.6),
             weight: FontWeight.w400,
             outline: 2);
       }
     }
 
-    _goalShutter(canvas, g, col, tc);
+    _goalShutter(canvas, g, col, tc, r);
   }
 
-  void _goalShutter(Canvas canvas, Goal g, Color col, Color tc) {
+  void _goalShutter(Canvas canvas, Goal g, Color col, Color tc, double r) {
     final n = goalBranchCount(state, g);
     if (n == 0) return;
-    final cx = g.x, cy = g.y + g.radius + 15;
+    // بالا-چپِ دایره‌ی هدف، چسبیده به لبه‌ی دایره (روی قطر ۴۵°)
+    final cx = g.x - (r + 14) * 0.7071 - 6, cy = g.y - (r + 12) * 0.7071 - 4;
     final open = !g.collapsed;
     hits.add(HitEntry(
         type: 'goalToggle',
@@ -596,7 +611,7 @@ class MapPainter extends CustomPainter {
       for (var i = 0; i < lines.length; i++) {
         final b = drawText(canvas, lines[i], lx, ly + i * 16,
             size: r.labelSize ?? _labelSize('ring'),
-            color: col,
+            color: _tcOf(r.extra, col),
             weight: FontWeight.w700,
             outline: 3,
             outlineColor: const Color(0xFF0A0C18));
@@ -612,8 +627,8 @@ class MapPainter extends CustomPainter {
       final ly = c.dy + big + 18;
       for (var i = 0; i < lines.length; i++) {
         drawText(canvas, lines[i], c.dx, ly + i * 16,
-            size: _fs() - 3,
-            color: tc,
+            size: math.max(8, _fs() - 3),
+            color: _tcOf(r.extra, tc),
             weight: FontWeight.w400,
             outline: 2.5);
       }
@@ -1402,6 +1417,8 @@ class MapPainter extends CustomPainter {
         ? hexColor(a.color, hostColor)
         : hostColor;
     final isRoutine = a.isRoutine;
+    final cs = _circleScaleOf(a);
+    final atc = _tcOf(a.extra, tc);
     final geom = geo.computeTwigGeom(h, a, originPt, originDir, side, scale);
     geo.applyBranchStyle(geom, geo.effBranchStyle(h, a), side);
     final end = geom.end;
@@ -1441,7 +1458,7 @@ class MapPainter extends CustomPainter {
 
     final kids = _visibleActs(a.children);
     if (kids.isNotEmpty) {
-      canvas.drawCircle(end, math.max(2.0, 2.6 * scale),
+      canvas.drawCircle(end, math.max(2.0, 2.6 * scale) * cs,
           _stroke(color, 1.2, 0.55));
       for (var i = 0; i < kids.length; i++) {
         final tt = 0.5 + ((i + 1) / (kids.length + 1)) * 0.45;
@@ -1499,12 +1516,12 @@ class MapPainter extends CustomPainter {
             size: 10, color: tc, outline: 2);
       }
     } else {
-      canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale),
+      canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale) * cs,
           Paint()..color = color);
     }
 
     if (isRoutine) {
-      final tipR = math.max(1.8, 2 + weight * 0.28 * scale);
+      final tipR = math.max(1.8, 2 + weight * 0.28 * scale) * cs;
       _routineRing(canvas, end, tipR, color, scale, a);
     }
 
@@ -1519,7 +1536,7 @@ class MapPainter extends CustomPainter {
       for (var i = 0; i < lines.length; i++) {
         final b = drawText(canvas, lines[i], lx, ly + i * 16,
             size: fs,
-            color: tc,
+            color: atc,
             weight: FontWeight.w400,
             align: right ? LabelAlign.right : LabelAlign.left,
             outline: 2.5);
@@ -1542,7 +1559,7 @@ class MapPainter extends CustomPainter {
         if (stamp.isNotEmpty) {
           drawText(canvas, stamp, lx, ly + lines.length * 16,
               size: math.max(9, fs * 0.62),
-              color: withOp(tc, 0.6),
+              color: withOp(atc, 0.6),
               weight: FontWeight.w400,
               align: right ? LabelAlign.right : LabelAlign.left,
               outline: 2);
