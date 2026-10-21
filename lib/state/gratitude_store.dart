@@ -245,7 +245,7 @@ class GratitudeStore extends ChangeNotifier {
   ///  • رشته‌ی بی‌ثبت (تکراری، خرید، داده‌ی قدیمیِ خراب) حذف می‌شه
   ///  • ثبتِ بدون رشته، رشته می‌گیره
   ///  • رنگ رشته = قوی‌ترین حسِ همون ثبت (بدون حس = فیروزه‌ای)
-  ///  • رشته‌های دستی (دکمه‌ی «امروز انجام دادم»، کلید -man) دست‌نخورده می‌مونن
+  ///  • رشته‌ی دستیِ بی‌ثبت (کلید -man) هم حذف می‌شه: بدون ثبت، رشته‌ای نیست
   void _syncEntryFibers() {
     try {
       final real = entries.where((e) => e.source != 'purchase').toList();
@@ -260,10 +260,10 @@ class GratitudeStore extends ChangeNotifier {
         want[_fiberKeyFor(e, t.millisecondsSinceEpoch)] = e;
       }
 
-      // حذف رشته‌های بی‌ثبت (به‌جز دستی‌ها)
+      // حذف رشته‌های بی‌ثبت
       for (final k in neural.logs.keys.toList()) {
         if (neural.logs[k] != true) continue;
-        if (k.contains('-man') || want.containsKey(k)) continue;
+        if (want.containsKey(k)) continue;
         neural.logs.remove(k);
         neural.fiberEmotions.remove(k);
         neural.pendingManual.remove(k);

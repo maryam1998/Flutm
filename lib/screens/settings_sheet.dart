@@ -40,11 +40,17 @@ Future<void> showSettingsSheet(BuildContext context) {
     pageBuilder: (ctx, _, __) {
       final sz = MediaQuery.sizeOf(ctx);
       final w = sz.width * 0.94 < 420 ? sz.width * 0.94 : 420.0;
-      return Center(
-        child: SizedBox(
-          width: w,
-          height: sz.height - 32,
-          child: const _SettingsSheet(),
+      // نوشته‌های پنجره‌ی تنظیمات کمی کوچک‌تر از اندازه‌ی کلی برنامه
+      final base = MediaQuery.textScalerOf(ctx).scale(1.0);
+      return MediaQuery(
+        data: MediaQuery.of(ctx)
+            .copyWith(textScaler: TextScaler.linear(base * 0.86)),
+        child: Center(
+          child: SizedBox(
+            width: w,
+            height: sz.height - 32,
+            child: const _SettingsSheet(),
+          ),
         ),
       );
     },
@@ -382,13 +388,13 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: _kMuted,
                 side: const BorderSide(color: _kBorder),
-                padding: const EdgeInsets.symmetric(vertical: 13),
+                padding: const EdgeInsets.symmetric(vertical: 11),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: () => Navigator.pop(context),
-              child: const Text('انصراف', style: TextStyle(fontSize: 13.5)),
+              child: const Text('انصراف', style: TextStyle(fontSize: 12.5)),
             ),
           ),
           const SizedBox(width: 10),
@@ -398,7 +404,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               style: FilledButton.styleFrom(
                 backgroundColor: _kGold,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 13),
+                padding: const EdgeInsets.symmetric(vertical: 11),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -407,7 +413,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               icon: const Icon(Icons.check_rounded, size: 20),
               label: const Text('ذخیره‌ی تنظیمات',
                   style:
-                      TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+                      TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800)),
             ),
           ),
         ],

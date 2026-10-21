@@ -879,7 +879,7 @@ class GratPeriodGrid extends StatelessWidget {
     this.statusOf,
   });
 
-  static const cols = 15;
+  static const cols = 12;
   static const gap = 3.0;
   static const blockSize = 30;
 
@@ -1092,7 +1092,7 @@ class _DayCell extends StatelessWidget {
                       maxLines: 1,
                       softWrap: false,
                       style: TextStyle(
-                        fontSize: (size * 0.36).clamp(7.0, 10.0),
+                        fontSize: (size * 0.38).clamp(8.0, 11.0),
                         fontWeight: FontWeight.w700,
                         height: 1,
                         color: pal.textDim,

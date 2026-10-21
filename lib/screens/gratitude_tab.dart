@@ -128,7 +128,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
               child: NeuralPathway(
                 container: store.neural,
                 label: 'شکرگذاری',
-                showDayButtons: true,
+                showDayButtons: false,
                 onChange: () => store.saveNeural(),
                 emotionQualityToday: _emotionQualityToday(store),
               ),
@@ -1821,7 +1821,7 @@ class GratitudeNeuralSection extends StatelessWidget {
           child: NeuralPathway(
             container: store.neural,
             label: 'شکرگذاری',
-            showDayButtons: true,
+            showDayButtons: false,
             onChange: () => store.saveNeural(),
             emotionQualityToday: store.emotionQualityToday,
           ),
