@@ -36,31 +36,30 @@ Future<void> showSettingsSheet(BuildContext context) {
     barrierDismissible: true,
     barrierLabel: 'بستن تنظیمات',
     barrierColor: const Color.fromRGBO(5, 6, 14, 0.6),
-    transitionDuration: const Duration(milliseconds: 200),
+    transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (ctx, _, __) {
       final sz = MediaQuery.sizeOf(ctx);
-      final w = sz.width * 0.94 < 420 ? sz.width * 0.94 : 420.0;
+      // پنل باریک که از سمت چپ باز می‌شود
+      final w = sz.width * 0.8 < 340 ? sz.width * 0.8 : 340.0;
       // نوشته‌های پنجره‌ی تنظیمات کمی کوچک‌تر از اندازه‌ی کلی برنامه
       final base = MediaQuery.textScalerOf(ctx).scale(1.0);
       return MediaQuery(
         data: MediaQuery.of(ctx)
             .copyWith(textScaler: TextScaler.linear(base * 0.86)),
-        child: Center(
+        child: Align(
+          alignment: Alignment.centerLeft,
           child: SizedBox(
             width: w,
-            height: sz.height - 32,
+            height: sz.height,
             child: const _SettingsSheet(),
           ),
         ),
       );
     },
-    transitionBuilder: (_, anim, __, child) => FadeTransition(
-      opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 0.96, end: 1).animate(
-            CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-        child: child,
-      ),
+    transitionBuilder: (_, anim, __, child) => SlideTransition(
+      position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)
+          .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+      child: child,
     ),
   );
 }
@@ -295,15 +294,20 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       color: _kSheet,
       elevation: 0,
       shadowColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: _kBorder),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(22),
+          bottomRight: Radius.circular(22),
+        ),
+        side: BorderSide(color: _kBorder),
       ),
       clipBehavior: Clip.antiAlias,
       child: SafeArea(
         child: Column(
           children: [
             _header(),
+            const Divider(height: 1, color: _kBorder),
+            _accountBar(),
             const Divider(height: 1, color: _kBorder),
             Expanded(
               child: SingleChildScrollView(
@@ -312,14 +316,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _appearanceCard(),
-                    _profileCard(),
                     _mapTextCard(),
                     _mapDisplayCard(),
                     _pathCard(),
                     _backgroundCard(),
                     _foregroundCard(),
                     _motivationCard(),
-                    _logoutButton(),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -482,39 +484,42 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     );
   }
 
-  /// حساب و پروفایل
-  Widget _profileCard() {
-    return _card(
-      icon: Icons.person_outline_rounded,
-      title: 'حساب و پروفایل',
-      children: [
-        _fieldLabel('ایمیل ورود'),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(
-            color: _kField,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _kBorder),
+  /// نوار حساب بالای پنل: نام کاربر + دکمه‌ی خروج از حساب
+  Widget _accountBar() {
+    final name = _userName.trim();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
+      child: Row(
+        children: [
+          const Icon(Icons.person_outline_rounded, size: 18, color: _kMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              name.isEmpty ? 'حساب: وارد نشده' : 'حساب: $name',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12.5, color: _kMuted),
+            ),
           ),
-          child: const Text('—',
-              style: TextStyle(fontSize: 13, color: _kMuted)),
-        ),
-        const SizedBox(height: 4),
-        const Text('در نسخه‌ی Flutter هنوز ورود پیاده نشده',
-            style: TextStyle(fontSize: 10.5, color: _kMuted)),
-        const _Hair(),
-        _fieldLabel('نام شما'),
-        TextField(
-          controller: _nameCtrl,
-          textDirection: TextDirection.rtl,
-          style: const TextStyle(fontSize: 13.5, color: _kInk),
-          decoration: _inputDeco('مثلاً مریم'),
-        ),
-        const SizedBox(height: 4),
-        const Text('در بخش دوستان با همین نام نمایش داده می‌شود',
-            style: TextStyle(fontSize: 10.5, color: _kMuted)),
-      ],
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: _kDanger,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).quietSnack(
+                const SnackBar(
+                  content: Text('خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),
+                ),
+              );
+            },
+            icon: const Icon(Icons.logout_rounded, size: 16),
+            label: const Text('خروج از حساب', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -917,28 +922,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               style: TextStyle(fontSize: 12.5)),
         ),
       ],
-    );
-  }
-
-  Widget _logoutButton() {
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _kDanger,
-        side: BorderSide(color: _kDanger.withValues(alpha: 0.6)),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-      onPressed: () {
-        ScaffoldMessenger.of(context).quietSnack(
-          const SnackBar(
-            content: Text('خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),
-          ),
-        );
-      },
-      icon: const Icon(Icons.logout_rounded, size: 18),
-      label: const Text('خروج از حساب', style: TextStyle(fontSize: 13)),
     );
   }
 
