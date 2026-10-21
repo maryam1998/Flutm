@@ -82,6 +82,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late bool _showEmotionWidget;
   late String _trunkStyle;
   late double _footScale;
+  late bool _walkerHalo;
+  late double _walkerHaloScale;
   late String _userName;
   late TextEditingController _nameCtrl;
   bool _inited = false;
@@ -107,6 +109,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _trunkStyle =
         kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
     _footScale = s.footScale.clamp(kWalkerSizeMin, kFootScaleMax).toDouble();
+    _walkerHalo = s.walkerHalo;
+    _walkerHaloScale = s.walkerHaloScale.clamp(0.3, 2.5).toDouble();
     _userName = s.userName;
     _nameCtrl = TextEditingController(text: _userName);
   }
@@ -146,6 +150,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.showEmotionWidget = _showEmotionWidget;
     s.trunkStyle = _trunkStyle;
     s.footScale = _footScale;
+    s.walkerHalo = _walkerHalo;
+    s.walkerHaloScale = _walkerHaloScale;
     s.userName = _nameCtrl.text.trim();
     store.changedNow();
     context.read<ThemeStore>().setTextScale(_uiScale);
@@ -652,6 +658,24 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         const _Hair(),
         _haloRow('هاله‌ی دور «نزدیک شدن به هدف»', _haloRing,
             (v) => _haloRing = v),
+        const _Hair(),
+        _haloRow('هاله‌ی فرکانسی قدم‌زن (پا و دایره)', _walkerHalo,
+            (v) => _walkerHalo = v),
+        if (_walkerHalo) ...[
+          const SizedBox(height: 6),
+          _sliderBlock(
+            label: 'اندازه‌ی هاله‌ی قدم‌زن',
+            valueText: toFa((_walkerHaloScale * 100).round()),
+            value: _walkerHaloScale,
+            min: 0.3,
+            max: 2.5,
+            divisions: 22,
+            onChanged: (v) => setState(() => _walkerHaloScale = v),
+            onReset: (_walkerHaloScale - 1.0).abs() < 0.01
+                ? null
+                : () => setState(() => _walkerHaloScale = 1.0),
+          ),
+        ],
       ],
     );
   }

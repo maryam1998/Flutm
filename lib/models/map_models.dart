@@ -550,6 +550,9 @@ class MapState {
   bool haloMe, haloGoal, haloAction, haloSub, haloRing;
   String userName;
   double footScale;
+  // هاله‌ی فرکانسیِ دور دایره‌ی قدم‌زن (پا + دایره‌ی متصل): نمایش و اندازه
+  bool walkerHalo;
+  double walkerHaloScale;
   Map<String, dynamic> extra;
 
   MapState({
@@ -570,6 +573,8 @@ class MapState {
     this.haloRing = false,
     this.userName = '',
     this.footScale = 1.0,
+    this.walkerHalo = true,
+    this.walkerHaloScale = 1.0,
     Map<String, dynamic>? extra,
   })  : me = me ?? MeNode(),
         goals = goals ?? [],
@@ -579,7 +584,7 @@ class MapState {
   static const _known = {
     'me', 'goals', 'rings', 'textColor', 'trunkStyle', 'fontSize',
     'showDateStamps', 'showTimeStamps', 'showRingLinks', 'showEmotionWidget',
-    'userName', 'footScale',
+    'userName', 'footScale', 'walkerHalo', 'walkerHaloScale',
     'haloMe', 'haloGoal', 'haloAction', 'haloSub', 'haloRing', 'stampsOffV2',
   };
 
@@ -615,6 +620,8 @@ class MapState {
       showEmotionWidget: _b(j['showEmotionWidget'], true),
       userName: _s(j['userName'], ''),
       footScale: _d(j['footScale'], 1.0),
+      walkerHalo: _b(j['walkerHalo'], true),
+      walkerHaloScale: _d(j['walkerHaloScale'], 1.0).clamp(0.3, 2.5).toDouble(),
       extra: extra,
     );
   }
@@ -639,6 +646,8 @@ class MapState {
         'stampsOffV2': true,
         'userName': userName,
         'footScale': footScale,
+        'walkerHalo': walkerHalo,
+        'walkerHaloScale': walkerHaloScale,
         '_savedAt': DateTime.now().millisecondsSinceEpoch,
       };
 

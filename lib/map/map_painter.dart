@@ -1139,18 +1139,21 @@ class MapPainter extends CustomPainter {
         rearPt.dx - math.cos(rearAng) * back + nx * (bob + laneOff),
         rearPt.dy - math.sin(rearAng) * back + ny * (bob + laneOff));
 
-    canvas.drawCircle(
-        bodyPos,
-        bodyR * 2.6,
-        Paint()
-          ..color = withOp(col, 0.20)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
-    canvas.drawCircle(
-        bodyPos,
-        bodyR * 1.35,
-        Paint()
-          ..color = withOp(col, 0.18)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+    if (state.walkerHalo) {
+      final hs = state.walkerHaloScale.clamp(0.3, 2.5).toDouble();
+      canvas.drawCircle(
+          bodyPos,
+          bodyR * 2.6 * hs,
+          Paint()
+            ..color = withOp(col, 0.20)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
+      canvas.drawCircle(
+          bodyPos,
+          bodyR * 1.35 * hs,
+          Paint()
+            ..color = withOp(col, 0.18)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+    }
 
     ui.Image? faceImg;
     if (hasPhoto) {
