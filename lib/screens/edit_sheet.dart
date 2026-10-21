@@ -802,7 +802,7 @@ class _EditSheetState extends State<EditSheet> {
           _swatches(me.color, (c) => me.color = c),
         ],
       ),
-      _haloCard(me.extra, _s.haloMe),
+      _haloCard(me.extra, false),
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
@@ -863,6 +863,8 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
+      const SizedBox(height: 8),
+      ..._walkerHaloControls(ex),
       const SizedBox(height: 8),
       _sectionLabel('رنگ انیمیشن'),
       _swatches(
@@ -939,6 +941,38 @@ class _EditSheetState extends State<EditSheet> {
     ];
   }
 
+  /// هاله‌ی دور انیمیشن (پا و دایره‌ی متصل): نمایش و اندازه، جدا برای هر هدف/شاخه/زیرشاخه
+  List<Widget> _walkerHaloControls(Map<String, dynamic> ex) {
+    final on = ex['walkerHalo'] != false;
+    final scale = ((ex['walkerHaloScale'] as num?)?.toDouble() ?? 1.0)
+        .clamp(0.3, 2.5)
+        .toDouble();
+    return [
+      _switchTile(
+        boxed: true,
+        title: 'نمایش هاله‌ی انیمیشن',
+        value: on,
+        onChanged: (v) => _edit(() {
+          if (v) {
+            ex.remove('walkerHalo');
+          } else {
+            ex['walkerHalo'] = false;
+          }
+        }),
+      ),
+      if (on)
+        _slider(
+          label: 'اندازه‌ی هاله‌ی انیمیشن',
+          value: scale,
+          min: 0.3,
+          max: 2.5,
+          divisions: 22,
+          valueText: '${(scale * 100).round()}٪',
+          onChanged: (v) => _edit(() => ex['walkerHaloScale'] = v),
+        ),
+    ];
+  }
+
   // ============================================================
   // هدف
   // ============================================================
@@ -991,7 +1025,7 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _stampCard(g.extra),
-      _haloCard(g.extra, _s.haloGoal),
+      _haloCard(g.extra, false),
       // رنگ هدف + نوع خط + ضخامت، با پیش‌نمایش زنده‌ی مسیر
       GoalPathCard(
         color: g.color,
@@ -1055,6 +1089,7 @@ class _EditSheetState extends State<EditSheet> {
             valueText: '${(walkerSize * 100).round()}٪',
             onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
           ),
+          ..._walkerHaloControls(g.extra),
         ],
       ),
       _switchTile(
@@ -1140,7 +1175,7 @@ class _EditSheetState extends State<EditSheet> {
           _swatches(r.color, (c) => r.color = c, extra: const [kRingColor]),
         ],
       ),
-      _haloCard(r.extra, _s.haloRing),
+      _haloCard(r.extra, false),
       _card(
         icon: Icons.text_fields_rounded,
         title: 'نوشته‌ی نشانه',
@@ -1256,8 +1291,7 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _stampCard(a.extra),
-      _haloCard(a.extra,
-          host.actions.any((x) => x.id == a.id) ? _s.haloAction : _s.haloSub),
+      _haloCard(a.extra, false),
       _switchTile(
         boxed: true,
         title: 'این یه کار روتینه',
@@ -1342,6 +1376,7 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
+      ..._walkerHaloControls(a.extra),
       const Padding(
         padding: EdgeInsets.only(top: 4, bottom: 4),
         child: Text(

@@ -385,7 +385,7 @@ class MapPainter extends CustomPainter {
     final r = me.radius;
     final u = userFrequencyState(state);
     final band = kFreqBands[u.band]!;
-    if (_haloOn(me.extra, state.haloMe)) {
+    if (_haloOn(me.extra, false)) {
       _aura(canvas, c, r, u);
       _halo(canvas, c, hexColor(band.color), r, 1, u.band);
     }
@@ -516,7 +516,7 @@ class MapPainter extends CustomPainter {
     final r0 = g.radius;
     final c = Offset(g.x, g.y);
     final col = hexColor(g.color, hexColor(kPalette[0]));
-    if (_haloOn(g.extra, state.haloGoal)) {
+    if (_haloOn(g.extra, false)) {
       _halo(canvas, c, col, r0 * math.max(1.0, g.iconScale), 1, g.freq);
     }
     _nodeIcon(canvas, c, r0, g.images, g.icon, col, g.iconScale, tc);
@@ -615,7 +615,7 @@ class MapPainter extends CustomPainter {
     final rad = r.radius;
     final col = hexColor(r.color, hexColor(kRingColor));
     final big = rad * math.max(1.0, r.iconScale);
-    if (_haloOn(r.extra, state.haloRing)) {
+    if (_haloOn(r.extra, false)) {
       _halo(canvas, c, col, big, 1.2, null);
     }
     _nodeIcon(canvas, c, rad, r.images, r.icon, col, r.iconScale, tc);
@@ -886,6 +886,8 @@ class MapPainter extends CustomPainter {
       hostId: g.id,
       photos: walkerPhotosOf(g.extra),
       emoji: walkerEmojiOf(g.extra),
+      halo: g.extra['walkerHalo'] != false,
+      haloScale: ((g.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
     );
   }
 
@@ -964,6 +966,8 @@ class MapPainter extends CustomPainter {
       withBody: false,
       photos: walkerPhotosOf(a.extra),
       emoji: walkerEmojiOf(a.extra),
+      halo: a.extra['walkerHalo'] != false,
+      haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
     );
   }
 
@@ -989,6 +993,8 @@ class MapPainter extends CustomPainter {
     bool withBody = true,
     List<String> photos = const [],
     String emoji = '',
+    bool halo = true,
+    double haloScale = 1.0,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -1139,8 +1145,8 @@ class MapPainter extends CustomPainter {
         rearPt.dx - math.cos(rearAng) * back + nx * (bob + laneOff),
         rearPt.dy - math.sin(rearAng) * back + ny * (bob + laneOff));
 
-    if (state.walkerHalo) {
-      final hs = state.walkerHaloScale.clamp(0.3, 2.5).toDouble();
+    if (halo) {
+      final hs = haloScale.clamp(0.3, 2.5).toDouble();
       canvas.drawCircle(
           bodyPos,
           bodyR * 2.6 * hs,
@@ -1471,7 +1477,7 @@ class MapPainter extends CustomPainter {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
     }
 
-    if (_haloOn(a.extra, depth == 0 ? state.haloAction : state.haloSub)) {
+    if (_haloOn(a.extra, false)) {
       final tipR0 = math.max(1.8, 2 + weight * 0.28 * scale) * cs;
       _halo(canvas, end, color, math.max(tipR0 * 1.6, 9.0 * scale), 1, null);
     }

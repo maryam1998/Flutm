@@ -79,12 +79,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late bool _showDates;
   late bool _showTimes;
   late bool _showRingLinks;
-  late bool _haloMe, _haloGoal, _haloAction, _haloSub, _haloRing;
   late bool _showEmotionWidget;
   late String _trunkStyle;
   late double _footScale;
-  late bool _walkerHalo;
-  late double _walkerHaloScale;
   late String _userName;
   late TextEditingController _nameCtrl;
   final _motInput = TextEditingController();
@@ -105,17 +102,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showDates = s.showDateStamps;
     _showTimes = s.showTimeStamps;
     _showRingLinks = s.showRingLinks;
-    _haloMe = s.haloMe;
-    _haloGoal = s.haloGoal;
-    _haloAction = s.haloAction;
-    _haloSub = s.haloSub;
-    _haloRing = s.haloRing;
     _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
         kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
     _footScale = s.footScale.clamp(kWalkerSizeMin, kFootScaleMax).toDouble();
-    _walkerHalo = s.walkerHalo;
-    _walkerHaloScale = s.walkerHaloScale.clamp(0.3, 2.5).toDouble();
     _userName = s.userName;
     _nameCtrl = TextEditingController(text: _userName);
   }
@@ -149,16 +139,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.showDateStamps = _showDates;
     s.showTimeStamps = _showTimes;
     s.showRingLinks = _showRingLinks;
-    s.haloMe = _haloMe;
-    s.haloGoal = _haloGoal;
-    s.haloAction = _haloAction;
-    s.haloSub = _haloSub;
-    s.haloRing = _haloRing;
     s.showEmotionWidget = _showEmotionWidget;
     s.trunkStyle = _trunkStyle;
     s.footScale = _footScale;
-    s.walkerHalo = _walkerHalo;
-    s.walkerHaloScale = _walkerHaloScale;
     s.userName = _nameCtrl.text.trim();
     store.changedNow();
     context.read<ThemeStore>().setTextScale(_uiScale);
@@ -654,45 +637,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           value: _showTimes,
           onChanged: (v) => setState(() => _showTimes = v),
         ),
-        const _Hair(),
-        _haloRow('هاله‌ی دور «من»', _haloMe, (v) => _haloMe = v),
-        const _Hair(),
-        _haloRow('هاله‌ی دور هدف', _haloGoal, (v) => _haloGoal = v),
-        const _Hair(),
-        _haloRow('هاله‌ی دور شاخه', _haloAction, (v) => _haloAction = v),
-        const _Hair(),
-        _haloRow('هاله‌ی دور زیرشاخه', _haloSub, (v) => _haloSub = v),
-        const _Hair(),
-        _haloRow('هاله‌ی دور «نزدیک شدن به هدف»', _haloRing,
-            (v) => _haloRing = v),
-        const _Hair(),
-        _haloRow('هاله‌ی فرکانسی قدم‌زن (پا و دایره)', _walkerHalo,
-            (v) => _walkerHalo = v),
-        if (_walkerHalo) ...[
-          const SizedBox(height: 6),
-          _sliderBlock(
-            label: 'اندازه‌ی هاله‌ی قدم‌زن',
-            valueText: toFa((_walkerHaloScale * 100).round()),
-            value: _walkerHaloScale,
-            min: 0.3,
-            max: 2.5,
-            divisions: 22,
-            onChanged: (v) => setState(() => _walkerHaloScale = v),
-            onReset: (_walkerHaloScale - 1.0).abs() < 0.01
-                ? null
-                : () => setState(() => _walkerHaloScale = 1.0),
-          ),
-        ],
       ],
     );
   }
-
-  Widget _haloRow(String title, bool value, void Function(bool) set) =>
-      _switchRow(
-        title: title,
-        value: value,
-        onChanged: (v) => setState(() => set(v)),
-      );
 
   /// پس‌زمینه
   Widget _backgroundCard() {
