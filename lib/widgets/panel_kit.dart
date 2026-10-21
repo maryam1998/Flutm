@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 
 /// اجزای مشترک طراحی پنل‌های هدف‌گذاری — همان زبان بصری کارت «ظاهر مسیر هدف»:
 /// کارت سفید با گوشه‌ی گرد، آیکونِ رنگیِ کوچک کنار عنوان و محتوای مرتب.
-const kPanelGold = Color(0xFFC9962B);
+/// سبزِ هماهنگ با بقیه‌ی تب‌ها (emerald500)
+const kPanelGold = Color(0xFF178A7C);
 const kPanelInk = Color(0xFF000000);
 const kPanelMuted = Color(0xFF5B5F77);
-const kPanelBorder = Color.fromRGBO(20, 24, 50, 0.10);
+const kPanelBorder = Color.fromRGBO(23, 138, 124, 0.28);
 const kPanelField = Color(0xFFF1F2F8);
 
 /// کارتِ یک بخش: [icon] داخل مربع رنگی + [title] + توضیح کوتاه (اختیاری).
-class PanelCard extends StatelessWidget {
+///
+/// با [collapsible] کارت بسته شروع می‌شود و با تپ روی عنوان باز می‌شود؛
+/// برای گزینه‌های کم‌استفاده تا صفحه شلوغ نشود.
+class PanelCard extends StatefulWidget {
   const PanelCard({
     super.key,
     required this.icon,
@@ -20,6 +24,8 @@ class PanelCard extends StatelessWidget {
     this.subtitle,
     this.accent = kPanelGold,
     this.trailing,
+    this.collapsible = false,
+    this.initiallyOpen = false,
   });
 
   final IconData icon;
@@ -28,55 +34,90 @@ class PanelCard extends StatelessWidget {
   final Color accent;
   final Widget? trailing;
   final List<Widget> children;
+  final bool collapsible;
+  final bool initiallyOpen;
+
+  @override
+  State<PanelCard> createState() => _PanelCardState();
+}
+
+class _PanelCardState extends State<PanelCard> {
+  late bool _open = !widget.collapsible || widget.initiallyOpen;
 
   @override
   Widget build(BuildContext context) {
+    final w = widget;
+    final header = Row(
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: w.accent.withAlpha(30),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(w.icon, size: 16, color: w.accent),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(w.title,
+              style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: kPanelInk)),
+        ),
+        if (w.trailing != null) w.trailing!,
+        if (w.collapsible)
+          AnimatedRotation(
+            turns: _open ? 0.5 : 0,
+            duration: const Duration(milliseconds: 180),
+            child: const Icon(Icons.keyboard_arrow_down_rounded,
+                size: 22, color: kPanelMuted),
+          ),
+      ],
+    );
+
     return Container(
       margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.fromLTRB(
+          14, w.collapsible && !_open ? 10 : 14, 14, w.collapsible && !_open ? 10 : 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kPanelBorder),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x0F141832), blurRadius: 12, offset: Offset(0, 3)),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: accent.withAlpha(36),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icon, size: 17, color: accent),
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(title,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: kPanelInk)),
-              ),
-              if (trailing != null) trailing!,
-            ],
+          if (w.collapsible)
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => setState(() => _open = !_open),
+              child: header,
+            )
+          else
+            header,
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _open
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (w.subtitle != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(w.subtitle!,
+                              style: const TextStyle(
+                                  fontSize: 11, height: 1.6, color: kPanelMuted)),
+                        ),
+                      const SizedBox(height: 10),
+                      ...w.children,
+                    ],
+                  )
+                : const SizedBox(width: double.infinity),
           ),
-          if (subtitle != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(subtitle!,
-                  style: const TextStyle(
-                      fontSize: 11.5, height: 1.6, color: kPanelMuted)),
-            ),
-          const SizedBox(height: 12),
-          ...children,
         ],
       ),
     );
@@ -174,11 +215,11 @@ class PanelChoiceGrid extends StatelessWidget {
         width: w,
         padding: const EdgeInsets.fromLTRB(4, 9, 4, 7),
         decoration: BoxDecoration(
-          color: on ? kPanelGold.withAlpha(24) : kPanelField,
+          color: on ? kPanelGold.withAlpha(22) : kPanelField,
           borderRadius: BorderRadius.circular(13),
           border: Border.all(
             color: on ? kPanelGold : Colors.transparent,
-            width: on ? 1.8 : 1,
+            width: on ? 1.5 : 1,
           ),
         ),
         child: Column(

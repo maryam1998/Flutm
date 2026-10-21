@@ -316,7 +316,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _mapDisplayCard(),
-                    _pathCard(),
                     _backgroundCard(),
                     _foregroundCard(),
                     _motivationCard(),
@@ -604,29 +603,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           subtitle: 'روی صفحه در تمام تب‌ها دیده می‌شود',
           value: _showEmotionWidget,
           onChanged: (v) => setState(() => _showEmotionWidget = v),
-        ),
-      ],
-    );
-  }
-
-  /// مسیر هدف‌ها و انیمیشن
-  Widget _pathCard() {
-    return _card(
-      icon: Icons.route_outlined,
-      title: 'مسیر و انیمیشن',
-      subtitle: 'برای هر هدف جداگانه هم می‌شود عوضشان کرد',
-      children: [
-        _fieldLabel('نوع خطِ پیش‌فرضِ مسیر اهداف'),
-        _trunkPicker(),
-        const _Hair(),
-        _sliderBlock(
-          label: 'اندازه‌ی انیمیشن 👣',
-          valueText: '${toFa((_footScale * 100).round())}٪',
-          value: _footScale,
-          min: kWalkerSizeMin,
-          max: kFootScaleMax,
-          divisions: 23,
-          onChanged: (v) => setState(() => _footScale = v),
         ),
       ],
     );
@@ -1254,65 +1230,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       ),
     );
   }
-
-  Widget _trunkPicker() {
-    return GridView.count(
-      crossAxisCount: 4,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-      childAspectRatio: 0.95,
-      children: [
-        for (final e in kTrunkStyles.entries)
-          GestureDetector(
-            onTap: () => setState(() => _trunkStyle = e.key),
-            child: Container(
-              decoration: BoxDecoration(
-                color: _trunkStyle == e.key
-                    ? const Color.fromRGBO(244, 197, 66, 0.14)
-                    : _kField,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _trunkStyle == e.key ? _kGold : _kBorder,
-                  width: _trunkStyle == e.key ? 1.8 : 1,
-                ),
-              ),
-              padding: const EdgeInsets.all(5),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 44,
-                    height: 24,
-                    child: CustomPaint(
-                      painter: _TrunkPreviewPainter(
-                        style: e.key,
-                        color: _trunkStyle == e.key ? _kGold : _kMuted,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    e.value,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: _trunkStyle == e.key
-                          ? FontWeight.w800
-                          : FontWeight.w500,
-                      color: _trunkStyle == e.key ? _kInk : _kMuted,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 /// خطِ نازکِ جداکننده‌ی بین ردیف‌های داخل کارت
@@ -1323,96 +1240,4 @@ class _Hair extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: 8),
         child: Divider(height: 1, color: _kBorder),
       );
-}
-
-class _TrunkPreviewPainter extends CustomPainter {
-  _TrunkPreviewPainter({required this.style, required this.color});
-  final String style;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round
-      ..color = color;
-
-    final a = Offset(2, size.height * 0.8);
-    final b = Offset(size.width - 2, size.height * 0.2);
-    final dir = b - a;
-    final len = dir.distance;
-    if (len == 0) return;
-    final n = dir / len;
-
-    switch (style) {
-      case 'solid':
-        canvas.drawLine(a, b, p);
-      case 'dotted':
-        for (var i = 0; i < 8; i++) {
-          final pt = a + n * (len * i / 7);
-          canvas.drawCircle(pt, 1, Paint()..color = color);
-        }
-      case 'dashdot':
-        _dash(canvas, a, b, p, len, n, [4, 2, 1, 2]);
-      case 'long':
-        _dash(canvas, a, b, p, len, n, [7, 4]);
-      case 'double':
-        final perp = Offset(-n.dy, n.dx) * 1.3;
-        canvas.drawLine(a + perp, b + perp, p..strokeWidth = 1.3);
-        canvas.drawLine(
-            a - perp,
-            b - perp,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.3
-              ..strokeCap = StrokeCap.round
-              ..color = color);
-      case 'glow':
-        canvas.drawLine(
-            a,
-            b,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 5
-              ..strokeCap = StrokeCap.round
-              ..color = color.withValues(alpha: 0.30));
-        canvas.drawLine(a, b, p..strokeWidth = 1.5);
-      case 'taper':
-        for (var i = 0; i < 6; i++) {
-          final p1 = a + n * (len * i / 6);
-          final p2 = a + n * (len * (i + 1) / 6);
-          canvas.drawLine(
-              p1,
-              p2,
-              Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 3 - i * 0.35
-                ..strokeCap = StrokeCap.round
-                ..color = color);
-        }
-      default:
-        _dash(canvas, a, b, p, len, n, [3, 3]);
-    }
-  }
-
-  void _dash(Canvas canvas, Offset a, Offset b, Paint p, double len, Offset n,
-      List<double> dashes) {
-    var d = 0.0;
-    var i = 0;
-    while (d < len) {
-      final seg = dashes[i % dashes.length];
-      if (i.isEven) {
-        final s = a + n * d;
-        final e = a + n * (d + seg > len ? len : d + seg);
-        canvas.drawLine(s, e, p);
-      }
-      d += seg;
-      i++;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _TrunkPreviewPainter old) =>
-      old.style != style || old.color != color;
 }

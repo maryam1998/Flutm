@@ -18,10 +18,10 @@ import '../widgets/web_color_picker.dart';
 const _kBg = Color(0xFFFFFFFF);
 const _kCard = Colors.white;
 const _kInputBg = Color(0xFFF1F2F8); // --input-bg
-const _kGold = Color(0xFFC9962B);
+const _kGold = Color(0xFF178A7C); // سبز هماهنگ با بقیه‌ی تب‌ها
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF5B5F77);
-const _kBorder = Color.fromRGBO(20, 24, 50, 0.10); // --panel-border
+const _kBorder = Color.fromRGBO(23, 138, 124, 0.28); // کادر سبز هماهنگ با تب‌ها
 const _kDanger = Color(0xFFE5484D);
 
 // ============================================================
@@ -339,6 +339,24 @@ class _EditSheetState extends State<EditSheet> {
   // ------------------------------------------------------------
   // اجزای مشترک
   // ------------------------------------------------------------
+  /// کارتِ بخش؛ کلیدش به هدفِ ویرایش وابسته است تا باز/بسته‌بودنِ بخش‌ها
+  /// موقع رفتن به یک اقدام دیگر نشت نکند.
+  Widget _card({
+    required IconData icon,
+    required String title,
+    required List<Widget> children,
+    String? subtitle,
+    bool collapsible = false,
+  }) =>
+      PanelCard(
+        key: ValueKey('${_t.key}|$title'),
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        collapsible: collapsible,
+        children: children,
+      );
+
   /// `#panel label.small`: ۱۱px، --text-dim، فاصله‌ی ۶ پایین
   Widget _sectionLabel(String s) => Padding(
         padding: const EdgeInsets.only(top: 10, bottom: 6),
@@ -435,7 +453,7 @@ class _EditSheetState extends State<EditSheet> {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: cur.isEmpty ? _kGold : _kBorder,
-                  width: cur.isEmpty ? 2 : 1.5,
+                  width: cur.isEmpty ? 1.5 : 1,
                 ),
               ),
               child: Text(
@@ -456,15 +474,6 @@ class _EditSheetState extends State<EditSheet> {
           extra: [for (final hex in extra) hexColor(hex)],
           onColor: (hex) => _edit(() => onPick(hex)),
         ),
-        if (current != null && current.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              'رنگ انتخابی: ${current.toLowerCase()}',
-              textDirection: TextDirection.ltr,
-              style: const TextStyle(fontSize: 11.5, color: _kMuted),
-            ),
-          ),
       ],
     );
   }
@@ -477,9 +486,10 @@ class _EditSheetState extends State<EditSheet> {
       return v is bool ? v : global;
     }
 
-    return PanelCard(
+    return _card(
       icon: Icons.schedule_rounded,
       title: 'تاریخ و ساعت روی نقشه',
+      collapsible: true,
       children: [
         _switchTile(
           title: 'نمایش تاریخ',
@@ -561,35 +571,43 @@ class _EditSheetState extends State<EditSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _kMuted)),
-            const Spacer(),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: _kGold.withAlpha(30),
-                borderRadius: BorderRadius.circular(10),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(label,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: _kInk)),
               ),
-              child: Text(valueText,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: _kGold)),
-            ),
-          ],
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _kGold.withAlpha(24),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(valueText,
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: _kGold)),
+              ),
+            ],
+          ),
         ),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
             activeTrackColor: _kGold,
             thumbColor: _kGold,
             inactiveTrackColor: _kBorder,
-            overlayColor: _kGold.withAlpha(40),
+            overlayColor: _kGold.withAlpha(36),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            tickMarkShape: SliderTickMarkShape.noTickMark,
           ),
           child: Slider(
             min: min,
@@ -603,52 +621,71 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
+  /// کلیدِ روشن/خاموش. پیش‌فرض تخت و جمع‌وجور (داخل کارت‌ها)؛
+  /// با [boxed] کادر مستقل می‌گیرد.
   Widget _switchTile({
     required String title,
     String? subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
+    bool boxed = false,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kBorder),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x0F141832), blurRadius: 12, offset: Offset(0, 3)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: _kInk)),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle,
-                        style: const TextStyle(
-                            fontSize: 11.5, color: _kMuted)),
-                  ),
-              ],
+    final row = Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _kInk)),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(subtitle,
+                      style: const TextStyle(fontSize: 11, color: _kMuted)),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        // کلیدِ کوچک
+        SizedBox(
+          width: 38,
+          height: 24,
+          child: FittedBox(
+            child: Switch(
+              value: value,
+              activeThumbColor: Colors.white,
+              activeTrackColor: _kGold,
+              inactiveThumbColor: Colors.white,
+              inactiveTrackColor: const Color(0xFFD9DDE8),
+              trackOutlineColor:
+                  const WidgetStatePropertyAll(Colors.transparent),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              onChanged: onChanged,
             ),
           ),
-          Switch(
-            value: value,
-            activeThumbColor: _kGold,
-            onChanged: onChanged,
-          ),
-        ],
+        ),
+      ],
+    );
+    if (!boxed) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: row,
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: _kCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
       ),
+      child: row,
     );
   }
 
@@ -708,7 +745,7 @@ class _EditSheetState extends State<EditSheet> {
   List<Widget> _meBody() {
     final me = _s.me;
     return [
-      PanelCard(
+      _card(
         icon: Icons.person_rounded,
         title: 'من',
         subtitle: 'نقطه‌ی شروعِ همه‌ی مسیرها؛ اسم، عکس یا ایموجی و رنگ خودت.',
@@ -787,6 +824,7 @@ class _EditSheetState extends State<EditSheet> {
       ),
       const SizedBox(height: 8),
       _switchTile(
+        boxed: true,
         title: 'نمایش روی نقشه',
         value: ex['showWalker'] != false,
         onChanged: (v) => _edit(() {
@@ -824,6 +862,7 @@ class _EditSheetState extends State<EditSheet> {
           onChanged: (v) => _edit(() => act!.footSpeed = v),
         ),
         _switchTile(
+          boxed: true,
           title: 'در حال حرکت',
           subtitle: 'روشن = انیمیشن فعال است',
           value: act.footPlaying,
@@ -855,6 +894,7 @@ class _EditSheetState extends State<EditSheet> {
           onChanged: (v) => _edit(() => ex['walkerSpeed'] = v),
         ),
         _switchTile(
+          boxed: true,
           title: 'در حال حرکت',
           subtitle: 'روشن = قدم‌زن راه می‌ره',
           value: ex['walkerPlaying'] as bool? ?? true,
@@ -877,7 +917,7 @@ class _EditSheetState extends State<EditSheet> {
   List<Widget> _goalBody(Goal g) {
     final walkerSize = ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0);
     return [
-      PanelCard(
+      _card(
         icon: Icons.flag_rounded,
         title: 'هدف',
         children: [
@@ -900,9 +940,10 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
-      PanelCard(
+      _card(
         icon: Icons.text_fields_rounded,
         title: 'دایره و نوشته‌ی هدف',
+        collapsible: true,
         children: [
           _slider(
             label: 'اندازه‌ی دایره',
@@ -935,21 +976,21 @@ class _EditSheetState extends State<EditSheet> {
           g.trunkStyle = '';
         }),
       ),
-      PanelCard(
+      _card(
         icon: Icons.alt_route_rounded,
         title: 'شکل اقدامات',
-        subtitle:
-            'اقدام‌هایی که از این هدف بیرون می‌آیند چطور خم شوند: مستقیم، قوسی، پله‌ای و… '
-            'هر اقدام می‌تواند شکل خودش را هم جدا داشته باشد.',
+        subtitle: 'اقدام‌های این هدف چطور خم شوند. هر اقدام شکل خودش را هم می‌تواند داشته باشد.',
+        collapsible: true,
         children: [
           _shapeGrid(g.branchStyle,
               (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
         ],
       ),
       ..._branchesSection(g),
-      PanelCard(
+      _card(
         icon: Icons.directions_walk_rounded,
         title: 'انیمیشن روی مسیر',
+        collapsible: true,
         children: [
           _switchTile(
             title: 'نمایش انیمیشن',
@@ -988,6 +1029,7 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _switchTile(
+        boxed: true,
         title: 'به این هدف رسیدم',
         subtitle: 'روی نقشه از من می‌پرسه چه حسی دارم',
         value: g.reached,
@@ -1021,7 +1063,7 @@ class _EditSheetState extends State<EditSheet> {
   // ============================================================
   List<Widget> _ringBody(Ring r) {
     return [
-      PanelCard(
+      _card(
         icon: Icons.stars_rounded,
         title: 'نشانه',
         children: [
@@ -1052,7 +1094,7 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
-      PanelCard(
+      _card(
         icon: Icons.palette_rounded,
         title: 'ظاهر نشانه',
         children: [
@@ -1067,6 +1109,13 @@ class _EditSheetState extends State<EditSheet> {
           ),
           const PanelLabel('رنگ'),
           _swatches(r.color, (c) => r.color = c, extra: const [kRingColor]),
+        ],
+      ),
+      _card(
+        icon: Icons.text_fields_rounded,
+        title: 'نوشته‌ی نشانه',
+        collapsible: true,
+        children: [
           ..._labelStyleControls(
             defaultSize: _s.fontSize - 2,
             size: r.labelSize,
@@ -1075,10 +1124,11 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
-      PanelCard(
+      _card(
         icon: Icons.alt_route_rounded,
         title: 'شکل اقدامات',
         subtitle: 'اقدام‌های این نشانه چطور خم شوند.',
+        collapsible: true,
         children: [
           _shapeGrid(r.branchStyle,
               (v) => r.branchStyle = v.isEmpty ? 'organic' : v),
@@ -1107,7 +1157,7 @@ class _EditSheetState extends State<EditSheet> {
   List<Widget> _actionBody(MapHost host, ActionNode a) {
     final footPlaying = a.footPlaying;
     return [
-      PanelCard(
+      _card(
         icon: Icons.eco_rounded,
         title: 'اقدام',
         children: [
@@ -1128,16 +1178,17 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
-      PanelCard(
+      _card(
         icon: Icons.palette_rounded,
         title: 'ظاهر اقدام',
         children: [
           const PanelLabel('رنگ'),
           _swatches(a.color, (c) => a.color = c,
               onInherit: () => a.color = null),
+          const PanelLabel('شکل خط'),
           _shapeGrid(a.style, (v) => a.style = v,
               inherit: true, inheritLabel: 'مثل هدف'),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           _slider(
             label: 'ضخامت',
             value: a.weight.clamp(1.0, 10.0).toDouble(),
@@ -1159,6 +1210,13 @@ class _EditSheetState extends State<EditSheet> {
                 '${(((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
             onChanged: (v) => _edit(() => a.extra['circleScale'] = v),
           ),
+        ],
+      ),
+      _card(
+        icon: Icons.text_fields_rounded,
+        title: 'نوشته‌ی اقدام',
+        collapsible: true,
+        children: [
           ..._labelStyleControls(
             defaultSize: _s.fontSize,
             size: a.labelSize,
@@ -1169,14 +1227,16 @@ class _EditSheetState extends State<EditSheet> {
       ),
       _stampCard(a.extra),
       _switchTile(
+        boxed: true,
         title: 'این یه کار روتینه',
         subtitle: 'هر روز تکرار می‌شه، هفته‌ای یه بار نگاه کن',
         value: a.isRoutine,
         onChanged: (v) => _edit(() => a.isRoutine = v),
       ),
-      PanelCard(
+      _card(
         icon: Icons.directions_walk_rounded,
         title: 'قدم روی مسیر 👣',
+        collapsible: true,
         children: [
       _switchTile(
         title: 'نمایش انیمیشن',
@@ -1260,7 +1320,8 @@ class _EditSheetState extends State<EditSheet> {
 
         ],
       ),
-      PanelCard(
+      if (kShowSubActions || a.children.isNotEmpty)
+      _card(
         icon: kShowSubActions
             ? Icons.account_tree_rounded
             : Icons.place_outlined,
@@ -1317,6 +1378,28 @@ class _EditSheetState extends State<EditSheet> {
           ),
         ],
       ),
+      if (!(kShowSubActions || a.children.isNotEmpty))
+      Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _kMuted,
+            side: const BorderSide(color: _kBorder),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: () {
+            resetBranchPos(a);
+            _store.changed();
+            _store.toast?.call('اقدام به جای اولش برگشت');
+          },
+          icon: const Icon(Icons.restart_alt, size: 18),
+          label: const Text('برگرداندن به جای اول',
+              style: TextStyle(fontSize: 12)),
+        ),
+      ),
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
@@ -1343,7 +1426,7 @@ class _EditSheetState extends State<EditSheet> {
   // ------------------------------------------------------------
   List<Widget> _branchesSection(MapHost host) {
     return [
-      PanelCard(
+      _card(
         icon: Icons.account_tree_rounded,
         title: 'اقدامات',
         subtitle: 'کارهای کوچکی که تو را به اینجا می‌رسانند. با ⚙ جزئیات هر اقدام را عوض کن.',

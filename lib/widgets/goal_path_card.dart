@@ -7,10 +7,10 @@ import '../models/constants.dart';
 import 'panel_kit.dart';
 import 'web_color_picker.dart';
 
-const _kGold = Color(0xFFC9962B);
+const _kGold = Color(0xFF178A7C); // سبز هماهنگ با بقیه‌ی تب‌ها
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF5B5F77);
-const _kBorder = Color.fromRGBO(20, 24, 50, 0.10);
+const _kBorder = Color.fromRGBO(23, 138, 124, 0.28);
 const _kField = Color(0xFFF1F2F8);
 
 /// رنگ‌های بیشتر برای هدف (علاوه بر ۸ رنگ پیش‌فرض نقشه)
@@ -72,19 +72,14 @@ class GoalPathCard extends StatelessWidget {
     final eff = width > 0 ? width.clamp(minW, maxW).toDouble() : defW;
     final isDefault = width <= 0;
     final style = styleKey.isEmpty ? 'dashed' : styleKey;
-    final hex = _hex(col);
 
     return Container(
       margin: const EdgeInsets.only(top: 6, bottom: 4),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kBorder),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x0F141832), blurRadius: 12, offset: Offset(0, 3)),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -93,19 +88,20 @@ class GoalPathCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
-                  color: col.withAlpha(36),
-                  borderRadius: BorderRadius.circular(9),
+                  color: _kGold.withAlpha(30),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.timeline_rounded, size: 17, color: col),
+                child:
+                    const Icon(Icons.timeline_rounded, size: 16, color: _kGold),
               ),
               const SizedBox(width: 9),
               const Expanded(
                 child: Text('ظاهر مسیر هدف',
                     style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w800,
                         color: _kInk)),
               ),
@@ -119,7 +115,7 @@ class GoalPathCard extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                label: const Text('بازنشانی خط', style: TextStyle(fontSize: 11.5)),
+                label: const Text('بازنشانی', style: TextStyle(fontSize: 11.5)),
               ),
             ],
           ),
@@ -127,7 +123,7 @@ class GoalPathCard extends StatelessWidget {
 
           // ── پیش‌نمایش زنده ──
           Container(
-            height: 92,
+            height: 76,
             decoration: BoxDecoration(
               color: _kField,
               borderRadius: BorderRadius.circular(14),
@@ -143,54 +139,19 @@ class GoalPathCard extends StatelessWidget {
               size: Size.infinite,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // ── رنگ ──
-          Row(
-            children: [
-              const Text('رنگ هدف و مسیر',
-                  style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: _kInk)),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _kField,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration:
-                          BoxDecoration(color: col, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(hex.toUpperCase(),
-                        textDirection: TextDirection.ltr,
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _kMuted)),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          const Text('رنگ هدف و مسیر',
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: _kInk)),
           const SizedBox(height: 10),
           GoalColorGrid(color: col, onColor: onColor),
           // ── نوع خط ──
           const PanelLabel('نوع خط مسیر'),
-          const Text(
-            'ظاهرِ خطِ اصلی که از «من» تا این هدف کشیده می‌شود (فقط شکل خط؛ شکل خم‌شدنِ اقدامات جدا و پایین‌تر است).',
-            style: TextStyle(fontSize: 11.5, height: 1.6, color: _kMuted),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 2),
           PanelChoiceGrid(
             current: styleKey,
             onPick: onStyle,
@@ -200,7 +161,7 @@ class GoalPathCard extends StatelessWidget {
               for (final e in kTrunkStyles.entries) PanelChoice(e.key, e.value),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
 
           // ── ضخامت ──
           Row(
@@ -218,7 +179,7 @@ class GoalPathCard extends StatelessWidget {
                   color: _kGold.withAlpha(30),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(isDefault ? 'پیش‌فرض (${_fa(defW)})' : _fa(eff),
+                child: Text(isDefault ? 'پیش‌فرض' : _fa(eff),
                     style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
@@ -227,41 +188,28 @@ class GoalPathCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              _RoundBtn(
-                icon: Icons.remove_rounded,
-                onTap: eff <= minW
-                    ? null
-                    : () => onWidth(math.max(minW, eff - 0.5)),
-              ),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 5,
-                    activeTrackColor: col,
-                    inactiveTrackColor: _kBorder,
-                    thumbColor: col,
-                    overlayColor: col.withAlpha(40),
-                  ),
-                  child: Slider(
-                    min: minW,
-                    max: maxW,
-                    divisions: ((maxW - minW) * 2).round(),
-                    value: eff,
-                    onChanged: (v) => onWidth(v),
-                  ),
-                ),
-              ),
-              _RoundBtn(
-                icon: Icons.add_rounded,
-                onTap: eff >= maxW
-                    ? null
-                    : () => onWidth(math.min(maxW, eff + 0.5)),
-              ),
-            ],
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4,
+              activeTrackColor: _kGold,
+              inactiveTrackColor: _kBorder,
+              thumbColor: _kGold,
+              overlayColor: _kGold.withAlpha(36),
+              thumbShape:
+                  const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape:
+                  const RoundSliderOverlayShape(overlayRadius: 16),
+              tickMarkShape: SliderTickMarkShape.noTickMark,
+            ),
+            child: Slider(
+              min: minW,
+              max: maxW,
+              divisions: ((maxW - minW) * 2).round(),
+              value: eff,
+              onChanged: (v) => onWidth(v),
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -311,8 +259,8 @@ class GoalColorGrid extends StatelessWidget {
       if (!all.any((c) => GoalPathCard._hex(c) == GoalPathCard._hex(e))) all.add(e);
     }
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 9,
+      runSpacing: 9,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         for (final c in all)
@@ -328,8 +276,8 @@ class GoalColorGrid extends StatelessWidget {
             if (picked != null) onColor(GoalPathCard._hex(picked));
           },
           child: Container(
-            width: 36,
-            height: 36,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const SweepGradient(colors: [
@@ -343,7 +291,7 @@ class GoalColorGrid extends StatelessWidget {
               ]),
               border: Border.all(color: const Color(0x22000000), width: 1.5),
             ),
-            child: const Icon(Icons.add, size: 18, color: Colors.white),
+            child: const Icon(Icons.add, size: 16, color: Colors.white),
           ),
         ),
       ],
@@ -364,43 +312,19 @@ class _Swatch extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        width: 36,
-        height: 36,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
           border: Border.all(
             color: active ? _kInk : const Color(0x22000000),
-            width: active ? 3 : 1.5,
+            width: active ? 2.5 : 1.2,
           ),
         ),
         child: active
-            ? const Icon(Icons.check_rounded, size: 18, color: Colors.white)
+            ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
             : null,
-      ),
-    );
-  }
-}
-
-class _RoundBtn extends StatelessWidget {
-  const _RoundBtn({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final on = onTap != null;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: _kField,
-          shape: BoxShape.circle,
-          border: Border.all(color: _kBorder),
-        ),
-        child: Icon(icon, size: 18, color: on ? _kInk : _kMuted.withAlpha(90)),
       ),
     );
   }
