@@ -10,6 +10,10 @@ class EmotionWidgetState {
   final bool open;
   final bool glass;
 
+  /// جابه‌جایی آدمک (همراه قلبش) داخل ویجت، به واحد بومِ ۲۶۰×۴۰۰
+  final double figureX;
+  final double figureY;
+
   const EmotionWidgetState({
     required this.left,
     required this.top,
@@ -18,6 +22,8 @@ class EmotionWidgetState {
     required this.w,
     required this.open,
     required this.glass,
+    this.figureX = 0,
+    this.figureY = 0,
   });
 
   /// left/top = -1 یعنی هنوز مقدار پیش‌فرض را محاسبه نکرده‌ایم
@@ -29,6 +35,7 @@ class EmotionWidgetState {
         'left': left, 'top': top,
         'panelLeft': panelLeft, 'panelTop': panelTop,
         'w': w, 'open': open, 'glass': glass,
+        'figureX': figureX, 'figureY': figureY,
       };
 
   factory EmotionWidgetState.fromJson(Map<String, dynamic> j) =>
@@ -40,6 +47,8 @@ class EmotionWidgetState {
         w: (j['w'] as num?)?.toDouble() ?? 250,
         open: j['open'] as bool? ?? false,
         glass: j['glass'] as bool? ?? false,
+        figureX: (j['figureX'] as num?)?.toDouble() ?? 0,
+        figureY: (j['figureY'] as num?)?.toDouble() ?? 0,
       );
 }
 

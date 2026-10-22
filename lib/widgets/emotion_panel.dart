@@ -27,7 +27,16 @@ class EmotionPanel extends StatelessWidget {
     required this.chartVisible,
     required this.onToggleGlass,
     required this.tapSuppressed,
+    this.figureOffset = Offset.zero,
+    this.onFigureChange,
+    this.onFigureDragStart,
+    this.onFigureDragEnd,
   });
+
+  final Offset figureOffset;
+  final ValueChanged<Offset>? onFigureChange;
+  final VoidCallback? onFigureDragStart;
+  final VoidCallback? onFigureDragEnd;
 
   final double width;
   final bool glass;
@@ -57,6 +66,10 @@ class EmotionPanel extends StatelessWidget {
                 isDark: isDark,
                 onToggle: (id) => context.read<EmotionStore>().toggle(id),
                 tapSuppressed: tapSuppressed,
+                figureOffset: figureOffset,
+                onFigureChange: onFigureChange,
+                onFigureDragStart: onFigureDragStart,
+                onFigureDragEnd: onFigureDragEnd,
               ),
             )
           : null,

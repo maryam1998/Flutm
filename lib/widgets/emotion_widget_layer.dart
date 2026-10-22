@@ -28,6 +28,10 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
   Offset? _panelPos;
   double _panelW = 250;
 
+  // آدمک (همراه قلبش) داخل ویجت قابل جابه‌جایی است
+  Offset _figOff = Offset.zero;
+  bool _figActive = false;
+
   Offset _btnDragStart = Offset.zero;
   Offset? _panelDragStart;
   Offset? _panelDragAnchor;
@@ -53,6 +57,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
         _panelW = s.w;
         _open = s.open;
         _glass = s.glass;
+        _figOff = Offset(s.figureX, s.figureY);
         _loaded = true;
         if (_open) _openCtrl.value = 1;
       });
@@ -120,6 +125,8 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
       w: _panelW,
       open: _open,
       glass: _glass,
+      figureX: _figOff.dx,
+      figureY: _figOff.dy,
     ));
   }
 
@@ -179,6 +186,11 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                   child: GestureDetector(
                     behavior: HitTestBehavior.deferToChild,
                     onScaleStart: (d) {
+                      // انگشت روی آدمک است → آدمک می‌کشد، نه پنل
+                      if (_figActive && d.pointerCount < 2) {
+                        _panelDragAnchor = null;
+                        return;
+                      }
                       _panelDragStart =
                           _panelPos ?? Offset(rect.left, rect.top);
                       _panelDragAnchor = d.focalPoint;
@@ -187,6 +199,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                       }
                     },
                     onScaleUpdate: (d) {
+                      if (_figActive && d.pointerCount < 2) return;
                       if (d.pointerCount >= 2) {
                         final w = (_panelDragStartW * d.scale)
                             .clamp(kPanelWMin, kPanelWMax);
@@ -215,6 +228,13 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                         _persist();
                       },
                       tapSuppressed: () => _panelDragAnchor != null,
+                      figureOffset: _figOff,
+                      onFigureDragStart: () => _figActive = true,
+                      onFigureChange: (o) => setState(() => _figOff = o),
+                      onFigureDragEnd: () {
+                        _figActive = false;
+                        _persist();
+                      },
                     ),
                   ),
                 ),
