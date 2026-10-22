@@ -30,6 +30,23 @@ const Color _kYellow = Color(0xFFF4C542);
 /// مدت تایمر تمرین (۱۵ دقیقه)
 const int _kTimerTotal = 15 * 60;
 
+/// کلیدِ مرحله‌های قابل‌تیک (به ترتیب) و عنوان کوتاهِ هر مرحله (۶ تا: آخری مأموریت ذهن)
+const List<String> _kTracked = [
+  'breath',
+  'nothing',
+  'connection',
+  'seed',
+  'images',
+];
+const List<String> _kStepTitles = [
+  'رهاسازی',
+  'هیچ شدن',
+  'اتصال',
+  'متن خواسته',
+  'تصاویر',
+  'مأموریت',
+];
+
 class BeliefsTab extends StatefulWidget {
   const BeliefsTab({super.key});
   @override
@@ -39,9 +56,16 @@ class BeliefsTab extends StatefulWidget {
 class _BeliefsTabState extends State<BeliefsTab> {
   bool _showReminder = false;
   bool _showNotes = false;
-  bool _showMission = false;
+  bool _showScience = false;
   bool _showArchive = false;
   String? _selectedDay;
+
+  // آکاردئونِ مراحل: هر مرحله یک کارت جمع‌شونده؛ محتوای هر مرحله اولین بار که
+  // باز شد ساخته می‌شود و بعد زنده می‌ماند (تایمر/یادداشت/صدا گم نمی‌شود).
+  int _openStep = 0;
+  final Set<int> _visited = <int>{0};
+  final List<GlobalKey> _stepKeys =
+      List<GlobalKey>.generate(6, (_) => GlobalKey());
 
   // هایلایت بخش ویرایش‌شده‌ی متن خواسته (مثل EditMark وب)
   final GlobalKey _futureKey = GlobalKey();
@@ -82,18 +106,24 @@ class _BeliefsTabState extends State<BeliefsTab> {
           children: [
             _header(store),
             if (_showReminder) _reminderPanel(store),
-            const SizedBox(height: 16),
-
-            // ═══ کارت قلمرو ممکن‌ها ═══
-            _quantumFieldCard(),
             const SizedBox(height: 14),
 
-            // ═══ کارت چرا باید هیچ شوی؟ ═══
-            _whyNothingCard(),
-            const SizedBox(height: 14),
+            // ═══ پیشرفت امروز ═══
+            _progressCard(store),
+            const SizedBox(height: 12),
 
-            // ═══ کارت تمرین روزانه ═══
-            _dailyPracticeCard(store),
+            // ═══ آماده‌سازی: موسیقی + تایمر ═══
+            _prepCard(),
+            const SizedBox(height: 18),
+
+            // ═══ مراحل تمرین (آکاردئون) ═══
+            _sectionLabel('مراحل تمرین'),
+            const SizedBox(height: 8),
+            _practiceSteps(store),
+            const SizedBox(height: 8),
+
+            // ═══ پشتوانه‌ی علمی (جمع‌شده) ═══
+            _scienceSection(),
           ],
         ),
       ),
@@ -103,7 +133,7 @@ class _BeliefsTabState extends State<BeliefsTab> {
   // ═══════════════ هدر + یادآوری ═══════════════
   Widget _header(BeliefsStore store) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         const Expanded(
           child: Column(
@@ -111,7 +141,7 @@ class _BeliefsTabState extends State<BeliefsTab> {
             children: [
               Text('بازنویسی باورها',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: kBeliefsInk,
                   )),
@@ -124,12 +154,235 @@ class _BeliefsTabState extends State<BeliefsTab> {
             ],
           ),
         ),
-        IconButton(
-          tooltip: 'یادآوری روزانه',
-          onPressed: () => setState(() => _showReminder = !_showReminder),
-          icon: const Text('🔔', style: TextStyle(fontSize: 18)),
+        const SizedBox(width: 8),
+        Tooltip(
+          message: 'یادآوری روزانه',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => setState(() => _showReminder = !_showReminder),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: store.alarmEnabled
+                    ? _kEmerald.withValues(alpha: 0.10)
+                    : kBeliefsCard,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: store.alarmEnabled ? _kEmerald : kBeliefsBorder),
+              ),
+              child: Icon(
+                store.alarmEnabled
+                    ? Icons.notifications_active
+                    : Icons.notifications_none_outlined,
+                size: 22,
+                color: store.alarmEnabled ? _kEmerald700 : kBeliefsMuted,
+              ),
+            ),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _sectionLabel(String t) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Text(t,
+            style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: kBeliefsInk)),
+      );
+
+  // ═══════════════ پیشرفت امروز ═══════════════
+  Widget _progressCard(BeliefsStore store) {
+    final steps = store.todaySteps;
+    final done = _kTracked.where(steps.contains).length;
+    final total = _kTracked.length;
+    final all = done == total;
+    String? next;
+    for (var i = 0; i < total; i++) {
+      if (!steps.contains(_kTracked[i])) {
+        next = _kStepTitles[i];
+        break;
+      }
+    }
+    final v = store.activeVersion;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            _kEmerald.withValues(alpha: 0.10),
+            _kSky.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _kEmerald.withValues(alpha: 0.30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 62,
+                height: 62,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox.expand(
+                      child: CircularProgressIndicator(
+                        value: done / total,
+                        strokeWidth: 6,
+                        backgroundColor: Colors.white.withValues(alpha: 0.85),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            all ? _kEmerald700 : _kEmerald),
+                      ),
+                    ),
+                    Text('${_toFa(done)}/${_toFa(total)}',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: kBeliefsInk)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(all ? 'تمرین امروز کامل شد 🎉' : 'تمرین امروز',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: kBeliefsInk)),
+                    const SizedBox(height: 3),
+                    Text(
+                      all
+                          ? 'آفرین! فردا دوباره مسیر عصبی تازه را تقویت کن.'
+                          : 'قدم بعدی: ${next ?? ''}',
+                      style: const TextStyle(
+                          fontSize: 11.5, color: _kInkSoft, height: 1.6),
+                    ),
+                    if (v != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        'روز ${_toFa(store.currentDay)} از ${_toFa(store.cycleDays)}'
+                        ' · ${_toFa(store.readDayCount * 2)} جلسه',
+                        style: const TextStyle(
+                            fontSize: 10.5, color: kBeliefsMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < _kStepTitles.length; i++)
+                Expanded(child: _stepDot(i, steps)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepDot(int i, Set<String> steps) {
+    final tracked = i < _kTracked.length;
+    final done = tracked && steps.contains(_kTracked[i]);
+    final open = _openStep == i;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _setOpen(i, toggle: false),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: done ? _kEmerald : Colors.white,
+              border: Border.all(
+                color: done
+                    ? _kEmerald
+                    : (open ? kBeliefsGold : kBeliefsBorder),
+                width: open ? 2 : 1.5,
+              ),
+            ),
+            child: done
+                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                : Text(
+                    tracked ? _toFa(i + 1) : '🎯',
+                    style: TextStyle(
+                      fontSize: tracked ? 12 : 13,
+                      fontWeight: FontWeight.w800,
+                      color: open ? kBeliefsGold : kBeliefsMuted,
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              _kStepTitles[i],
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: open ? FontWeight.w800 : FontWeight.w600,
+                color: open ? kBeliefsInk : kBeliefsMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════ آماده‌سازی: موسیقی + تایمر ═══════════════
+  Widget _prepCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kBeliefsCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBeliefsBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Text('🎧', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('آماده‌سازی',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: kBeliefsInk)),
+              ),
+              Text('موسیقی و زمان‌سنج ۱۵ دقیقه‌ای',
+                  style: TextStyle(fontSize: 10.5, color: kBeliefsMuted)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const BeliefMeditationMusic(),
+          const SizedBox(height: 10),
+          _timerBlock(),
+        ],
+      ),
     );
   }
 
@@ -293,63 +546,285 @@ class _BeliefsTabState extends State<BeliefsTab> {
       ),
     );
   }
-  // ═══════════════ کارت تمرین روزانه ═══════════════
-Widget _dailyPracticeCard(BeliefsStore store) {
-  final steps = store.todaySteps;
+  // ═══════════════ آکاردئونِ مراحل ═══════════════
+  Widget _practiceSteps(BeliefsStore store) {
+    final steps = store.todaySteps;
+    final v = store.activeVersion;
 
-  return Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: kBeliefsCard,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: kBeliefsBorder),
-    ),
-    child: Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // هدر
-        Row(
-          children: [
-            const Text('🌌 ', style: TextStyle(fontSize: 14)),
-            const Expanded(
-              child: Text(
-                'تمرین روزانه',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: kBeliefsInk,
+        _accordion(
+          index: 0,
+          title: 'رهاسازی',
+          subtitle: 'تنفس و آرام‌سازی بدن',
+          isDone: steps.contains('breath'),
+          body: () => _breathBody(store),
+        ),
+        _accordion(
+          index: 1,
+          title: 'هیچ شدن',
+          subtitle: 'رها کردن پنج لایه‌ی هویت',
+          isDone: steps.contains('nothing'),
+          body: () => _nothingBody(store),
+        ),
+        _accordion(
+          index: 2,
+          title: 'اتصال به قلمرو ممکن‌ها',
+          subtitle: 'باز کردن کانال توجه',
+          isDone: steps.contains('connection'),
+          body: () => _connectionBody(store),
+        ),
+        _accordion(
+          index: 3,
+          title: 'متن خواسته و تقویم',
+          subtitle: store.hasReadToday
+              ? 'امروز ثبت شد ✓'
+              : (v == null
+                  ? 'متن خواسته‌ات را بنویس'
+                  : 'بخوان و برای امروز ثبت کن'),
+          isDone: steps.contains('seed'),
+          body: () => _seedStep(store, steps),
+        ),
+        _accordion(
+          index: 4,
+          title: 'تصاویر',
+          subtitle: 'تجسم و حسِ واقعیت دلخواه',
+          isDone: steps.contains('images'),
+          body: () => _imagesStep(store, steps),
+        ),
+        _accordion(
+          index: 5,
+          emoji: '🎯',
+          title: 'مأموریت ذهن',
+          subtitle: store.rasMission != null && store.rasMission!.label.isNotEmpty
+              ? store.rasMission!.label
+              : 'آموزش RAS برای دیدن نشانه‌ها',
+          body: () => _missionStep(store),
+        ),
+      ],
+    );
+  }
+
+  void _setOpen(int i, {bool toggle = true}) {
+    setState(() {
+      _openStep = (toggle && _openStep == i) ? -1 : i;
+      if (_openStep >= 0) _visited.add(_openStep);
+    });
+    if (_openStep == i) _scrollToStep(i);
+  }
+
+  void _advanceFrom(int i) {
+    final n = i + 1;
+    if (n >= _stepKeys.length) {
+      setState(() => _openStep = -1);
+      return;
+    }
+    _setOpen(n, toggle: false);
+  }
+
+  void _scrollToStep(int i) {
+    // کمی صبر تا کارتِ قبلی جمع شود و بعد روی کارت تازه برویم
+    Future.delayed(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      final ctx = _stepKeys[i].currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.03,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  Widget _accordion({
+    required int index,
+    required String title,
+    required String subtitle,
+    required Widget Function() body,
+    bool? isDone,
+    String? emoji,
+  }) {
+    final open = _openStep == index;
+    final done = isDone ?? false;
+    final visited = _visited.contains(index);
+
+    return Container(
+      key: _stepKeys[index],
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: kBeliefsCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: open
+              ? _kEmerald.withValues(alpha: 0.55)
+              : (done ? _kEmerald300.withValues(alpha: 0.6) : kBeliefsBorder),
+          width: open ? 1.5 : 1,
+        ),
+        boxShadow: open
+            ? [
+                BoxShadow(
+                  color: _kEmerald.withValues(alpha: 0.10),
+                  blurRadius: 16,
+                  offset: const Offset(0, 5),
                 ),
+              ]
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _setOpen(index),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: Row(
+                children: [
+                  _stepBadge(index, done, emoji),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: kBeliefsInk,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: done ? _kEmerald700 : kBeliefsMuted,
+                            fontWeight:
+                                done ? FontWeight.w700 : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (done)
+                    Container(
+                      margin: const EdgeInsetsDirectional.only(end: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _kEmerald.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: const Text('انجام شد',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: _kEmerald700)),
+                    ),
+                  AnimatedRotation(
+                    turns: open ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(Icons.expand_more,
+                        size: 24,
+                        color: open ? _kEmerald700 : kBeliefsMuted),
+                  ),
+                ],
               ),
             ),
-            Text(
-              '${_toFa(store.readDayCount * 2)} جلسه',
-              style: const TextStyle(fontSize: 10.5, color: kBeliefsMuted),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'شش مرحله. هر کدوم رو جدا تیک بزن. لازم نیست یه‌جا انجام بدی.',
-          style: TextStyle(fontSize: 11, color: kBeliefsMuted, height: 1.7),
-        ),
-        const SizedBox(height: 14),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: visited
+                ? Offstage(
+                    offstage: !open,
+                    child: TickerMode(
+                      enabled: open,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 2, 14, 16),
+                        child: body(),
+                      ),
+                    ),
+                  )
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
 
-        // ─── موسیقی مدیتیشن ───
-        const BeliefMeditationMusic(),
-        const SizedBox(height: 12),
+  Widget _stepBadge(int index, bool done, String? emoji) {
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: done ? _kEmerald : kBeliefsCream,
+        border: Border.all(color: done ? _kEmerald : kBeliefsBorder),
+      ),
+      child: done
+          ? const Icon(Icons.check, size: 19, color: Colors.white)
+          : (emoji != null
+              ? Text(emoji, style: const TextStyle(fontSize: 16))
+              : Text(
+                  _toFa(index + 1),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: kBeliefsMuted,
+                  ),
+                )),
+    );
+  }
 
-        // ─── تایمر ───
-        _timerBlock(),
-        const SizedBox(height: 16),
-
-        // ─── مرحله ۱: رهاسازی ───
-        _stepHeader(
-          number: '۱',
-          title: 'رهاسازی — آرام شدن',
-          isDone: steps.contains('breath'),
-          onToggle: () => store.toggleStep('breath'),
+  /// دکمه‌ی پایانِ هر مرحله: تیک می‌زند و کارت بعدی را باز می‌کند
+  Widget _doneButton(BeliefsStore store, String key, int index) {
+    final done = store.todaySteps.contains(key);
+    final shape =
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+    if (done) {
+      return OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _kEmerald700,
+          side: const BorderSide(color: _kEmerald, width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          shape: shape,
         ),
-        const SizedBox(height: 10),
+        onPressed: () => store.toggleStep(key),
+        icon: const Icon(Icons.check_circle, size: 18),
+        label: const Text('انجام شد — برای برداشتن تیک بزن',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+      );
+    }
+    return FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: _kEmerald700,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: shape,
+      ),
+      onPressed: () {
+        store.toggleStep(key);
+        _advanceFrom(index);
+      },
+      icon: const Icon(Icons.check, size: 18),
+      label: const Text('این مرحله را انجام دادم',
+          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+    );
+  }
+
+  // ─── محتوای مرحله‌ها ───
+  Widget _breathBody(BeliefsStore store) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         _whyBox([
           _defChip('رهاسازی (Relaxation):',
               'بدنت رو عمیقاً آروم کن تا از حالت آماده‌باش و تنش فاصله بگیری.'),
@@ -358,16 +833,16 @@ Widget _dailyPracticeCard(BeliefsStore store) {
         ]),
         const SizedBox(height: 14),
         const BreathCircle(),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
+        _doneButton(store, 'breath', 0),
+      ],
+    );
+  }
 
-        // ─── مرحله ۲: هیچ شدن ───
-        _stepHeader(
-          number: '۲',
-          title: 'هیچ شدن',
-          isDone: steps.contains('nothing'),
-          onToggle: () => store.toggleStep('nothing'),
-        ),
-        const SizedBox(height: 10),
+  Widget _nothingBody(BeliefsStore store) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         _whyBox([
           _defChip('هیچ شدن (Becoming Nothing):',
               'توجهت رو از بدن، محیط و هویت «من» برمی‌داری و به آگاهی محض اجازه می‌دی گسترش پیدا کنه.'),
@@ -398,16 +873,16 @@ Widget _dailyPracticeCard(BeliefsStore store) {
             style: TextStyle(fontSize: 11, color: _kInkSoft, height: 1.75),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
+        _doneButton(store, 'nothing', 1),
+      ],
+    );
+  }
 
-        // ─── مرحله ۳: اتصال به قلمرو ممکن‌ها ───
-        _stepHeader(
-          number: '۳',
-          title: 'اتصال به قلمرو ممکن‌ها',
-          isDone: steps.contains('connection'),
-          onToggle: () => store.toggleStep('connection'),
-        ),
-        const SizedBox(height: 10),
+  Widget _connectionBody(BeliefsStore store) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         _whyBox([
           _defChip('اتصال (Connection):',
               'در این حالت خالی و آروم، RAS مغزت دوباره تنظیم می‌شه و می‌تونه فرصت‌ها و نشانه‌هایی رو ببینه که قبلاً از فیلتر توجهت رد می‌شدن.'),
@@ -416,22 +891,66 @@ Widget _dailyPracticeCard(BeliefsStore store) {
         ]),
         const SizedBox(height: 10),
         const QuantumConnect(),
-        const SizedBox(height: 18),
-
-        // ─── مرحله ۴: متن خواسته + تقویم ───
-        _seedStep(store, steps),
-        const SizedBox(height: 18),
-
-        // ─── مرحله ۴ (تصاویر) ───
-        _imagesStep(store, steps),
-        const SizedBox(height: 18),
-
-        // ─── مأموریت ذهن ───
-        _missionStep(store),
+        const SizedBox(height: 16),
+        _doneButton(store, 'connection', 2),
       ],
-    ),
-  );
-}
+    );
+  }
+
+  // ═══════════════ پشتوانه‌ی علمی ═══════════════
+  Widget _scienceSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => setState(() => _showScience = !_showScience),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: kBeliefsCream,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kBeliefsBorder),
+            ),
+            child: Row(
+              children: [
+                const Text('📖', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('چرا این تمرین کار می‌کند؟',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: kBeliefsInk)),
+                      SizedBox(height: 2),
+                      Text('نوروپلاستیسیتی، RAS و معنای «هیچ شدن»',
+                          style: TextStyle(
+                              fontSize: 11, color: kBeliefsMuted)),
+                    ],
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _showScience ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more,
+                      size: 24, color: kBeliefsMuted),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_showScience) ...[
+          const SizedBox(height: 10),
+          _quantumFieldCard(),
+          const SizedBox(height: 10),
+          _whyNothingCard(),
+        ],
+      ],
+    );
+  }
 
 // ═══════════════ تایمر ═══════════════
 Widget _timerBlock() {
@@ -517,15 +1036,10 @@ Widget _seedStep(BeliefsStore store, Set<String> steps) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _stepHeader(
-        title: '',
-        isDone: steps.contains('seed'),
-        onToggle: () => store.toggleStep('seed'),
-        trailing: _expandIcon(
-          open: _showNotes,
-          onTap: () => setState(() => _showNotes = !_showNotes),
-        ),
-      ),
+      _whyBox([
+        _bodyText(
+            'متن خواسته‌ات رو یک بار با حس بخون (بلند یا توی ذهن) و بعد «امروز خوندم» رو بزن تا تقویم و رشته‌ی عصبی‌ات جلو بره.'),
+      ]),
       const SizedBox(height: 12),
       _futureBox(store),
       const SizedBox(height: 10),
@@ -542,6 +1056,8 @@ Widget _seedStep(BeliefsStore store, Set<String> steps) {
         const SizedBox(height: 12),
         _notesBox(store),
       ],
+      const SizedBox(height: 16),
+      _doneButton(store, 'seed', 3),
     ],
   );
 }
@@ -606,6 +1122,14 @@ Widget _actionsRow(BeliefsStore store) {
         child: _tinyBtn(
           '📚 آرشیو (${_toFa(store.versions.length)})',
           () => setState(() => _showArchive = !_showArchive),
+        ),
+      ),
+      const SizedBox(width: 6),
+      Expanded(
+        child: _tinyBtn(
+          _showNotes ? '📝 بستن یادداشت' : '📝 یادداشت',
+          () => setState(() => _showNotes = !_showNotes),
+          gold: _showNotes,
         ),
       ),
     ],
@@ -894,13 +1418,6 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _stepHeader(
-          number: '۴',
-          title: 'تصاویر',
-          isDone: steps.contains('images'),
-          onToggle: () => store.toggleStep('images'),
-        ),
-        const SizedBox(height: 10),
         _whyBox([
           _defChip('کاشتن بذر (Seeding):',
               'یه تصویر واضح از واقعیت دلخواهت توی ذهن می‌کاری — بدون حس نیاز یا کمبود.'),
@@ -930,6 +1447,8 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
             store.saveNeural();
           },
         ),
+        const SizedBox(height: 16),
+        _doneButton(store, 'images', 4),
       ],
     );
   }
@@ -939,152 +1458,32 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _stepHeader(
-          emoji: '🎯',
-          title: 'مأموریت ذهن',
-          trailing: _expandIcon(
-            open: _showMission,
-            onTap: () => setState(() => _showMission = !_showMission),
-          ),
+        const Text(
+          'ذهنت رو برای دیدن چیزی که تا حالا ازش رد می‌شدی، آموزش بده.',
+          style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.75),
         ),
-        if (_showMission) ...[
-          const SizedBox(height: 12),
-          const Text(
-            'ذهنت رو برای دیدن چیزی که تا حالا ازش رد می‌شدی، آموزش بده.',
-            style: TextStyle(fontSize: 11.5, color: kBeliefsMuted, height: 1.75),
-          ),
-          const SizedBox(height: 14),
-          const RasMission(),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: kBeliefsBorder),
-          const SizedBox(height: 12),
-          const Text('🧠 مدار عصبی مأموریت',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: kBeliefsInk)),
-          const SizedBox(height: 8),
-          NeuralPathway(
-            container: store.missionNeural,
-            label: 'ردیابی RAS',
-            showDayButtons: false,
-            onChange: () {
-              store.saveNeural();
-            },
-          ),
-        ],
+        const SizedBox(height: 14),
+        const RasMission(),
+        const SizedBox(height: 14),
+        const Divider(height: 1, color: kBeliefsBorder),
+        const SizedBox(height: 12),
+        const Text('🧠 مدار عصبی مأموریت',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w800, color: kBeliefsInk)),
+        const SizedBox(height: 8),
+        NeuralPathway(
+          container: store.missionNeural,
+          label: 'ردیابی RAS',
+          showDayButtons: false,
+          onChange: () {
+            store.saveNeural();
+          },
+        ),
       ],
     );
   }
 
   // ═══════════════ اجزای مشترک ═══════════════
-  Widget _stepHeader({
-    String? number,
-    String? emoji,
-    required String title,
-    bool? isDone,
-    VoidCallback? onToggle,
-    Widget? trailing,
-  }) {
-    final done = isDone ?? false;
-
-    return Row(
-      children: [
-        if (isDone != null) ...[
-          GestureDetector(
-            onTap: onToggle,
-            child: Container(
-              width: 28,
-              height: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: done ? _kEmerald : kBeliefsCard,
-                border: Border.all(
-                  color: done ? _kEmerald : kBeliefsBorder,
-                  width: 2,
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                done ? '✓' : '○',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: done ? Colors.white : kBeliefsMuted,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-        ],
-        if (number != null) ...[
-          Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: kBeliefsCream,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              number,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: kBeliefsMuted,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-        if (emoji != null) ...[
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 8),
-        ],
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: kBeliefsInk,
-            ),
-          ),
-        ),
-        if (trailing != null) trailing,
-      ],
-    );
-  }
-
-  Widget _expandIcon({required bool open, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedRotation(
-        turns: open ? 0.5 : 0,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: open ? const Color(0xFFDCF3EE) : kBeliefsCard,
-            border: Border.all(
-              color: open ? _kEmerald : kBeliefsBorder,
-              width: 1.5,
-            ),
-          ),
-          child: Text(
-            '▾',
-            style: TextStyle(
-              fontSize: 11,
-              color: open ? _kEmerald700 : kBeliefsMuted,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _whyBox(List<Widget> children) {
     return _accentBox(
       bg: _kEmerald.withValues(alpha: 0.06),
