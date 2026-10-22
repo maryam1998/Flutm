@@ -2984,6 +2984,7 @@ public class BubbleService extends Service {
                         openWordCard(full.substring(a0, b0).trim(), langOf.get(), full, tv);
                     } else {
                         clearHighlight(tv);
+                        if (mode == 1 && wordCardOpen()) closeWordCardAnimated();   // ضربه روی جایی که لغت نیست = بستنِ کادر
                     }
                     selectingTv = null;
                     updateScrollFreeze();
@@ -3034,7 +3035,15 @@ public class BubbleService extends Service {
     }
 
     private void buildWordCard() {
-        wordCard = new LinearLayout(this);
+        wordCard = new LinearLayout(this) {
+            @Override public boolean dispatchTouchEvent(MotionEvent ev) {
+                int a = ev.getActionMasked();
+                if (a == MotionEvent.ACTION_DOWN) { cardHeld = true; stopCardTimer(); }   // انگشت روی کادر = شمارش‌معکوس متوقف
+                boolean r = super.dispatchTouchEvent(ev);
+                if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) { cardHeld = false; startCardTimer(cardNextMs); }
+                return r;
+            }
+        };
         wordCard.setOrientation(LinearLayout.VERTICAL);
         wordCard.setPadding(dp(10), dp(8), dp(10), dp(10));
         GradientDrawable bg = new GradientDrawable();
@@ -3068,7 +3077,7 @@ public class BubbleService extends Service {
             highlight(cardSrcTv, 0, full.length());
             openWordCard(cardSentence, cardLang, cardSentence, cardSrcTv);
         }));
-        top.addView(headerButton("\u2715", v -> closeWordCard()));
+        top.addView(headerButton("\u2715", v -> closeWordCardAnimated()));
         wordCard.addView(top);
 
         cardMeaningTv = new TextView(this);
@@ -3078,6 +3087,11 @@ public class BubbleService extends Service {
         cardMeaningTv.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
         cardMeaningTv.setPadding(0, dp(2), 0, dp(6));
         wordCard.addView(cardMeaningTv);
+        cardRowsBox = new LinearLayout(this);
+        cardRowsBox.setOrientation(LinearLayout.VERTICAL);
+        cardRowsBox.setVisibility(View.GONE);
+        wordCard.addView(cardRowsBox, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         cardBtnStory = cardAction("", v -> onCardStory());
         cardBtnGrammar = cardAction("", v -> onCardGrammar());
@@ -3088,6 +3102,89 @@ public class BubbleService extends Service {
             lp.topMargin = dp(5);
             wordCard.addView(b, lp);
         }
+        // نوارِ باریکِ شمارش‌معکوسِ بسته‌شدنِ خودکار (پایینِ کادر)
+        cardTimerBar = new View(this);
+        GradientDrawable tb = new GradientDrawable();
+        tb.setColor(COLOR_GOLD);
+        tb.setCornerRadius(dp(2));
+        cardTimerBar.setBackground(tb);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3));
+        tlp.topMargin = dp(8);
+        wordCard.addView(cardTimerBar, tlp);
+    }
+
+    // ───────── بسته‌شدنِ خودکار و آرامِ کادرِ لغت ─────────
+    // • ۸ ثانیه بعد از باز شدن (نوارِ طلاییِ پایین کم می‌شود) بسته می‌شود؛ تا انگشت روی کادر است یا صدا پخش می‌شود نمی‌بندد
+    // • لمسِ بیرونِ کادر (جای خالیِ لیست/سربرگ، یا متنِ بدونِ لغت) آن را می‌بندد؛ ✕ هم هست
+    // • بعد از زدنِ یکی از دکمه‌های ذخیره، زودتر (۳ ثانیه) بسته می‌شود
+    private static final long CARD_AUTOCLOSE_MS = 8000, CARD_AFTER_ACTION_MS = 3000;
+    private View cardTimerBar;
+    private LinearLayout cardRowsBox;
+    private boolean cardHeld = false;
+    private long cardNextMs = CARD_AUTOCLOSE_MS;
+
+    private boolean wordCardOpen() { return wordCard != null && wordCard.getVisibility() == View.VISIBLE; }
+
+    private void startCardTimer(long ms) {
+        if (cardTimerBar == null || !wordCardOpen() || cardHeld) return;
+        cardTimerBar.animate().cancel();
+        cardTimerBar.setPivotX(0f);
+        cardTimerBar.setScaleX(1f);
+        cardTimerBar.animate().scaleX(0f).setDuration(ms)
+                .setInterpolator(new android.view.animation.LinearInterpolator())
+                .withEndAction(() -> {
+                    if (!wordCardOpen()) return;
+                    if (cardHeld || panelSpeaking || speakingBtn != null) { startCardTimer(CARD_AUTOCLOSE_MS); return; }
+                    closeWordCardAnimated();
+                }).start();
+    }
+
+    private void stopCardTimer() {
+        if (cardTimerBar == null) return;
+        cardTimerBar.animate().cancel();
+        cardTimerBar.setScaleX(1f);
+    }
+
+    private void closeWordCardAnimated() {
+        if (!wordCardOpen()) { closeWordCard(); return; }
+        stopCardTimer();
+        wordCard.animate().alpha(0f).translationY(dp(6)).setDuration(150)
+                .withEndAction(this::closeWordCard).start();
+    }
+
+    private boolean rawInsideCard(float rx, float ry) {
+        if (!wordCardOpen()) return false;
+        int[] l = new int[2];
+        wordCard.getLocationOnScreen(l);
+        return rx >= l[0] && rx <= l[0] + wordCard.getWidth() && ry >= l[1] && ry <= l[1] + wordCard.getHeight();
+    }
+
+    /** یک ردیفِ معنی در کادرِ لغت: [زبان] متن 🔊 */
+    private void addMeaningRow(String tag, final String text, final String lang) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        if (tag != null) {
+            TextView t = new TextView(this);
+            t.setText(tag);
+            style(t, 11, true);
+            t.setTextColor(COLOR_GOLD);
+            t.setPadding(0, 0, dp(8), 0);
+            row.addView(t, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+        TextView m = new TextView(this);
+        m.setText(text);
+        m.setTextColor(Color.parseColor("#E8EAF2"));
+        styleC(m, 15, false);
+        m.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);
+        m.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_START);
+        row.addView(m, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView sp = speakerButton(() -> text, () -> lang);
+        sp.setMinWidth(dp(40));
+        sp.setMinHeight(dp(36));
+        row.addView(sp, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        cardRowsBox.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     private void refreshCardButtons() {
@@ -3109,6 +3206,8 @@ public class BubbleService extends Service {
 
     private void closeWordCard() {
         cardSeq++;
+        stopCardTimer();
+        if (wordCard != null) { wordCard.animate().cancel(); wordCard.setAlpha(1f); wordCard.setTranslationY(0f); }
         if (cardSrcTv != null) { clearHighlight(cardSrcTv); cardSrcTv = null; }
         refreshRecentEntries();                // متنی که تا الان فریز بود، به آخرین نسخه برمی‌گردد
         if (wordCard == null || wordCard.getVisibility() == View.GONE) { updateScrollFreeze(); return; }
@@ -3145,10 +3244,18 @@ public class BubbleService extends Service {
 
         cardTerm.setText(word);
         cardMeaningTv.setText("…");
+        cardMeaningTv.setVisibility(View.VISIBLE);
+        cardRowsBox.removeAllViews();
+        cardRowsBox.setVisibility(View.GONE);
         applyStyle(cardTerm);
         applyStyle(cardMeaningTv);
         refreshCardButtons();
+        wordCard.animate().cancel();
+        wordCard.setAlpha(1f);
+        wordCard.setTranslationY(0f);
         wordCard.setVisibility(View.VISIBLE);
+        cardNextMs = CARD_AUTOCLOSE_MS;
+        startCardTimer(CARD_AUTOCLOSE_MS);
         updateScrollFreeze();
         setScrollCompact(true);
         if (!userHidden) showPanel(); else refreshLayout();
@@ -3201,6 +3308,8 @@ public class BubbleService extends Service {
             sb.append(m);
         }
         if (firstText == null) {
+            cardMeaningTv.setVisibility(View.VISIBLE);
+            cardRowsBox.setVisibility(View.GONE);
             cardMeaningTv.setText(msg("ترجمه در دسترس نیست — ذخیره بدون معنی هم کار می‌کند",
                     "No translation — saving still works"));
             applyStyle(cardMeaningTv);
@@ -3210,6 +3319,15 @@ public class BubbleService extends Service {
         cardMeaningLang = firstLang;
         cardMeaningTv.setText(sb.toString());
         applyStyle(cardMeaningTv);
+        cardMeaningTv.setVisibility(View.GONE);
+        cardRowsBox.removeAllViews();
+        for (int i = 0; i < langs.size(); i++) {
+            String m = i < outs.size() ? outs.get(i) : "";
+            if (m == null || m.isEmpty()) continue;
+            addMeaningRow(multi ? langs.get(i).toUpperCase(Locale.ROOT) : null, m, langs.get(i));
+        }
+        cardRowsBox.setVisibility(View.VISIBLE);
+        startCardTimer(cardNextMs);
         // اگر قبل از رسیدنِ معنی دکمه‌ای زده شده بود، همان ردیف با معنی به‌روز می‌شود (گرامر یک‌بار ثبت می‌شود)
         if (cardStoryDone) queueWord("story");
         if (cardLeitnerDone) queueWord("leitner");
@@ -3236,9 +3354,10 @@ public class BubbleService extends Service {
         }
     }
 
-    private void onCardStory()   { if (cardStoryDone) return;   cardStoryDone = true;   queueWord("story");   refreshCardButtons(); }
-    private void onCardGrammar() { if (cardGrammarDone) return; cardGrammarDone = true; queueWord("grammar"); refreshCardButtons(); }
-    private void onCardLeitner() { if (cardLeitnerDone) return; cardLeitnerDone = true; queueWord("leitner"); refreshCardButtons(); }
+    private void cardActionDone() { cardNextMs = CARD_AFTER_ACTION_MS; startCardTimer(CARD_AFTER_ACTION_MS); }
+    private void onCardStory()   { if (cardStoryDone) return;   cardStoryDone = true;   queueWord("story");   refreshCardButtons(); cardActionDone(); }
+    private void onCardGrammar() { if (cardGrammarDone) return; cardGrammarDone = true; queueWord("grammar"); refreshCardButtons(); cardActionDone(); }
+    private void onCardLeitner() { if (cardLeitnerDone) return; cardLeitnerDone = true; queueWord("leitner"); refreshCardButtons(); cardActionDone(); }
 
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -4011,6 +4130,9 @@ public class BubbleService extends Service {
                     picked = false; hot = false; moved = false;
                     panelDragging = false;
                     lastActiveMs = SystemClock.elapsedRealtime();
+                    if (up && !wasPicked && !wasMoved && wordCardOpen() && !rawInsideCard(e.getRawX(), e.getRawY())) {
+                        closeWordCardAnimated();       // ضربه روی جای خالیِ کادر/سربرگ، بیرونِ کادرِ لغت
+                    }
                     if (wasPicked || wasMoved) {
                         if (up && wasHot) { closePanelAnimated(); }
                         else {
@@ -4238,6 +4360,7 @@ public class BubbleService extends Service {
         styleC(e.tvSrc, 16, false);
         e.tvSrc.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);
         e.tvSrc.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_START);
+        if (Build.VERSION.SDK_INT >= 26) e.tvSrc.setJustificationMode(android.text.Layout.JUSTIFICATION_MODE_INTER_WORD);   // متنِ اصلی justify
 
         e.rowsBox = new LinearLayout(this);
         e.rowsBox.setOrientation(LinearLayout.VERTICAL);
