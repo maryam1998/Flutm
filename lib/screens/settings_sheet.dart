@@ -76,8 +76,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late double _fontSize;
   late double _uiScale;
   bool _applyToAll = true;
-  late bool _showDates;
-  late bool _showTimes;
   late bool _showRingLinks;
   late bool _showEmotionWidget;
   late String _trunkStyle;
@@ -99,8 +97,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _textColor = _parseTextColor(s.textColor);
     _fontSize = s.fontSize.clamp(8.0, 40.0).toDouble();
     _uiScale = context.read<ThemeStore>().textScale;
-    _showDates = s.showDateStamps;
-    _showTimes = s.showTimeStamps;
     _showRingLinks = s.showRingLinks;
     _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
@@ -136,8 +132,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     // اندازه/رنگ اختصاصیِ تک‌تک گره‌ها روی تنظیم کلی غلبه می‌کند؛
     // با این گزینه همه به تنظیم کلی برمی‌گردند تا تغییر واقعاً دیده شود.
     if (_applyToAll && styleChanged) _clearNodeStyles(s);
-    s.showDateStamps = _showDates;
-    s.showTimeStamps = _showTimes;
     s.showRingLinks = _showRingLinks;
     s.showEmotionWidget = _showEmotionWidget;
     s.trunkStyle = _trunkStyle;
@@ -624,18 +618,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             store.state.showEmotionWidget = v;
             store.changedNow();
           },
-        ),
-        const _Hair(),
-        _switchRow(
-          title: 'نمایش تاریخ (هدف، شاخه، زیرشاخه)',
-          value: _showDates,
-          onChanged: (v) => setState(() => _showDates = v),
-        ),
-        const _Hair(),
-        _switchRow(
-          title: 'نمایش ساعت (هدف، شاخه، زیرشاخه)',
-          value: _showTimes,
-          onChanged: (v) => setState(() => _showTimes = v),
         ),
       ],
     );

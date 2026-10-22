@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/constants.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
+import '../services/map_voice_player.dart';
 import '../theme/vazir_font.dart';
 import '../state/goal_ops.dart';
 import 'camera.dart';
@@ -109,7 +110,9 @@ class MapPainter extends CustomPainter {
     required this.boundsBox,
     required this.hits,
     this.isDark = true,
-  }) : super(repaint: Listenable.merge([cam, time, images]));
+  }) : super(
+            repaint: Listenable.merge(
+                [cam, time, images, MapVoicePlayer.instance.playing]));
 
   final MapState state;
   final CameraController cam;
@@ -429,6 +432,69 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  /// دکمه‌ی پلی/توقف + چیپِ تعداد تکرار (۱× ۲× ۳× ∞) کنار گرهٔ دارای صدا.
+  /// [dir] = سمتِ چیپ نسبت به دکمه (+۱ راست، -۱ چپ)
+  void _voiceBtn(Canvas canvas, Offset c, String type, String id,
+      Map<String, dynamic> extra, String key,
+      {double dir = 1, double r = 11}) {
+    final v = extra[key];
+    if (v is! String || v.isEmpty) return;
+    final pid = '$type:$id:$key';
+    final on = MapVoicePlayer.instance.playing.value == pid;
+    const green = Color(0xFF178A7C);
+    const deep = Color(0xFF0F5B53);
+    final rep = MapVoicePlayer.repeatOf(extra, key);
+    final label = rep == 0 ? '∞' : '${toFa(rep)}×';
+
+    // چیپ تکرار
+    final chip = Rect.fromCenter(
+        center: c + Offset(dir * (r + 17), 0), width: 30, height: 20);
+    final cr = RRect.fromRectAndRadius(chip, const Radius.circular(10));
+    canvas.drawRRect(cr, Paint()..color = const Color(0xF2FFFFFF));
+    canvas.drawRRect(
+        cr,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = green);
+    drawText(canvas, label, chip.center.dx, chip.center.dy + 4.2,
+        size: rep == 0 ? 15 : 11, color: deep, weight: FontWeight.w800);
+    hits.add(HitEntry(
+        type: 'voiceRepeat',
+        id: pid,
+        kind: HitKind.handle,
+        rect: chip,
+        payload: extra,
+        voiceKey: key));
+
+    // دکمه‌ی پلی / توقف
+    canvas.drawCircle(c, r + 1.6, Paint()..color = const Color(0xF2FFFFFF));
+    canvas.drawCircle(c, r, Paint()..color = on ? deep : green);
+    final ink = Paint()..color = Colors.white;
+    if (on) {
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromCenter(center: c, width: r * 0.75, height: r * 0.75),
+              const Radius.circular(1.5)),
+          ink);
+    } else {
+      final tri = Path()
+        ..moveTo(c.dx - r * 0.28, c.dy - r * 0.5)
+        ..lineTo(c.dx + r * 0.52, c.dy)
+        ..lineTo(c.dx - r * 0.28, c.dy + r * 0.5)
+        ..close();
+      canvas.drawPath(tri, ink);
+    }
+    hits.add(HitEntry(
+        type: 'voicePlay',
+        id: pid,
+        kind: HitKind.handle,
+        center: c,
+        radius: r + 4,
+        payload: extra,
+        voiceKey: key));
+  }
+
   // ───────────────────────── من ─────────────────────────
 
   void _drawMe(Canvas canvas, Color tc) {
@@ -445,6 +511,8 @@ class MapPainter extends CustomPainter {
     _addCircleBounds(c, r);
     hits.add(HitEntry(
         type: 'me', id: '', kind: HitKind.node, center: c, radius: r));
+    _voiceBtn(canvas, c + Offset((r + 16) * 0.7071, -(r + 16) * 0.7071), 'me',
+        'me', me.extra, 'voice');
 
     final meEmoji = (me.extra['emoji'] is String)
         ? (me.extra['emoji'] as String).trim()
@@ -582,6 +650,11 @@ class MapPainter extends CustomPainter {
         kind: HitKind.node,
         center: c,
         radius: math.max(r, r0) + 8));
+    {
+      final d = math.max(r, r0) + 22;
+      _voiceBtn(canvas, c + Offset(d * 0.7071, -d * 0.7071), 'goal', g.id,
+          g.extra, 'voice');
+    }
 
     var off = -(r0 + 22);
     if (r > r0) off += (off < 0 ? -1 : 1) * (r - r0);
@@ -680,6 +753,11 @@ class MapPainter extends CustomPainter {
         kind: HitKind.node,
         center: c,
         radius: math.max(big, rad) + 8));
+    {
+      final d = math.max(big, rad) + 22;
+      _voiceBtn(canvas, c + Offset(d * 0.7071, -d * 0.7071), 'ring', r.id,
+          r.extra, 'voice');
+    }
 
     if (r.label.isNotEmpty) {
       final lines = wrapText(r.label, 16);
@@ -942,6 +1020,7 @@ class MapPainter extends CustomPainter {
       emoji: walkerEmojiOf(g.extra),
       halo: g.extra['walkerHalo'] != false,
       haloScale: ((g.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
+      voiceExtra: g.extra,
     );
   }
 
@@ -1022,6 +1101,7 @@ class MapPainter extends CustomPainter {
       emoji: walkerEmojiOf(a.extra),
       halo: a.extra['walkerHalo'] != false,
       haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
+      voiceExtra: a.extra,
     );
   }
 
@@ -1049,6 +1129,7 @@ class MapPainter extends CustomPainter {
     String emoji = '',
     bool halo = true,
     double haloScale = 1.0,
+    Map<String, dynamic>? voiceExtra,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -1305,6 +1386,12 @@ class MapPainter extends CustomPainter {
       center: bodyPos,
       radius: math.max(bodyR * 1.3, 20),
     ));
+    if (voiceExtra != null) {
+      final d = math.max(bodyR * 1.3, 20.0) + 16;
+      _voiceBtn(canvas, bodyPos + Offset(d * 0.7071, -d * 0.7071), hitType,
+          hitId, voiceExtra, 'walkerVoice',
+          r: 10);
+    }
   }
 
   void _drawWalkerFoot(
@@ -1617,6 +1704,11 @@ class MapPainter extends CustomPainter {
       canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale) * cs,
           Paint()..color = color);
     }
+
+    // دکمه‌ی پلی صدای شاخه/زیرشاخه: سمتِ مخالفِ نوشته
+    _voiceBtn(canvas, end + Offset(side > 0 ? -22 : 22, -14), 'action', a.id,
+        a.extra, 'voice',
+        dir: side > 0 ? -1 : 1, r: 10);
 
     if (isRoutine) {
       final tipR = math.max(1.8, 2 + weight * 0.28 * scale) * cs;

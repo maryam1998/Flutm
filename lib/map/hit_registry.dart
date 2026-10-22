@@ -13,6 +13,8 @@ class HitEntry {
     this.radius = 0,
     this.rect,
     this.imgIdx,
+    this.payload,
+    this.voiceKey = '',
   });
 
   /// me | goal | ring | action | goalToggle
@@ -26,6 +28,10 @@ class HitEntry {
   final double radius;
   final Rect? rect;
   final int? imgIdx;
+
+  /// برای دکمه‌ی پخش صدا: نقشه‌ی extra گره و کلید صدا ('voice' | 'walkerVoice')
+  final Map<String, dynamic>? payload;
+  final String voiceKey;
 
   bool contains(Offset p, double minR) {
     final r = rect;

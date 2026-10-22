@@ -21,7 +21,7 @@ import 'time_sheet.dart';
 import 'weekly_sheet.dart';
 import '../services/quiet_snack.dart';
 
-const _kGold = Color(0xFFC9962B);
+const _kGold = Color(0xFF178A7C); // سبز هماهنگ با بقیه‌ی تب‌ها
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF5B5F77);
 const _kBorder = Color(0xFFE4E6EE);
@@ -305,7 +305,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             const SizedBox(width: 6),
             IconButton(
               icon: const Icon(Icons.insights_rounded,
-                  size: 20, color: kGoalsGold),
+                  size: 20, color: _kGold),
               tooltip: 'نگاه هفته',
               onPressed: () => showWeeklySheet(context, store.state),
               padding: EdgeInsets.zero,
@@ -315,7 +315,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             const Spacer(),
             FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: kGoalsGold,
+                backgroundColor: _kGold,
                 foregroundColor: Colors.white,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -382,7 +382,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kGoalsGold, width: 1.5),
+              borderSide: const BorderSide(color: _kGold, width: 1.5),
             ),
           ),
         ),
@@ -580,7 +580,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
   Widget _tag(String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
         decoration: BoxDecoration(
-          color: kGoalsGold.withAlpha(34),
+          color: _kGold.withAlpha(34),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(t,
@@ -726,7 +726,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   widget.onShowOnMap(h);
                 }),
                 divider,
-                _action(Icons.edit_outlined, 'ویرایش', kGoalsGold, () {
+                _action(Icons.edit_outlined, 'ویرایش', _kGold, () {
                   Navigator.pop(context);
                   showEditSheet(
                     widget.parentContext,
@@ -779,7 +779,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: _kGold,
-                    foregroundColor: _kInk,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: const StadiumBorder(),
                   ),
@@ -926,9 +926,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: kGoalsGold.withAlpha(34),
+                color: _kGold.withAlpha(34),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: kGoalsGold.withAlpha(110)),
+                border: Border.all(color: _kGold.withAlpha(110)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1289,13 +1289,13 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   if (routineStreak(n) >= 2) ...[
                     const SizedBox(width: 8),
                     const Icon(Icons.local_fire_department,
-                        size: 12, color: kGoalsGold),
+                        size: 12, color: _kGold),
                     const SizedBox(width: 3),
                     Text(
                       '${toFa(routineStreak(n))} روز پیاپی',
                       style: const TextStyle(
                           fontSize: 11,
-                          color: kGoalsGold,
+                          color: _kGold,
                           fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -2000,9 +2000,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
         decoration: BoxDecoration(
-          color: kGoalsGold.withAlpha(34),
+          color: _kGold.withAlpha(34),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kGoalsGold.withAlpha(130)),
+          border: Border.all(color: _kGold.withAlpha(130)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

@@ -235,6 +235,23 @@ class MapInteraction {
       return;
     }
 
+    // دکمه‌ی پلی/توقف و دکمه‌ی تعداد تکرار (۱× ۲× ۳× ∞) کنار گره‌هایی که صدا دارند
+    if (_ptrs.isEmpty && hit != null && hit.type == 'voicePlay') {
+      MapVoicePlayer.instance.toggle(hit.id, hit.payload, hit.voiceKey);
+      return;
+    }
+    if (_ptrs.isEmpty && hit != null && hit.type == 'voiceRepeat') {
+      final ex = hit.payload;
+      if (ex != null) {
+        final next = MapVoicePlayer.nextRepeat(
+            MapVoicePlayer.repeatOf(ex, hit.voiceKey));
+        ex['${hit.voiceKey}Repeat'] = next;
+        MapVoicePlayer.instance.setRepeat(hit.id, next);
+        store.changed();
+      }
+      return;
+    }
+
     if (_ptrs.isEmpty && hit != null && hit.type == 'actionTime') {
       onTimeBranch?.call(hit.hostId, hit.id);
       return;
@@ -741,20 +758,6 @@ class MapInteraction {
     store.toast?.call('${srcs.length} عکس اضافه شد 📸');
   }
 
-  /// تپ روی انیمیشن (قدم‌زن هدف یا پاهای شاخه): پخش صدای انیمیشن
-  void _playWalkerVoice(_Pending p) {
-    Map<String, dynamic>? ex;
-    if (p.isWalker) {
-      final h = store.state.findHost(p.hostId);
-      if (h is Goal) ex = h.extra;
-      if (h is Ring) ex = h.extra;
-    } else {
-      final host = store.state.findHost(p.hostId);
-      if (host is MapHost) ex = findActionNode(host.actions, p.actionId)?.node.extra;
-    }
-    MapVoicePlayer.instance.playFrom(ex, 'walkerVoice');
-  }
-
   /// لمس طولانی روی قدم‌زن (هدف) یا پاهای شاخه: توقف ↔ ادامه
   void _toggleWalk(_Pending p) {
     if (p.isWalker) {
@@ -799,7 +802,6 @@ class MapInteraction {
       // تپ = انتخاب عکس (چندتایی، بدون محدودیت تعداد)
       if (p.isWalker || p.isFoot) {
         if (!wasDrag && !held) {
-          _playWalkerVoice(p);
           final cb = onWalkerPhotos;
           if (cb != null) {
             cb(p.hostId, p.actionId, p.isWalker);
@@ -841,11 +843,6 @@ class MapInteraction {
       }
 
       // تپ روی شاخه/زیرشاخه → پخش صدا + کادر ویرایش
-      if (!wasDrag) {
-        MapVoicePlayer.instance.playFrom(
-            (_nodeRef('action', p.actionId, p.hostId) as ActionNode?)?.extra,
-            'voice');
-      }
       onEditAction(p.hostId, p.actionId);
       return;
     }
@@ -854,14 +851,6 @@ class MapInteraction {
     if (t != null && !_slopPassed && _ptrs.length == 1) {
       _ptrs.remove(e.pointer);
       _finish();
-      final tapped = _nodeRef(t.type, t.id, t.hostId);
-      if (tapped is MeNode) {
-        MapVoicePlayer.instance.playFrom(tapped.extra, 'voice');
-      } else if (tapped is Goal) {
-        MapVoicePlayer.instance.playFrom(tapped.extra, 'voice');
-      } else if (tapped is Ring) {
-        MapVoicePlayer.instance.playFrom(tapped.extra, 'voice');
-      }
       switch (t.type) {
         case 'me':
           onEditMe();
