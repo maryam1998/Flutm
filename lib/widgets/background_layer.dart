@@ -166,13 +166,17 @@ class _BackgroundLayerState extends State<BackgroundLayer> {
               blur: bg.blur,
             ),
           ),
-        IgnorePointer(
-          child: ClipRect(
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 700),
-              curve: Curves.ease,
-              opacity: media == null ? 0 : bg.opacity,
-              child: media ?? const SizedBox.expand(),
+        // لایه‌ی جدا: GIF/ویدیوی متحرکِ پس‌زمینه (با بلور) فقط خودش دوباره رسم شود،
+        // نه کل برنامه‌ی رویش
+        RepaintBoundary(
+          child: IgnorePointer(
+            child: ClipRect(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.ease,
+                opacity: media == null ? 0 : bg.opacity,
+                child: media ?? const SizedBox.expand(),
+              ),
             ),
           ),
         ),

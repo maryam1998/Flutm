@@ -31,6 +31,7 @@ class _AngelsLayerState extends State<AngelsLayer>
   final math.Random _rng = math.Random();
 
   String _signature = '';
+  bool _fromTick = false;
   Size _screen = Size.zero;
 
   @override
@@ -65,6 +66,8 @@ class _AngelsLayerState extends State<AngelsLayer>
       _lastElapsed = elapsed;
       return;
     }
+    // حدود ۳۰ فریم در ثانیه کافی است (حرکتِ فرشته‌ها کند است) و نصفِ بار می‌شود
+    if ((elapsed - _lastElapsed).inMilliseconds < 30) return;
     var dtMs = (elapsed - _lastElapsed).inMilliseconds;
     _lastElapsed = elapsed;
     if (dtMs < 0) dtMs = 16;
@@ -104,7 +107,10 @@ class _AngelsLayerState extends State<AngelsLayer>
 
       it.dispY = it.y + math.sin(it.ph * 2) * 6;
     }
-    if (mounted) setState(() {});
+    if (mounted) {
+      _fromTick = true;
+      setState(() {});
+    }
   }
 
   // ─────── sync با store ───────
@@ -253,11 +259,16 @@ class _AngelsLayerState extends State<AngelsLayer>
     final screen = MediaQuery.sizeOf(context);
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _syncItems(store, screen);
-      _ensureTickerRunning(store);
-    });
+    // بازسازیِ ناشی از تیکِ انیمیشن نیازی به sync دوباره ندارد (هر فریم رشته می‌ساخت)
+    final fromTick = _fromTick;
+    _fromTick = false;
+    if (!fromTick) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _syncItems(store, screen);
+        _ensureTickerRunning(store);
+      });
+    }
 
     if (!store.on || !store.hasAssets) return const SizedBox.shrink();
 
@@ -271,13 +282,25 @@ class _AngelsLayerState extends State<AngelsLayer>
                 // روی پیکسل واقعی گرد می‌شود تا لبه‌ی لایه محو/خط‌دار نشود
                 left: (it.x * dpr).roundToDouble() / dpr,
                 top: (it.dispY * dpr).roundToDouble() / dpr,
-                child: _AngelWidget(
-                  item: it,
-                  size: (store.size * dpr).roundToDouble() / dpr,
-                  opacity: store.opacity,
-                  soft: store.soft,
-                  blend: store.blend,
-                ),
+                // لایه‌ی جدا برای هر فرشته: با حرکت فقط جابه‌جا می‌شود و دوباره رسم نمی‌شود
+                // (حالت ترکیب screen/multiply باید با پشت‌زمینه ترکیب شود، پس لایه‌ی جدا ندارد)
+                child: store.blend == 'normal'
+                    ? RepaintBoundary(
+                        child: _AngelWidget(
+                          item: it,
+                          size: (store.size * dpr).roundToDouble() / dpr,
+                          opacity: store.opacity,
+                          soft: store.soft,
+                          blend: store.blend,
+                        ),
+                      )
+                    : _AngelWidget(
+                        item: it,
+                        size: (store.size * dpr).roundToDouble() / dpr,
+                        opacity: store.opacity,
+                        soft: store.soft,
+                        blend: store.blend,
+                      ),
               ),
         ],
       ),
@@ -359,9 +382,12 @@ class _AngelWidget extends StatelessWidget {
     // ─── عکس یا GIF ───
     final b = item.imageBytes;
     if (b == null || b.isEmpty) return const SizedBox.shrink();
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     Widget img = Image.memory(
       b,
       width: size, // ارتفاع آزاد: نسبت عکس حفظ می‌شه (height:auto در وب)
+      // دیکد در اندازه‌ی نمایش (نه اندازه‌ی کامل عکس/GIF) ⇒ رم و CPU خیلی کمتر
+      cacheWidth: (size * dpr).round().clamp(64, 1600),
       fit: BoxFit.fitWidth,
       gaplessPlayback: true,
       filterQuality: FilterQuality.medium,

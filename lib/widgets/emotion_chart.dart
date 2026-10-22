@@ -107,7 +107,10 @@ class _EmotionChartState extends State<EmotionChart>
   void initState() {
     super.initState();
     _ticker = createTicker((elapsed) {
-      _time.value = elapsed.inMicroseconds / 1000000.0;
+      // ~۳۰ فریم در ثانیه برای موج/هاله/قلب (نصفِ بارِ رسم؛ فرقی دیده نمی‌شود)
+      final t = elapsed.inMicroseconds / 1000000.0;
+      if (t - _time.value < 0.028) return;
+      _time.value = t;
     })
       ..start();
   }
