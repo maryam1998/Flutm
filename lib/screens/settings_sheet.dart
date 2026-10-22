@@ -15,6 +15,7 @@ import '../state/background_store.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
+import '../widgets/backup_section.dart';
 import '../models/motivation_item.dart';
 import '../state/motivation_store.dart';
 import '../services/quiet_snack.dart';
@@ -320,6 +321,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     _backgroundCard(),
                     _foregroundCard(),
                     _motivationCard(),
+                    const AdvancedBackupCard(),
                     const SizedBox(height: 8),
                   ],
                 ),

@@ -10,6 +10,25 @@ import 'app_prefs.dart';
 import 'media_blob.dart';
 import 'storage.dart';
 
+/// کلید زمان آخرین بکاپِ موفق (داخل خود بکاپ نمی‌رود)
+const String kBackupLastKey = 'backup_last_at_v1';
+
+/// خلاصه‌ی یک فایل بکاپ (برای پیش‌نمایش قبل از بازیابی)
+class BackupInfo {
+  const BackupInfo({
+    required this.createdAt,
+    required this.items,
+    required this.mediaFiles,
+    required this.includesMedia,
+    required this.bytes,
+  });
+  final DateTime? createdAt;
+  final int items;
+  final int mediaFiles;
+  final bool includesMedia;
+  final int bytes;
+}
+
 class BackupReport {
   const BackupReport({
     required this.prefs,
@@ -35,14 +54,14 @@ class FullBackup {
   };
 
   /// ساخت متن JSON بکاپ
-  static Future<String> build() async {
+  static Future<String> build({bool includeMedia = true}) async {
     final sp = await AppPrefs.getInstance();
     final storage = StorageService();
 
     // ۱) همه‌ی کلیدهای تنظیمات/داده (نوع هر مقدار هم ذخیره می‌شه)
     final prefs = <String, Object>{};
     sp.exportAll().forEach((k, v) {
-      if (k.contains('.corrupt-')) return;
+      if (k.contains('.corrupt-') || k == kBackupLastKey) return;
       if (v is bool) {
         prefs[k] = ['b', v];
       } else if (v is int) {
@@ -62,17 +81,19 @@ class FullBackup {
     // ۳) ویدیوهای سنگین فرشته‌ها (IndexedDB وب)
     final blobs = <String, Object>{};
     try {
-      for (final id in await AngelBlobStore.keys()) {
-        final b = await AngelBlobStore.get(id);
-        if (b != null) {
-          blobs[id] = {'mime': b.mime, 'b64': base64Encode(b.bytes)};
+      if (includeMedia) {
+        for (final id in await AngelBlobStore.keys()) {
+          final b = await AngelBlobStore.get(id);
+          if (b != null) {
+            blobs[id] = {'mime': b.mime, 'b64': base64Encode(b.bytes)};
+          }
         }
       }
     } catch (_) {}
 
     // ۴) ویدیوی پس‌زمینه (روی موبایل فقط مسیر فایل ذخیره شده)
     Map<String, Object>? bgVideo;
-    if (!kIsWeb) {
+    if (!kIsWeb && includeMedia) {
       try {
         final p = sp.getString(_bgVideoKey);
         if (p != null && p.isNotEmpty && File(p).existsSync()) {
@@ -86,11 +107,14 @@ class FullBackup {
     }
 
     // ۵) ویدیوهای ذخیره‌شده‌ی بیرونی (موبایل: فایل‌ها؛ وب: همراه بلاب‌ها بالا آمد)
-    final mediaFiles = await MediaBlob.exportNativeFilesB64(base64Encode);
+    final mediaFiles = includeMedia
+        ? await MediaBlob.exportNativeFilesB64(base64Encode)
+        : <String, String>{};
 
     return jsonEncode({
       'kind': _kind,
       'version': 1,
+      'includesMedia': includeMedia,
       'createdAt': DateTime.now().toIso8601String(),
       'prefs': prefs,
       'files': files,
@@ -98,6 +122,41 @@ class FullBackup {
       if (bgVideo != null) 'bgVideo': bgVideo,
       if (mediaFiles.isNotEmpty) 'mediaFiles': mediaFiles,
     });
+  }
+
+  /// ثبت زمان آخرین بکاپِ موفق
+  static Future<void> markBackedUp() async {
+    final sp = await AppPrefs.getInstance();
+    await sp.setInt(kBackupLastKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  static Future<DateTime?> lastBackupAt() async {
+    final sp = await AppPrefs.getInstance();
+    final ms = sp.getInt(kBackupLastKey);
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  /// بررسی و خلاصه‌ی فایل بکاپ بدون اعمال آن (FormatException اگر بکاپ نباشد)
+  static BackupInfo describe(String raw) {
+    final d = jsonDecode(raw);
+    if (d is! Map || d['kind'] != _kind) {
+      throw const FormatException('این فایل، «بکاپ کامل» برنامه نیست');
+    }
+    final prefs = d['prefs'];
+    final files = d['files'];
+    final blobs = d['angelBlobs'];
+    final mf = d['mediaFiles'];
+    final media = (blobs is Map ? blobs.length : 0) +
+        (mf is Map ? mf.length : 0) +
+        (d['bgVideo'] is Map ? 1 : 0);
+    return BackupInfo(
+      createdAt: DateTime.tryParse('${d['createdAt']}'),
+      items: (prefs is Map ? prefs.length : 0) +
+          (files is Map ? files.length : 0),
+      mediaFiles: media,
+      includesMedia: d['includesMedia'] != false,
+      bytes: raw.length,
+    );
   }
 
   /// بازیابی از متن بکاپ. بعدش باید برنامه بسته و دوباره باز بشه.

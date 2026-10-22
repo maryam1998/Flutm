@@ -12,11 +12,15 @@ class NeuralPathwayPainter extends CustomPainter {
   final Color textColor;
   final double pulseValue;
 
+  /// ضخامت رشته‌ی دارای حس
+  final double feltWidth;
+
   NeuralPathwayPainter({
     required this.fiberCount,
     required this.container,
     required this.textColor,
     required this.pulseValue,
+    this.feltWidth = 1.3,
   });
 
   static const double _vbW = 380;
@@ -76,7 +80,6 @@ class NeuralPathwayPainter extends CustomPainter {
     const defaultOpacity = 0.55;
     const defaultWidth = 0.8;
     const feltOpacity = 0.9;
-    const feltWidth = 1.3;
     const spreadCycle = 9;
 
     for (int i = 0; i < drawCount; i++) {

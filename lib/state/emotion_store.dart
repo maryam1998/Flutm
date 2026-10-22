@@ -36,6 +36,10 @@ class EmotionStore extends ChangeNotifier {
   /// وگرنه (هیچ تمرینی امروز انجام نشده) انتخاب می‌مونه تا ثبت بعدی مصرفش کنه.
   Future<bool> Function(List<String> ids)? onCommitClose;
 
+  /// اگه ست باشه (مثلاً هنگام ویرایش یک ثبتِ شکرگذاری) «ثبت حس» به‌جای
+  /// [onCommitClose] این رو صدا می‌زنه. true = مصرف شد.
+  Future<bool> Function(List<String> ids)? commitOverride;
+
   EmotionStore() {
     _load();
   }
@@ -147,7 +151,9 @@ class EmotionStore extends ChangeNotifier {
     }
     final ids = _selected.toList();
     var consumed = false;
-    if (onCommitClose != null) {
+    if (commitOverride != null) {
+      consumed = await commitOverride!(ids);
+    } else if (onCommitClose != null) {
       consumed = await onCommitClose!(ids);
     } else if (onEmotionsCommitted != null) {
       await onEmotionsCommitted!(ids, _todayKey());

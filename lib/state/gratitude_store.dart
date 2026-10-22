@@ -497,6 +497,37 @@ class GratitudeStore extends ChangeNotifier {
     return r;
   }
 
+  /// ویرایشِ حسِ یک ثبتِ مشخص (از لیست شکرگذاری): رشته‌ی عصبیِ همان ثبت و
+  /// حلقه‌ی روزش در تقویم هم به‌روز می‌شن.
+  Future<bool> setEntryEmotions(String id, List<String> emotionIds) async {
+    final e = byId(id);
+    if (e == null || e.source == 'purchase') return false;
+    final valid =
+        emotionIds.where((x) => emotionById(x) != null).toSet().toList();
+    if (valid.isEmpty) return false;
+    e.emotionIds = valid;
+    e.editedAt = DateTime.now().millisecondsSinceEpoch;
+
+    // حسِ روز = ترکیبِ حسِ همه‌ی ثبت‌های همان روز (تقویم از این می‌خونه)
+    final day = isoToKey(e.iso);
+    if (day.isNotEmpty) {
+      final union = <String>{};
+      for (final x in entries) {
+        if (x.source == 'purchase' || isoToKey(x.iso) != day) continue;
+        union.addAll(x.emotionIds);
+      }
+      if (union.isEmpty) {
+        dayAfter.remove(day);
+      } else {
+        dayAfter[day] = union.toList();
+      }
+    }
+    notifyListeners();
+    await _persist(); // رشته‌ها در _syncEntryFibers از روی ثبت‌ها ساخته می‌شن
+    notifyListeners();
+    return true;
+  }
+
   Set<String> emotionIdsForDay(String dayKey) {
     final norm = _normDayKey(dayKey);
     final after = dayAfter[norm];

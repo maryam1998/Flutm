@@ -135,6 +135,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                 container: store.neural,
                 label: 'شکرگذاری',
                 showDayButtons: false,
+                feltWidth: 1.8,
                 onChange: () => store.saveNeural(),
                 emotionQualityToday: _emotionQualityToday(store),
               ),
@@ -370,6 +371,17 @@ class _GratitudeTabState extends State<GratitudeTab> {
     bool share = g.shared;
     final isPurchase = g.source == 'purchase';
 
+    // «ثبت حس» (بستن ویجت حس) تا وقتی این پنجره بازه، حسِ همین ثبت رو ویرایش
+    // می‌کنه؛ رشته‌ی عصبی و تقویم هم به‌روز می‌شن.
+    final gStore = context.read<GratitudeStore>();
+    final emo = context.read<EmotionStore>();
+    final prevSel = emo.selectedIds.toList();
+    final prevOverride = emo.commitOverride;
+    if (!isPurchase) {
+      emo.setSelected(g.emotionIds);
+      emo.commitOverride = (ids) => gStore.setEntryEmotions(g.id, ids);
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -519,6 +531,78 @@ class _GratitudeTabState extends State<GratitudeTab> {
                           }).toList(),
                         ),
                       ],
+                      if (!isPurchase) ...[
+                        const SizedBox(height: 14),
+                        AnimatedBuilder(
+                          animation: gStore,
+                          builder: (_, __) {
+                            final ids = gStore.byId(g.id)?.emotionIds ??
+                                const <String>[];
+                            final list = ids
+                                .map(emotionById)
+                                .whereType<Emotion>()
+                                .toList();
+                            return Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: pal.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: pal.line),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('حس این ثبت',
+                                      style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: pal.ink)),
+                                  const SizedBox(height: 6),
+                                  if (list.isEmpty)
+                                    Text('هنوز حسی ثبت نشده',
+                                        style: TextStyle(
+                                            fontSize: 11.5, color: pal.muted))
+                                  else
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: list.map((e) {
+                                        final c = hexToColor(e.color);
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 9, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: c.withValues(alpha: 0.14),
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                            border: Border.all(
+                                                color:
+                                                    c.withValues(alpha: 0.55)),
+                                          ),
+                                          child: Text(
+                                            e.fa,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: HSLColor.fromColor(c)
+                                                  .withLightness(0.3)
+                                                  .toColor(),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                      'برای تغییر: ویجت حس را باز کن، حس را انتخاب کن و دوباره ببند (ثبت حس).',
+                                      style: TextStyle(
+                                          fontSize: 11, color: pal.muted)),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       if (!isPurchase)
                         Row(
@@ -606,7 +690,12 @@ class _GratitudeTabState extends State<GratitudeTab> {
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      if (!isPurchase) {
+        emo.commitOverride = prevOverride;
+        emo.setSelected(prevSel);
+      }
+    });
   }
 
   static Widget _radioBtn(
@@ -1828,6 +1917,7 @@ class GratitudeNeuralSection extends StatelessWidget {
             container: store.neural,
             label: 'شکرگذاری',
             showDayButtons: false,
+            feltWidth: 1.8,
             onChange: () => store.saveNeural(),
             emotionQualityToday: store.emotionQualityToday,
           ),

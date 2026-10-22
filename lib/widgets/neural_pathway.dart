@@ -29,6 +29,9 @@ class NeuralPathway extends StatefulWidget {
   /// هر بار تغییر داد (برای ذخیره در store)
   final VoidCallback? onChange;
 
+  /// ضخامت رشته‌های دارای حس (پیش‌فرض ۱٫۳)
+  final double feltWidth;
+
   const NeuralPathway({
     super.key,
     required this.container,
@@ -40,6 +43,7 @@ class NeuralPathway extends StatefulWidget {
     this.calendarLinked = false,
     this.isConfirmed,
     this.onChange,
+    this.feltWidth = 1.3,
   });
 
   @override
@@ -164,6 +168,7 @@ class _NeuralPathwayState extends State<NeuralPathway>
                   container: widget.container,
                   textColor: kNeuralInk,
                   pulseValue: _shouldPulse ? _pulse.value : 0,
+                  feltWidth: widget.feltWidth,
                 ),
               ),
             ),
