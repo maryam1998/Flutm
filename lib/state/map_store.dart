@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../map/map_ops.dart';
 import '../models/map_models.dart';
+import '../services/persist_engine.dart';
 import '../services/storage.dart';
 
 class MapStore extends ChangeNotifier {
@@ -25,8 +26,11 @@ class MapStore extends ChangeNotifier {
     try {
       final raw = await _storage.read();
       if (raw != null) {
-        state = MapState.fromJson(jsonDecode(raw));
+        // مرجع‌های صدا/GIF/عکسِ جداشده دوباره به data-URL برمی‌گردن
+        state = MapState.fromJson(await BlobOffload.rehydrate(jsonDecode(raw)));
         loadedFromFile = true;
+        // یک‌بار: ذخیره‌ی قدیمیِ سنگین (مدیا داخل JSON) به قالب سبک تبدیل می‌شه
+        if (raw.length > 300000) _schedule(const Duration(seconds: 3));
       }
     } catch (_) {
       await _storage.keepCorruptCopy();
@@ -69,11 +73,20 @@ class MapStore extends ChangeNotifier {
   /// اگه تغییرِ ذخیره‌نشده‌ای مونده باشه همین الان می‌نویسه (موقع رفتن صفحه به پس‌زمینه / رفرش)
   Future<void> flushIfDirty() => _dirty ? flush() : Future<void>.value();
 
-  Future<void> flush() async {
+  /// ذخیره‌ی تک‌صف: چند درخواست پشت‌سرهم یکی می‌شن و همیشه آخرین وضعیت نوشته می‌شه
+  late final CoalescedTask _saver = CoalescedTask(_writeNow);
+
+  Future<void> flush() {
     _timer?.cancel();
     _dirty = false;
+    return _saver.request();
+  }
+
+  Future<void> _writeNow() async {
     try {
-      await _storage.write(jsonEncode(state.toJson()));
+      // مدیای سنگین بیرون JSON می‌ره؛ خودِ JSON کوچیک و سریع نوشته می‌شه
+      final slim = await BlobOffload.offload(state.toJson());
+      await _storage.write(jsonEncode(slim));
       lastSaved.value = DateTime.now().millisecondsSinceEpoch;
     } catch (e) {
       debugPrint('save failed: $e');
@@ -102,7 +115,7 @@ class MapStore extends ChangeNotifier {
     if (d is! Map || (d['goals'] is! List && d['me'] is! Map)) {
       throw const FormatException('فایل نقشه‌ی معتبر نیست');
     }
-    state = MapState.fromJson(d);
+    state = MapState.fromJson(await BlobOffload.rehydrate(d));
     await flush();
     notifyListeners();
   }

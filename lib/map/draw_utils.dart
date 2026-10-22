@@ -140,7 +140,12 @@ class NodeImageCache extends ChangeNotifier {
   static final NodeImageCache shared = NodeImageCache();
 
   /// سقف حافظه‌ی فریم‌های یک عکس متحرک (بایت)
-  static const int _animMaxBytes = 48 * 1024 * 1024;
+  static const int _animMaxBytes = 20 * 1024 * 1024;
+
+  /// سقف حافظه‌ی فریم‌های **همه‌ی** عکس‌های متحرک با هم (بایت). بیشتر از این، عکس
+  /// متحرکِ تازه به‌صورت ثابت (فریم اول) نشون داده می‌شه تا حافظه پر نشه و برنامه هنگ نکنه.
+  static const int _animTotalMax = 100 * 1024 * 1024;
+  int _animTotal = 0;
   static const int _animWidth = 320;
 
   final _cache = <String, ui.Image>{};
@@ -229,6 +234,15 @@ class NodeImageCache extends ChangeNotifier {
 
   Future<void> _finishAnim(
       String key, ui.Codec codec, ui.FrameInfo first, int n) async {
+    final est = first.image.width * first.image.height * 4 * n;
+    if (_animTotal + est > _animTotalMax) {
+      // سقف کلِ حافظه‌ی عکس‌های متحرک پر شده → این یکی ثابت می‌مونه
+      first.image.dispose();
+      codec.dispose();
+      _notAnim.add(key);
+      return;
+    }
+    _animTotal += est;
     final frames = <ui.Image>[first.image];
     final ends = <int>[];
     var acc = 0;
@@ -237,13 +251,22 @@ class NodeImageCache extends ChangeNotifier {
       return ms < 20 ? 100 : ms; // GIFهای بدون زمان‌بندی: ۱۰۰ms
     }
 
-    acc += dur(first);
-    ends.add(acc);
-    for (var i = 1; i < n; i++) {
-      final f = await codec.getNextFrame();
-      frames.add(f.image);
-      acc += dur(f);
+    try {
+      acc += dur(first);
       ends.add(acc);
+      for (var i = 1; i < n; i++) {
+        final f = await codec.getNextFrame();
+        frames.add(f.image);
+        acc += dur(f);
+        ends.add(acc);
+      }
+    } catch (_) {
+      _animTotal -= est;
+      for (final im in frames) {
+        im.dispose();
+      }
+      codec.dispose();
+      rethrow;
     }
     codec.dispose();
     _anims[key] = _AnimFrames(frames, ends, acc);

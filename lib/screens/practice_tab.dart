@@ -23,6 +23,15 @@ class _PracticeTabState extends State<PracticeTab> {
   // 2 = شکرگذاری (پیش‌فرض)
   int _sub = 2;
 
+  // زیرتب‌ها تنبل ساخته می‌شن: فقط زیرتبِ فعال موقع ورود به «تمرین»؛ بقیه اولین
+  // باری که بازشون کنی. (قبلاً هر ۴ زیرتب با عکس/GIF/صدا یک‌جا ساخته می‌شد و تب هنگ می‌کرد.)
+  // بعد از اولین ساخت، زنده می‌مونن (حالت حفظ می‌شه).
+  final Set<int> _built = <int>{2};
+
+  Widget _lazy(int i, Widget Function() make) => _built.contains(i)
+      ? TickerMode(enabled: i == _sub, child: make())
+      : const SizedBox.shrink();
+
   @override
   Widget build(BuildContext context) {
     // وب: #grat-root پس‌زمینه‌ی --paper دارد (سفید)، ولی وقتی پس‌زمینه‌ی
@@ -30,6 +39,7 @@ class _PracticeTabState extends State<PracticeTab> {
     // محتوای زیرتب‌ها فعلاً روشنه، پس در تم تاریک همون کرم قبلی می‌مونه.
     final hasBg = context.watch<BackgroundStore>().overridesBackdrop;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    _built.add(_sub);
     final paper = hasBg
         ? Colors.transparent
         : (isDark ? const Color(0xFFFFFFFF) : Colors.white);
@@ -42,13 +52,13 @@ class _PracticeTabState extends State<PracticeTab> {
           index: _sub,
           children: [
             // 0 = خانه
-            HomeTab(onOpenStore: () => setState(() => _sub = 1)),
+            _lazy(0, () => HomeTab(onOpenStore: () => setState(() => _sub = 1))),
             // 1 = بازی فراوانی
-            const StoreTab(),
+            _lazy(1, () => const StoreTab()),
             // 2 = شکرگذاری
-            const GratitudeTab(),
+            _lazy(2, () => const GratitudeTab()),
             // 3 = باورها
-            const BeliefsTab(),
+            _lazy(3, () => const BeliefsTab()),
           ],
         ),
         bottomNavigationBar: WebSubTabBar(

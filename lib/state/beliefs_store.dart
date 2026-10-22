@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../services/app_prefs.dart';
 import '../services/media_blob.dart';
+import '../services/persist_engine.dart';
 
 import '../models/future_text_format.dart';
 import '../models/gratitude_entry.dart';
@@ -272,19 +273,20 @@ Future<void> load() async {
     // ═══ تصویرسازی ═══
     final vn = sp.getString(_kVisNote);
     visualNote = vn ?? (seedNotes['visual'] ?? '');
-    _readList<GratitudeImage>(
+    await _readList<GratitudeImage>(
         sp, _kVisImages, visualImages, GratitudeImage.fromJson);
     visualImages.removeWhere((e) => e.src.isEmpty);
-    _readList<GratitudeVideo>(
+    await _readList<GratitudeVideo>(
         sp, _kVisVideos, visualVideos, GratitudeVideo.fromJson);
     visualVideos.removeWhere((e) => e.path.isEmpty);
-    _readList<GratitudeAudio>(
+    await _readList<GratitudeAudio>(
         sp, _kVisVoices, visualVoices, GratitudeAudio.fromJson);
     visualVoices.removeWhere((e) => e.src.isEmpty);
     final mtRaw = sp.getString(_kMedTrack);
     if (mtRaw != null && mtRaw.isNotEmpty) {
       try {
-        final t = GratitudeAudio.fromJson(jsonDecode(mtRaw));
+        final t = GratitudeAudio.fromJson(
+            await BlobOffload.rehydrate(jsonDecode(mtRaw)));
         meditationTrack = t.src.isEmpty ? null : t;
       } catch (_) {}
     }
@@ -295,13 +297,13 @@ Future<void> load() async {
   notifyListeners();
 }
 
-static void _readList<T>(AppPrefs sp, String key, List<T> out,
-    T Function(dynamic) fromJson) {
+static Future<void> _readList<T>(AppPrefs sp, String key, List<T> out,
+    T Function(dynamic) fromJson) async {
   out.clear();
   final raw = sp.getString(key);
   if (raw == null || raw.isEmpty) return;
   try {
-    final l = jsonDecode(raw);
+    final l = await BlobOffload.rehydrate(jsonDecode(raw));
     if (l is List) out.addAll(l.map(fromJson));
   } catch (_) {}
 }
@@ -364,12 +366,29 @@ Future<void> _persist() async {
     }
   }
 
-  Future<void> _saveVisualImages() => _putVisual(_kVisImages,
-      jsonEncode(visualImages.map((e) => e.toJson()).toList()));
-  Future<void> _saveVisualVideos() => _putVisual(_kVisVideos,
-      jsonEncode(visualVideos.map((e) => e.toJson()).toList()));
-  Future<void> _saveVisualVoices() => _putVisual(_kVisVoices,
-      jsonEncode(visualVoices.map((e) => e.toJson()).toList()));
+  // ذخیره‌ی تک‌صف + مدیای سنگین بیرون JSON (هر ذخیره همیشه آخرین وضعیت لیست رو می‌نویسه)
+  late final CoalescedTask _visImagesSaver = CoalescedTask(() async {
+    await _putVisual(
+        _kVisImages,
+        jsonEncode(await BlobOffload.offload(
+            visualImages.map((e) => e.toJson()).toList())));
+  });
+  late final CoalescedTask _visVideosSaver = CoalescedTask(() async {
+    await _putVisual(
+        _kVisVideos,
+        jsonEncode(await BlobOffload.offload(
+            visualVideos.map((e) => e.toJson()).toList())));
+  });
+  late final CoalescedTask _visVoicesSaver = CoalescedTask(() async {
+    await _putVisual(
+        _kVisVoices,
+        jsonEncode(await BlobOffload.offload(
+            visualVoices.map((e) => e.toJson()).toList())));
+  });
+
+  Future<void> _saveVisualImages() => _visImagesSaver.request();
+  Future<void> _saveVisualVideos() => _visVideosSaver.request();
+  Future<void> _saveVisualVoices() => _visVoicesSaver.request();
 
   /// ذخیره‌ی یادداشت تصویرسازی (دکمه‌ی «ذخیره»ی ویرایشگر)
   Future<void> setVisualNote(String v) async {
@@ -444,7 +463,8 @@ Future<void> _persist() async {
     lastVisualPersistOk = true;
     meditationTrack = t;
     notifyListeners();
-    await _putVisual(_kMedTrack, jsonEncode(t.toJson()));
+    await _putVisual(
+        _kMedTrack, jsonEncode(await BlobOffload.offload(t.toJson())));
     notifyListeners();
     return lastVisualPersistOk;
   }

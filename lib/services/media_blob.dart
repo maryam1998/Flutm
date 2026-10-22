@@ -69,6 +69,22 @@ class MediaBlob {
     return '$scheme$id';
   }
 
+  /// ذخیره با **شناسه‌ی ثابت** (محتوای یکسان → همان فایل، بدون تکرار). برای موتور
+  /// ذخیره‌سازی ([BlobOffload]). روی موبایل اول در فایل موقت نوشته و بعد جایگزین
+  /// می‌شه تا وسط نوشتن فایل نیمه‌کاره نمونه.
+  static Future<String> saveBytesWithId(Uint8List bytes,
+      {required String id, required String mime}) async {
+    if (kIsWeb) {
+      await AngelBlobStore.put(id, bytes, mime);
+    } else {
+      final d = await _dir();
+      final tmp = File('${d.path}/$id.tmp');
+      await tmp.writeAsBytes(bytes, flush: true);
+      await tmp.rename('${d.path}/$id');
+    }
+    return '$scheme$id';
+  }
+
   /// آدرس قابل پخش: روی وب blob-URL، روی موبایل مسیر فایل. null = پیدا نشد.
   static Future<String?> playableSource(String ref) async {
     final id = idOf(ref);

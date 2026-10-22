@@ -221,7 +221,13 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack> {
       index: widget.index,
       children: [
         for (var i = 0; i < widget.builders.length; i++)
-          _built[i] ? widget.builders[i](context) : const SizedBox.shrink(),
+          _built[i]
+              // تبِ پنهان انیمیشن/تیکرش (مثل بوم نقشه) متوقف می‌شه تا تب فعال روان بمونه
+              ? TickerMode(
+                  enabled: i == widget.index,
+                  child: widget.builders[i](context),
+                )
+              : const SizedBox.shrink(),
       ],
     );
   }

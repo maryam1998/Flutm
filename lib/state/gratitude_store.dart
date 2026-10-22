@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/app_prefs.dart';
+import '../services/persist_engine.dart';
 
 import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
@@ -40,7 +41,7 @@ class GratitudeStore extends ChangeNotifier {
       final sp = await AppPrefs.getInstance();
       final raw = sp.getString(_kEntries);
       if (raw != null && raw.isNotEmpty) {
-        final list = jsonDecode(raw);
+        final list = await BlobOffload.rehydrate(jsonDecode(raw));
         if (list is List) {
           entries
             ..clear()
@@ -100,7 +101,12 @@ class GratitudeStore extends ChangeNotifier {
   /// هر کلید جدا و در try/catch خودش ذخیره می‌شه تا اگه «entries» (که عکس/صدای
   /// base64 داره) از سهمیه‌ی حافظه بزرگ‌تر شد، مسیر عصبی و بقیه‌ی state گم نشن.
   /// اول چیزهای کوچک (عصبی، دوره‌ها، حس روز)، آخر لیست ثبت‌ها.
-  Future<void> _persist() async {
+  /// ذخیره‌ی تک‌صف (ثبت‌های پشت‌سرهم ادغام می‌شن؛ نوشتنِ هم‌زمان ممکن نیست)
+  late final CoalescedTask _persistSaver = CoalescedTask(_persistNow);
+
+  Future<void> _persist() => _persistSaver.request();
+
+  Future<void> _persistNow() async {
     _syncEntryFibers();
     var ok = true;
     AppPrefs sp;
@@ -130,7 +136,11 @@ class GratitudeStore extends ChangeNotifier {
     await put(_kNeural, jsonEncode(neural.toJson()));
     await put(_kDayAfter, jsonEncode(dayAfter));
     await put(_kJourneyPast, jsonEncode(pastPeriods));
-    await put(_kEntries, jsonEncode(entries.map((e) => e.toJson()).toList()));
+    // عکس/صدا/GIFِ ثبت‌ها بیرون JSON ذخیره می‌شن (فقط یک‌بار برای هر فایل)
+    await put(
+        _kEntries,
+        jsonEncode(await BlobOffload.offload(
+            entries.map((e) => e.toJson()).toList())));
     lastPersistOk = ok;
   }
 
