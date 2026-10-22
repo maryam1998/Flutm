@@ -7,6 +7,9 @@ import '../models/emotion.dart';
 /// ارتفاع هر ردیف لیست (ROW_H وب)
 const double kListRowH = 21;
 
+/// جابه‌جایی افقیِ کل لیست به وسطِ ویجت (تا آدمک بتواند هم چپ و هم راستِ لیست برود)
+const double kListShiftX = 55;
+
 /// مرکز عمودیِ ردیف (rowY وب، قبل از translate(6,6)). فرکانس کم پایین، زیاد بالا.
 double emotionRowY(int idx) => (kEmotions.length - 1 - idx) * kListRowH + 13;
 
@@ -26,7 +29,7 @@ class EmotionListPainter extends CustomPainter {
     final dimStroke = textStroke;
 
     canvas.save();
-    canvas.translate(6, 6);
+    canvas.translate(6 + kListShiftX, 6);
 
     for (var idx = 0; idx < kEmotions.length; idx++) {
       final em = kEmotions[idx];

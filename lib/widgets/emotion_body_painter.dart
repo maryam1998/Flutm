@@ -206,8 +206,9 @@ class AuraPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (colors.isEmpty) return;
     final t = time.value;
-    final bounds =
-        Rect.fromLTWH(-80, -80, size.width + 160, size.height + 160);
+    // فقط اطراف آدمک (نه کل بوم): saveLayer روی سطح کوچک‌تر خیلی ارزان‌تر است
+    final bounds = Rect.fromCenter(
+        center: const Offset(kBodyCX, kBodyCY), width: 320, height: 540);
 
     // گروه ایزوله: screen فقط بین خود لایه‌های هاله اتفاق می‌افته
     canvas.saveLayer(bounds, Paint());

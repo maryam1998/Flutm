@@ -43,9 +43,11 @@ class _EmotionChartState extends State<EmotionChart>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final ValueNotifier<double> _time = ValueNotifier<double>(0);
+  // هاله (سنگین‌ترین بخش: چند لایه‌ی blur) کندتر به‌روز می‌شود
+  final ValueNotifier<double> _auraTime = ValueNotifier<double>(0);
 
   // ── کشیدنِ آدمک ──
-  static const double _figHalfW = 48, _figHalfH = 86;
+  static const double _figHalfW = 30, _figHalfH = 86;
   int? _figPointer;
   Offset _figLast = Offset.zero;
   Offset _figCur = Offset.zero;
@@ -111,6 +113,7 @@ class _EmotionChartState extends State<EmotionChart>
       final t = elapsed.inMicroseconds / 1000000.0;
       if (t - _time.value < 0.028) return;
       _time.value = t;
+      if (t - _auraTime.value >= 0.06) _auraTime.value = t;
     })
       ..start();
   }
@@ -119,6 +122,7 @@ class _EmotionChartState extends State<EmotionChart>
   void dispose() {
     _ticker.dispose();
     _time.dispose();
+    _auraTime.dispose();
     super.dispose();
   }
 
@@ -167,11 +171,14 @@ class _EmotionChartState extends State<EmotionChart>
                 clipBehavior: Clip.none,
                 children: [
                   Positioned.fill(
-                    child: CustomPaint(
-                      painter: AuraPainter(
-                        time: _time,
-                        colors: auraColors,
-                        hasSelection: hasSel,
+                    // لایه‌ی جدا: هاله (با ۲۰ فریم در ثانیه) بقیه‌ی لایه‌ها را مجبور به رسم دوباره نکند
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        painter: AuraPainter(
+                          time: _auraTime,
+                          colors: auraColors,
+                          hasSelection: hasSel,
+                        ),
                       ),
                     ),
                   ),
@@ -219,7 +226,7 @@ class _EmotionChartState extends State<EmotionChart>
           // سطح لمس ردیف‌ها
           for (var i = 0; i < kEmotions.length; i++)
             Positioned(
-              left: 8,
+              left: 8 + kListShiftX,
               top: 6 + emotionRowY(i) - kListRowH / 2,
               width: 94,
               height: kListRowH,
