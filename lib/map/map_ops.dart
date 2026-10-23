@@ -165,3 +165,31 @@ Ring newRingNearMe(MapState s) {
   final rnd = math.Random().nextDouble() * 40 - 20;
   return Ring(x: s.me.x + rnd, y: s.me.y + 130, color: kRingColor);
 }
+
+// ───────────── قدمِ شاخه/زیرشاخه: وضعیت امروز ─────────────
+
+/// آیا شاخه/زیرشاخه در روزِ [jk] انجام/ثبت شده؟ (تیک، متن، یا زمانِ ثبت‌شده)
+bool footDoneOn(ActionNode a, String jk) {
+  final l = a.logs[jk];
+  if (l == true || (l is String && l.isNotEmpty)) return true;
+  final t = a.time[jk];
+  if (t is num && t > 0) return true;
+  final e = a.entries[jk];
+  return e is List && e.isNotEmpty;
+}
+
+/// امروز انجام شده؟ (تایمرِ در حال اجرا هم یعنی در حال انجام)
+bool footDoneToday(ActionNode a, String todayJK) =>
+    footDoneOn(a, todayJK) || (a.timerStart ?? 0) > 0;
+
+/// آیا قدمِ امروز در حال حرکت است؟
+/// انتخاب پلی/استاپِ کاربر فقط برای همان روز معتبر است؛ وگرنه
+/// پیش‌فرض: ثبت‌شده → راه می‌رود، ثبت‌نشده → متوقف.
+bool footEffectivePlaying(ActionNode a, String todayJK) {
+  if (a.extra['footToggleDay'] == todayJK) return a.footPlaying;
+  return footDoneToday(a, todayJK);
+}
+
+/// جایی که کاربر امروز با انگشت قدم را گذاشته (برای روزهای قبل نادیده)
+double? footPosToday(ActionNode a, String todayJK) =>
+    a.extra['footPosDay'] == todayJK ? a.footPos : null;

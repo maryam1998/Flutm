@@ -128,6 +128,10 @@ class MapPainter extends CustomPainter {
   /// موقعیت پاهای قدم‌زن‌های رسم‌شده در این فریم (برای دوری از تداخل)
   final List<Offset> _walkerPts = [];
 
+  /// آخرین موقعیت/شعاع سرِ قدم‌زن رسم‌شده (برای دکمه‌ی تایمر)
+  Offset _lastBodyPos = Offset.zero;
+  double _lastBodyR = 0;
+
   @override
   bool shouldRepaint(covariant MapPainter old) => true;
 
@@ -935,13 +939,7 @@ class MapPainter extends CustomPainter {
 
   /// آیا این شاخه/زیرشاخه در روزِ [jk] انجام/ثبت شده؟
   /// (تیک/متن در logs، یا زمان ثبت‌شده با تایمر/مدت/ساعت)
-  bool _doneOn(ActionNode a, String jk) {
-    if (_isDoneLog(a.logs[jk])) return true;
-    final t = a.time[jk];
-    if (t is num && t > 0) return true;
-    final e = a.entries[jk];
-    return e is List && e.isNotEmpty;
-  }
+  bool _doneOn(ActionNode a, String jk) => footDoneOn(a, jk);
 
   /// تعداد روزهای انجام‌شده، بدون احتساب امروز
   int _pastDoneDays(ActionNode a, String todayK) {
@@ -1056,7 +1054,7 @@ class MapPainter extends CustomPainter {
         ? hexColor(fcHex, color0)
         : color0;
     final todayK = jKey(DateTime.now());
-    final doneToday = _doneOn(a, todayK);
+    final doneToday = footDoneToday(a, todayK);
     final fixed = _pastDoneDays(a, todayK);
     final route = _RouteCurve(routePts);
     final sizeMul = state.footScale.clamp(kWalkerSizeMin, kFootScaleMax);
@@ -1077,18 +1075,54 @@ class MapPainter extends CustomPainter {
     final totalSteps = math.max(4, (1.0 / stepLen).round());
     final speed = 1.5 * (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
     final stagger = (a.id.hashCode & 0xFF) / 255.0 * 10.0;
+    final pref = (a.id.hashCode & 1) == 0 ? 1.0 : -1.0;
+    final posToday = footPosToday(a, todayK);
+    final playingNow = footEffectivePlaying(a, todayK);
 
-    // ─── امروز هنوز ثبت نشده: قدم جدید، متوقف و کم‌رنگ (قصد شروع) ───
+    void core(bool playing, double? manual) => _walkerCore(
+          canvas,
+          route,
+          color,
+          tMin: 0.0,
+          tMax: 1.0,
+          stepLen: stepLen.toDouble(),
+          totalSteps: totalSteps,
+          playing: playing,
+          speed: speed.toDouble(),
+          manualT: manual,
+          baseSize: size,
+          trailCount: 0,
+          timeOffset: stagger,
+          pref: pref,
+          hitType: 'foot',
+          hitId: a.id,
+          hostId: hostId,
+          withBody: false,
+          photos: walkerPhotosOf(a.extra),
+          emoji: walkerEmojiOf(a.extra),
+          halo: a.extra['walkerHalo'] != false,
+          haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
+          voiceExtra: a.extra,
+          followManual: true,
+        );
+
     if (!doneToday) {
+      // ─── امروز هنوز ثبت نشده: قدم جدید، کم‌رنگ (متوقف؛ مگر کاربر پلی بزند) ───
       final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
-      final bodyU = (u + stepLen * 0.45).clamp(0.0, 1.0).toDouble();
-      // موقعیت ثابت؛ وقتی ثبت شد، قدم از همین‌جا شروع به راه رفتن می‌کند
+      final bodyU =
+          (posToday ?? (u + stepLen * 0.45)).clamp(0.0, 1.0).toDouble();
       final st = _walkerRt.putIfAbsent('foot:${a.id}', _WalkerRt.new);
-      st.frozenT = bodyU;
-      st.frozenRet = false;
-      st.playing = false;
-      st.cyc = null;
-      st.seenManual = bodyU;
+      if (!playingNow) {
+        st.frozenT = bodyU;
+        st.frozenRet = false;
+        st.playing = false;
+        st.cyc = null;
+        st.seenManual = bodyU;
+      } else if (!st.playing) {
+        st.frozenT = bodyU;
+        st.frozenRet = false;
+        st.seenManual = bodyU;
+      }
       var minX = routePts.first.dx, maxX = minX;
       var minY = routePts.first.dy, maxY = minY;
       for (final p in routePts) {
@@ -1102,61 +1136,42 @@ class MapPainter extends CustomPainter {
         Rect.fromLTRB(minX - pad, minY - pad, maxX + pad, maxY + pad),
         Paint()..color = const Color.fromRGBO(0, 0, 0, 0.35),
       );
-      _walkerCore(
-        canvas,
-        route,
-        color,
-        tMin: 0.0,
-        tMax: 1.0,
-        stepLen: stepLen.toDouble(),
-        totalSteps: totalSteps,
-        playing: false,
-        speed: speed.toDouble(),
-        manualT: bodyU,
-        baseSize: size,
-        trailCount: 0,
-        timeOffset: stagger,
-        pref: (a.id.hashCode & 1) == 0 ? 1.0 : -1.0,
-        hitType: 'foot',
-        hitId: a.id,
-        hostId: hostId,
-        withBody: false,
-        photos: walkerPhotosOf(a.extra),
-        emoji: walkerEmojiOf(a.extra),
-        halo: a.extra['walkerHalo'] != false,
-        haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
-        voiceExtra: a.extra,
-      );
+      core(playingNow, playingNow ? posToday : bodyU);
       canvas.restore();
-      return;
+    } else {
+      // ─── امروز ثبت شده: قدم با رنگ واقعی ───
+      core(playingNow, posToday);
     }
+    // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
+    _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
+  }
 
-    // ─── امروز ثبت شده: قدم با رنگ واقعی در مسیر راه می‌رود ───
-    _walkerCore(
-      canvas,
-      route,
-      color,
-      tMin: 0.0,
-      tMax: 1.0,
-      stepLen: stepLen.toDouble(),
-      totalSteps: totalSteps,
-      playing: a.footPlaying,
-      speed: speed.toDouble(),
-      manualT: a.footPos?.clamp(0.0, 1.0).toDouble(),
-      baseSize: size,
-      trailCount: 0,
-      timeOffset: stagger,
-      pref: (a.id.hashCode & 1) == 0 ? 1.0 : -1.0,
-      hitType: 'foot',
-      hitId: a.id,
+  /// دکمه‌ی کوچک ⏱ کنار قدم: باز کردن تایمر و ثبت زمانِ امروز
+  void _timeBtn(
+      Canvas canvas, ActionNode a, String hostId, Offset body, double bodyR) {
+    final d = math.max(bodyR * 1.3, 20.0) + 16;
+    final c = body + Offset(-d * 0.7071, d * 0.7071);
+    const r = 11.0;
+    final live = (a.timerStart ?? 0) > 0;
+    canvas.drawCircle(c, r + 1.6, Paint()..color = const Color(0xF2FFFFFF));
+    canvas.drawCircle(c, r,
+        Paint()..color = live ? const Color(0xFFE5484D) : const Color(0xFFC9962B));
+    final ink = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(c, r * 0.55, ink);
+    canvas.drawLine(c, c + const Offset(0, -r * 0.38), ink);
+    canvas.drawLine(c, c + const Offset(r * 0.28, 0), ink);
+    hits.add(HitEntry(
+      type: 'actionTime',
+      id: a.id,
       hostId: hostId,
-      withBody: false,
-      photos: walkerPhotosOf(a.extra),
-      emoji: walkerEmojiOf(a.extra),
-      halo: a.extra['walkerHalo'] != false,
-      haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
-      voiceExtra: a.extra,
-    );
+      kind: HitKind.handle,
+      center: c,
+      radius: r + 6,
+    ));
   }
 
   void _walkerCore(
@@ -1184,6 +1199,7 @@ class MapPainter extends CustomPainter {
     bool halo = true,
     double haloScale = 1.0,
     Map<String, dynamic>? voiceExtra,
+    bool followManual = false,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -1198,6 +1214,14 @@ class MapPainter extends CustomPainter {
     bool returning = false;
     double cyc = 0;
     if (playing) {
+      // کاربر وسط حرکت قدم را جابه‌جا کرده → از همان‌جا ادامه بده (متوقف نمی‌شود)
+      if (followManual && manualT != null && manualT != st.seenManual) {
+        st.frozenT = manualT.clamp(tMin, tMax).toDouble();
+        st.frozenRet = false;
+        st.playing = false;
+        st.cyc = null;
+      }
+      if (followManual) st.seenManual = manualT ?? st.seenManual;
       if (!st.playing || st.cyc == null) {
         final fz = st.frozenT;
         if (fz != null) {
@@ -1333,6 +1357,9 @@ class MapPainter extends CustomPainter {
     final bodyPos = Offset(
         rearPt.dx - math.cos(rearAng) * back + nx * (bob + laneOff),
         rearPt.dy - math.sin(rearAng) * back + ny * (bob + laneOff));
+
+    _lastBodyPos = bodyPos;
+    _lastBodyR = bodyR;
 
     if (halo) {
       final hs = haloScale.clamp(0.3, 2.5).toDouble();

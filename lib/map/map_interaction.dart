@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
+import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/map_store.dart';
 import 'camera.dart';
@@ -645,8 +646,9 @@ class MapInteraction {
     if (len2 < 1) return;
 
     final t = ((w.dx - o.dx) * dx + (w.dy - o.dy) * dy) / len2;
+    // جابه‌جایی، پلی/استاپ را تغییر نمی‌دهد؛ جای قدم فقط برای امروز معتبر است
     node.footPos = t.clamp(0.06, 0.94);
-    node.footPlaying = false;
+    node.extra['footPosDay'] = jKey(DateTime.now());
     _mark();
   }
 
@@ -773,7 +775,9 @@ class MapInteraction {
       if (host is MapHost) {
         final found = findActionNode(host.actions, p.actionId);
         if (found != null) {
-          found.node.footPlaying = !found.node.footPlaying;
+          final today = jKey(DateTime.now());
+          found.node.footPlaying = !footEffectivePlaying(found.node, today);
+          found.node.extra['footToggleDay'] = today;
           store.changed();
           store.toast?.call(
               found.node.footPlaying ? 'قدم به راه افتاد 👣' : 'قدم متوقف شد');

@@ -98,13 +98,13 @@ class _MapTabState extends State<MapTab> {
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),
             onEditAction: (hostId, actionId) =>
                 showEditSheet(context, ActionTarget(hostId, actionId)),
-            onTimeBranch: (hostId, actionId) {
+            onTimeBranch: (hostId, actionId) async {
               final h = store.state.findHost(hostId);
               if (h is! MapHost) return;
               final f = findActionNode(h.actions, actionId);
               if (f == null) return;
               final pi = periodInfo(h, store);
-              showTimeSheet(
+              await showTimeSheet(
                 context,
                 store: store,
                 host: h,
@@ -112,6 +112,14 @@ class _MapTabState extends State<MapTab> {
                 jk: pi.todayJK,
                 dayLabel: 'امروز',
               );
+              // زمان/تایمر ثبت شد → در تقویم هم «انجام شد» بخورد
+              final secs = (f.node.time[pi.todayJK] as num?)?.toInt() ?? 0;
+              if ((secs > 0 || timerRunning(f.node)) &&
+                  !truthy(f.node.logs[pi.todayJK])) {
+                f.node.logs[pi.todayJK] = 'انجام شد ✓';
+                h.lastActivity = DateTime.now().millisecondsSinceEpoch;
+                store.changed();
+              }
             },
           ),
 
