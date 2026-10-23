@@ -933,6 +933,26 @@ class MapPainter extends CustomPainter {
     return n;
   }
 
+  /// آیا این شاخه/زیرشاخه در روزِ [jk] انجام/ثبت شده؟
+  /// (تیک/متن در logs، یا زمان ثبت‌شده با تایمر/مدت/ساعت)
+  bool _doneOn(ActionNode a, String jk) {
+    if (_isDoneLog(a.logs[jk])) return true;
+    final t = a.time[jk];
+    if (t is num && t > 0) return true;
+    final e = a.entries[jk];
+    return e is List && e.isNotEmpty;
+  }
+
+  /// تعداد روزهای انجام‌شده، بدون احتساب امروز
+  int _pastDoneDays(ActionNode a, String todayK) {
+    final keys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys};
+    var n = 0;
+    for (final k in keys) {
+      if (k != todayK && _doneOn(a, k)) n++;
+    }
+    return n;
+  }
+
   int _goalTotalLogs(Goal g) {
     var n = 0;
     void walk(List<ActionNode> list) {
@@ -1035,49 +1055,83 @@ class MapPainter extends CustomPainter {
     final color = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, color0)
         : color0;
-    final n = _logCount(a);
+    final todayK = jKey(DateTime.now());
+    final doneToday = _doneOn(a, todayK);
+    final fixed = _pastDoneDays(a, todayK);
     final route = _RouteCurve(routePts);
     final sizeMul = state.footScale.clamp(kWalkerSizeMin, kFootScaleMax);
     final footMul = (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax);
     final size = baseSize * 1.2 * sizeMul * footMul;
     final len = math.max(route.length, 1.0);
+    final stride =
+        math.min(size * 1.5 / len, 0.85 / math.max(1, fixed)).toDouble();
 
-    // ─── بدون ثبت: فقط علامت کم‌رنگ پا کنار شاخه (شروع مسیر) ───
-    if (n == 0) {
-      const u0 = 0.03;
-      _drawWalkerFoot(canvas, route, u0, -1.0, size, withOp(color, 0.32));
-      _drawWalkerFoot(canvas, route, u0, 1.0, size, withOp(color, 0.32));
-      hits.add(HitEntry(
-        type: 'foot',
-        id: a.id,
-        hostId: hostId,
-        kind: HitKind.handle,
-        center: route.at(u0),
-        radius: size * 1.4,
-      ));
-      return;
+    // ─── روزهای قبل: قدم‌های متوقف (رنگِ واقعی)، پشت سر هم از شروع مسیر ───
+    for (var k = 0; k < fixed; k++) {
+      final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
+      _drawWalkerFoot(canvas, route, u, -1.0, size * 0.9, withOp(color, 0.85));
+      _drawWalkerFoot(canvas, route, u, 1.0, size * 0.9, withOp(color, 0.85));
     }
 
-    // ─── روزهای قبل: قدم‌های ثابت و کم‌رنگ، پشت سر هم از شروع مسیر ───
-    final fixed = n - 1;
-    if (fixed > 0) {
-      final stride =
-          math.min(size * 1.5 / len, 0.85 / math.max(1, fixed)).toDouble();
-      for (var k = 0; k < fixed; k++) {
-        final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
-        // هر روز یک جفت پا، کمی جلوتر از روز قبل
-        _drawWalkerFoot(canvas, route, u, -1.0, size * 0.9,
-            withOp(color, 0.30));
-        _drawWalkerFoot(canvas, route, u, 1.0, size * 0.9,
-            withOp(color, 0.30));
-      }
-    }
-
-    // ─── امروز: پاها در مسیر هدف قدم می‌زنند (رفت و برگشت) ───
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
     final totalSteps = math.max(4, (1.0 / stepLen).round());
     final speed = 1.5 * (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
     final stagger = (a.id.hashCode & 0xFF) / 255.0 * 10.0;
+
+    // ─── امروز هنوز ثبت نشده: قدم جدید، متوقف و کم‌رنگ (قصد شروع) ───
+    if (!doneToday) {
+      final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
+      final bodyU = (u + stepLen * 0.45).clamp(0.0, 1.0).toDouble();
+      // موقعیت ثابت؛ وقتی ثبت شد، قدم از همین‌جا شروع به راه رفتن می‌کند
+      final st = _walkerRt.putIfAbsent('foot:${a.id}', _WalkerRt.new);
+      st.frozenT = bodyU;
+      st.frozenRet = false;
+      st.playing = false;
+      st.cyc = null;
+      st.seenManual = bodyU;
+      var minX = routePts.first.dx, maxX = minX;
+      var minY = routePts.first.dy, maxY = minY;
+      for (final p in routePts) {
+        minX = math.min(minX, p.dx);
+        maxX = math.max(maxX, p.dx);
+        minY = math.min(minY, p.dy);
+        maxY = math.max(maxY, p.dy);
+      }
+      final pad = size * 8 + 60;
+      canvas.saveLayer(
+        Rect.fromLTRB(minX - pad, minY - pad, maxX + pad, maxY + pad),
+        Paint()..color = const Color.fromRGBO(0, 0, 0, 0.35),
+      );
+      _walkerCore(
+        canvas,
+        route,
+        color,
+        tMin: 0.0,
+        tMax: 1.0,
+        stepLen: stepLen.toDouble(),
+        totalSteps: totalSteps,
+        playing: false,
+        speed: speed.toDouble(),
+        manualT: bodyU,
+        baseSize: size,
+        trailCount: 0,
+        timeOffset: stagger,
+        pref: (a.id.hashCode & 1) == 0 ? 1.0 : -1.0,
+        hitType: 'foot',
+        hitId: a.id,
+        hostId: hostId,
+        withBody: false,
+        photos: walkerPhotosOf(a.extra),
+        emoji: walkerEmojiOf(a.extra),
+        halo: a.extra['walkerHalo'] != false,
+        haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
+        voiceExtra: a.extra,
+      );
+      canvas.restore();
+      return;
+    }
+
+    // ─── امروز ثبت شده: قدم با رنگ واقعی در مسیر راه می‌رود ───
     _walkerCore(
       canvas,
       route,

@@ -15,7 +15,7 @@ const _kDanger = Color(0xFFE5484D);
 /// بعد از این‌همه روز بدون بکاپ، وضعیت «هشدار» می‌شود
 const int _kStaleDays = 7;
 
-/// کارت جمع‌شونده‌ی «حرفه‌ای» در تنظیمات: بکاپ و بازیابی کاملاً روی خود گوشی
+/// کارت جمع‌شونده‌ی «پشتیبان‌گیری و بازیابی روی گوشی» در تنظیمات: بکاپ و بازیابی کاملاً روی خود گوشی
 /// (هیچ داده‌ای به سرور نمی‌رود).
 class AdvancedBackupCard extends StatefulWidget {
   const AdvancedBackupCard({super.key});
@@ -64,16 +64,11 @@ class _AdvancedBackupCardState extends State<AdvancedBackupCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('حرفه‌ای',
+                        Text('پشتیبان‌گیری و بازیابی روی گوشی',
                             style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
                                 color: _kInk)),
-                        Padding(
-                          padding: EdgeInsets.only(top: 1),
-                          child: Text('پشتیبان‌گیری و بازیابی روی گوشی',
-                              style: TextStyle(fontSize: 11, color: _kMuted)),
-                        ),
                       ],
                     ),
                   ),
