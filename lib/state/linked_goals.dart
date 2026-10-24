@@ -146,6 +146,13 @@ void syncLinkedGoals(
       dirty = true;
     }
 
+    // شاخه‌های قدیمیِ وصل‌شده هم یک بار کمی بلندتر می‌شوند
+    if (a.extra['lenBoost'] != true && a.len != null && !a.detached) {
+      a.len = a.len! * 1.6;
+      a.extra['lenBoost'] = true;
+      dirty = true;
+    }
+
     final want = {for (final k in src.days) jKey(parseLocalKey(k))};
     final prev = {
       for (final e in (a.extra['syncedDays'] is List

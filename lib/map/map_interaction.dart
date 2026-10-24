@@ -639,6 +639,45 @@ class MapInteraction {
     if (found == null) return;
     final node = found.node;
 
+    // مسیر واقعیِ قدم (شاخه → پدرها → تنه) — همان که painter رویش راه می‌برد
+    final rt = hits.routes[node.id];
+    if (rt != null && rt.length >= 2) {
+      final pts = <Offset>[];
+      for (final p in rt) {
+        if (pts.isEmpty || (p - pts.last).distance > 0.5) pts.add(p);
+      }
+      if (pts.length >= 2) {
+        final cum = <double>[0];
+        for (var i = 1; i < pts.length; i++) {
+          cum.add(cum.last + (pts[i] - pts[i - 1]).distance);
+        }
+        var bestD = double.infinity;
+        var bestAlong = 0.0;
+        for (var i = 1; i < pts.length; i++) {
+          final sg = pts[i] - pts[i - 1];
+          final l2 = sg.dx * sg.dx + sg.dy * sg.dy;
+          if (l2 < 1e-9) continue;
+          final f = (((w.dx - pts[i - 1].dx) * sg.dx +
+                      (w.dy - pts[i - 1].dy) * sg.dy) /
+                  l2)
+              .clamp(0.0, 1.0)
+              .toDouble();
+          final pr = Offset(pts[i - 1].dx + sg.dx * f, pts[i - 1].dy + sg.dy * f);
+          final d = (w - pr).distance;
+          if (d < bestD) {
+            bestD = d;
+            bestAlong = cum[i - 1] + f * (cum[i] - cum[i - 1]);
+          }
+        }
+        if (cum.last > 0) {
+          node.footPos = (bestAlong / cum.last).clamp(0.02, 0.98).toDouble();
+          node.extra['footPosDay'] = jKey(DateTime.now());
+          _mark();
+          return;
+        }
+      }
+    }
+
     final ent = hits.geom[node.id];
     if (ent == null) return;
 

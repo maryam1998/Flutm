@@ -75,6 +75,10 @@ TwigGeom computeTwigGeom(MapHost goal, ActionNode a, Offset originPt, double ori
     final weight = a.weight == 0 ? 5.0 : a.weight;
     a.dir = originDir + angleOff;
     a.len = (18 + weight * 8) * scale;
+    if (a.extra['linkedTab'] != null) {
+      a.len = a.len! * 1.6; // شاخه‌ی تب‌های وصل‌شده کمی بلندتر تا قاطی نشوند
+      a.extra['lenBoost'] = true;
+    }
     a.bend1 = side * (5 + rnd() * 9) * scale;
     a.bend2 = side * (-4 + rnd() * 12) * scale;
   }

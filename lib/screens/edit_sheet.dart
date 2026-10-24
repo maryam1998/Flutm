@@ -904,6 +904,18 @@ class _EditSheetState extends State<EditSheet> {
           onChanged: (v) => _edit(() => act!.footSize = v),
         ),
         _slider(
+          label: 'اندازه‌ی قدم‌های ثبت‌شده (کمرنگ)',
+          value: ((act.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0)
+              .clamp(0.2, 6.0)
+              .toDouble(),
+          min: 0.2,
+          max: 6.0,
+          divisions: 58,
+          valueText:
+              '${(((act.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+          onChanged: (v) => _edit(() => act!.extra['pastFootSize'] = v),
+        ),
+        _slider(
           label: 'سرعت قدم زدن',
           value: (act.footSpeed ?? 1.0).clamp(0.2, 3.0).toDouble(),
           min: 0.2,
@@ -1348,6 +1360,18 @@ class _EditSheetState extends State<EditSheet> {
         divisions: kWalkerSizeDivisions,
         valueText: '${((a.footSize ?? 1.0) * 100).round()}٪',
         onChanged: (v) => _edit(() => a.footSize = v),
+      ),
+      _slider(
+        label: 'اندازه‌ی قدم‌های ثبت‌شده (کمرنگ)',
+        value: ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0)
+            .clamp(0.2, 6.0)
+            .toDouble(),
+        min: 0.2,
+        max: 6.0,
+        divisions: 58,
+        valueText:
+            '${(((a.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+        onChanged: (v) => _edit(() => a.extra['pastFootSize'] = v),
       ),
       _slider(
         label: 'سرعت قدم زدن (بالاتر = سریع‌تر)',

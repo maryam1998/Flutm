@@ -1057,18 +1057,28 @@ class MapPainter extends CustomPainter {
     final doneToday = footDoneToday(a, todayK);
     final fixed = _pastDoneDays(a, todayK);
     final route = _RouteCurve(routePts);
+    hits.routes[a.id] = routePts;
     final sizeMul = state.footScale.clamp(kWalkerSizeMin, kFootScaleMax);
     final footMul = (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax);
     final size = baseSize * 1.2 * sizeMul * footMul;
     final len = math.max(route.length, 1.0);
-    final stride =
-        math.min(size * 1.5 / len, 0.85 / math.max(1, fixed)).toDouble();
+    // قدم‌های ثبت‌شده: کوچک‌تر از قدم‌زن، اندازه‌شان قابل تنظیم؛ اگر جا کم بود
+    // کوچک‌تر می‌شوند تا همه پشت‌سرهم و بدون روی‌هم‌افتادن در مسیر جا شوند.
+    final pastMul =
+        ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0).clamp(0.2, 6.0);
+    var pastSize = size * 0.5 * pastMul;
+    var stride = pastSize * 1.7 / len;
+    if (fixed * stride > 0.88) {
+      final fit = 0.88 / (fixed * stride);
+      pastSize *= fit;
+      stride *= fit;
+    }
 
-    // ─── روزهای قبل: قدم‌های متوقفِ کم‌رنگ، پشت سر هم از شروع مسیر ───
+    // ─── روزهای قبل: هر روزِ ثبت‌شده یک قدم، ردیف و پشت سر هم از شروع مسیر ───
     for (var k = 0; k < fixed; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
-      _drawWalkerFoot(canvas, route, u, -1.0, size * 0.9, withOp(color, 0.28));
-      _drawWalkerFoot(canvas, route, u, 1.0, size * 0.9, withOp(color, 0.28));
+      _drawWalkerFoot(canvas, route, u, k.isEven ? -1.0 : 1.0, pastSize,
+          withOp(color, 0.28));
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);

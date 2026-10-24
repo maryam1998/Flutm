@@ -54,9 +54,13 @@ class HitRegistry {
   final List<HitEntry> entries = [];
   final Map<String, ActionGeomEntry> geom = {};
 
+  /// مسیرِ کاملِ قدم‌زنِ هر شاخه (نوک شاخه → پدرها → تنه → هدف)
+  final Map<String, List<Offset>> routes = {};
+
   void clear() {
     entries.clear();
     geom.clear();
+    routes.clear();
   }
 
   void add(HitEntry e) => entries.add(e);
