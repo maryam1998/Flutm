@@ -90,18 +90,16 @@ class _BeliefsTabState extends State<BeliefsTab> {
             if (_showReminder) _reminderPanel(store),
             const SizedBox(height: 14),
 
-            // ═══ چرا این تمرین کار می‌کند؟ (جمع‌شده) ═══
-            _scienceSection(),
+            // ═══ چرا این تمرین کار می‌کند؟ + مراحل تمرین (جمع‌شونده) ═══
+            _scienceSection(store),
             const SizedBox(height: 12),
 
             // ═══ آماده‌سازی: موسیقی + تایمر ═══
             _prepCard(),
             const SizedBox(height: 18),
 
-            // ═══ مراحل تمرین (آکاردئون) ═══
-            _sectionLabel('مراحل تمرین'),
-            const SizedBox(height: 8),
-            _practiceSteps(store),
+            // ═══ متن خواسته و تقویم + تصاویر ═══
+            _mainSteps(store),
           ],
         ),
       ),
@@ -370,9 +368,10 @@ class _BeliefsTabState extends State<BeliefsTab> {
     );
   }
   // ═══════════════ آکاردئونِ مراحل ═══════════════
+  /// مراحل داخل بخش «چرا این تمرین کار می‌کند؟»:
+  /// رهاسازی، هیچ شدن، اتصال، مأموریت ذهن
   Widget _practiceSteps(BeliefsStore store) {
     final steps = store.todaySteps;
-    final v = store.activeVersion;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -399,6 +398,27 @@ class _BeliefsTabState extends State<BeliefsTab> {
           body: () => _connectionBody(store),
         ),
         _accordion(
+          index: 5,
+          emoji: '🎯',
+          title: 'مأموریت ذهن',
+          subtitle: store.rasMission != null && store.rasMission!.label.isNotEmpty
+              ? store.rasMission!.label
+              : 'آموزش RAS برای دیدن نشانه‌ها',
+          body: () => _missionStep(store),
+        ),
+      ],
+    );
+  }
+
+  /// مراحل بیرونِ صفحه: «متن خواسته و تقویم» و «تصاویر»
+  Widget _mainSteps(BeliefsStore store) {
+    final steps = store.todaySteps;
+    final v = store.activeVersion;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _accordion(
           index: 3,
           title: 'متن خواسته و تقویم',
           subtitle: store.hasReadToday
@@ -415,15 +435,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
           subtitle: 'تجسم و حسِ واقعیت دلخواه',
           isDone: steps.contains('images'),
           body: () => _imagesStep(store, steps),
-        ),
-        _accordion(
-          index: 5,
-          emoji: '🎯',
-          title: 'مأموریت ذهن',
-          subtitle: store.rasMission != null && store.rasMission!.label.isNotEmpty
-              ? store.rasMission!.label
-              : 'آموزش RAS برای دیدن نشانه‌ها',
-          body: () => _missionStep(store),
         ),
       ],
     );
@@ -625,7 +636,7 @@ class _BeliefsTabState extends State<BeliefsTab> {
   }
 
   // ═══════════════ پشتوانه‌ی علمی ═══════════════
-  Widget _scienceSection() {
+  Widget _scienceSection(BeliefsStore store) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -669,12 +680,27 @@ class _BeliefsTabState extends State<BeliefsTab> {
             ),
           ),
         ),
-        if (_showScience) ...[
-          const SizedBox(height: 10),
-          _quantumFieldCard(),
-          const SizedBox(height: 10),
-          _whyNothingCard(),
-        ],
+        // محتوا همیشه ساخته می‌شود و فقط پنهان می‌شود، تا تایمر/یادداشت/صدای
+        // مراحل با بستن کرکره گم نشود.
+        Offstage(
+          offstage: !_showScience,
+          child: TickerMode(
+            enabled: _showScience,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 10),
+                _quantumFieldCard(),
+                const SizedBox(height: 10),
+                _whyNothingCard(),
+                const SizedBox(height: 18),
+                _sectionLabel('مراحل تمرین'),
+                const SizedBox(height: 8),
+                _practiceSteps(store),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
