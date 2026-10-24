@@ -65,6 +65,7 @@ class MapInteraction {
     this.onTimeBranch,
     this.onShowBranchMenu,
     this.onWalkerPhotos,
+    this.onFootStats,
   });
 
   final CameraController cam;
@@ -80,6 +81,9 @@ class MapInteraction {
   // در این نسخه استفاده نمی‌شود.
   final void Function(String hostId, String actionId)? onShowBranchMenu;
   final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
+
+  /// تپ روی قدمِ شاخه: آمار روزهای دوره
+  final void Function(String hostId, String actionId)? onFootStats;
 
   static const double _slop = 6;
 
@@ -806,6 +810,10 @@ class MapInteraction {
       // تپ = انتخاب عکس (چندتایی، بدون محدودیت تعداد)
       if (p.isWalker || p.isFoot) {
         if (!wasDrag && !held) {
+          if (p.isFoot && onFootStats != null) {
+            onFootStats!(p.hostId, p.actionId);
+            return;
+          }
           final cb = onWalkerPhotos;
           if (cb != null) {
             cb(p.hostId, p.actionId, p.isWalker);

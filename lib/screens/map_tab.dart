@@ -13,6 +13,7 @@ import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
+import 'foot_stats_sheet.dart';
 import 'goals_sheet.dart';
 import 'help_dialog.dart';
 import 'settings_sheet.dart';
@@ -36,6 +37,22 @@ class _MapTabState extends State<MapTab> {
     super.initState();
     _store = context.read<MapStore>();
     _store.toast = _toast;
+    // بار اول که تب باز شد، همه‌ی هدف‌ها در کادر بیایند
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoFit());
+  }
+
+  void _autoFit([int tries = 0]) {
+    if (!mounted) return;
+    final st = _store.state;
+    if (st.goals.isEmpty && st.rings.isEmpty) return;
+    if (bounds.rect == null) {
+      if (tries < 5) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _autoFit(tries + 1));
+      }
+      return;
+    }
+    _fit();
   }
 
   @override
@@ -94,6 +111,14 @@ class _MapTabState extends State<MapTab> {
             onEditMe: () => showEditSheet(context, const MeTarget()),
             onWalkerPhotos: (hostId, actionId, isWalker) => showEditSheet(
                 context, WalkerPhotosTarget(hostId, actionId, isWalker)),
+            onFootStats: (hostId, actionId) => showFootStatsSheet(
+              context,
+              store: store,
+              hostId: hostId,
+              actionId: actionId,
+              onPhotos: () => showEditSheet(
+                  context, WalkerPhotosTarget(hostId, actionId, false)),
+            ),
             onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),
             onEditAction: (hostId, actionId) =>

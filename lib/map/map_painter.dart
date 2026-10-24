@@ -1064,11 +1064,11 @@ class MapPainter extends CustomPainter {
     final stride =
         math.min(size * 1.5 / len, 0.85 / math.max(1, fixed)).toDouble();
 
-    // ─── روزهای قبل: قدم‌های متوقف (رنگِ واقعی)، پشت سر هم از شروع مسیر ───
+    // ─── روزهای قبل: قدم‌های متوقفِ کم‌رنگ، پشت سر هم از شروع مسیر ───
     for (var k = 0; k < fixed; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
-      _drawWalkerFoot(canvas, route, u, -1.0, size * 0.9, withOp(color, 0.85));
-      _drawWalkerFoot(canvas, route, u, 1.0, size * 0.9, withOp(color, 0.85));
+      _drawWalkerFoot(canvas, route, u, -1.0, size * 0.9, withOp(color, 0.28));
+      _drawWalkerFoot(canvas, route, u, 1.0, size * 0.9, withOp(color, 0.28));
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);

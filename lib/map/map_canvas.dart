@@ -23,6 +23,7 @@ class MapCanvas extends StatefulWidget {
     this.onTimeBranch,
     this.onShowBranchMenu,
     this.onWalkerPhotos,
+    this.onFootStats,
   });
 
   final CameraController cam;
@@ -37,6 +38,9 @@ class MapCanvas extends StatefulWidget {
 
   /// تپ روی پاها/قدم‌زن: کادر عکس‌ها (isWalker=true یعنی قدم‌زنِ خودِ هدف، actionId خالی)
   final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
+
+  /// تپ روی قدمِ شاخه: آمار دوره
+  final void Function(String hostId, String actionId)? onFootStats;
 
   @override
   State<MapCanvas> createState() => _MapCanvasState();
@@ -66,6 +70,7 @@ class _MapCanvasState extends State<MapCanvas>
       onTimeBranch: widget.onTimeBranch,
       onShowBranchMenu: widget.onShowBranchMenu,
       onWalkerPhotos: widget.onWalkerPhotos,
+      onFootStats: widget.onFootStats,
     );
     WidgetsBinding.instance.addObserver(this);
   }
