@@ -397,6 +397,8 @@ class _BeliefsTabState extends State<BeliefsTab> {
           isDone: steps.contains('connection'),
           body: () => _connectionBody(store),
         ),
+        _imagesIntro(),
+        const SizedBox(height: 12),
         _accordion(
           index: 5,
           emoji: '🎯',
@@ -1165,22 +1167,25 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
   }
 
   // ═══════════════ مرحله‌ی تصاویر ═══════════════
+  /// توضیحات مرحله‌ی «تصاویر» (داخل بخش «چرا این تمرین کار می‌کند؟»)
+  Widget _imagesIntro() {
+    return _whyBox([
+      _defChip('کاشتن بذر (Seeding):',
+          'یه تصویر واضح از واقعیت دلخواهت توی ذهن می‌کاری — بدون حس نیاز یا کمبود.'),
+      _bodyText(
+          'خودت رو توی صحنه‌ای ببین که به خواسته‌ات رسیدی. هر تعداد عکس یا ویدیو که دوست داری اضافه کن.'),
+      const SizedBox(height: 8),
+      _defChip('احساس فراوانی (Embodying):',
+          'حسِ اون واقعیت رو توی بدنت بساز — شادی، سلامتی، آرامش — تا فرکانست هماهنگ شه.'),
+      _bodyText(
+          'وقتی خودت رو «کسی که رسیده» می‌بینی و حسش می‌کنی، رفتارهایت خودبه‌خود با همون هویت هم‌راستا می‌شن.'),
+    ]);
+  }
+
   Widget _imagesStep(BeliefsStore store, Set<String> steps) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _whyBox([
-          _defChip('کاشتن بذر (Seeding):',
-              'یه تصویر واضح از واقعیت دلخواهت توی ذهن می‌کاری — بدون حس نیاز یا کمبود.'),
-          _bodyText(
-              'خودت رو توی صحنه‌ای ببین که به خواسته‌ات رسیدی. هر تعداد عکس یا ویدیو که دوست داری اضافه کن.'),
-          const SizedBox(height: 8),
-          _defChip('احساس فراوانی (Embodying):',
-              'حسِ اون واقعیت رو توی بدنت بساز — شادی، سلامتی، آرامش — تا فرکانست هماهنگ شه.'),
-          _bodyText(
-              'وقتی خودت رو «کسی که رسیده» می‌بینی و حسش می‌کنی، رفتارهایت خودبه‌خود با همون هویت هم‌راستا می‌شن.'),
-        ]),
-        const SizedBox(height: 12),
         // یادداشت (ذخیره/لغو) + ضبط صدا + ویدیو + عکس با برش + اسلایدشو
         const BeliefVisualSection(),
         const SizedBox(height: 14),
