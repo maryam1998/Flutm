@@ -643,6 +643,44 @@ class _EditSheetState extends State<EditSheet> {
 
   /// کلیدِ روشن/خاموش. پیش‌فرض تخت و جمع‌وجور (داخل کارت‌ها)؛
   /// با [boxed] کادر مستقل می‌گیرد.
+  /// حالت انیمیشن: متحرک (می‌رود و می‌آید) / ثابت (فقط ثبت، بدون حرکت) / پنهان
+  Widget _walkerModeTile(Map<String, dynamic> ex) {
+    final cur = ex['showWalker'] == false
+        ? 'hidden'
+        : (ex['walkerMode'] == 'still' ? 'still' : 'moving');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 6),
+          child: Text('حالت انیمیشن',
+              style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600, color: _kInk)),
+        ),
+        SegmentedButton<String>(
+          showSelectedIcon: false,
+          style: const ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
+          ),
+          segments: const [
+            ButtonSegment(value: 'moving', label: Text('متحرک')),
+            ButtonSegment(value: 'still', label: Text('ثابت')),
+            ButtonSegment(value: 'hidden', label: Text('نمایش نده')),
+          ],
+          selected: {cur},
+          onSelectionChanged: (s) => _edit(() {
+            final v = s.first;
+            ex.remove('showWalker');
+            ex.remove('walkerMode');
+            if (v == 'still') ex['walkerMode'] = 'still';
+            if (v == 'hidden') ex['showWalker'] = false;
+          }),
+        ),
+      ],
+    );
+  }
+
   Widget _switchTile({
     required String title,
     String? subtitle,
@@ -871,18 +909,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       const SizedBox(height: 8),
-      _switchTile(
-        boxed: true,
-        title: 'نمایش روی نقشه',
-        value: ex['showWalker'] != false,
-        onChanged: (v) => _edit(() {
-          if (v) {
-            ex.remove('showWalker');
-          } else {
-            ex['showWalker'] = false;
-          }
-        }),
-      ),
+      _walkerModeTile(ex),
       const SizedBox(height: 8),
       _voiceField(ex, 'walkerVoice', 'walker:${t.hostId}:${t.actionId}'),
       ..._walkerHaloControls(ex),
@@ -1089,17 +1116,7 @@ class _EditSheetState extends State<EditSheet> {
         title: 'انیمیشن روی مسیر',
         collapsible: true,
         children: [
-          _switchTile(
-            title: 'نمایش انیمیشن',
-            value: g.extra['showWalker'] != false,
-            onChanged: (v) => _edit(() {
-              if (v) {
-                g.extra.remove('showWalker');
-              } else {
-                g.extra['showWalker'] = false;
-              }
-            }),
-          ),
+          _walkerModeTile(g.extra),
           const SizedBox(height: 10),
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
@@ -1341,17 +1358,7 @@ class _EditSheetState extends State<EditSheet> {
         title: 'قدم روی مسیر 👣',
         collapsible: true,
         children: [
-      _switchTile(
-        title: 'نمایش انیمیشن',
-        value: a.extra['showWalker'] != false,
-        onChanged: (v) => _edit(() {
-          if (v) {
-            a.extra.remove('showWalker');
-          } else {
-            a.extra['showWalker'] = false;
-          }
-        }),
-      ),
+      _walkerModeTile(a.extra),
       _slider(
         label: 'اندازه‌ی قدم و دایره‌ی متصل',
         value: (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax),

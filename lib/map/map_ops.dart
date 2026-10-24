@@ -193,3 +193,6 @@ bool footEffectivePlaying(ActionNode a, String todayJK) {
 /// جایی که کاربر امروز با انگشت قدم را گذاشته (برای روزهای قبل نادیده)
 double? footPosToday(ActionNode a, String todayJK) =>
     a.extra['footPosDay'] == todayJK ? a.footPos : null;
+
+/// حالت «ثابت» انیمیشن (هدف/شاخه/زیرشاخه): ثبت روی نقشه دیده می‌شود ولی حرکت ندارد
+bool walkerIsStill(Map<String, dynamic> extra) => extra['walkerMode'] == 'still';

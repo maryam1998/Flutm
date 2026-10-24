@@ -1011,7 +1011,8 @@ class MapPainter extends CustomPainter {
     final col = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, col0)
         : col0;
-    final playing = g.extra['walkerPlaying'] as bool? ?? true;
+    final playing =
+        !walkerIsStill(g.extra) && (g.extra['walkerPlaying'] as bool? ?? true);
     final speed =
         ((g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.5).clamp(0.3, 4.0);
     final manualT = (g.extra['walkerPos'] as num?)?.toDouble();
@@ -1087,7 +1088,8 @@ class MapPainter extends CustomPainter {
     final stagger = (a.id.hashCode & 0xFF) / 255.0 * 10.0;
     final pref = (a.id.hashCode & 1) == 0 ? 1.0 : -1.0;
     final posToday = footPosToday(a, todayK);
-    final playingNow = footEffectivePlaying(a, todayK);
+    final still = walkerIsStill(a.extra);
+    final playingNow = !still && footEffectivePlaying(a, todayK);
 
     void core(bool playing, double? manual) => _walkerCore(
           canvas,
@@ -1154,10 +1156,12 @@ class MapPainter extends CustomPainter {
       // می‌ایستد (نه وسط مسیر)؛ راه رفتنش همچنان از ابتدا تا انتها و برگشت است.
       if (!playingNow && posToday == null) {
         final st = _walkerRt.putIfAbsent('foot:${a.id}', _WalkerRt.new);
-        if (!st.playing && st.frozenT == null) {
+        if (still || (!st.playing && st.frozenT == null)) {
           final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
           st.frozenT = (u + stepLen * 0.45).clamp(0.0, 1.0).toDouble();
           st.frozenRet = false;
+          st.playing = false;
+          st.cyc = null;
         }
       }
       core(playingNow, posToday);

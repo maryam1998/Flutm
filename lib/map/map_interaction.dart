@@ -808,6 +808,10 @@ class MapInteraction {
     if (p.isWalker) {
       final g = store.state.findHost(p.hostId);
       if (g is Goal) {
+        if (walkerIsStill(g.extra)) {
+          store.toast?.call('انیمیشن روی حالت ثابت است');
+          return;
+        }
         final playing = g.extra['walkerPlaying'] as bool? ?? true;
         g.extra['walkerPlaying'] = !playing;
         store.changed();
@@ -817,7 +821,9 @@ class MapInteraction {
       final host = store.state.findHost(p.hostId);
       if (host is MapHost) {
         final found = findActionNode(host.actions, p.actionId);
-        if (found != null) {
+        if (found != null && walkerIsStill(found.node.extra)) {
+          store.toast?.call('انیمیشن روی حالت ثابت است');
+        } else if (found != null) {
           final today = jKey(DateTime.now());
           found.node.footPlaying = !footEffectivePlaying(found.node, today);
           found.node.extra['footToggleDay'] = today;
