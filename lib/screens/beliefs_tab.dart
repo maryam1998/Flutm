@@ -30,23 +30,6 @@ const Color _kYellow = Color(0xFFF4C542);
 /// مدت تایمر تمرین (۱۵ دقیقه)
 const int _kTimerTotal = 15 * 60;
 
-/// کلیدِ مرحله‌های قابل‌تیک (به ترتیب) و عنوان کوتاهِ هر مرحله (۶ تا: آخری مأموریت ذهن)
-const List<String> _kTracked = [
-  'breath',
-  'nothing',
-  'connection',
-  'seed',
-  'images',
-];
-const List<String> _kStepTitles = [
-  'رهاسازی',
-  'هیچ شدن',
-  'اتصال',
-  'متن خواسته',
-  'تصاویر',
-  'مأموریت',
-];
-
 class BeliefsTab extends StatefulWidget {
   const BeliefsTab({super.key});
   @override
@@ -63,7 +46,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
   // آکاردئونِ مراحل: هر مرحله یک کارت جمع‌شونده؛ محتوای هر مرحله اولین بار که
   // باز شد ساخته می‌شود و بعد زنده می‌ماند (تایمر/یادداشت/صدا گم نمی‌شود).
   int _openStep = 0;
-  final Set<int> _visited = <int>{0};
   final List<GlobalKey> _stepKeys =
       List<GlobalKey>.generate(6, (_) => GlobalKey());
 
@@ -108,8 +90,8 @@ class _BeliefsTabState extends State<BeliefsTab> {
             if (_showReminder) _reminderPanel(store),
             const SizedBox(height: 14),
 
-            // ═══ پیشرفت امروز ═══
-            _progressCard(store),
+            // ═══ چرا این تمرین کار می‌کند؟ (جمع‌شده) ═══
+            _scienceSection(),
             const SizedBox(height: 12),
 
             // ═══ آماده‌سازی: موسیقی + تایمر ═══
@@ -120,10 +102,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
             _sectionLabel('مراحل تمرین'),
             const SizedBox(height: 8),
             _practiceSteps(store),
-            const SizedBox(height: 8),
-
-            // ═══ پشتوانه‌ی علمی (جمع‌شده) ═══
-            _scienceSection(),
           ],
         ),
       ),
@@ -195,161 +173,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
       );
 
   // ═══════════════ پیشرفت امروز ═══════════════
-  Widget _progressCard(BeliefsStore store) {
-    final steps = store.todaySteps;
-    final done = _kTracked.where(steps.contains).length;
-    final total = _kTracked.length;
-    final all = done == total;
-    String? next;
-    for (var i = 0; i < total; i++) {
-      if (!steps.contains(_kTracked[i])) {
-        next = _kStepTitles[i];
-        break;
-      }
-    }
-    final v = store.activeVersion;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            _kEmerald.withValues(alpha: 0.10),
-            _kSky.withValues(alpha: 0.06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kEmerald.withValues(alpha: 0.30)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              SizedBox(
-                width: 62,
-                height: 62,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox.expand(
-                      child: CircularProgressIndicator(
-                        value: done / total,
-                        strokeWidth: 6,
-                        backgroundColor: Colors.white.withValues(alpha: 0.85),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            all ? _kEmerald700 : _kEmerald),
-                      ),
-                    ),
-                    Text('${_toFa(done)}/${_toFa(total)}',
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: kBeliefsInk)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(all ? 'تمرین امروز کامل شد 🎉' : 'تمرین امروز',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: kBeliefsInk)),
-                    const SizedBox(height: 3),
-                    Text(
-                      all
-                          ? 'آفرین! فردا دوباره مسیر عصبی تازه را تقویت کن.'
-                          : 'قدم بعدی: ${next ?? ''}',
-                      style: const TextStyle(
-                          fontSize: 11.5, color: _kInkSoft, height: 1.6),
-                    ),
-                    if (v != null) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        'روز ${_toFa(store.currentDay)} از ${_toFa(store.cycleDays)}'
-                        ' · ${_toFa(store.readDayCount * 2)} جلسه',
-                        style: const TextStyle(
-                            fontSize: 10.5, color: kBeliefsMuted),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < _kStepTitles.length; i++)
-                Expanded(child: _stepDot(i, steps)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _stepDot(int i, Set<String> steps) {
-    final tracked = i < _kTracked.length;
-    final done = tracked && steps.contains(_kTracked[i]);
-    final open = _openStep == i;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _setOpen(i, toggle: false),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: done ? _kEmerald : Colors.white,
-              border: Border.all(
-                color: done
-                    ? _kEmerald
-                    : (open ? kBeliefsGold : kBeliefsBorder),
-                width: open ? 2 : 1.5,
-              ),
-            ),
-            child: done
-                ? const Icon(Icons.check, size: 16, color: Colors.white)
-                : Text(
-                    tracked ? _toFa(i + 1) : '🎯',
-                    style: TextStyle(
-                      fontSize: tracked ? 12 : 13,
-                      fontWeight: FontWeight.w800,
-                      color: open ? kBeliefsGold : kBeliefsMuted,
-                    ),
-                  ),
-          ),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              _kStepTitles[i],
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: open ? FontWeight.w800 : FontWeight.w600,
-                color: open ? kBeliefsInk : kBeliefsMuted,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ═══════════════ آماده‌سازی: موسیقی + تایمر ═══════════════
   Widget _prepCard() {
     return Container(
@@ -606,38 +429,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
     );
   }
 
-  void _setOpen(int i, {bool toggle = true}) {
-    setState(() {
-      _openStep = (toggle && _openStep == i) ? -1 : i;
-      if (_openStep >= 0) _visited.add(_openStep);
-    });
-    if (_openStep == i) _scrollToStep(i);
-  }
-
-  void _advanceFrom(int i) {
-    final n = i + 1;
-    if (n >= _stepKeys.length) {
-      setState(() => _openStep = -1);
-      return;
-    }
-    _setOpen(n, toggle: false);
-  }
-
-  void _scrollToStep(int i) {
-    // کمی صبر تا کارتِ قبلی جمع شود و بعد روی کارت تازه برویم
-    Future.delayed(const Duration(milliseconds: 280), () {
-      if (!mounted) return;
-      final ctx = _stepKeys[i].currentContext;
-      if (ctx == null || !ctx.mounted) return;
-      Scrollable.ensureVisible(
-        ctx,
-        alignment: 0.03,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
-
   Widget _accordion({
     required int index,
     required String title,
@@ -762,42 +553,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
     );
   }
 
-  /// دکمه‌ی پایانِ هر مرحله: تیک می‌زند و کارت بعدی را باز می‌کند
-  Widget _doneButton(BeliefsStore store, String key, int index) {
-    final done = store.todaySteps.contains(key);
-    final shape =
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
-    if (done) {
-      return OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: _kEmerald700,
-          side: const BorderSide(color: _kEmerald, width: 1.5),
-          padding: const EdgeInsets.symmetric(vertical: 11),
-          shape: shape,
-        ),
-        onPressed: () => store.toggleStep(key),
-        icon: const Icon(Icons.check_circle, size: 18),
-        label: const Text('انجام شد — برای برداشتن تیک بزن',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      );
-    }
-    return FilledButton.icon(
-      style: FilledButton.styleFrom(
-        backgroundColor: _kEmerald700,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: shape,
-      ),
-      onPressed: () {
-        store.toggleStep(key);
-        _advanceFrom(index);
-      },
-      icon: const Icon(Icons.check, size: 18),
-      label: const Text('این مرحله را انجام دادم',
-          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
-    );
-  }
-
   // ─── محتوای مرحله‌ها ───
   Widget _breathBody(BeliefsStore store) {
     return Column(
@@ -811,8 +566,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
         ]),
         const SizedBox(height: 14),
         const BreathCircle(),
-        const SizedBox(height: 16),
-        _doneButton(store, 'breath', 0),
       ],
     );
   }
@@ -851,8 +604,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
             style: TextStyle(fontSize: 11, color: _kInkSoft, height: 1.75),
           ),
         ),
-        const SizedBox(height: 16),
-        _doneButton(store, 'nothing', 1),
       ],
     );
   }
@@ -869,8 +620,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
         ]),
         const SizedBox(height: 10),
         const QuantumConnect(),
-        const SizedBox(height: 16),
-        _doneButton(store, 'connection', 2),
       ],
     );
   }
@@ -1034,8 +783,6 @@ Widget _seedStep(BeliefsStore store, Set<String> steps) {
         const SizedBox(height: 12),
         _notesBox(store),
       ],
-      const SizedBox(height: 16),
-      _doneButton(store, 'seed', 3),
     ],
   );
 }
@@ -1425,8 +1172,6 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
             store.saveNeural();
           },
         ),
-        const SizedBox(height: 16),
-        _doneButton(store, 'images', 4),
       ],
     );
   }
