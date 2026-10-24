@@ -648,8 +648,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
   }) {
     final open = _openStep == index;
     final done = isDone ?? false;
-    final visited = _visited.contains(index);
-
     return Container(
       key: _stepKeys[index],
       margin: const EdgeInsets.only(bottom: 10),
@@ -677,7 +675,6 @@ class _BeliefsTabState extends State<BeliefsTab> {
         children: [
           InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () => _setOpen(index),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
               child: Row(
@@ -726,33 +723,14 @@ class _BeliefsTabState extends State<BeliefsTab> {
                               fontWeight: FontWeight.w800,
                               color: _kEmerald700)),
                     ),
-                  AnimatedRotation(
-                    turns: open ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(Icons.expand_more,
-                        size: 24,
-                        color: open ? _kEmerald700 : kBeliefsMuted),
-                  ),
                 ],
               ),
             ),
           ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
-            alignment: Alignment.topCenter,
-            child: visited
-                ? Offstage(
-                    offstage: !open,
-                    child: TickerMode(
-                      enabled: open,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 2, 14, 16),
-                        child: body(),
-                      ),
-                    ),
-                  )
-                : const SizedBox(width: double.infinity),
+          // همه‌ی مراحل همیشه باز و قابل‌مشاهده‌اند (بدون کرکره)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 16),
+            child: body(),
           ),
         ],
       ),

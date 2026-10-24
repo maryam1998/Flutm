@@ -11,6 +11,9 @@ import 'home_tab.dart';
 import 'neuro_signal_tab.dart';
 import 'store_tab.dart';
 
+/// زیرتب «سیگنال» فعلاً مخفی است. برای برگرداندنش فقط این را true کن.
+const bool kShowSignalSubTab = false;
+
 /// تب «تمرین» با ۶ زیرتب:
 ///   [خانه] [بازی فراوانی] [شکرگذاری] [بازنویسی] [سیگنال] [دوستان]
 /// ترتیب RTL: خانه سمت راست، دوستان (بخش اجتماعی) سمت چپ.
@@ -29,6 +32,16 @@ class _PracticeTabState extends State<PracticeTab> {
   // باری که بازشون کنی. (قبلاً هر ۴ زیرتب با عکس/GIF/صدا یک‌جا ساخته می‌شد و تب هنگ می‌کرد.)
   // بعد از اولین ساخت، زنده می‌مونن (حالت حفظ می‌شه).
   final Set<int> _built = <int>{2};
+
+  // شماره‌ی زیرتب‌ها (۴ = سیگنال فقط وقتی kShowSignalSubTab روشن باشد)
+  static const List<int> _visible = [
+    0,
+    1,
+    2,
+    3,
+    if (kShowSignalSubTab) 4,
+    5,
+  ];
 
   Widget _lazy(int i, Widget Function() make) => _built.contains(i)
       ? TickerMode(enabled: i == _sub, child: make())
@@ -51,7 +64,7 @@ class _PracticeTabState extends State<PracticeTab> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: IndexedStack(
-          index: _sub,
+          index: _visible.indexOf(_sub),
           children: [
             // 0 = خانه
             _lazy(0, () => HomeTab(onOpenStore: () => setState(() => _sub = 1))),
@@ -61,16 +74,16 @@ class _PracticeTabState extends State<PracticeTab> {
             _lazy(2, () => const GratitudeTab()),
             // 3 = بازنویسی (باورها)
             _lazy(3, () => const BeliefsTab()),
-            // 4 = سیگنال (آزمایشی: از هیچ شدن تا هم‌فرکانسی)
-            _lazy(4, () => const NeuroSignalTab()),
+            // 4 = سیگنال (فعلاً مخفی؛ kShowSignalSubTab)
+            if (kShowSignalSubTab) _lazy(4, () => const NeuroSignalTab()),
             // 5 = دوستان هم‌فرکانسی
             _lazy(5, () => const FriendsTab()),
           ],
         ),
         bottomNavigationBar: WebSubTabBar(
-          index: _sub,
-          onTap: (i) => setState(() => _sub = i),
-          items: const [
+          index: _visible.indexOf(_sub),
+          onTap: (i) => setState(() => _sub = _visible[i]),
+          items: [
             WebTabItem(
               icon: Icons.home_outlined,
               selectedIcon: Icons.home,
@@ -91,11 +104,12 @@ class _PracticeTabState extends State<PracticeTab> {
               selectedIcon: Icons.auto_fix_high,
               label: 'بازنویسی',
             ),
-            WebTabItem(
-              icon: Icons.bolt_outlined,
-              selectedIcon: Icons.bolt,
-              label: 'سیگنال',
-            ),
+            if (kShowSignalSubTab)
+              WebTabItem(
+                icon: Icons.bolt_outlined,
+                selectedIcon: Icons.bolt,
+                label: 'سیگنال',
+              ),
             WebTabItem(
               icon: Icons.diversity_3_outlined,
               selectedIcon: Icons.diversity_3,
