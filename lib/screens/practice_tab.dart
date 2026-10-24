@@ -8,10 +8,11 @@ import 'beliefs_tab.dart';
 import 'friends_tab.dart';
 import 'gratitude_tab.dart';
 import 'home_tab.dart';
+import 'neuro_signal_tab.dart';
 import 'store_tab.dart';
 
-/// تب «تمرین» با ۵ زیرتب:
-///   [خانه] [بازی فراوانی] [شکرگذاری] [بازنویسی] [دوستان]
+/// تب «تمرین» با ۶ زیرتب:
+///   [خانه] [بازی فراوانی] [شکرگذاری] [بازنویسی] [سیگنال] [دوستان]
 /// ترتیب RTL: خانه سمت راست، دوستان (بخش اجتماعی) سمت چپ.
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -60,8 +61,10 @@ class _PracticeTabState extends State<PracticeTab> {
             _lazy(2, () => const GratitudeTab()),
             // 3 = بازنویسی (باورها)
             _lazy(3, () => const BeliefsTab()),
-            // 4 = دوستان هم‌فرکانسی
-            _lazy(4, () => const FriendsTab()),
+            // 4 = سیگنال (آزمایشی: از هیچ شدن تا هم‌فرکانسی)
+            _lazy(4, () => const NeuroSignalTab()),
+            // 5 = دوستان هم‌فرکانسی
+            _lazy(5, () => const FriendsTab()),
           ],
         ),
         bottomNavigationBar: WebSubTabBar(
@@ -87,6 +90,11 @@ class _PracticeTabState extends State<PracticeTab> {
               icon: Icons.auto_fix_high_outlined,
               selectedIcon: Icons.auto_fix_high,
               label: 'بازنویسی',
+            ),
+            WebTabItem(
+              icon: Icons.bolt_outlined,
+              selectedIcon: Icons.bolt,
+              label: 'سیگنال',
             ),
             WebTabItem(
               icon: Icons.diversity_3_outlined,
