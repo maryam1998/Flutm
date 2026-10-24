@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/vazir_font.dart';
+import '../widgets/brain_svg_data.dart';
 
 /// تب آزمایشی «سیگنال» — از هیچ شدن تا هم‌فرکانسی.
 ///
@@ -37,7 +39,10 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
       'مرحله ۱: ذهن شلوغ است. آمیگدال فعال، PFC ضعیف، دوپامین کم‌حساس، Salience در حالت شکار خطر.';
 
   // ---------- نمای «دایره و موج» ----------
-  bool waveView = true;
+  // 0 = گره‌ها، 1 = دایره و موج، 2 = مغز واقعی
+  int viewMode = 2;
+  // بخشِ بازِ توضیحات: 0..3 = آمیگدال، PFC، دوپامین، Salience؛ 4 = راهنمای نماها؛ null = همه بسته
+  int? _openRegion;
   late final AnimationController _wave;
   final Stopwatch _sw = Stopwatch();
   double _lastT = 0;
@@ -391,20 +396,19 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
 
   // ---------- انتخاب نما ----------
   Widget _viewToggle() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    Widget chip(String label, int mode) => ChoiceChip(
+          label: Text(label),
+          selected: viewMode == mode,
+          onSelected: (_) => setState(() => viewMode = mode),
+        );
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 4,
       children: [
-        ChoiceChip(
-          label: const Text('دایره و موج'),
-          selected: waveView,
-          onSelected: (_) => setState(() => waveView = true),
-        ),
-        const SizedBox(width: 8),
-        ChoiceChip(
-          label: const Text('گره‌ها'),
-          selected: !waveView,
-          onSelected: (_) => setState(() => waveView = false),
-        ),
+        chip('مغز واقعی', 2),
+        chip('دایره و موج', 1),
+        chip('گره‌ها', 0),
       ],
     );
   }
@@ -430,102 +434,331 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
     );
   }
 
-  // ---------- توضیح بخش‌ها ----------
-  Widget _explainRow(Color c, String title, String body) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 6),
-            decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+  // ---------- مغز واقعی ----------
+  Widget _brainScene() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(20),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: AspectRatio(
+              aspectRatio: kBrainSvgAspect,
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final w = box.maxWidth;
+                  final h = box.maxHeight;
+                  final open = _openRegion;
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      SvgPicture.string(
+                        kBrainSvg,
+                        fit: BoxFit.contain,
+                        colorFilter: const ColorFilter.mode(
+                          Color(0x99CBD5E1),
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: _BrainPainter(this),
+                          size: Size.infinite,
+                        ),
+                      ),
+                      // سطح لمس هر بخش
+                      for (var i = 0; i < 4; i++)
+                        Positioned(
+                          left: w * _BrainPainter.pos[i].dx - 24,
+                          top: h * _BrainPainter.pos[i].dy - 24,
+                          width: 48,
+                          height: 48,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => setState(
+                                () => _openRegion = open == i ? null : i),
+                          ),
+                        ),
+                      // خلاصه‌ی بخشِ انتخاب‌شده، همان‌جا روی تصویر
+                      if (open != null && open < 4)
+                        Positioned(
+                          left: 8,
+                          right: 8,
+                          bottom: 8,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _openRegion = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xEE0F172A),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _WavePainter._colors[open]
+                                      .withValues(alpha: 0.7),
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _regions[open].name,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: _WavePainter._colors[open],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _stateOf(open),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _regions[open].short,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      height: 1.6,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------- اطلاعات بخش‌ها (جمع‌شونده) ----------
+  static const List<_RegionInfo> _regions = [
+    _RegionInfo(
+      name: 'آمیگدال',
+      title: 'آمیگدال — دیده‌بانِ هشدار',
+      short:
+          'مرکز هشدار مغز؛ تهدید را سریع تشخیص می‌دهد و بدن را آماده‌ی دفاع یا فرار می‌کند.',
+      what:
+          'ساختاری بادامی‌شکل و عمیق در لوب گیجگاهی. تهدید را (واقعی یا فقط فکرش) سریع تشخیص می‌دهد و بدن را آماده‌ی دفاع یا فرار می‌کند.',
+      lack: 'روشن می‌شود؛ ذهن پشت هر اتفاقی دنبال خطر می‌گردد.',
+      possibility: 'آرام می‌ماند؛ تهدید نمی‌بینی و بدن حس امنیت می‌کند.',
+    ),
+    _RegionInfo(
+      name: 'PFC',
+      title: 'PFC (قشر پیش‌پیشانی) — برنامه‌ریز',
+      short:
+          'جلوی لوب پیشانی؛ برنامه‌ریزی، تصمیم‌های بلندمدت و مهارِ واکنش‌های عجولانه.',
+      what:
+          'قشر پیش‌پیشانی، جلوی لوب پیشانی. مسئول برنامه‌ریزی، تصمیم‌های بلندمدت و مهار تکانه است و می‌تواند آمیگدال را آرام کند.',
+      lack:
+          'زیر فشارِ هشدار کم‌کار می‌شود؛ تصمیم‌های عجولانه و فلج تصمیم‌گیری.',
+      possibility:
+          'فعال می‌ماند؛ می‌توانی برنامه بریزی و قدمِ کوچکِ اول را برداری.',
+    ),
+    _RegionInfo(
+      name: 'دوپامین',
+      title: 'دوپامین — سیستم پاداش و انگیزه',
+      short:
+          'مسیر پاداش در عمق مغز؛ تعیین می‌کند فرصت‌ها را ببینی و برای قدم برداشتن انگیزه بگیری.',
+      what:
+          'دوپامین در اصل یک پیام‌رسان است، نه یک ناحیه. در این تصویر با ناحیه‌ی مرکزیِ مسیر پاداش (استریاتوم) نشان داده شده؛ منبعش در ساقه‌ی مغز است. در تصویر، جای دقیقش فقط تقریبی است.',
+      lack: 'کم‌حساس می‌شود؛ فرصت‌ها دیده نمی‌شوند و حسِ «هیچ‌چیز خوب نیست» می‌آید.',
+      possibility: 'حساس می‌شود؛ فرصت‌ها را می‌بینی و انگیزه‌ی قدم برداشتن می‌آید.',
+    ),
+    _RegionInfo(
+      name: 'Salience',
+      title: 'Salience (برجستگی) — فیلتر اهمیت',
+      short:
+          'شبکه‌ای که تعیین می‌کند چه چیزی «مهم» است و توجه‌ات سمت چه برود.',
+      what:
+          'شبکه‌ی برجستگی؛ شامل اینسولای جلویی و قشر کمربندیِ قدامی (ACC). تعیین می‌کند چه چیزی مهم است. در این تصویر فقط ACC دیده می‌شود؛ اینسولا در عمقِ کناره‌ی مغز است.',
+      lack: 'روی خطر تنظیم می‌شود؛ فقط نشانه‌های منفی برجسته می‌شوند.',
+      possibility:
+          'روی خواسته تنظیم می‌شود؛ مثل گیرنده‌ی رادیو که موجِ امکان را می‌گیرد.',
+    ),
+  ];
+
+  String _stateOf(int i) {
+    switch (i) {
+      case 0:
+        return amygdalaAlert ? 'هشدار' : (amygdalaCalm ? 'آرام' : 'فعال');
+      case 1:
+        return pfcActive ? 'فعال' : (pfcWeak ? 'ضعیف' : 'متوسط');
+      case 2:
+        return dopamineSensitive
+            ? 'حساس'
+            : (dopamineLow ? 'کم‌حساس' : 'متوسط');
+      default:
+        return salienceTuned
+            ? 'روی خواسته'
+            : (salienceThreat ? 'روی خطر' : 'آزاد');
+    }
+  }
+
+  Widget _accTile({
+    required int id,
+    required Color color,
+    required String title,
+    String? trailing,
+    required Widget body,
+  }) {
+    final open = _openRegion == id;
+    return Column(
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => setState(() => _openRegion = open ? null : id),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: c,
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    height: 1.7,
-                    color: Colors.white70,
+                if (trailing != null)
+                  Text(
+                    trailing,
+                    style: const TextStyle(fontSize: 11, color: Colors.white60),
                   ),
+                const SizedBox(width: 6),
+                AnimatedRotation(
+                  turns: open ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more,
+                      size: 20, color: Colors.white60),
                 ),
               ],
             ),
           ),
-        ],
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: open
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 4, 10),
+                  child: Align(alignment: Alignment.centerRight, child: body),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoLine(String label, String text, Color c) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: TextStyle(fontWeight: FontWeight.w800, color: c),
+            ),
+            TextSpan(text: text),
+          ],
+        ),
+        style: const TextStyle(fontSize: 11.5, height: 1.7, color: Colors.white70),
       ),
     );
   }
 
   Widget _explainCard() {
+    final divider = Divider(
+      height: 1,
+      thickness: 1,
+      color: Colors.white.withValues(alpha: 0.06),
+    );
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Theme(
-        data: darkTheme.copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: true,
-          iconColor: Colors.white70,
-          collapsedIconColor: Colors.white70,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          expandedCrossAxisAlignment: CrossAxisAlignment.start,
-          title: const Text(
-            'این بخش‌ها یعنی چی؟',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'اطلاعات بخش‌های مغز',
             style: TextStyle(fontSize: 13, color: Colors.cyanAccent),
           ),
-          children: [
-            _explainRow(
-              Colors.redAccent,
-              'آمیگدال — دیده‌بانِ هشدار',
-              'مرکز هشدار مغز است. وقتی خطری حس کند (واقعی یا فقط فکرش) روشن می‌شود؛ بدن آماده‌ی دفاع یا فرار می‌شود و ذهن پشت هر اتفاقی دنبال تهدید می‌گردد.',
-            ),
-            _explainRow(
-              Colors.blueAccent,
-              'PFC (قشر پیش‌پیشانی) — برنامه‌ریز',
-              'بخشِ برنامه‌ریزی و تصمیم‌های بلندمدت. زیر فشارِ هشدار کم‌کار می‌شود؛ برای همین در ترس و کمبود تصمیم‌های عجولانه می‌گیریم.',
-            ),
-            _explainRow(
-              Colors.purpleAccent,
-              'دوپامین — سیستم پاداش و انگیزه',
-              'وقتی حساس باشد فرصت‌ها و چیزهای خوب را می‌بینی و دلت می‌خواهد قدم برداری. وقتی کم‌حساس شود، حسِ «هیچ‌چیز خوب نیست» می‌آید.',
-            ),
-            _explainRow(
-              Colors.orangeAccent,
-              'Salience (برجستگی) — فیلتر اهمیت',
-              'تعیین می‌کند چه چیزی «مهم» است و توجه‌ات سمت چه برود. مثل گیرنده‌ی رادیو روی یک موج تنظیم می‌شود: یا موجِ خطر، یا موجِ امکان.',
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              'در نمای «دایره و موج»: هر بخش موج می‌فرستد و هرچه فعال‌تر باشد موجش تندتر و پررنگ‌تر است. حلقه‌ی وسط «حالِ کلی» است: در امکان آرام و هماهنگ، در کمبود پرتلاطم و دندانه‌دار. کاغذهای دورِ حلقه همان فکرهای شلوغ‌اند که با «هیچ شدن» بیرون می‌روند.',
-              style: TextStyle(fontSize: 11.5, height: 1.7, color: Colors.white70),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'یادآوری: این یک مدلِ ساده‌شده برای فهمیدن است، نه نقشه‌ی دقیقِ کار مغز.',
-              style: TextStyle(fontSize: 10.5, height: 1.6, color: Colors.white38),
+          const SizedBox(height: 2),
+          const Text(
+            'روی هر بخش بزن تا باز شود (همزمان فقط یکی باز می‌ماند).',
+            style: TextStyle(fontSize: 10.5, color: Colors.white38),
+          ),
+          const SizedBox(height: 4),
+          for (var i = 0; i < 4; i++) ...[
+            divider,
+            _accTile(
+              id: i,
+              color: _WavePainter._colors[i],
+              title: _regions[i].title,
+              trailing: _stateOf(i),
+              body: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _infoLine('چیست', _regions[i].what, _WavePainter._colors[i]),
+                  _infoLine('در کمبود', _regions[i].lack, Colors.redAccent),
+                  _infoLine(
+                      'در امکان', _regions[i].possibility, Colors.cyanAccent),
+                ],
+              ),
             ),
           ],
-        ),
+          divider,
+          _accTile(
+            id: 4,
+            color: Colors.white70,
+            title: 'راهنمای نماها',
+            body: const Text(
+              'مغز واقعی: روی هر نقطه بزن تا خلاصه‌اش همان‌جا بیاید. هرچه بخش فعال‌تر باشد نقطه‌اش درشت‌تر و موجش تندتر است. خط‌های رنگی مسیر پیام‌اند: قرمز از آمیگدال به PFC (هشدار)، آبی از PFC به آمیگدال (آرام‌کردن)، بنفش از دوپامین (انگیزه) و نارنجی از Salience (توجه).\n'
+              'دایره و موج: هر بخش موج می‌فرستد؛ حلقه‌ی وسط «حالِ کلی» است: در امکان آرام و هماهنگ، در کمبود پرتلاطم. کاغذها فکرهای شلوغ‌اند که با «هیچ شدن» بیرون می‌روند.',
+              style: TextStyle(fontSize: 11.5, height: 1.7, color: Colors.white70),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'یادآوری: این یک مدلِ ساده‌شده و روی یک طرح خطی است؛ جای بخش‌ها تقریبی است و نقشه‌ی دقیقِ کار مغز نیست.',
+            style: TextStyle(fontSize: 10.5, height: 1.6, color: Colors.white38),
+          ),
+          const SizedBox(height: 6),
+        ],
       ),
     );
   }
@@ -557,7 +790,12 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
                 const SizedBox(height: 8),
 
                 // صحنه
-                if (waveView) _waveScene() else Container(
+                if (viewMode == 2)
+                  _brainScene()
+                else if (viewMode == 1)
+                  _waveScene()
+                else
+                  Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   width: double.infinity,
                   height: 380,
@@ -935,4 +1173,165 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WavePainter old) => true;
+}
+
+class _RegionInfo {
+  const _RegionInfo({
+    required this.name,
+    required this.title,
+    required this.short,
+    required this.what,
+    required this.lack,
+    required this.possibility,
+  });
+  final String name, title, short, what, lack, possibility;
+}
+
+// ════════════════ نقاش نمای «مغز واقعی» ════════════════
+class _BrainPainter extends CustomPainter {
+  _BrainPainter(this.s) : super(repaint: s._wave);
+  final _NeuroSignalTabState s;
+
+  /// جای هر بخش روی تصویر (نسبت به عرض و ارتفاع): آمیگدال، PFC، دوپامین، Salience
+  static const List<Offset> pos = [
+    Offset(0.478, 0.440), // آمیگدال: بیضیِ کوچک در عمق لوب گیجگاهی
+    Offset(0.280, 0.260), // PFC: لوب پیشانی (جلوی مغز، سمت چپ تصویر)
+    Offset(0.560, 0.375), // دوپامین: ناحیه‌ی مرکزیِ مسیر پاداش
+    Offset(0.440, 0.295), // Salience: قشر کمربندی قدامی (ACC)
+  ];
+  static const List<Offset> _labelOff = [
+    Offset(0, 30),
+    Offset(0, -28),
+    Offset(44, 0),
+    Offset(30, -26),
+  ];
+  // مسیر پیام: مبدأ، مقصد، جهت انحنا
+  static const List<List<int>> _links = [
+    [0, 1, 1], // آمیگدال → PFC (هشدار)
+    [1, 0, -1], // PFC → آمیگدال (آرام‌کردن)
+    [2, 1, 1], // دوپامین → PFC (انگیزه)
+    [3, 1, -1], // Salience → PFC (توجه)
+  ];
+
+  void _pill(Canvas canvas, String text, Offset center, Color c, double k,
+      {bool selected = false}) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: GoogleFonts.vazirmatn(
+          fontSize: math.max(9.0, 10 * k),
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      textDirection: TextDirection.rtl,
+    )..layout();
+    final r = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: center,
+        width: tp.width + 12,
+        height: tp.height + 4,
+      ),
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(r, Paint()..color = const Color(0xCC0F172A));
+    canvas.drawRRect(
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = selected ? 1.6 : 1
+        ..color = c.withValues(alpha: selected ? 0.95 : 0.55),
+    );
+    tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 340.0;
+    final lv = s._shown;
+    final pts = [for (final o in pos) Offset(o.dx * size.width, o.dy * size.height)];
+
+    // مسیرهای پیام بین بخش‌ها + نقطه‌هایی که روی مسیر حرکت می‌کنند
+    for (final l in _links) {
+      final a = pts[l[0]], b = pts[l[1]];
+      final st = lv[l[0]];
+      final mid = Offset.lerp(a, b, 0.5)!;
+      final d = b - a;
+      final n = Offset(-d.dy, d.dx) / d.distance;
+      final ctrl = mid + n * (l[2] * 0.22 * d.distance);
+      final col = _WavePainter._colors[l[0]];
+      final path = Path()
+        ..moveTo(a.dx, a.dy)
+        ..quadraticBezierTo(ctrl.dx, ctrl.dy, b.dx, b.dy);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4 * k
+          ..color = col.withValues(alpha: 0.06 + 0.24 * st),
+      );
+      for (var m = 0; m < 3; m++) {
+        final t = (s._nodePhase[l[0]] + m / 3) % 1.0;
+        final u = 1 - t;
+        final pt = a * (u * u) + ctrl * (2 * u * t) + b * (t * t);
+        canvas.drawCircle(
+          pt,
+          (1.8 + 1.8 * st) * k,
+          Paint()..color = col.withValues(alpha: 0.25 + 0.7 * st),
+        );
+      }
+    }
+
+    // خودِ بخش‌ها: درخشش، موج‌های تپنده و هسته
+    for (var i = 0; i < 4; i++) {
+      final c = pts[i];
+      final col = _WavePainter._colors[i];
+      final l = lv[i];
+      canvas.drawCircle(
+        c,
+        (12 + 22 * l) * k,
+        Paint()
+          ..color = col.withValues(alpha: 0.10 + 0.32 * l)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 9 * k + 6 * l),
+      );
+      for (var m = 0; m < 3; m++) {
+        final ph = (s._nodePhase[i] + m / 3) % 1.0;
+        canvas.drawCircle(
+          c,
+          (7 + ph * (16 + 14 * l)) * k,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4 * k
+            ..color = col.withValues(alpha: (1 - ph) * (0.15 + 0.6 * l)),
+        );
+      }
+      canvas.drawCircle(
+        c,
+        (5 + 3 * l) * k,
+        Paint()..color = col.withValues(alpha: 0.55 + 0.45 * l),
+      );
+      canvas.drawCircle(
+        c,
+        1.8 * k,
+        Paint()..color = Colors.white.withValues(alpha: 0.4 + 0.5 * l),
+      );
+      final selected = s._openRegion == i;
+      if (selected) {
+        canvas.drawCircle(
+          c,
+          22 * k,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.6 * k
+            ..color = Colors.white.withValues(alpha: 0.85),
+        );
+      }
+      _pill(canvas, _NeuroSignalTabState._regions[i].name,
+          c + _labelOff[i] * k, col, k,
+          selected: selected);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BrainPainter old) => true;
 }
