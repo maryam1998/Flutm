@@ -38,6 +38,30 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
   String status =
       'مرحله ۱: ذهن شلوغ است. آمیگدال فعال، PFC ضعیف، دوپامین کم‌حساس، Salience در حالت شکار خطر.';
 
+  // ---------- «هیچ شدنِ مرحله‌ای» روی مغز واقعی ----------
+  // ایستگاه‌ها: ۰ بدن، ۱ هویت، ۲ اشیا، ۳ زمان، ۴ مکان؛ ۵ = «هیچ کامل».
+  // به‌ترتیب رها می‌شوند؛ بعد از «هیچ کامل» چهار قدمِ علمی باز می‌شود.
+  final Set<int> _released = {};
+  int? _stationOpen; // ایستگاهِ بازِ روی تصویر (۰..۵)
+  int? _stepOpen; // قدمِ بازِ بعد از هیچ شدن (۰..۳)
+  bool _aligned = false; // قدم ۴ (هم‌ترازی) انجام شده
+  // ۱ = درگیر، ۰ = رها (نرم برای انیمیشن)
+  final List<double> _st = [1, 1, 1, 1, 1];
+  double _voidLevel = 0; // ۰..۱: آگاهیِ خالص
+
+  /// قدم‌های بعد از هیچ شدن: انجام‌شده یا نه (PFC، Salience، دوپامین، هم‌ترازی)
+  List<bool> get _stepDone =>
+      [pfcActive, salienceTuned, dopamineSensitive, _aligned];
+
+  /// اولین قدمِ انجام‌نشده (۰..۳)؛ ۴ یعنی همه انجام شده
+  int get _curStep {
+    final d = _stepDone;
+    for (var i = 0; i < 4; i++) {
+      if (!d[i]) return i;
+    }
+    return 4;
+  }
+
   // ---------- نمای «دایره و موج» ----------
   // 0 = گره‌ها، 1 = دایره و موج، 2 = مغز واقعی
   int viewMode = 2;
@@ -61,6 +85,12 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
       _shown[i] += (tg[i] - _shown[i]) * (1 - math.exp(-dt * 3));
       _nodePhase[i] = (_nodePhase[i] + dt * (0.15 + _shown[i] * 0.7)) % 1.0;
     }
+    for (var i = 0; i < 5; i++) {
+      _st[i] += ((_released.contains(i) ? 0.0 : 1.0) - _st[i]) *
+          (1 - math.exp(-dt * 2.2));
+    }
+    _voidLevel +=
+        ((emptied ? 1.0 : 0.0) - _voidLevel) * (1 - math.exp(-dt * 1.5));
     _desireShownLevel +=
         ((desireShown ? 1.0 : 0.0) - _desireShownLevel) * (1 - math.exp(-dt * 4));
     _ringPhase += dt * (1.0 + _shown[0] * 4.0);
@@ -105,7 +135,8 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
     if (amygdalaAlert) return 1.0;
     if (amygdalaCalm) return 0.25;
     if (choiceMade) return 0.3;
-    return 0.85;
+    // با رها شدنِ هر ایستگاه (بدن، هویت، …) هشدار کم‌کم پایین می‌آید
+    return 0.85 - 0.1 * _released.length;
   }
 
   double get pfcLevel {
@@ -137,6 +168,7 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     setState(() {
+      _released.addAll(const [0, 1, 2, 3, 4]);
       amygdalaCalm = true;
       emptied = true;
       status =
@@ -216,6 +248,10 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
       c.reset();
     }
     setState(() {
+      _released.clear();
+      _stationOpen = null;
+      _stepOpen = null;
+      _aligned = false;
       emptied = false;
       choiceMade = false;
       desireShown = false;
@@ -230,6 +266,253 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
       status =
           'مرحله ۱: ذهن شلوغ است. آمیگدال فعال، PFC ضعیف، دوپامین کم‌حساس، Salience در حالت شکار خطر.';
     });
+  }
+
+  // ---------- هیچ شدنِ مرحله‌ای: اکشن‌ها ----------
+  /// هر بخشِ مغز به کدام «قدمِ بعد از هیچ شدن» می‌رسد (-۱ = هیچ‌کدام):
+  /// آمیگدال، PFC، دوپامین، Salience
+  static const List<int> _regionStep = [-1, 0, 2, 1];
+
+  void _releaseStation(int i) {
+    if (emptied || _released.contains(i) || _released.length != i) return;
+    setState(() {
+      _released.add(i);
+      status = _stations[i].after;
+    });
+  }
+
+  bool _nothingBusy = false;
+
+  Future<void> _completeNothing() async {
+    if (emptied || _nothingBusy || _released.length < 5) return;
+    _nothingBusy = true;
+    await emptyMind();
+    _nothingBusy = false;
+  }
+
+  void _doStep(int k) {
+    if (!emptied || amygdalaAlert || k != _curStep) return;
+    setState(() {
+      switch (k) {
+        case 0:
+          choiceMade = true;
+          desireShown = true;
+          pfcActive = true;
+          break;
+        case 1:
+          salienceTuned = true;
+          break;
+        case 2:
+          dopamineSensitive = true;
+          break;
+        default:
+          _aligned = true;
+      }
+      status = _steps[k].after;
+    });
+  }
+
+  void _tapRegion(int i) {
+    setState(() {
+      _stationOpen = null;
+      final k = emptied ? _regionStep[i] : -1;
+      if (k >= 0) {
+        _stepOpen = _stepOpen == k ? null : k;
+        _openRegion = null;
+      } else {
+        _openRegion = _openRegion == i ? null : i;
+        _stepOpen = null;
+      }
+    });
+  }
+
+  void _tapStation(int i) {
+    setState(() {
+      _openRegion = null;
+      if (i == 5 && emptied) {
+        // بعد از هیچ شدن، دایره‌ی پایین می‌شود «قدم ۴: هم‌ترازی»
+        _stationOpen = null;
+        _stepOpen = _stepOpen == 3 ? null : 3;
+      } else {
+        _stepOpen = null;
+        _stationOpen = _stationOpen == i ? null : i;
+      }
+    });
+  }
+
+  void _closePanels() => setState(() {
+        _stationOpen = null;
+        _stepOpen = null;
+        _openRegion = null;
+      });
+
+  /// راهنمای کوتاهِ پایینِ تصویر: الان چه کنم؟
+  String get _hint {
+    if (!emptied) {
+      if (_released.length < 5) {
+        return 'روی نقطه‌ی «${_stations[_released.length].name}» بزن '
+            '(${_faDigits(_released.length + 1)} از ۵)';
+      }
+      return 'حالا روی دایره‌ی «هیچ کامل» بزن';
+    }
+    if (amygdalaAlert) return 'سیگنال کمبود فعال است؛ «ریست» را بزن';
+    final c = _curStep;
+    if (c < 4) return 'قدم ${_faDigits(c + 1)} از ۴: ${_steps[c].hint}';
+    return 'هم‌ترازی کامل شد ✓';
+  }
+
+  Widget _panelBtn(String label, Color color, VoidCallback? onTap) {
+    return SizedBox(
+      width: double.infinity,
+      height: 34,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.black,
+          disabledBackgroundColor: Colors.white12,
+          disabledForegroundColor: Colors.white54,
+          padding: EdgeInsets.zero,
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+        onPressed: onTap,
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _panel({
+    required Color color,
+    required String title,
+    String? tag,
+    required List<Widget> children,
+    required Widget button,
+    required double maxH,
+  }) {
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxH),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xF20F172A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.75)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ),
+              if (tag != null)
+                Text(
+                  tag,
+                  style: const TextStyle(fontSize: 10.5, color: Colors.white60),
+                ),
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: _closePanels,
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
+                  child: Icon(Icons.close, size: 16, color: Colors.white54),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          button,
+        ],
+      ),
+    );
+  }
+
+  /// کارتِ توضیحِ یک ایستگاه (بدن، هویت، اشیا، زمان، مکان، هیچ کامل)
+  Widget _stationPanel(int i, double maxH) {
+    final st = _stations[i];
+    var label = '';
+    VoidCallback? tap;
+    if (i < 5) {
+      if (_released.contains(i)) {
+        label = 'رها شد ✓';
+      } else if (_released.length == i) {
+        label = 'رها کن';
+        tap = () => _releaseStation(i);
+      } else {
+        label = 'اول «${_stations[_released.length].name}» را رها کن';
+      }
+    } else {
+      if (emptied) {
+        label = 'هیچ شدی ✓';
+      } else if (_released.length == 5) {
+        label = 'هیچ شو';
+        tap = _completeNothing;
+      } else {
+        label = 'اول پنج مرحله را رها کن';
+      }
+    }
+    return _panel(
+      color: _kStationColor,
+      title: st.title,
+      tag: i < 5 ? 'مرحله‌ی ${_faDigits(i + 1)} از ۵' : null,
+      maxH: maxH,
+      children: [
+        _infoLine('ناحیه (تقریبی)', st.areas, _kStationColor),
+        _infoLine('در مغز', st.effect, Colors.cyanAccent),
+        _infoLine(i < 5 ? 'تمرین' : 'بعدش', st.practice, Colors.amberAccent),
+      ],
+      button: _panelBtn(label, _kStationColor, tap),
+    );
+  }
+
+  /// کارتِ توضیحِ یک قدمِ بعد از هیچ شدن
+  Widget _stepPanel(int k, double maxH) {
+    final sp = _steps[k];
+    final color = sp.region >= 0
+        ? _WavePainter._colors[sp.region]
+        : Colors.amberAccent;
+    final done = _stepDone[k];
+    var label = '';
+    VoidCallback? tap;
+    if (done) {
+      label = 'انجام شد ✓';
+    } else if (amygdalaAlert) {
+      label = 'سیگنال کمبود فعال است؛ ریست بزن';
+    } else if (k == _curStep) {
+      label = 'این قدم را انجام دادم';
+      tap = () => _doStep(k);
+    } else {
+      label = 'اول قدم ${_faDigits(_curStep + 1)} را انجام بده';
+    }
+    return _panel(
+      color: color,
+      title: sp.title,
+      tag: sp.region >= 0
+          ? '${_regions[sp.region].name} · ${_stateOf(sp.region)}'
+          : 'PFC + آمیگدال + دوپامین',
+      maxH: maxH,
+      children: [
+        _infoLine('علم', sp.science, color),
+        _infoLine('کار علمی', sp.action, Colors.cyanAccent),
+      ],
+      button: _panelBtn(label, color, tap),
+    );
   }
 
   Widget _node({
@@ -480,9 +763,68 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
                           height: 48,
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => setState(
-                                () => _openRegion = open == i ? null : i),
+                            onTap: () => _tapRegion(i),
                           ),
+                        ),
+                      // سطح لمس ایستگاه‌های «هیچ شدن» (بدن، هویت، اشیا، زمان، مکان، هیچ کامل)
+                      for (var i = 0; i < 6; i++)
+                        Positioned(
+                          left: w * _BrainPainter.stPos[i].dx - 24,
+                          top: h * _BrainPainter.stPos[i].dy - 24,
+                          width: 48,
+                          height: 48,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _tapStation(i),
+                          ),
+                        ),
+                      // راهنمای «الان چه کنم؟» وقتی هیچ کارتی باز نیست
+                      if (open == null && _stationOpen == null && _stepOpen == null)
+                        Positioned(
+                          left: 8,
+                          right: 8,
+                          bottom: 8,
+                          child: IgnorePointer(
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xCC0F172A),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: _kStationColor.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                child: Text(
+                                  _hint,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    height: 1.5,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // کارتِ ایستگاه یا قدمِ بازشده، همان‌جا روی مغز
+                      if (_stationOpen != null)
+                        Positioned(
+                          left: 8,
+                          right: 8,
+                          top: _stationOpen == 5 ? 8 : null,
+                          bottom: _stationOpen == 5 ? null : 8,
+                          child: _stationPanel(_stationOpen!, h * 0.45),
+                        ),
+                      if (_stepOpen != null)
+                        Positioned(
+                          left: 8,
+                          right: 8,
+                          top: _stepOpen == 3 ? 8 : null,
+                          bottom: _stepOpen == 3 ? null : 8,
+                          child: _stepPanel(_stepOpen!, h * 0.45),
                         ),
                       // خلاصه‌ی بخشِ انتخاب‌شده، همان‌جا روی تصویر
                       if (open != null && open < 4)
@@ -598,6 +940,117 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
     ),
   ];
 
+  // ---------- ایستگاه‌های «هیچ شدن» (به ترتیب) ----------
+  static const List<_Station> _stations = [
+    _Station(
+      name: 'بدن',
+      title: 'بدن — «من بدنم نیستم»',
+      areas: 'قشر حسی‌ـ‌پیکری (S1) و اینسولا',
+      effect:
+          'نقشه‌ی بدن و حس‌های درونی (ضربان، تنفس، درد) اینجا ساخته می‌شود. با برداشتن توجه از بدن، این ورودی کم‌صدا می‌شود و مرزِ بدن کم‌رنگ.',
+      practice: 'توجه را از درد و حس‌های جسمی جدا کن.',
+      after:
+          'بدن رها شد: ورودیِ حسیِ بدن کم‌صدا شد و هشدار کمی پایین آمد. بعدی: هویت.',
+    ),
+    _Station(
+      name: 'هویت',
+      title: 'هویت — «من آن شخص نیستم»',
+      areas: 'شبکه‌ی پیش‌فرض (DMN): mPFC و PCC',
+      effect:
+          'DMN داستانِ «من» (اسم، نقش، خاطره‌ها) را می‌سازد و در نشخوار فکری پرکار است. در مراقبه فعالیتش کاهش می‌یابد.',
+      practice: 'اسم، نقش، گذشته و داستان‌هایت را برای لحظه‌ای کنار بگذار.',
+      after:
+          'هویت رها شد: DMN آرام‌تر شد و داستانِ «من» ساکت‌تر. بعدی: اشیا.',
+    ),
+    _Station(
+      name: 'اشیا',
+      title: 'اشیا — رها شدن از دارایی‌ها',
+      areas: 'مسیر بینایی شکمی + مسیر پاداش',
+      effect:
+          'مغز اشیا را در مسیر بینایی شکمی می‌شناسد و مسیر پاداش به آن‌ها «ارزش» می‌دهد (می‌خواهم، دارم). با رها شدن، توجه از چیزها و ارزش‌گذاریِ آن‌ها جدا می‌شود.',
+      practice: 'وابستگی به دارایی‌ها و شرایط بیرونی را رها کن.',
+      after:
+          'اشیا رها شد: ارزش‌گذاریِ چیزها خاموش‌تر شد. بعدی: زمان.',
+    ),
+    _Station(
+      name: 'زمان',
+      title: 'زمان — «در هیچ زمانی»',
+      areas: 'هیپوکامپ + mPFC',
+      effect:
+          'هیپوکامپ گذشته را بازسازی می‌کند و همان مدار، آینده‌ی خیالی را می‌سازد (سفر ذهنی در زمان). با رها شدن، مغز روی «اکنون» می‌ماند.',
+      practice: 'گذشته و آینده را رها کن؛ فقط حالِ بی‌زمان.',
+      after:
+          'زمان رها شد: مغز از ساختنِ گذشته و آینده دست کشید و روی اکنون ماند. بعدی: مکان.',
+    ),
+    _Station(
+      name: 'مکان',
+      title: 'مکان — «هیچ‌جا»',
+      areas: 'لوبول آهیانه‌ای فوقانیِ خلفی (PSPL)',
+      effect:
+          'این ناحیه جای بدن در فضا را می‌سنجد (اینجا/آنجا، مرز «من» و بیرون). در پژوهش‌های مراقبه‌ی عمیق فعالیتش کم شده و مرز محو می‌شود.',
+      practice: 'آگاهی را به «اینجا» و «آنجا» گره نزن.',
+      after:
+          'مکان رها شد: حسِ مرزِ «من» و بیرون محو شد. حالا «هیچ کامل».',
+    ),
+    _Station(
+      name: 'هیچ کامل',
+      title: 'هیچ کامل — جدایی از همه',
+      areas: 'کل مغز',
+      effect:
+          'شبکه‌ی پیش‌فرض (نشخوار و داستانِ گذشته و آینده) کم‌فعال و آمیگدال آرام می‌شود. ذهن مثل یک میز خالی است: «آگاهی خالص». مغز در بهترین وضعیت برای نوروپلاستیسیتی (ساختن مسیرهای عصبی تازه) قرار دارد.',
+      practice: 'چهار قدمِ علمیِ «اتصال به قلمرو ممکن‌ها» باز می‌شود.',
+      after: '',
+    ),
+  ];
+
+  // ---------- چهار قدمِ بعد از هیچ شدن ----------
+  static const List<_Step> _steps = [
+    _Step(
+      title: '۱. سیگنال امکان، نه کمبود',
+      region: 1,
+      hint: 'روی PFC بزن',
+      science:
+          'مغز موتورِ پیش‌بینی است. اگر بعد از خالی شدن به کمبودها فکر کنی آمیگدال دوباره فعال می‌شود. یک «خواسته‌ی مشخص» در PFC مدلِ پیش‌بینیِ تازه می‌سازد.',
+      action:
+          'به‌جای «من پول ندارم» بگو «من در حال یادگیری مهارتی هستم که ارزش اقتصادی دارد».',
+      after:
+          'سیگنال امکان فرستاده شد: PFC فعال شد و مدلِ پیش‌بینیِ تازه ساخت.',
+    ),
+    _Step(
+      title: '۲. توجه گزینشی',
+      region: 3,
+      hint: 'روی Salience بزن',
+      science:
+          'وقتی روی خواسته‌ی جدید تمرکز می‌کنی، شبکه‌ی Salience تعیین می‌کند به چه چیزی توجه کنی.',
+      action:
+          'هر صبح یا شب ۵ تا ۱۰ دقیقه روی خواسته تمرکز کن (نوشتن یا تجسم). مغز یاد می‌گیرد به‌جای موانع، فرصت‌ها را ببیند؛ این همان «هم‌فرکانسی» است: تنظیمِ فیلتر توجه.',
+      after:
+          'Salience روی خواسته تنظیم شد: فیلتر توجه به‌جای موانع، فرصت‌ها را می‌گیرد.',
+    ),
+    _Step(
+      title: '۳. قدم کوچک و دوپامین',
+      region: 2,
+      hint: 'روی دوپامین بزن',
+      science:
+          'مغز برای باور به «ممکن بودن» مدرک می‌خواهد و فقط تجسم کافی نیست. یک قدم کوچک دوپامین (ناقلِ انگیزه) را فعال می‌کند.',
+      action:
+          'بلافاصله بعد از تمرکز یک اقدام فیزیکیِ کوچک بکن؛ مثلاً اگر می‌خواهی ورزشکار شوی، امروز ۵ دقیقه کشش.',
+      after:
+          'دوپامین فعال شد: مغز «مدرک» گرفت که این خواسته فقط خیال نیست.',
+    ),
+    _Step(
+      title: '۴. هم‌ترازیِ شناختی',
+      region: -1,
+      hint: 'روی دایره‌ی پایین بزن',
+      science:
+          'فکر (باور به امکان‌پذیری، PFC) و احساس (آرامش و امنیت؛ اینسولا و آمیگدال آرام) و عمل (قدم‌های کوچکِ روزانه؛ سیستم پاداش) باید با هم هماهنگ شوند.',
+      action:
+          'خلاصه: «هیچ شدن» در را باز می‌کند؛ مدلِ پیش‌بینی را از «کمبود» به «فراوانی» بازنویسی کن و با قدم‌های کوچکِ روزانه به مغزت ثابت کن این مسیر امن و ممکن است.',
+      after:
+          'هم‌ترازی کامل شد: فکر، احساس و عمل با هم هماهنگ‌اند.',
+    ),
+  ];
+
   String _stateOf(int i) {
     switch (i) {
       case 0:
@@ -627,7 +1080,11 @@ class _NeuroSignalTabState extends State<NeuroSignalTab>
       children: [
         InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () => setState(() => _openRegion = open ? null : id),
+          onTap: () => setState(() {
+            _openRegion = open ? null : id;
+            _stationOpen = null;
+            _stepOpen = null;
+          }),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
             child: Row(
@@ -1175,6 +1632,41 @@ class _WavePainter extends CustomPainter {
   bool shouldRepaint(covariant _WavePainter old) => true;
 }
 
+const Color _kStationColor = Color(0xFF5EEAD4);
+
+String _faDigits(int n) {
+  const fa = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return n.toString().split('').map((c) {
+    final d = int.tryParse(c);
+    return d == null ? c : fa[d];
+  }).join();
+}
+
+class _Station {
+  const _Station({
+    required this.name,
+    required this.title,
+    required this.areas,
+    required this.effect,
+    required this.practice,
+    required this.after,
+  });
+  final String name, title, areas, effect, practice, after;
+}
+
+class _Step {
+  const _Step({
+    required this.title,
+    required this.region,
+    required this.hint,
+    required this.science,
+    required this.action,
+    required this.after,
+  });
+  final String title, hint, science, action, after;
+  final int region; // اندیسِ بخش در _regions (-۱ = ترکیبی)
+}
+
 class _RegionInfo {
   const _RegionInfo({
     required this.name,
@@ -1205,6 +1697,27 @@ class _BrainPainter extends CustomPainter {
     Offset(44, 0),
     Offset(30, -26),
   ];
+  /// جای ایستگاه‌های «هیچ شدن»: بدن (S1)، هویت (PCC)، اشیا (مسیر بینایی شکمی)،
+  /// زمان (هیپوکامپ)، مکان (PSPL)؛ و دایره‌ی «هیچ کامل / هم‌ترازی» زیر مغز.
+  static const List<Offset> stPos = [
+    Offset(0.595, 0.15),
+    Offset(0.69, 0.28),
+    Offset(0.80, 0.46),
+    Offset(0.60, 0.465),
+    Offset(0.76, 0.17),
+    Offset(0.46, 0.74),
+  ];
+  static const List<Offset> _stLabelOff = [
+    Offset(-6, -22),
+    Offset(0, -22),
+    Offset(0, 22),
+    Offset(14, 28),
+    Offset(0, -20),
+    Offset(0, 36),
+  ];
+  // سرِ دیگرِ شبکه‌ی پیش‌فرض (mPFC) برای نمایش اتصالش به PCC
+  static const Offset _mPfc = Offset(0.33, 0.33);
+
   // مسیر پیام: مبدأ، مقصد، جهت انحنا
   static const List<List<int>> _links = [
     [0, 1, 1], // آمیگدال → PFC (هشدار)
@@ -1250,6 +1763,25 @@ class _BrainPainter extends CustomPainter {
     final k = size.width / 340.0;
     final lv = s._shown;
     final pts = [for (final o in pos) Offset(o.dx * size.width, o.dy * size.height)];
+    final sp = [
+      for (final o in stPos) Offset(o.dx * size.width, o.dy * size.height)
+    ];
+
+    // آگاهیِ خالص: هاله‌ی نرمِ نفس‌کشنده روی کل مغز
+    final vl = s._voidLevel;
+    if (vl > 0.01) {
+      final bc = Offset(size.width * 0.52, size.height * 0.34);
+      final br = size.width * (0.5 + 0.03 * math.sin(s._ringPhase * 0.6));
+      canvas.drawCircle(
+        bc,
+        br,
+        Paint()
+          ..shader = RadialGradient(colors: [
+            _kStationColor.withValues(alpha: 0.22 * vl),
+            _kStationColor.withValues(alpha: 0.0),
+          ]).createShader(Rect.fromCircle(center: bc, radius: br)),
+      );
+    }
 
     // مسیرهای پیام بین بخش‌ها + نقطه‌هایی که روی مسیر حرکت می‌کنند
     for (final l in _links) {
@@ -1315,7 +1847,10 @@ class _BrainPainter extends CustomPainter {
         1.8 * k,
         Paint()..color = Colors.white.withValues(alpha: 0.4 + 0.5 * l),
       );
-      final selected = s._openRegion == i;
+      // بعد از هیچ شدن، سه بخش «قدم» هم هستند (شماره روی برچسبشان می‌آید)
+      final stepK = s.emptied ? _NeuroSignalTabState._regionStep[i] : -1;
+      final selected =
+          s._openRegion == i || (stepK >= 0 && s._stepOpen == stepK);
       if (selected) {
         canvas.drawCircle(
           c,
@@ -1326,9 +1861,187 @@ class _BrainPainter extends CustomPainter {
             ..color = Colors.white.withValues(alpha: 0.85),
         );
       }
-      _pill(canvas, _NeuroSignalTabState._regions[i].name,
-          c + _labelOff[i] * k, col, k,
-          selected: selected);
+      // پیش از هیچ شدن برچسبِ این چهار بخش پنهان است تا صحنه شلوغ نشود
+      if (s.emptied || selected) {
+        final name = _NeuroSignalTabState._regions[i].name;
+        final label = stepK < 0
+            ? name
+            : (s._stepDone[stepK]
+                ? '✓ $name'
+                : '${_faDigits(stepK + 1)} · $name');
+        _pill(canvas, label, c + _labelOff[i] * k, col, k, selected: selected);
+      }
+    }
+
+    _paintAlignment(canvas, pts, k);
+    _paintStations(canvas, sp, k);
+  }
+
+  // قدم ۴: مثلثِ طلاییِ هم‌ترازی میان فکر (PFC)، احساس (آمیگدال) و عمل (دوپامین)
+  void _paintAlignment(Canvas canvas, List<Offset> pts, double k) {
+    if (!s._aligned) return;
+    final pulse = 0.5 + 0.5 * math.sin(s._ringPhase * 1.5);
+    final tri = Path()
+      ..moveTo(pts[1].dx, pts[1].dy)
+      ..lineTo(pts[0].dx, pts[0].dy)
+      ..lineTo(pts[2].dx, pts[2].dy)
+      ..close();
+    canvas.drawPath(
+      tri,
+      Paint()..color = Colors.amberAccent.withValues(alpha: 0.10 + 0.08 * pulse),
+    );
+    canvas.drawPath(
+      tri,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8 * k
+        ..strokeJoin = StrokeJoin.round
+        ..color = Colors.amberAccent.withValues(alpha: 0.55 + 0.3 * pulse),
+    );
+  }
+
+  // ایستگاه‌های هیچ شدن: نقطه، موج، برچسب و علامتِ «رها شد»
+  void _paintStations(Canvas canvas, List<Offset> sp, double k) {
+    final open = s._stationOpen;
+
+    // خطِ شبکه‌ی پیش‌فرض: PCC ↔ mPFC وقتی «هویت» باز است
+    if (open == 1) {
+      final m = Offset(_mPfc.dx * k * 340, _mPfc.dy * k * 340 * 5000 / 4702);
+      canvas.drawLine(
+        sp[1],
+        m,
+        Paint()
+          ..strokeWidth = 1.6 * k
+          ..color = _kStationColor.withValues(alpha: 0.7),
+      );
+      canvas.drawCircle(m, 4 * k, Paint()..color = _kStationColor);
+    }
+
+    final allReleased = s._released.length >= 5;
+    for (var i = 0; i < 6; i++) {
+      final c = sp[i];
+      final selected = open == i || (i == 5 && s._stepOpen == 3);
+      if (i < 5) {
+        final l = s._st[i];
+        final released = s._released.contains(i);
+        final isNext = !s.emptied && s._released.length == i;
+        // درخششِ ایستگاهِ درگیر
+        canvas.drawCircle(
+          c,
+          (9 + 14 * l) * k,
+          Paint()
+            ..color = _kStationColor.withValues(alpha: 0.05 + 0.30 * l)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8 * k),
+        );
+        for (var m = 0; m < 3; m++) {
+          final ph = (s._ringPhase * 0.25 + i * 0.3 + m / 3) % 1.0;
+          canvas.drawCircle(
+            c,
+            (6 + ph * 20) * k,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.2 * k
+              ..color = _kStationColor.withValues(alpha: (1 - ph) * 0.5 * l),
+          );
+        }
+        // حلقه‌ی «بعدی» که باید رها شود
+        if (isNext) {
+          final p = 0.5 + 0.5 * math.sin(s._ringPhase * 2);
+          canvas.drawCircle(
+            c,
+            (13 + 3 * p) * k,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.6 * k
+              ..color = Colors.white.withValues(alpha: 0.45 + 0.4 * p),
+          );
+        }
+        canvas.drawCircle(
+          c,
+          5 * k,
+          Paint()..color = _kStationColor.withValues(alpha: 0.30 + 0.65 * l),
+        );
+        if (released) {
+          // علامتِ تیک وقتی رها شد
+          final a = (1 - l).clamp(0.0, 1.0).toDouble();
+          canvas.drawCircle(
+            c,
+            8 * k,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.2 * k
+              ..color = _kStationColor.withValues(alpha: 0.5 * a),
+          );
+          final tick = Path()
+            ..moveTo(c.dx - 3 * k, c.dy)
+            ..lineTo(c.dx - 0.8 * k, c.dy + 2.4 * k)
+            ..lineTo(c.dx + 3.4 * k, c.dy - 2.6 * k);
+          canvas.drawPath(
+            tick,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.6 * k
+              ..strokeCap = StrokeCap.round
+              ..strokeJoin = StrokeJoin.round
+              ..color = Colors.white.withValues(alpha: a),
+          );
+        }
+        if (selected) {
+          canvas.drawCircle(
+            c,
+            20 * k,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.6 * k
+              ..color = Colors.white.withValues(alpha: 0.85),
+          );
+        }
+        final name = _NeuroSignalTabState._stations[i].name;
+        _pill(canvas, released ? '✓ $name' : '${_faDigits(i + 1)} · $name',
+            c + _stLabelOff[i] * k, _kStationColor, k,
+            selected: selected);
+      } else {
+        // دایره‌ی پایین: «هیچ کامل» (تا قبل از هیچ شدن) و بعد «هم‌ترازی»
+        final p = 0.5 + 0.5 * math.sin(s._ringPhase * 1.6);
+        final afterNothing = s.emptied;
+        final ready = afterNothing
+            ? (s._curStep == 3 && !s.amygdalaAlert)
+            : allReleased;
+        final col = afterNothing ? Colors.amberAccent : _kStationColor;
+        final base = afterNothing ? (s._aligned ? 1.0 : 0.35) : (ready ? 0.8 : 0.18);
+        final r = (15 + (ready ? 2.5 * p : 0)) * k;
+        canvas.drawCircle(
+          c,
+          r + 8 * k,
+          Paint()
+            ..color = col.withValues(alpha: 0.10 + 0.35 * base * (0.7 + 0.3 * p))
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 9 * k),
+        );
+        canvas.drawCircle(
+          c,
+          r,
+          Paint()..color = col.withValues(alpha: 0.12 + 0.5 * base),
+        );
+        canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = (selected ? 2.0 : 1.3) * k
+            ..color = (selected ? Colors.white : col)
+                .withValues(alpha: selected ? 0.9 : 0.4 + 0.5 * base),
+        );
+        canvas.drawCircle(
+          c,
+          3 * k,
+          Paint()..color = Colors.white.withValues(alpha: 0.3 + 0.6 * base),
+        );
+        final label = afterNothing
+            ? (s._aligned ? '✓ هم‌ترازی' : '۴ · هم‌ترازی')
+            : 'هیچ کامل';
+        _pill(canvas, label, c + _stLabelOff[5] * k, col, k,
+            selected: selected);
+      }
     }
   }
 
