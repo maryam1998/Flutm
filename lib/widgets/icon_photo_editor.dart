@@ -241,10 +241,9 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
     );
   }
 
-  Widget _emojiPreview() => EmojiStack(
-        icon: _iconCtl.text.isEmpty ? '🎯' : _iconCtl.text,
-        size: 58,
-      );
+  Widget _emojiPreview() => _iconCtl.text.trim().isEmpty
+      ? const SizedBox(width: 58, height: 58)
+      : EmojiStack(icon: _iconCtl.text, size: 58);
 }
 
 /// دکمه‌ی «افزودن عکس» — دقیقاً مثل مغز: کادر کوچک خاکستری، متن + آیکون دوربین

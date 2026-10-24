@@ -299,11 +299,11 @@ class Goal implements MapHost {
     if (fs < 0.5) fs = 1;
     final freq = _s(j['freq'], 'alpha');
     final bs = _s(j['branchStyle'], 'organic');
-    final icon = _s(j['icon'], '');
+    final icon = j.containsKey('icon') ? _s(j['icon'], '') : '🎯';
     return Goal(
       id: j['id'] is String ? j['id'] as String : null,
       name: _s(j['name'], ''),
-      icon: icon.isEmpty ? '🎯' : icon,
+      icon: icon,
       freq: kFreqBands.containsKey(freq) ? freq : 'alpha',
       branchStyle: kBranchStyles.containsKey(bs) ? bs : 'organic',
       trunkStyle:

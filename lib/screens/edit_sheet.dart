@@ -1016,7 +1016,7 @@ class _EditSheetState extends State<EditSheet> {
             initialImages: g.images,
             initialScale: g.iconScale,
             onChange: (icon, images, scale) => _editNow(() {
-              g.icon = icon.isEmpty ? '🎯' : icon;
+              g.icon = icon;
               g.images = images;
               g.iconScale = scale;
             }),

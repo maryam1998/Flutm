@@ -126,7 +126,7 @@ class MapStore extends ChangeNotifier {
     final spot = pickGoalSpot(state);
     final g = Goal(
       name: name,
-      icon: icon.trim().isEmpty ? '🎯' : icon.trim(),
+      icon: icon.trim(),
       color: color,
       x: spot.dx,
       y: spot.dy,

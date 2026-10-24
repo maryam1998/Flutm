@@ -1140,6 +1140,16 @@ class MapPainter extends CustomPainter {
       canvas.restore();
     } else {
       // ─── امروز ثبت شده: قدم با رنگ واقعی ───
+      // اگر متوقف است و جای مشخصی ندارد، به‌ترتیب بعد از آخرین قدمِ ثبت‌شده
+      // می‌ایستد (نه وسط مسیر)؛ راه رفتنش همچنان از ابتدا تا انتها و برگشت است.
+      if (!playingNow && posToday == null) {
+        final st = _walkerRt.putIfAbsent('foot:${a.id}', _WalkerRt.new);
+        if (!st.playing && st.frozenT == null) {
+          final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
+          st.frozenT = (u + stepLen * 0.45).clamp(0.0, 1.0).toDouble();
+          st.frozenRet = false;
+        }
+      }
       core(playingNow, posToday);
     }
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن

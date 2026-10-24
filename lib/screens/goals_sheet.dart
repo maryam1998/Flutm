@@ -159,7 +159,7 @@ class _Avatar extends StatelessWidget {
           color: color.withAlpha(60),
           border: Border.all(color: color, width: size > 50 ? 2.5 : 1.5),
         ),
-        child: EmojiStack(icon: icon, size: size),
+        child: icon.trim().isEmpty ? null : EmojiStack(icon: icon, size: size),
       );
 }
 
@@ -761,7 +761,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             initialScale: g != null ? g.iconScale : r!.iconScale,
             onChange: (icon, images, scale) {
               if (g != null) {
-                g.icon = icon.isEmpty ? '🎯' : icon;
+                g.icon = icon;
                 g.images = images;
                 g.iconScale = scale;
               } else {

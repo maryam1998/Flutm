@@ -42,7 +42,7 @@ class _AddGoalDialogState extends State<_AddGoalDialog> {
       setState(() => _err = true);
       return;
     }
-    Navigator.pop(context, (name: name, icon: _icon.text.trim().isEmpty ? '🎯' : _icon.text.trim(), color: _color));
+    Navigator.pop(context, (name: name, icon: _icon.text.trim(), color: _color));
   }
 
   @override
