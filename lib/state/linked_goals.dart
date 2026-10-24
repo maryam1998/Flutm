@@ -128,7 +128,7 @@ void syncLinkedGoals(
         x: spot.dx,
         y: spot.dy,
         createdAt: now,
-        extra: {'linkedTab': t.id},
+        extra: {'linkedTab': t.id, 'showWalker': false},
       );
       map.state.goals.add(g);
       final p = ensurePeriod(g, map);
@@ -141,7 +141,8 @@ void syncLinkedGoals(
     if (a == null) {
       a = newAction(radius: 12)
         ..text = t.branch
-        ..extra['linkedTab'] = t.id;
+        ..extra['linkedTab'] = t.id
+        ..extra['showWalker'] = false;
       g.actions.add(a);
       dirty = true;
     }

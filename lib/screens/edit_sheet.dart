@@ -1086,7 +1086,6 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _stampCard(g.extra),
-      _haloCard(g.extra, false),
       // رنگ هدف + نوع خط + ضخامت، با پیش‌نمایش زنده‌ی مسیر
       GoalPathCard(
         color: g.color,
@@ -1345,7 +1344,6 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _stampCard(a.extra),
-      _haloCard(a.extra, false),
       _switchTile(
         boxed: true,
         title: 'این یه کار روتینه',

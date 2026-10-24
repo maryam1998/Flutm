@@ -1075,11 +1075,12 @@ class MapPainter extends CustomPainter {
       stride *= fit;
     }
 
-    // ─── روزهای قبل: هر روزِ ثبت‌شده یک قدم، ردیف و پشت سر هم از شروع مسیر ───
+    // ─── روزهای قبل: هر روزِ ثبت‌شده یک جفت پا (چپ و راست)، پشت سر هم از شروع مسیر ───
     for (var k = 0; k < fixed; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
-      _drawWalkerFoot(canvas, route, u, k.isEven ? -1.0 : 1.0, pastSize,
-          withOp(color, 0.28));
+      final u2 = (u + stride * 0.3).clamp(0.0, 0.95).toDouble();
+      _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, 0.28));
+      _drawWalkerFoot(canvas, route, u2, 1.0, pastSize, withOp(color, 0.28));
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
