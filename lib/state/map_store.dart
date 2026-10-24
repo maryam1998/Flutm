@@ -166,6 +166,12 @@ class MapStore extends ChangeNotifier {
   // ---------- حذف ----------
 
   void deleteGoal(String id) {
+    // هدفِ وصل‌شده به یک تب: حذفش یعنی اتصال قطع شود (تیک تنظیمات برداشته شود)
+    for (final g in state.goals) {
+      if (g.id == id && g.extra['linkedTab'] is String) {
+        state.extra['link_${g.extra['linkedTab']}'] = false;
+      }
+    }
     for (final r in state.rings) {
       if (r.goalId == id) r.goalId = '';
     }

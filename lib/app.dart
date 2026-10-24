@@ -7,6 +7,10 @@ import 'package:provider/provider.dart';
 import 'screens/map_tab.dart';
 import 'screens/practice_tab.dart';
 import 'screens/shenakht/shenakht_tab.dart';
+import 'state/abundance_store.dart';
+import 'state/beliefs_store.dart';
+import 'state/gratitude_store.dart';
+import 'state/linked_goals.dart';
 import 'state/map_store.dart';
 import 'state/theme_store.dart';
 import 'widgets/angels_layer.dart';
@@ -129,15 +133,24 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _index = 1;
+  late final LinkedGoalsWatcher _linked;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // تب‌های وصل‌شده به نقشه (شکرگذاری / بازی فراوانی / بازنویسی)
+    _linked = LinkedGoalsWatcher(
+      context.read<MapStore>(),
+      context.read<GratitudeStore>(),
+      context.read<AbundanceStore>(),
+      context.read<BeliefsStore>(),
+    )..attach();
   }
 
   @override
   void dispose() {
+    _linked.detach();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

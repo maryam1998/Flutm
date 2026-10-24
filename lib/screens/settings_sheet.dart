@@ -12,6 +12,10 @@ import '../models/map_models.dart';
 import '../services/fast_image.dart';
 import '../state/angels_store.dart';
 import '../state/background_store.dart';
+import '../state/abundance_store.dart';
+import '../state/beliefs_store.dart';
+import '../state/gratitude_store.dart';
+import '../state/linked_goals.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
@@ -318,6 +322,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _mapDisplayCard(),
+                    _linkedTabsCard(),
                     _backgroundCard(),
                     _foregroundCard(),
                     _motivationCard(),
@@ -621,6 +626,32 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             store.changedNow();
           },
         ),
+      ],
+    );
+  }
+
+  /// وصل کردن تب‌ها به نقشه‌ی راه: هر تیک = یک هدفِ جدا روی نقشه
+  Widget _linkedTabsCard() {
+    final map = context.read<MapStore>();
+    return _card(
+      icon: Icons.link,
+      title: 'اتصال به نقشه راه',
+      children: [
+        for (final t in kLinkedTabs)
+          _switchRow(
+            title: t.name,
+            value: isTabLinked(map, t),
+            onChanged: (v) {
+              setState(() => map.state.extra[t.flag] = v);
+              syncLinkedGoals(
+                map,
+                context.read<GratitudeStore>(),
+                context.read<AbundanceStore>(),
+                context.read<BeliefsStore>(),
+              );
+              map.changedNow();
+            },
+          ),
       ],
     );
   }
