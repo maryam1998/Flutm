@@ -883,14 +883,14 @@ class GratPeriodGrid extends StatelessWidget {
   static const gap = 3.0;
   static const blockSize = 30;
 
-  /// state.practiceEmotions[key].gratitude → قوی‌ترین حس (اولین با freq بیشتر)
+  /// state.practiceEmotions[key].gratitude → مخلوط رنگِ همه‌ی حس‌های آن روز
   Color? _ringFor(String key, bool done) {
     final st = store;
     if (!withEmotions || st == null) return null;
     Iterable<String> ids = st.dayAfter[key] ?? const <String>[];
     if (ids.isEmpty && done) ids = st.emotionIdsForDay(key);
-    final dom = dominantEmotion(ids);
-    return dom == null ? null : hexToColor(dom.color);
+    final mixed = mixedEmotionHex(ids);
+    return mixed == null ? null : hexToColor(mixed);
   }
 
   @override

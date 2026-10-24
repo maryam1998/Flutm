@@ -175,7 +175,7 @@ class GratitudeStore extends ChangeNotifier {
           final dom = valid.isEmpty ? null : dominantEmotion(valid);
           if (dom != null) {
             neural.fiberEmotions[key] = NeuralFiberEmotion(
-                ids: valid, color: dom.color, freq: dom.freq);
+                ids: valid, color: mixedEmotionHex(valid) ?? dom.color, freq: dom.freq);
           }
         }
       }
@@ -234,7 +234,7 @@ class GratitudeStore extends ChangeNotifier {
           final dom = valid.isEmpty ? null : dominantEmotion(valid);
           if (dom != null) {
             newEmo[key] = NeuralFiberEmotion(
-                ids: valid, color: dom.color, freq: dom.freq);
+                ids: valid, color: mixedEmotionHex(valid) ?? dom.color, freq: dom.freq);
           }
         }
       }
@@ -290,7 +290,7 @@ class GratitudeStore extends ChangeNotifier {
         final dom = valid.isEmpty ? null : dominantEmotion(valid);
         if (dom != null) {
           neural.fiberEmotions[k] = NeuralFiberEmotion(
-              ids: valid, color: dom.color, freq: dom.freq);
+              ids: valid, color: mixedEmotionHex(valid) ?? dom.color, freq: dom.freq);
         } else {
           neural.fiberEmotions.remove(k);
         }
@@ -356,7 +356,7 @@ class GratitudeStore extends ChangeNotifier {
       if (dom != null) {
         felt = NeuralFiberEmotion(
           ids: ids,
-          color: dom.color,
+          color: mixedEmotionHex(ids) ?? dom.color,
           freq: dom.freq,
         );
       }
@@ -479,7 +479,7 @@ class GratitudeStore extends ChangeNotifier {
     final valid = ids.where((id) => emotionById(id) != null).toList();
     final dom = dominantEmotion(valid);
     if (dom == null) return FeelingApply.skipped;
-    final felt = NeuralFiberEmotion(ids: valid, color: dom.color, freq: dom.freq);
+    final felt = NeuralFiberEmotion(ids: valid, color: mixedEmotionHex(valid) ?? dom.color, freq: dom.freq);
     final today = _todayKey();
     final confirmed = entries
         .any((e) => e.source != 'purchase' && isoToKey(e.iso) == today);
@@ -572,7 +572,7 @@ class GratitudeStore extends ChangeNotifier {
   String? dominantEmotionColorForDay(String dayKey) {
     final ids = emotionIdsForDay(dayKey);
     if (ids.isEmpty) return null;
-    return dominantEmotion(ids)?.color;
+    return mixedEmotionHex(ids) ?? dominantEmotion(ids)?.color;
   }
 
   Future<void> updateDayEmotions(
@@ -596,7 +596,7 @@ class GratitudeStore extends ChangeNotifier {
       if (dom != null) {
         felt = NeuralFiberEmotion(
           ids: valid,
-          color: dom.color,
+          color: mixedEmotionHex(valid) ?? dom.color,
           freq: dom.freq,
         );
       }

@@ -594,7 +594,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                     ),
                                   const SizedBox(height: 6),
                                   Text(
-                                      'برای تغییر: ویجت حس را باز کن، حس را انتخاب کن و دوباره ببند (ثبت حس).',
+                                      'برای تغییر: ویجت حس را باز کن، حس‌ها را انتخاب کن و «ذخیره تغییرات» را بزن (نیازی به بستن ویجت نیست).',
                                       style: TextStyle(
                                           fontSize: 11, color: pal.muted)),
                                 ],
@@ -633,6 +633,12 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                   videos: videos,
                                   shared: share,
                                 );
+                            // حسِ انتخاب‌شده روی ویجت هم همین‌جا ثبت می‌شود
+                            // (لازم نیست ویجت بسته شود)
+                            if (!isPurchase && emo.selectedIds.isNotEmpty) {
+                              await gStore.setEntryEmotions(
+                                  g.id, emo.selectedIds.toList());
+                            }
                             if (context.mounted) Navigator.pop(ctx);
                             _toast(context, 'ویرایش شد ✏️');
                           },
