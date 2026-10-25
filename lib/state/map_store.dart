@@ -202,6 +202,18 @@ class MapStore extends ChangeNotifier {
     changed();
   }
 
+  /// پنهان/نمایش کامل یک هدف (خط «من ← هدف»، خودِ هدف، شاخه‌ها و انیمیشن‌ها)
+  void toggleGoalHidden(String id) {
+    final h = state.findHost(id);
+    if (h is! Goal) return;
+    if (h.extra['hidden'] == true) {
+      h.extra.remove('hidden');
+    } else {
+      h.extra['hidden'] = true;
+    }
+    changed();
+  }
+
   /// true اگه حداقل یک مسیر بازه (دکمه‌ی «جمع همه»)، false یعنی دکمه «باز همه» باشه
   bool get anyOpen {
     final goals = state.goals.where((g) => goalBranchCount(state, g) > 0);

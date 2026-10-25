@@ -264,12 +264,14 @@ class MapPainter extends CustomPainter {
     final tc = _textColor;
 
     for (final g in state.goals) {
+      if (_isHidden(g)) continue;
       _branches(canvas, g, tc, trunkOnly: g.collapsed && g.actions.isNotEmpty);
     }
     if (!state.ringsCollapsed) {
       for (final r in state.rings) {
         if (r.actions.isNotEmpty) {
           final lg = _goalOf(r);
+          if (lg != null && _isHidden(lg)) continue;
           _branches(canvas, r, tc,
               trunkOnly: r.collapsed || (lg?.collapsed ?? false));
         }
@@ -285,16 +287,19 @@ class MapPainter extends CustomPainter {
             break;
           }
         }
-        if (lg == null) continue;
+        if (lg == null || _isHidden(lg)) continue;
         _ringLink(canvas, lg, r);
       }
     }
     _drawMe(canvas, tc);
     for (final g in state.goals) {
-      _drawGoal(canvas, g, tc);
+      if (!_isHidden(g)) _drawGoal(canvas, g, tc);
+      _hideBtn(canvas, g, tc);
     }
     if (!state.ringsCollapsed) {
       for (final r in state.rings) {
+        final lg = _goalOf(r);
+        if (lg != null && _isHidden(lg)) continue;
         _drawRing(canvas, r, tc);
       }
     }
@@ -309,6 +314,68 @@ class MapPainter extends CustomPainter {
         maxY = math.max(maxY, p.dy);
       }
       boundsBox.rect = Rect.fromLTRB(minX, minY, maxX, maxY).inflate(30);
+    }
+  }
+
+  bool _isHidden(Goal g) => g.extra['hidden'] == true;
+
+  /// دکمه‌ی پنهان/نمایشِ کامل هدف: روی خط «من ← هدف»، کمی بیرون از دایره‌ی «من».
+  /// هدفِ پنهان فقط به یک نگین کم‌رنگ با اسمش تبدیل می‌شود؛ با یک تپ برمی‌گردد.
+  void _hideBtn(Canvas canvas, Goal g, Color tc) {
+    final me = state.me;
+    final dx = g.x - me.x, dy = g.y - me.y;
+    final len = math.max(math.sqrt(dx * dx + dy * dy), 1.0);
+    // هدفِ پنهان همیشه نگین بازگشت دارد؛ برای هدفِ باز، فقط وقتی جا هست
+    if (!_isHidden(g) && len < me.radius + 60) return;
+    final k = (0.6 / (cam.scale <= 0 ? 1.0 : cam.scale)).clamp(1.0, 3.0).toDouble();
+    final br = 11.0 * k;
+    final dist = me.radius + 16 + br;
+    final c = Offset(me.x + dx / len * dist, me.y + dy / len * dist);
+    final col = hexColor(g.color, hexColor(kPalette[0]));
+    final hidden = _isHidden(g);
+    hits.add(HitEntry(
+        type: 'goalHide',
+        id: g.id,
+        kind: HitKind.handle,
+        center: c,
+        radius: br + 7));
+    _pts..add(c.translate(-br, -br))..add(c.translate(br, br));
+
+    canvas.drawCircle(c, br,
+        Paint()..color = isDark ? const Color(0xE612142A) : const Color(0xF2FFFFFF));
+    canvas.drawCircle(
+        c,
+        br,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5 * k.clamp(1.0, 1.6)
+          ..color = withOp(col, hidden ? 0.55 : 0.95));
+    // چشم
+    final w = br * 0.55, h = br * 0.34;
+    final ink = withOp(hidden ? tc : col, hidden ? 0.7 : 1.0);
+    final sw = 1.6 * k.clamp(1.0, 1.6);
+    final eye = Path()
+      ..moveTo(c.dx - w, c.dy)
+      ..quadraticBezierTo(c.dx, c.dy - h * 2, c.dx + w, c.dy)
+      ..quadraticBezierTo(c.dx, c.dy + h * 2, c.dx - w, c.dy);
+    final sp = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = sw
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = ink;
+    canvas.drawPath(eye, sp);
+    canvas.drawCircle(c, br * 0.14, Paint()..color = ink);
+    if (hidden) {
+      canvas.drawLine(c + Offset(-w * 0.8, h * 1.7), c + Offset(w * 0.8, -h * 1.7),
+          sp..strokeWidth = sw * 1.2);
+      if (g.name.isNotEmpty) {
+        drawText(canvas, g.name, c.dx, c.dy + br + 10 * k,
+            size: 9.5 * k,
+            color: withOp(tc, 0.7),
+            weight: FontWeight.w600,
+            outline: 2.5);
+      }
     }
   }
 
@@ -784,8 +851,8 @@ class MapPainter extends CustomPainter {
   void _goalShutter(Canvas canvas, Goal g, Color col, Color tc, double r) {
     final n = goalBranchCount(state, g);
     if (n == 0) return;
-    // بالا-چپِ دایره‌ی هدف، چسبیده به لبه‌ی دایره (روی قطر ۴۵°)
-    final cx = g.x - (r + 14) * 0.7071 - 6, cy = g.y - (r + 12) * 0.7071 - 4;
+    // زیرِ دایره‌ی هدف، وسط (نوشته بالاست و دکمه‌ی صدا بالا-راست؛ قاطی نمی‌شوند)
+    final cx = g.x, cy = g.y + r + 20;
     final open = !g.collapsed;
     hits.add(HitEntry(
         type: 'goalToggle',
