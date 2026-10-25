@@ -549,10 +549,20 @@ class MapInteraction {
     final ws = cam.screenToWorld(p.start);
     final w = cam.screenToWorld(cur);
 
-    if (_holdArmed) {
+    if (_holdArmed && p.isLabel) {
+      // نگه‌داشتن + کشیدن روی نوشته = فقط نوشته جابجا بشه
+      _holdArmed = false;
+      _mode = _Mode.dragLabel;
+      _dType = 'action';
+      _dId = node.id;
+      _dHost = host.id;
+      _dStartA = node.labelDX;
+      _dStartB = node.labelDY;
+      _dStartWorld = w;
+    } else if (_holdArmed) {
       _holdArmed = false;
       _holdToggle(host, node, ws);
-    } else if (node.detached && !p.isLabel && p.imgIdx == null) {
+    } else if (node.detached && p.imgIdx == null) {
       _beginActionDrag(
           host.id, node.id, ws - Offset(node.originX ?? 0, node.originY ?? 0));
     } else if (p.imgIdx != null && p.imgIdx! < node.images.length) {
@@ -563,14 +573,6 @@ class MapInteraction {
       _dImg = p.imgIdx!;
       _dStartA = img.dx;
       _dStartB = img.dy;
-      _dStartWorld = w;
-    } else if (p.isLabel) {
-      _mode = _Mode.dragLabel;
-      _dType = 'action';
-      _dId = node.id;
-      _dHost = host.id;
-      _dStartA = node.labelDX;
-      _dStartB = node.labelDY;
       _dStartWorld = w;
     } else {
       final ent = hits.geom[node.id];
@@ -649,6 +651,7 @@ class MapInteraction {
       } else {
         final ent = hits.geom[node.id];
         if (ent == null) return;
+        node.extra['posMoved'] = true;
         final d = target - ent.originPt;
         node.dir = math.atan2(d.dy, d.dx);
         node.len = math.max(8.0, d.distance);
@@ -872,6 +875,7 @@ class MapInteraction {
       _cancelLongPress();
       _pending = null;
       _ptrs.remove(e.pointer);
+      final armed = _holdArmed; // لمس طولانی کامل شد (بدون کشیدن)
       _holdArmed = false;
       final wasDrag = _slopPassed;
       final held = _faceHeld;
@@ -924,6 +928,30 @@ class MapInteraction {
           }
         }
         return;
+      }
+
+      // لمس طولانی (بدون کشیدن) روی شاخه/زیرشاخه‌ی جابجاشده → برگشت به جای اول
+      // روی نوشته: اگه نوشته جابجا شده، فقط نوشته برمی‌گرده سر جاش
+      if (armed && !wasDrag) {
+        final host = store.state.findHost(p.hostId);
+        final f = host is MapHost ? findActionNode(host.actions, p.actionId) : null;
+        if (f != null) {
+          final n = f.node;
+          var did = false;
+          if (p.isLabel && (n.labelDX != 0 || n.labelDY != 0)) {
+            n.labelDX = 0;
+            n.labelDY = 0;
+            did = true;
+          } else if (n.detached || n.extra['posMoved'] == true) {
+            resetBranchPos(n);
+            did = true;
+          }
+          if (did) {
+            HapticFeedback.mediumImpact();
+            store.changed();
+            return;
+          }
+        }
       }
 
       // تپ روی شاخه/زیرشاخه → پخش صدا + کادر ویرایش

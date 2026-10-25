@@ -22,6 +22,7 @@ class _Day {
   final int idx; // روزِ چندمِ دوره (از ۱)
   final int step; // انجام‌شده: شماره‌ی قدمِ همین روز؛ بقیه: قدمی که منتظرشه
   int lost = 0; // روز از دست رفته: تعداد روزهای پشت‌سرهم از دست رفته
+  int gap = 0; // تعداد روزهای پشت‌سرهمِ از دست رفته درست قبل از این روز
 }
 
 /// روزهای دوره‌ی هدف برای یک شاخه، با وضعیت هر روز و شماره‌ی قدمش
@@ -63,6 +64,7 @@ List<_Day> _periodDays(MapHost host, ActionNode node, MapStore store) {
     for (var m = i; m < k; m++) {
       out[m].lost = k - i;
     }
+    if (k < out.length) out[k].gap = k - i;
     i = k;
   }
   return out;
@@ -72,14 +74,16 @@ String _ord(int n) => n >= 1 && n <= kPeriodOrd.length ? periodOrd(n - 1) : toFa
 
 /// متنِ «قدم» برای یک روزِ لمس‌شده
 String _stepCaption(_Day d) {
+  final gapNote =
+      d.gap > 0 ? ' (${toFa(d.gap)} روز را از دست دادی)' : '';
   switch (d.st) {
     case _St.done:
-      return 'روز ${_ord(d.idx)}، قدم ${_ord(d.step)}';
+      return 'روز ${_ord(d.idx)}، قدم ${_ord(d.step)}$gapNote';
     case _St.missed:
       return 'روز ${_ord(d.idx)} · قدم ${_ord(d.step)} '
           '(${toFa(d.lost)} روز را از دست دادی)';
     case _St.today:
-      return 'امروز · روز ${_ord(d.idx)}، قدم ${_ord(d.step)}';
+      return 'امروز · روز ${_ord(d.idx)}، قدم ${_ord(d.step)}$gapNote';
     case _St.future:
       return 'روز ${_ord(d.idx)} · قدم ${_ord(d.step)} در راه است';
   }
@@ -377,7 +381,7 @@ Future<void> showFootStatsSheet(
                               Navigator.pop(ctx);
                               onPhotos();
                             },
-                            child: const Text('عکس‌ها'),
+                            child: const Text('تنظیمات انیمیشن'),
                           ),
                         ),
                     ],

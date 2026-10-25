@@ -193,6 +193,7 @@ void resetBranchPos(ActionNode n) {
   n.bend2 = null;
   n.originX = null;
   n.originY = null;
+  n.extra.remove('posMoved');
 }
 
 void resetBranchTree(List<ActionNode> list) {
