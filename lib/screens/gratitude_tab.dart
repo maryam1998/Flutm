@@ -1504,7 +1504,12 @@ class _EntryRow extends StatelessWidget {
                   alignment: Alignment.center,
                   child: entry.images.isNotEmpty
                       ? _imgFromSrc(entry.images.first.src)
-                      : (entry.icon.isEmpty || entry.icon == '🙏')
+                      : (entry.icon == '✨' ||
+                              (entry.source == 'purchase' &&
+                                  entry.icon.isEmpty))
+                          ? Icon(Icons.payments_rounded,
+                              size: 24, color: pal.gold600)
+                          : (entry.icon.isEmpty || entry.icon == '🙏')
                           ? Icon(Icons.back_hand_outlined,
                               size: 22, color: pal.emerald700)
                           : Text(

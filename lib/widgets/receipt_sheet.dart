@@ -181,7 +181,9 @@ class ReceiptSheet extends StatelessWidget {
               border: Border.all(color: _kBorder),
             ),
             alignment: Alignment.center,
-            child: Text(it.icon, style: const TextStyle(fontSize: 15)),
+            child: it.icon == '✨'
+                ? const Icon(Icons.payments_rounded, size: 18, color: _kGold)
+                : Text(it.icon, style: const TextStyle(fontSize: 15)),
           ),
           const SizedBox(width: 10),
           Expanded(

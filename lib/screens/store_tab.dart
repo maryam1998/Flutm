@@ -627,7 +627,9 @@ class _StoreTabState extends State<StoreTab> {
         border: Border.all(color: _kBorder),
       ),
       alignment: Alignment.center,
-      child: Text(it.icon, style: const TextStyle(fontSize: 16)),
+      child: it.icon == '✨'
+          ? const Icon(Icons.payments_rounded, size: 20, color: _kGold)
+          : Text(it.icon, style: const TextStyle(fontSize: 16)),
     );
   }
 

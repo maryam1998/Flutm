@@ -137,15 +137,10 @@ void syncLinkedGoals(
       dirty = true;
     }
 
-    var a = _linkedBranch(g, t.id);
-    if (a == null) {
-      a = newAction(radius: 12)
-        ..text = t.branch
-        ..extra['linkedTab'] = t.id
-        ..extra['showWalker'] = false;
-      g.actions.add(a);
-      dirty = true;
-    }
+    // شاخه دیگر خودکار ساخته نمی‌شود؛ کاربر شاخه‌ها را خودش اضافه می‌کند.
+    // اگر شاخه‌ی قدیمیِ وصل‌شده هنوز هست، فقط همان هماهنگ می‌ماند.
+    final a = _linkedBranch(g, t.id);
+    if (a == null) continue;
 
     // شاخه‌های قدیمیِ وصل‌شده هم یک بار کمی بلندتر می‌شوند
     if (a.extra['lenBoost'] != true && a.len != null && !a.detached) {

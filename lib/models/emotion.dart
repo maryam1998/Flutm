@@ -56,24 +56,12 @@ Color hexToColor(String hex) {
   return Color(int.parse(h, radix: 16));
 }
 
-/// مخلوط رنگِ چند حس (میانگین RGB همه‌ی حس‌های انتخاب‌شده) → '#rrggbb'.
-/// اگر حسِ معتبری نباشد null.
+/// رنگِ «اولین حسی» که ثبت شده → '#rrggbb' (دیگر مخلوط نمی‌شود).
+/// نامِ تابع برای سازگاری با بقیه‌ی کد همان مانده. اگر حسِ معتبری نباشد null.
 String? mixedEmotionHex(Iterable<String> ids) {
-  var r = 0.0, g = 0.0, b = 0.0;
-  var n = 0;
-  final seen = <String>{};
   for (final id in ids) {
-    if (!seen.add(id)) continue;
     final e = emotionById(id);
-    if (e == null) continue;
-    final c = hexToColor(e.color);
-    r += (c.r * 255.0);
-    g += (c.g * 255.0);
-    b += (c.b * 255.0);
-    n++;
+    if (e != null) return e.color;
   }
-  if (n == 0) return null;
-  String h(double v) =>
-      (v / n).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
-  return '#${h(r)}${h(g)}${h(b)}';
+  return null;
 }

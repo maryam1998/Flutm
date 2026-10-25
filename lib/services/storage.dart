@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data' show Uint8List;
 import 'dart:io' show File, Platform;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'app_prefs.dart';
+import 'web_download.dart';
 
 /// کلیدهای ذخیره‌سازی
 const String kMapKey         = 'maghz_map_json';       // نقشه (سازگاری با گذشته)
@@ -88,6 +90,10 @@ class StorageService {
     final bytes = utf8.encode(json);
     final name =
         '$prefix-${DateTime.now().toIso8601String().substring(0, 10)}.json';
+    if (kIsWeb) {
+      await downloadBytesWeb(Uint8List.fromList(bytes), name);
+      return true;
+    }
     final path = await FilePicker.platform.saveFile(
       dialogTitle: 'ذخیره‌ی بکاپ',
       fileName: name,

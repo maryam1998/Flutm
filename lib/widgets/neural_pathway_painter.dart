@@ -98,7 +98,8 @@ class NeuralPathwayPainter extends CustomPainter {
       // رنگ از خودِ همین رشته خونده می‌شه (نه از روی ایندکس)
       final felt = container.fiberEmotions[drawKeys[i]];
       if (felt != null) {
-        fColor = _parseHex(felt.color);
+        final firstId = felt.ids.isNotEmpty ? emotionById(felt.ids.first) : null;
+        fColor = _parseHex(firstId?.color ?? felt.color);
         fWidth = feltWidth;
         fOpacity = feltOpacity;
       }
