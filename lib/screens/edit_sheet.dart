@@ -952,13 +952,6 @@ class _EditSheetState extends State<EditSheet> {
           valueText: '${(act.footSpeed ?? 1.0).toStringAsFixed(1)}×',
           onChanged: (v) => _edit(() => act!.footSpeed = v),
         ),
-        _switchTile(
-          boxed: true,
-          title: 'در حال حرکت',
-          subtitle: 'روشن = انیمیشن فعال است',
-          value: act.footPlaying,
-          onChanged: (v) => _edit(() => act!.footPlaying = v),
-        ),
       ] else ...[
         _slider(
           label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
@@ -983,13 +976,6 @@ class _EditSheetState extends State<EditSheet> {
           valueText:
               '${((ex['walkerSpeed'] as num?)?.toDouble() ?? 1.5).toStringAsFixed(1)}×',
           onChanged: (v) => _edit(() => ex['walkerSpeed'] = v),
-        ),
-        _switchTile(
-          boxed: true,
-          title: 'در حال حرکت',
-          subtitle: 'روشن = قدم‌زن راه می‌ره',
-          value: ex['walkerPlaying'] as bool? ?? true,
-          onChanged: (v) => _edit(() => ex['walkerPlaying'] = v),
         ),
       ],
       _bottomActions(

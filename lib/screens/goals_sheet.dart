@@ -412,9 +412,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
           ),
       ],
     )),
-      // دکمه‌ی «هدف جدید»: پایین-چپ، بدون باز شدن کادر
+      // دکمه‌ی «هدف جدید»: پایین-راست؛ بعد از ساخت مستقیم کادر ویرایش باز می‌شود
       Positioned(
-        left: 16,
+        right: 16,
         bottom: 18,
         child: FloatingActionButton.extended(
           heroTag: 'goals_add_fab',
@@ -448,11 +448,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
       widget.controller.animateTo(0,
           duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     }
-    ScaffoldMessenger.of(widget.parentContext).quietSnack(const SnackBar(
-      content: Text('هدف اضافه شد — برای تغییر نام و آیکون «ویرایش» را بزن'),
-      duration: Duration(milliseconds: 1800),
-      behavior: SnackBarBehavior.floating,
-    ));
+    // مستقیم برو توی ویرایش تا نام و آیکون هدف رو وارد کنی
+    Navigator.pop(context);
+    showEditSheet(widget.parentContext, GoalTarget(g.id));
   }
 
   // ------------------------------------------------------------------ کارت هدف
@@ -739,16 +737,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
             height: 42,
             child: Row(
               children: [
-                if (h is Goal) ...[
-                  _action(Icons.check_circle_outline_rounded, 'رسیدم',
-                      const Color(0xFF178A7C), () => _reach(store, h)),
-                  divider,
-                ],
-                _action(Icons.my_location_rounded, 'روی نقشه', kGoalsMuted, () {
-                  Navigator.pop(context);
-                  widget.onShowOnMap(h);
-                }),
-                divider,
                 _action(Icons.edit_outlined, 'ویرایش', _kGold, () {
                   Navigator.pop(context);
                   showEditSheet(
@@ -756,6 +744,16 @@ class _GoalsSheetState extends State<GoalsSheet> {
                     h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
                   );
                 }),
+                divider,
+                _action(Icons.my_location_rounded, 'روی نقشه', kGoalsMuted, () {
+                  Navigator.pop(context);
+                  widget.onShowOnMap(h);
+                }),
+                if (h is Goal) ...[
+                  divider,
+                  _action(Icons.check_circle_outline_rounded, 'رسیدم',
+                      const Color(0xFF178A7C), () => _reach(store, h)),
+                ],
               ],
             ),
           ),
