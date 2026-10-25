@@ -277,9 +277,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
         s.goals.isEmpty ? 0 : s.rings.where((r) => ringIsOrphan(s, r)).length;
     final countText = pool.isEmpty ? '' : '${toFa(pool.length)} مورد';
 
-    return ListView(
+    return Stack(children: [
+      Positioned.fill(child: ListView(
       controller: widget.controller,
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 28),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 96),
       children: [
         // هدر
         Row(
@@ -311,25 +312,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints.tightFor(width: 36, height: 36),
               visualDensity: VisualDensity.compact,
-            ),
-            const Spacer(),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: _kGold,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(13)),
-                textStyle:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                widget.onAddGoal();
-              },
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('هدف جدید'),
             ),
           ],
         ),
@@ -429,7 +411,48 @@ class _GoalsSheetState extends State<GoalsSheet> {
             ),
           ),
       ],
+    )),
+      // دکمه‌ی «هدف جدید»: پایین-چپ، بدون باز شدن کادر
+      Positioned(
+        left: 16,
+        bottom: 18,
+        child: FloatingActionButton.extended(
+          heroTag: 'goals_add_fab',
+          backgroundColor: _kGold,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          onPressed: () => _quickAddGoal(store),
+          icon: const Icon(Icons.add_rounded, size: 22),
+          label: const Text('هدف جدید',
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+        ),
+      ),
+    ]);
+  }
+
+  /// افزودنِ فوری: بدون دیالوگ؛ هدف با نام پیش‌فرض ساخته می‌شود و بالای فهرست می‌آید
+  void _quickAddGoal(MapStore store) {
+    final g = store.addGoal(
+      name: 'هدف جدید',
+      icon: '🎯',
+      color: kPalette[math.Random().nextInt(kPalette.length)],
     );
+    final ex = store.state.extra;
+    final order = (ex['goalOrder'] as List?)?.whereType<String>().toList();
+    if (order != null && order.isNotEmpty) {
+      ex['goalOrder'] = [g.id, ...order];
+      store.changed();
+    }
+    if (_tab != 0) setState(() => _tab = 0);
+    if (widget.controller.hasClients) {
+      widget.controller.animateTo(0,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    }
+    ScaffoldMessenger.of(widget.parentContext).quietSnack(const SnackBar(
+      content: Text('هدف اضافه شد — برای تغییر نام و آیکون «ویرایش» را بزن'),
+      duration: Duration(milliseconds: 1800),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   // ------------------------------------------------------------------ کارت هدف

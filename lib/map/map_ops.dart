@@ -120,7 +120,7 @@ List<String> autoLinkRings(MapState s) {
 
 /// جای خالی روی دایره‌ی دور «من» برای هدف جدید
 Offset pickGoalSpot(MapState s) {
-  final rad = 210.0 + math.min(s.goals.length, 12) * 12;
+  final rad = 420.0 + math.min(s.goals.length, 12) * 16;
   Offset? best;
   var bestD = -1.0;
   for (var i = 0; i < 48; i++) {
