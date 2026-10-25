@@ -1116,16 +1116,6 @@ class _EditSheetState extends State<EditSheet> {
           g.trunkStyle = '';
         }),
       ),
-      _card(
-        icon: Icons.alt_route_rounded,
-        title: 'شکل اقدامات',
-        subtitle: 'اقدام‌های این هدف چطور خم شوند. هر اقدام شکل خودش را هم می‌تواند داشته باشد.',
-        collapsible: true,
-        children: [
-          _shapeGrid(g.branchStyle,
-              (v) => g.branchStyle = v.isEmpty ? 'organic' : v),
-        ],
-      ),
       ..._branchesSection(g),
       _card(
         icon: Icons.directions_walk_rounded,
@@ -1257,16 +1247,6 @@ class _EditSheetState extends State<EditSheet> {
             onSize: (v) => r.labelSize = v,
             extra: r.extra,
           ),
-        ],
-      ),
-      _card(
-        icon: Icons.alt_route_rounded,
-        title: 'شکل اقدامات',
-        subtitle: 'اقدام‌های این نشانه چطور خم شوند.',
-        collapsible: true,
-        children: [
-          _shapeGrid(r.branchStyle,
-              (v) => r.branchStyle = v.isEmpty ? 'organic' : v),
         ],
       ),
       ..._branchesSection(r),
@@ -1461,84 +1441,53 @@ class _EditSheetState extends State<EditSheet> {
 
         ],
       ),
-      if (kShowSubActions || a.children.isNotEmpty)
-      _card(
-        icon: kShowSubActions
-            ? Icons.account_tree_rounded
-            : Icons.place_outlined,
-        title: kShowSubActions ? 'زیرشاخه‌ها' : 'جای اقدام',
-        children: [
-          if (kShowSubActions || a.children.isNotEmpty) ...[
-            ..._tree(host, a.children, 0),
-            const SizedBox(height: 10),
-          ],
-          Row(
-            children: [
-              if (kShowSubActions)
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kGold.withAlpha(30),
-                    foregroundColor: _kGold,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    final c = _store.addSubBranch(host, a);
-                    setState(() => _focusId = c.id);
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('زیرشاخه',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-              if (kShowSubActions) const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _kMuted,
-                    side: const BorderSide(color: _kBorder),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    resetBranchPos(a);
-                    _store.changed();
-                    _store.toast?.call('اقدام به جای اولش برگشت');
-                  },
-                  icon: const Icon(Icons.restart_alt, size: 18),
-                  label: const Text('برگرداندن به جای اول',
-                      style: TextStyle(fontSize: 12)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      if (!(kShowSubActions || a.children.isNotEmpty))
+      // زیراقدام‌ها: فقط یک کادرِ «+» (بدون نوشته)
       Padding(
         padding: const EdgeInsets.only(top: 10),
-        child: OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _kMuted,
-            side: const BorderSide(color: _kBorder),
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ..._tree(host, a.children, 0),
+            const SizedBox(height: 8),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  final c = _store.addSubBranch(host, a);
+                  setState(() => _focusId = c.id);
+                },
+                child: Container(
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _kGold, width: 1.2),
+                  ),
+                  child: const Icon(Icons.add_rounded, size: 24, color: _kGold),
+                ),
+              ),
             ),
-          ),
-          onPressed: () {
-            resetBranchPos(a);
-            _store.changed();
-            _store.toast?.call('اقدام به جای اولش برگشت');
-          },
-          icon: const Icon(Icons.restart_alt, size: 18),
-          label: const Text('برگرداندن به جای اول',
-              style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _kMuted,
+                side: const BorderSide(color: _kBorder),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                resetBranchPos(a);
+                _store.changed();
+                _store.toast?.call('اقدام به جای اولش برگشت');
+              },
+              icon: const Icon(Icons.restart_alt, size: 18),
+              label: const Text('برگرداندن به جای اول',
+                  style: TextStyle(fontSize: 12)),
+            ),
+          ],
         ),
       ),
       _bottomActions(
@@ -1572,6 +1521,13 @@ class _EditSheetState extends State<EditSheet> {
         title: 'اقدامات',
         subtitle: 'کارهای کوچکی که تو را به اینجا می‌رسانند. با ⚙ جزئیات هر اقدام را عوض کن.',
         children: [
+          if (host is Goal)
+            _shapeGrid(host.branchStyle,
+                (v) => host.branchStyle = v.isEmpty ? 'organic' : v)
+          else if (host is Ring)
+            _shapeGrid(host.branchStyle,
+                (v) => host.branchStyle = v.isEmpty ? 'organic' : v),
+          const SizedBox(height: 10),
           if (host.actions.isEmpty)
             const Padding(
               padding: EdgeInsets.only(bottom: 8),

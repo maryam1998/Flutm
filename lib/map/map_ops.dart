@@ -141,7 +141,12 @@ Offset pickGoalSpot(MapState s) {
 ActionNode newAction({double radius = 12}) => ActionNode(
       text: '',
       weight: 5,
-      extra: {'createdAt': DateTime.now().millisecondsSinceEpoch, 'radius': radius},
+      extra: {
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'radius': radius,
+        // انیمیشنِ حرکت به‌صورت پیش‌فرض خاموش است؛ کاربر خودش روشن می‌کند
+        'showWalker': false,
+      },
     );
 
 void resetBranchPos(ActionNode n) {
