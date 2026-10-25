@@ -8,6 +8,17 @@ const kDefaultImgSize = 50.0;
 const kIconScaleMin = 0.5;
 const kIconScaleMax = 3.0;
 
+// ─── پیش‌فرض‌های خوانا برای نقشه‌ی هدف‌گذاری ───
+const kDefaultFontSize = 18.0; // اندازه‌ی نوشته‌ها
+const kMeRadiusDefault = 46.0; // دایره‌ی «من»
+const kGoalRadiusDefault = 28.0; // دایره‌ی هدف
+const kRingRadiusDefault = 36.0; // «نزدیک شدن به هدف»
+const kDefaultTrunkStyle = 'glow'; // خط پیش‌فرض: درخشان
+/// وقتی خیلی زوم‌اوت است، نوشته‌ی هدف/من/حلقه حداقل تا این اندازه‌ی روی صفحه (پیکسل) بزرگ می‌شود
+const kLabelMinScreenPx = 9.0;
+const kLabelBoostMax = 2.5; // سقف بزرگ‌شدنِ خودکار (ضریب)
+const kEmojiSizeMin = 0.1; // کمترین اندازه‌ی نوشته/ایکونِ انیمیشن (۱۰٪)
+
 /// دکمه/برچسب «زیرشاخه» فعلاً مخفی است (نام نهایی هنوز انتخاب نشده).
 /// برای برگرداندن، فقط این مقدار را true کنید.
 const kShowSubActions = false;

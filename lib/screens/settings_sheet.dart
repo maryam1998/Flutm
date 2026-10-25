@@ -105,7 +105,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showRingLinks = s.showRingLinks;
     _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
-        kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
+        kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : kDefaultTrunkStyle;
     _footScale = s.footScale.clamp(kFootScaleMin, kFootScaleMax).toDouble();
     _userName = s.userName;
     _nameCtrl = TextEditingController(text: _userName);
@@ -565,16 +565,16 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         const _Hair(),
         _sliderBlock(
           label: 'اندازه‌ی فونتِ نقشه',
-          hint: 'پیش‌فرض ۱۴',
+          hint: 'پیش‌فرض ۱۸',
           valueText: toFa(_fontSize.round()),
           value: _fontSize,
           min: 8,
           max: 40,
           divisions: 32,
           onChanged: (v) => setState(() => _fontSize = v),
-          onReset: _fontSize.round() == 14
+          onReset: _fontSize.round() == kDefaultFontSize.round()
               ? null
-              : () => setState(() => _fontSize = 14),
+              : () => setState(() => _fontSize = kDefaultFontSize),
         ),
         const SizedBox(height: 2),
         // پیش‌نمایش با همان اندازه‌ی واقعیِ نقشه (بدون اثر اندازه‌ی نوشته‌ی برنامه)

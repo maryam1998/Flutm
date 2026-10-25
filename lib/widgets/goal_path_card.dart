@@ -63,7 +63,7 @@ class GoalPathCard extends StatelessWidget {
     final col = hexColor(color, kWebPalette.first);
     final eff = width > 0 ? width.clamp(minW, maxW).toDouble() : defW;
     final isDefault = width <= 0;
-    final style = styleKey.isEmpty ? 'dashed' : styleKey;
+    final style = styleKey.isEmpty ? kDefaultTrunkStyle : styleKey;
 
     return Container(
       margin: const EdgeInsets.only(top: 6, bottom: 4),
@@ -147,7 +147,7 @@ class GoalPathCard extends StatelessWidget {
           PanelChoiceGrid(
             current: styleKey,
             onPick: onStyle,
-            preview: (k, c) => TrunkLinePainter(k.isEmpty ? 'dashed' : k, c),
+            preview: (k, c) => TrunkLinePainter(k.isEmpty ? kDefaultTrunkStyle : k, c),
             choices: [
               const PanelChoice('', 'مثل نقشه'),
               for (final e in kTrunkStyles.entries) PanelChoice(e.key, e.value),

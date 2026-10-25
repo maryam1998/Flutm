@@ -162,14 +162,20 @@ class MapPainter extends CustomPainter {
     final v = a.extra['circleScale'];
     return v is num ? v.toDouble().clamp(0.3, 8.0).toDouble() : 1.0;
   }
+  /// وقتی نقشه خیلی زوم‌اوت است، نوشته‌ی «من/هدف/حلقه» تا حدی بزرگ می‌شود تا روی صفحه ریز نشود
+  double _zoomBoost() {
+    final s = cam.scale <= 0 ? 1.0 : cam.scale;
+    return (kLabelMinScreenPx / (_fs() * s)).clamp(1.0, kLabelBoostMax).toDouble();
+  }
+
   double _labelSize(String type, [double scale = 1]) {
     switch (type) {
       case 'me':
-        return _fs() + 3;
+        return (_fs() + 3) * _zoomBoost();
       case 'goal':
-        return _fs();
+        return _fs() * _zoomBoost();
       case 'ring':
-        return _fs() - 2;
+        return (_fs() - 2) * _zoomBoost();
       default:
         return math.max(8, _fs() * math.min(1.0, scale + 0.3));
     }
@@ -889,7 +895,7 @@ class MapPainter extends CustomPainter {
       final ts = (h is Goal && h.trunkStyle.isNotEmpty)
           ? h.trunkStyle
           : state.trunkStyle;
-      _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : 'dashed',
+      _trunk(canvas, cp, col, kTrunkStyles.containsKey(ts) ? ts : kDefaultTrunkStyle,
           width: (h is Goal && h.trunkWidth > 0) ? h.trunkWidth : 3.0);
     }
     _pts..add(cp.p0)..add(cp.p3);
@@ -1711,7 +1717,7 @@ class MapPainter extends CustomPainter {
   /// ضریب اندازه‌ی نوشته/ایکونِ انیمیشن (extra['walkerEmojiSize'])
   static double _walkerEmojiScale(Map<String, dynamic> extra) =>
       ((extra['walkerEmojiSize'] as num?)?.toDouble() ?? 1.0)
-          .clamp(0.3, 3.0)
+          .clamp(kEmojiSizeMin, 3.0)
           .toDouble();
 
   void _drawEmoji(Canvas canvas, Offset at, double angle, double size,
@@ -1810,6 +1816,21 @@ class MapPainter extends CustomPainter {
     final baseW = math.max(1.0, (1.9 + weight * 1.05) * scale);
     final tipW = math.max(0.7, baseW * 0.38);
     final cub = geo.Cubic(geom.originPt, geom.c1, geom.c2, end);
+    // خط درخشان پیش‌فرض برای شاخه و زیرشاخه: یک لایه‌ی پهن و کم‌رنگ زیر خط
+    if (a.extra['twigGlow'] != false) {
+      final gp = Path();
+      if (geom.poly != null && geom.poly!.length > 1) {
+        gp.moveTo(geom.poly!.first.dx, geom.poly!.first.dy);
+        for (var i = 1; i < geom.poly!.length; i++) {
+          gp.lineTo(geom.poly![i].dx, geom.poly![i].dy);
+        }
+      } else {
+        gp.moveTo(cub.p0.dx, cub.p0.dy);
+        gp.cubicTo(cub.p1.dx, cub.p1.dy, cub.p2.dx, cub.p2.dy, cub.p3.dx,
+            cub.p3.dy);
+      }
+      canvas.drawPath(gp, _stroke(color, baseW * 3.2 + 3, 0.15));
+    }
     if (geom.poly != null) {
       _taperedPoly(canvas, geom.poly!, color, baseW, tipW, 0.92);
     } else {

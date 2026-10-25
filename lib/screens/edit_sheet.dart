@@ -1005,14 +1005,14 @@ class _EditSheetState extends State<EditSheet> {
   /// اندازه‌ی نوشته/ایکونِ انیمیشن (همان کادر «ایموجی یا نوشته»)
   Widget _walkerEmojiSizeSlider(Map<String, dynamic> ex) {
     final v = ((ex['walkerEmojiSize'] as num?)?.toDouble() ?? 1.0)
-        .clamp(0.3, 3.0)
+        .clamp(kEmojiSizeMin, 3.0)
         .toDouble();
     return _slider(
       label: 'اندازه‌ی نوشته و ایکون',
       value: v,
-      min: 0.3,
+      min: kEmojiSizeMin,
       max: 3.0,
-      divisions: 27,
+      divisions: 29,
       valueText: '${(v * 100).round()}٪',
       onChanged: (x) => _edit(() => ex['walkerEmojiSize'] = x),
     );

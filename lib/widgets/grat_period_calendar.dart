@@ -570,6 +570,25 @@ class _GratMiniCalendarState extends State<GratMiniCalendar> {
                 },
               ),
             ),
+            const SizedBox(height: 8),
+            _CalBtn(
+              pal: pal,
+              label: '🔄 ریست تقویم',
+              onTap: () => _confirmReset(
+                context,
+                onOk: () async {
+                  // دوره‌ی نیمه‌کاره فقط به‌اندازه‌ی روزهای گذشته آرشیو می‌شود
+                  final passed = (today.difference(start).inHours / 24)
+                          .round() +
+                      1;
+                  await store.setJourneyDays(passed.clamp(1, total).toInt());
+                  await store.startNewJourney(days: total);
+                  if (context.mounted) {
+                    _snack(context, 'تقویم ریست شد — دوره‌ی تازه از امروز 🌱');
+                  }
+                },
+              ),
+            ),
           ],
           // periodPastHtml — از آخرین دوره به اولین
           if (pastCount > 0) ...[
@@ -596,6 +615,36 @@ class _GratMiniCalendarState extends State<GratMiniCalendar> {
       duration: const Duration(milliseconds: 1600),
       behavior: SnackBarBehavior.floating,
     ));
+  }
+
+  /// تأیید «ریست تقویم»: دوره‌ی فعلی در دوره‌های قبلی می‌ماند و دوره‌ی تازه از امروز شروع می‌شود
+  static Future<void> _confirmReset(
+    BuildContext context, {
+    required Future<void> Function() onOk,
+  }) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: const Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text(
+            'تقویم از امروز از نو شروع بشه؟\nدوره‌ی فعلی در «دوره‌های قبلی» نگه داشته می‌شه و هیچ ثبتی پاک نمی‌شه.',
+            style: TextStyle(fontSize: 13.5, height: 1.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('انصراف')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ریست'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await onOk();
   }
 
   /// window.prompt وب. لغو → هیچ؛ ورودیِ نامعتبر → toast
@@ -1801,6 +1850,26 @@ class _AbundancePeriodCalendarState extends State<AbundancePeriodCalendar> {
                   if (context.mounted) {
                     _GratMiniCalendarState._snack(context,
                         'دوره روی ${GratCal.faNum(n)} روز تنظیم شد 🌱');
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            _CalBtn(
+              pal: pal,
+              label: '🔄 ریست تقویم',
+              onTap: () => _GratMiniCalendarState._confirmReset(
+                context,
+                onOk: () async {
+                  // دوره‌ی نیمه‌کاره فقط به‌اندازه‌ی روزهای گذشته آرشیو می‌شود
+                  final passed = (today.difference(start).inHours / 24)
+                          .round() +
+                      1;
+                  await store.setJourneyDays(passed.clamp(1, total).toInt());
+                  await store.startNewJourney(days: total);
+                  if (context.mounted) {
+                    _GratMiniCalendarState._snack(context,
+                        'تقویم ریست شد — دوره‌ی تازه از امروز 🌱');
                   }
                 },
               ),

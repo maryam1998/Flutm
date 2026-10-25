@@ -255,7 +255,7 @@ class Goal implements MapHost {
     this.color,
     this.x = 0,
     this.y = 0,
-    this.radius = 20,
+    this.radius = kGoalRadiusDefault,
     this.iconScale = 1,
     this.feelingOffsetX = 0,
     this.feelingOffsetY = 0,
@@ -293,8 +293,8 @@ class Goal implements MapHost {
     final created =
         j['createdAt'] is num ? (j['createdAt'] as num).toInt() : null;
     final trunk = _s(j['trunkStyle'], '');
-    var radius = _d(j['radius'], 20);
-    if (radius < 12) radius = 20;
+    var radius = _d(j['radius'], kGoalRadiusDefault);
+    if (radius < 12) radius = kGoalRadiusDefault;
     var fs = _d(j['feelingScale'], 1);
     if (fs < 0.5) fs = 1;
     final freq = _s(j['freq'], 'alpha');
@@ -397,7 +397,7 @@ class Ring implements MapHost {
     this.goalId = '',
     this.x = 0,
     this.y = 0,
-    this.radius = 30,
+    this.radius = kRingRadiusDefault,
     this.iconScale = 1,
     this.labelDX = 0,
     this.labelDY = 0,
@@ -423,8 +423,8 @@ class Ring implements MapHost {
 
   factory Ring.fromJson(dynamic raw) {
     final j = _m(raw);
-    var radius = _d(j['radius'], 30);
-    if (radius < 15) radius = 30;
+    var radius = _d(j['radius'], kRingRadiusDefault);
+    if (radius < 15) radius = kRingRadiusDefault;
     final bs = _s(j['branchStyle'], 'organic');
     final icon = _s(j['icon'], '');
     return Ring(
@@ -491,7 +491,7 @@ class MeNode {
     this.name = 'من',
     this.x = 0,
     this.y = 0,
-    this.radius = 34,
+    this.radius = kMeRadiusDefault,
     this.labelDX = 0,
     this.labelDY = 0,
     this.labelSize,
@@ -507,8 +507,8 @@ class MeNode {
 
   factory MeNode.fromJson(dynamic raw) {
     final j = _m(raw);
-    var r = _d(j['radius'], 34);
-    if (r < 20) r = 34;
+    var r = _d(j['radius'], kMeRadiusDefault);
+    if (r < 20) r = kMeRadiusDefault;
     return MeNode(
       color: _s(j['color'], '#f4c542'),
       note: _s(j['note'], ''),
@@ -560,8 +560,8 @@ class MapState {
     List<Goal>? goals,
     List<Ring>? rings,
     this.textColor = kDefaultTextColor,
-    this.trunkStyle = 'dashed',
-    this.fontSize = 14,
+    this.trunkStyle = kDefaultTrunkStyle,
+    this.fontSize = kDefaultFontSize,
     this.showDateStamps = false,
     this.showTimeStamps = false,
     this.showRingLinks = false,
@@ -586,13 +586,20 @@ class MapState {
     'showDateStamps', 'showTimeStamps', 'showRingLinks', 'showEmotionWidget',
     'userName', 'footScale', 'footScale35', 'walkerHalo', 'walkerHaloScale',
     'haloMe', 'haloGoal', 'haloAction', 'haloSub', 'haloRing', 'stampsOffV2',
+    'sizesV2',
   };
 
   factory MapState.fromJson(dynamic raw) {
     final j = _m(raw);
-    final ts = _s(j['trunkStyle'], 'dashed');
-    var fs = _d(j['fontSize'], 14);
-    if (fs < 8) fs = 14;
+    var ts = _s(j['trunkStyle'], kDefaultTrunkStyle);
+    var fs = _d(j['fontSize'], kDefaultFontSize);
+    if (fs < 8) fs = kDefaultFontSize;
+    // یک‌بار: پیش‌فرض‌های قدیمیِ ریز (فونت ۱۴، خط‌چین، دایره‌های کوچک) به پیش‌فرض‌های جدید می‌روند
+    final sizesMigrated = j['sizesV2'] == true;
+    if (!sizesMigrated) {
+      if ((fs - 14).abs() < 1e-9) fs = kDefaultFontSize;
+      if (ts == 'dashed') ts = kDefaultTrunkStyle;
+    }
     final extra = _rest(j, _known)..remove('_lite');
     // یک‌بار: تاریخ/ساعتِ ذخیره‌شده‌ی قبلی (که پیش‌فرضِ روشن بود) خاموش می‌شود
     final stampsMigrated = j['stampsOffV2'] == true;
@@ -601,16 +608,28 @@ class MapState {
     if (j['footScale35'] != true && (footScaleV - 1.0).abs() < 1e-9) {
       footScaleV = 0.35;
     }
+    final meV = MeNode.fromJson(j['me']);
+    final goalsV = j['goals'] is List
+        ? (j['goals'] as List).map(Goal.fromJson).toList()
+        : <Goal>[];
+    final ringsV = j['rings'] is List
+        ? (j['rings'] as List).map(Ring.fromJson).toList()
+        : <Ring>[];
+    if (!sizesMigrated) {
+      if ((meV.radius - 34).abs() < 1e-9) meV.radius = kMeRadiusDefault;
+      for (final g in goalsV) {
+        if ((g.radius - 20).abs() < 1e-9) g.radius = kGoalRadiusDefault;
+      }
+      for (final r in ringsV) {
+        if ((r.radius - 30).abs() < 1e-9) r.radius = kRingRadiusDefault;
+      }
+    }
     return MapState(
-      me: MeNode.fromJson(j['me']),
-      goals: j['goals'] is List
-          ? (j['goals'] as List).map(Goal.fromJson).toList()
-          : [],
-      rings: j['rings'] is List
-          ? (j['rings'] as List).map(Ring.fromJson).toList()
-          : [],
+      me: meV,
+      goals: goalsV,
+      rings: ringsV,
       textColor: _s(j['textColor'], kDefaultTextColor),
-      trunkStyle: kTrunkStyles.containsKey(ts) ? ts : 'dashed',
+      trunkStyle: kTrunkStyles.containsKey(ts) ? ts : kDefaultTrunkStyle,
       fontSize: fs,
       showDateStamps:
           stampsMigrated ? _b(j['showDateStamps'], false) : false,
@@ -649,6 +668,7 @@ class MapState {
         'haloSub': haloSub,
         'haloRing': haloRing,
         'stampsOffV2': true,
+        'sizesV2': true,
         'userName': userName,
         'footScale': footScale,
         'footScale35': true,
