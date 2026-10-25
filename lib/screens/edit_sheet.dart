@@ -908,6 +908,7 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
+      _walkerEmojiSizeSlider(ex),
       const SizedBox(height: 8),
       _walkerModeTile(ex),
       const SizedBox(height: 8),
@@ -999,6 +1000,22 @@ class _EditSheetState extends State<EditSheet> {
         },
       ),
     ];
+  }
+
+  /// اندازه‌ی نوشته/ایکونِ انیمیشن (همان کادر «ایموجی یا نوشته»)
+  Widget _walkerEmojiSizeSlider(Map<String, dynamic> ex) {
+    final v = ((ex['walkerEmojiSize'] as num?)?.toDouble() ?? 1.0)
+        .clamp(0.3, 3.0)
+        .toDouble();
+    return _slider(
+      label: 'اندازه‌ی نوشته و ایکون',
+      value: v,
+      min: 0.3,
+      max: 3.0,
+      divisions: 27,
+      valueText: '${(v * 100).round()}٪',
+      onChanged: (x) => _edit(() => ex['walkerEmojiSize'] = x),
+    );
   }
 
   /// هاله‌ی دور انیمیشن (پا و دایره‌ی متصل): نمایش و اندازه، جدا برای هر هدف/شاخه/زیرشاخه
@@ -1129,6 +1146,7 @@ class _EditSheetState extends State<EditSheet> {
               }
             }),
           ),
+          _walkerEmojiSizeSlider(g.extra),
           const SizedBox(height: 6),
           _slider(
             label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
@@ -1430,6 +1448,7 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
+      _walkerEmojiSizeSlider(a.extra),
       _voiceField(a.extra, 'walkerVoice', 'walker:${a.id}'),
       ..._walkerHaloControls(a.extra),
       const Padding(

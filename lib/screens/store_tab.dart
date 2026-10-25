@@ -11,6 +11,9 @@ import '../state/abundance_store.dart';
 import '../state/gratitude_store.dart';
 import '../utils/money_format.dart';
 import '../utils/thousands_input_formatter.dart';
+import '../theme/grat_palette.dart';
+import '../widgets/grat_period_calendar.dart';
+import '../widgets/neural_pathway.dart';
 import '../widgets/receipt_sheet.dart';
 import '../widgets/shop_history_sheet.dart';
 import '../services/quiet_snack.dart';
@@ -179,9 +182,69 @@ class _StoreTabState extends State<StoreTab> {
 
             // سبد
             _cartSection(store),
+            const SizedBox(height: 22),
+
+            // تقویم دوره + مسیر عصبی (مثل شکرگذاری)
+            ..._journeySections(store),
           ],
         ),
       ),
+    );
+  }
+
+  /// «📅 تقویم فراوانی» و «مسیر عصبی فراوانی» — همان ظاهر تب شکرگذاری
+  List<Widget> _journeySections(AbundanceStore store) {
+    if (!store.loaded) return const [];
+    final pal = GratPalette.of(context);
+    return [
+      Text(
+        '📅 تقویم فراوانی',
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: pal.ink,
+        ),
+      ),
+      const SizedBox(height: 14),
+      AbundancePeriodCalendar(store: store, pal: pal),
+      const SizedBox(height: 22),
+      _sectionLabel(pal, Icons.psychology_alt_outlined, 'مسیر عصبی فراوانی'),
+      const SizedBox(height: 8),
+      NeuralPathway(
+        container: store.neural,
+        label: 'بازی فراوانی',
+        showDayButtons: false,
+        feltWidth: 1.8,
+        onChange: () => store.saveNeural(),
+      ),
+    ];
+  }
+
+  Widget _sectionLabel(GratPalette pal, IconData icon, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: pal.emerald500.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(7),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 14, color: pal.emerald700),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: pal.ink,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

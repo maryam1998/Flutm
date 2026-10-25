@@ -428,8 +428,9 @@ class MapPainter extends CustomPainter {
   }
 
   /// نشانِ نوشته‌ی آزاد گوشه‌ی بالا-راست (کپسولِ چندخطی، رشد به چپ/پایین)
-  void _textBadge(Canvas canvas, Offset c, double r, String text) {
-    final br = math.max(9.0, r * 0.46);
+  void _textBadge(Canvas canvas, Offset c, double r, String text,
+      [double k = 1.0]) {
+    final br = math.max(9.0, r * 0.46) * k;
     final fs = br * 0.95;
     final bc = c + Offset(r * 0.72, -r * 0.72);
     final tps = _wrapLines(text, fs, math.max(r * 3.2, 90.0),
@@ -456,14 +457,15 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  void _emojiBadge(Canvas canvas, Offset c, double r, String emoji) {
+  void _emojiBadge(Canvas canvas, Offset c, double r, String emoji,
+      [double k = 1.0]) {
     if (isTextIcon(emoji)) {
-      _textBadge(canvas, c, r, emoji);
+      _textBadge(canvas, c, r, emoji, k);
       return;
     }
     final list = emoji.characters.where((x) => x.trim().isNotEmpty).take(3).toList();
     if (list.isEmpty) return;
-    final br = math.max(9.0, r * 0.46);
+    final br = math.max(9.0, r * 0.46) * k;
     final fs = br * (list.length == 1 ? 1.35 : 1.15);
     final bc = c + Offset(r * 0.72, -r * 0.72);
     if (list.length == 1) {
@@ -1116,6 +1118,7 @@ class MapPainter extends CustomPainter {
       hostId: g.id,
       photos: walkerPhotosOf(g.extra),
       emoji: walkerEmojiOf(g.extra),
+      emojiScale: _walkerEmojiScale(g.extra),
       halo: g.extra['walkerHalo'] != false,
       haloScale: ((g.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
       voiceExtra: g.extra,
@@ -1192,6 +1195,7 @@ class MapPainter extends CustomPainter {
           withBody: false,
           photos: walkerPhotosOf(a.extra),
           emoji: walkerEmojiOf(a.extra),
+          emojiScale: _walkerEmojiScale(a.extra),
           halo: a.extra['walkerHalo'] != false,
           haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
           voiceExtra: a.extra,
@@ -1300,6 +1304,7 @@ class MapPainter extends CustomPainter {
     bool withBody = true,
     List<String> photos = const [],
     String emoji = '',
+    double emojiScale = 1.0,
     bool halo = true,
     double haloScale = 1.0,
     Map<String, dynamic>? voiceExtra,
@@ -1489,7 +1494,8 @@ class MapPainter extends CustomPainter {
     }
     if (hasEmoji && faceImg == null) {
       // ایموجی به‌جای دایره (بدون قاب)، وسط همان جایگاه
-      final tp = textCache.get(emoji, bodyR * 1.9, const Color(0xFF000000),
+      final tp = textCache.get(
+          emoji, bodyR * 1.9 * emojiScale, const Color(0xFF000000),
           FontWeight.w400);
       tp.paint(canvas, bodyPos - Offset(tp.width / 2, tp.height / 2));
       if (!playing) {
@@ -1522,7 +1528,7 @@ class MapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.2
             ..color = withOp(col, 0.95));
-      if (hasEmoji) _emojiBadge(canvas, bodyPos, bodyR, emoji);
+      if (hasEmoji) _emojiBadge(canvas, bodyPos, bodyR, emoji, emojiScale);
       if (!playing) {
         // نشان ▶ : با یک تپ دوباره راه می‌افته
         final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
@@ -1701,6 +1707,12 @@ class MapPainter extends CustomPainter {
   }
 
   // ───────────────────────── کمکی ─────────────────────────
+
+  /// ضریب اندازه‌ی نوشته/ایکونِ انیمیشن (extra['walkerEmojiSize'])
+  static double _walkerEmojiScale(Map<String, dynamic> extra) =>
+      ((extra['walkerEmojiSize'] as num?)?.toDouble() ?? 1.0)
+          .clamp(0.3, 3.0)
+          .toDouble();
 
   void _drawEmoji(Canvas canvas, Offset at, double angle, double size,
       Color color, String emoji) {

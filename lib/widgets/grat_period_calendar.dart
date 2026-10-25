@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/emotion.dart';
 import '../models/future_version.dart';
 import '../models/jalali.dart' as jal;
+import '../state/abundance_store.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
 import '../services/quiet_snack.dart';
@@ -1627,6 +1628,280 @@ class _PastCycleState extends State<_PastCycle> {
               inner: true,
               keyOf: bKey,
               statusOf: _BeliefsPeriodCalendarState._statusFn(c.readTimes),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//        تقویم دوره‌ی بازی فراوانی — همان طراحی تقویم شکرگذاری
+//        (روز انجام‌شده = روزی که حداقل یک خرید ثبت شده)
+// ════════════════════════════════════════════════════════════════
+class AbundancePeriodCalendar extends StatefulWidget {
+  final AbundanceStore store;
+  final GratPalette pal;
+  const AbundancePeriodCalendar({
+    super.key,
+    required this.store,
+    required this.pal,
+  });
+
+  @override
+  State<AbundancePeriodCalendar> createState() =>
+      _AbundancePeriodCalendarState();
+}
+
+class _AbundancePeriodCalendarState extends State<AbundancePeriodCalendar> {
+  late final String _id = 'acal${identityHashCode(this)}';
+  ScrollPosition? _pos;
+
+  static String _status(String key, bool done, bool today, bool future) {
+    var st = future ? 'هنوز نرسیده' : (done ? '✓ خرید ثبت شده' : 'خرید ثبت نشده');
+    if (today) st = 'امروز — $st';
+    return st;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final p = Scrollable.maybeOf(context)?.position;
+    if (p != _pos) {
+      _pos?.removeListener(_CalBubble.hide);
+      _pos = p;
+      _pos?.addListener(_CalBubble.hide);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pos?.removeListener(_CalBubble.hide);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = widget.store;
+    final pal = widget.pal;
+
+    final start = GratCal.parseKey(store.journeyStart);
+    final total = store.journeyDays;
+    final today = GratCal.today();
+    final doneSet = store.doneDayKeys;
+
+    var doneCount = 0;
+    for (var d = 0; d < total; d++) {
+      if (doneSet.contains(
+          GratCal.key(DateTime(start.year, start.month, start.day + d)))) {
+        doneCount++;
+      }
+    }
+    final end = DateTime(start.year, start.month, start.day + total);
+    final finished = !today.isBefore(end);
+    final pastCount = store.pastPeriods.length;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              color: pal.isDark ? pal.surface : Colors.white,
+              border: Border.all(color: pal.panelBorder),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: pal.isDark
+                  ? null
+                  : const [
+                      BoxShadow(
+                          color: Color(0x0F141832),
+                          blurRadius: 12,
+                          offset: Offset(0, 3)),
+                    ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _CalHeader(
+                  pal: pal,
+                  title: 'مسیر فراوانی',
+                  done: math.min(doneCount, total),
+                  total: total,
+                ),
+                const SizedBox(height: 14),
+                GratPeriodGrid(
+                  pal: pal,
+                  owner: '$_id:main',
+                  start: start,
+                  total: total,
+                  doneSet: doneSet,
+                  statusOf: _status,
+                ),
+                const SizedBox(height: 12),
+                _CalLegend(pal: pal),
+              ],
+            ),
+          ),
+          if (finished) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(230, 205, 142, .25),
+                border: Border.all(color: pal.gold300),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '🎉🥳 دوره‌ی ${GratCal.ord(pastCount)} رو تموم کردی! '
+                '${GratCal.faNum(math.min(doneCount, total))} روز از ${GratCal.faNum(total)} روز خرید ثبت کردی.\n'
+                'برای ادامه دوره‌ی بعدی رو شروع کن — دوره‌های قبلی همین‌جا می‌مونن.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  height: 1.8,
+                  leadingDistribution: TextLeadingDistribution.even,
+                  color: pal.ink,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _CalBtn(
+              pal: pal,
+              gold: true,
+              label: '▶️ شروع دوره‌ی ${GratCal.ord(pastCount + 1)}',
+              onTap: () => _GratMiniCalendarState._askDays(
+                context,
+                title: 'دوره‌ی ${GratCal.ord(pastCount + 1)} چند روزه باشه؟',
+                initial: total,
+                onOk: (n) async {
+                  await store.startNewJourney(days: n);
+                  if (context.mounted) {
+                    _GratMiniCalendarState._snack(context,
+                        'دوره‌ی ${GratCal.ord(store.pastPeriods.length)} شروع شد 🌱');
+                  }
+                },
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 18),
+            _CalBtn(
+              pal: pal,
+              label: '⚙️ روزهای دوره (الان ${GratCal.faNum(total)} روزه)',
+              onTap: () => _GratMiniCalendarState._askDays(
+                context,
+                title: 'دوره‌ی ${GratCal.ord(pastCount)} چند روزه باشه؟',
+                initial: total,
+                onOk: (n) async {
+                  await store.setJourneyDays(n);
+                  if (context.mounted) {
+                    _GratMiniCalendarState._snack(context,
+                        'دوره روی ${GratCal.faNum(n)} روز تنظیم شد 🌱');
+                  }
+                },
+              ),
+            ),
+          ],
+          if (pastCount > 0) ...[
+            const SizedBox(height: 10),
+            for (var i = pastCount - 1; i >= 0; i--) ...[
+              _AbundancePastPeriod(
+                pal: pal,
+                store: store,
+                index: i,
+                doneSet: doneSet,
+                owner: '$_id:past$i',
+              ),
+              if (i > 0) const SizedBox(height: 6),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// دوره‌ی تمام‌شده‌ی قبلیِ فراوانی — مثل details.mini-cal-past
+class _AbundancePastPeriod extends StatefulWidget {
+  final GratPalette pal;
+  final AbundanceStore store;
+  final int index;
+  final Set<String> doneSet;
+  final String owner;
+  const _AbundancePastPeriod({
+    required this.pal,
+    required this.store,
+    required this.index,
+    required this.doneSet,
+    required this.owner,
+  });
+
+  @override
+  State<_AbundancePastPeriod> createState() => _AbundancePastPeriodState();
+}
+
+class _AbundancePastPeriodState extends State<_AbundancePastPeriod> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = widget.pal;
+    final pd = widget.store.pastPeriods[widget.index];
+    final days = (pd['days'] as int?) ?? 28;
+    final start = GratCal.parseKey(pd['startDate']?.toString() ?? '');
+    var done = 0;
+    for (var d = 0; d < days; d++) {
+      if (widget.doneSet.contains(
+          GratCal.key(DateTime(start.year, start.month, start.day + d)))) {
+        done++;
+      }
+    }
+    final head = TextStyle(
+        fontSize: 11.5, fontWeight: FontWeight.w800, color: pal.ink);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: pal.isDark ? pal.surface : Colors.white,
+        border: Border.all(color: pal.panelBorder),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _open = !_open),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    '✅ دوره‌ی ${GratCal.ord(widget.index)} — ${GratCal.faNum(days)} روزه',
+                    style: head,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text('${GratCal.faNum(done)} / ${GratCal.faNum(days)}',
+                    style: head),
+              ],
+            ),
+          ),
+          if (_open) ...[
+            const SizedBox(height: 10),
+            GratPeriodGrid(
+              pal: pal,
+              owner: widget.owner,
+              start: start,
+              total: days,
+              doneSet: widget.doneSet,
+              inner: true,
+              statusOf: _AbundancePeriodCalendarState._status,
             ),
           ],
         ],

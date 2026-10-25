@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../services/app_prefs.dart';
 
 import '../models/abundance_models.dart';
+import '../models/neural_container.dart';
 
 class AbundanceStore extends ChangeNotifier {
   static const _kSettings = 'abundance_settings_v1';
@@ -12,12 +13,27 @@ class AbundanceStore extends ChangeNotifier {
   static const _kPending = 'abundance_pending_v1';
   static const _kCart = 'abundance_cart_v1';
   static const _kHistory = 'abundance_history_v1';
+  // تقویم دوره و مسیر عصبی (مثل شکرگذاری)
+  static const _kJourneyDays = 'abundance_journey_days';
+  static const _kJourneyStart = 'abundance_journey_start';
+  static const _kJourneyPast = 'abundance_journey_past';
+  static const _kNeural = 'abundance_neural';
 
   AbundanceSettings settings = AbundanceSettings(startDate: _todayKey());
   BankCard card = BankCard();
   final List<ShopItem> pending = [];
   final List<ShopItem> cart = [];
   final List<Purchase> history = [];
+
+  /// مسیر عصبی بازی فراوانی — هر خرید (تسویهٔ سبد) دقیقاً یک رشته
+  NeuralContainer neural = NeuralContainer();
+
+  /// تقویم دوره (مثل شکرگذاری)
+  int journeyDays = 28;
+  String journeyStart = '';
+
+  /// دوره‌های تمام‌شده‌ی قبلی: [{days: int, startDate: 'yyyy-MM-dd'}]
+  final List<Map<String, dynamic>> pastPeriods = [];
 
   bool loaded = false;
 
@@ -63,6 +79,40 @@ class AbundanceStore extends ChangeNotifier {
           ..addAll((jsonDecode(hRaw) as List)
               .map((e) => Purchase.fromJson(Map<String, dynamic>.from(e))));
       }
+
+      // تقویم دوره + مسیر عصبی
+      journeyDays = sp.getInt(_kJourneyDays) ?? 28;
+      if (journeyDays < 1) journeyDays = 28;
+      journeyStart = sp.getString(_kJourneyStart) ?? '';
+      if (journeyStart.isEmpty) {
+        // اولین بار: تقویم از روز شروع بازی شروع می‌شود
+        journeyStart =
+            settings.startDate.isNotEmpty ? settings.startDate : _todayKey();
+      }
+      final nRaw = sp.getString(_kNeural);
+      if (nRaw != null && nRaw.isNotEmpty) {
+        try {
+          neural = NeuralContainer.fromJson(
+              Map<String, dynamic>.from(jsonDecode(nRaw)));
+        } catch (_) {}
+      }
+      final pRaw2 = sp.getString(_kJourneyPast);
+      if (pRaw2 != null && pRaw2.isNotEmpty) {
+        try {
+          final l = jsonDecode(pRaw2);
+          if (l is List) {
+            pastPeriods
+              ..clear()
+              ..addAll(l.whereType<Map>().map((m) => {
+                    'days': (m['days'] as num?)?.toInt() ?? 28,
+                    'startDate': m['startDate']?.toString() ?? '',
+                  }));
+          }
+        } catch (_) {}
+      }
+      // خریدهای قبلی هم رشته می‌گیرند
+      neural.logs.removeWhere((_, v) => v == false);
+      _syncPurchaseFibers();
     } catch (_) {}
     loaded = true;
     notifyListeners();
@@ -79,7 +129,74 @@ class AbundanceStore extends ChangeNotifier {
           _kCart, jsonEncode(cart.map((e) => e.toJson()).toList()));
       await sp.setString(_kHistory,
           jsonEncode(history.map((e) => e.toJson()).toList()));
+      _syncPurchaseFibers();
+      await sp.setInt(_kJourneyDays, journeyDays);
+      await sp.setString(_kJourneyStart, journeyStart);
+      await sp.setString(_kNeural, jsonEncode(neural.toJson()));
+      await sp.setString(_kJourneyPast, jsonEncode(pastPeriods));
     } catch (_) {}
+  }
+
+  // ═══════════════ تقویم دوره + مسیر عصبی ═══════════════
+
+  /// کلیدِ ثابتِ رشته‌ی هر خرید
+  static String _fiberKeyFor(Purchase p, int ms) => 'f$ms-p${p.id}';
+
+  /// همیشه (idempotent): هر خرید ⇄ دقیقاً یک رشته. رشته‌ی بی‌خرید حذف می‌شود.
+  void _syncPurchaseFibers() {
+    try {
+      final want = <String>{};
+      for (final p in history) {
+        DateTime t;
+        try {
+          t = DateTime.parse(p.iso).toLocal();
+        } catch (_) {
+          continue;
+        }
+        want.add(_fiberKeyFor(p, t.millisecondsSinceEpoch));
+      }
+      for (final k in neural.logs.keys.toList()) {
+        if (neural.logs[k] != true) continue;
+        if (want.contains(k)) continue;
+        neural.logs.remove(k);
+        neural.fiberEmotions.remove(k);
+        neural.pendingManual.remove(k);
+      }
+      for (final k in want) {
+        neural.logs[k] = true;
+      }
+    } catch (_) {}
+  }
+
+  /// روزهایی (yyyy-MM-dd) که حداقل یک خرید ثبت شده
+  Set<String> get doneDayKeys {
+    final out = <String>{};
+    for (final p in history) {
+      final k = _isoToKey(p.iso);
+      if (k.isNotEmpty) out.add(k);
+    }
+    return out;
+  }
+
+  Future<void> saveNeural() async {
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> setJourneyDays(int days) async {
+    if (days < 1) days = 28;
+    journeyDays = days;
+    notifyListeners();
+    await _persist();
+  }
+
+  /// شروع دوره‌ی بعدی: دوره‌ی فعلی می‌رود توی دوره‌های قبلی
+  Future<void> startNewJourney({int? days}) async {
+    pastPeriods.add({'days': journeyDays, 'startDate': journeyStart});
+    if (days != null && days >= 1) journeyDays = days;
+    journeyStart = _todayKey();
+    notifyListeners();
+    await _persist();
   }
 
   // ═══════════════ محاسبات ═══════════════
