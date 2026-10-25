@@ -848,10 +848,10 @@ class _EditSheetState extends State<EditSheet> {
           _voiceField(me.extra, 'voice', 'me'),
           _slider(
             label: 'اندازه',
-            value: (me.radius / _kMeBaseRadius).clamp(0.6, 4.0).toDouble(),
+            value: (me.radius / _kMeBaseRadius).clamp(0.6, 10.0).toDouble(),
             min: 0.6,
-            max: 4.0,
-            divisions: 34,
+            max: 10.0,
+            divisions: 47,
             valueText: '${(me.radius / _kMeBaseRadius * 100).round()}٪',
             onChanged: (v) => _edit(() => me.radius = _kMeBaseRadius * v),
           ),

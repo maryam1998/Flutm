@@ -27,6 +27,7 @@ enum _Mode {
   resizeImage,
   dragFoot,
   dragWalker,
+  dragEye,
 }
 
 class _Pending {
@@ -221,7 +222,7 @@ class MapInteraction {
   void _setRadius(Object n, double v) {
     switch (n) {
       case MeNode m:
-        m.radius = math.max(20.0, math.min(70.0, v));
+        m.radius = math.max(20.0, math.min(340.0, v));
       case Goal g:
         g.radius = math.max(12.0, math.min(90.0, v));
       case Ring r:
@@ -237,10 +238,6 @@ class MapInteraction {
 
     if (_ptrs.isEmpty && hit != null && hit.type == 'goalToggle') {
       store.toggleGoalCollapse(hit.id);
-      return;
-    }
-    if (_ptrs.isEmpty && hit != null && hit.type == 'goalHide') {
-      store.toggleGoalHidden(hit.id);
       return;
     }
 
@@ -283,6 +280,16 @@ class MapInteraction {
 
     if (hit == null) {
       _startPan(pos);
+      return;
+    }
+
+    // ─── چشمِ هدف: تپ = پنهان/نمایش ، کشیدن دور «من» = چرخاندن هدف ───
+    if (hit.type == 'goalHide') {
+      _tap = hit;
+      _slopPassed = false;
+      _mode = _Mode.dragEye;
+      _dType = 'goalHide';
+      _dId = hit.id;
       return;
     }
 
@@ -480,6 +487,22 @@ class MapInteraction {
         _doDragFoot(w);
       case _Mode.dragWalker:
         _doDragWalker(w);
+      case _Mode.dragEye:
+        final g = store.state.findHost(_dId);
+        if (g is Goal) {
+          final me = store.state.me;
+          final a0 = math.atan2(g.y - me.y, g.x - me.x);
+          final a1 = math.atan2(w.dy - me.y, w.dx - me.x);
+          var d = a1 - a0;
+          while (d > math.pi) {
+            d -= 2 * math.pi;
+          }
+          while (d < -math.pi) {
+            d += 2 * math.pi;
+          }
+          rotateGoalAroundMe(store.state, g, d);
+          _mark();
+        }
       default:
         break;
     }
@@ -919,6 +942,8 @@ class MapInteraction {
           onEditGoal(t.id);
         case 'ring':
           onEditRing(t.id);
+        case 'goalHide':
+          store.toggleGoalHidden(t.id);
       }
       return;
     }

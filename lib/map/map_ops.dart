@@ -118,6 +118,42 @@ List<String> autoLinkRings(MapState s) {
   return msgs;
 }
 
+/// چرخاندن یک هدف (با خط، نشانه‌های روی مسیرش و شاخه‌های جداشده) به‌اندازه‌ی [d]
+/// رادیان دورِ «من»؛ فاصله‌اش از «من» ثابت می‌ماند.
+void rotateGoalAroundMe(MapState s, Goal g, double d) {
+  final cx = s.me.x, cy = s.me.y;
+  final c = math.cos(d), sn = math.sin(d);
+  Offset rot(double x, double y) {
+    final dx = x - cx, dy = y - cy;
+    return Offset(cx + dx * c - dy * sn, cy + dx * sn + dy * c);
+  }
+
+  final gp = rot(g.x, g.y);
+  g.x = gp.dx;
+  g.y = gp.dy;
+  for (final r in s.rings) {
+    if (r.goalId != g.id) continue;
+    final rp = rot(r.x, r.y);
+    r.x = rp.dx;
+    r.y = rp.dy;
+    _rotDetached(r.actions, rot, d);
+  }
+  _rotDetached(g.actions, rot, d);
+}
+
+void _rotDetached(List<ActionNode> list, Offset Function(double, double) rot,
+    double d) {
+  for (final a in list) {
+    if (a.detached && a.originX != null && a.originY != null) {
+      final p = rot(a.originX!, a.originY!);
+      a.originX = p.dx;
+      a.originY = p.dy;
+      if (a.dir != null) a.dir = a.dir! + d;
+    }
+    _rotDetached(a.children, rot, d);
+  }
+}
+
 /// جای خالی روی دایره‌ی دور «من» برای هدف جدید
 Offset pickGoalSpot(MapState s) {
   final rad = 420.0 + math.min(s.goals.length, 12) * 16;
