@@ -18,6 +18,7 @@ import 'hit_registry.dart';
 import 'map_ops.dart';
 import 'user_state.dart';
 import 'walker_photos.dart';
+import '../widgets/emoji_stack.dart' show isTextIcon;
 
 const kLabelRtlAnchor = false;
 
@@ -387,7 +388,79 @@ class MapPainter extends CustomPainter {
   /// ایموجی(ها)ی کوچک روی گوشه‌ی بالا-راستِ یک دایره‌ی عکس/GIF.
   /// تا ۳ ایموجی کنار هم در یک کپسول مرتب نشان داده می‌شود؛
   /// لبه‌ی راستِ کپسول همان‌جای نشان تک‌ایموجی می‌ماند و به سمت داخل بزرگ می‌شود.
+  /// نوشته‌ی آزاد (چند کلمه) به‌صورت چندخطی؛ [maxW] حداکثر عرض هر خط
+  List<TextPainter> _wrapLines(
+      String text, double fs, double maxW, Color col, FontWeight w) {
+    final words = text.trim().split(RegExp(r'\s+'));
+    final lines = <String>[];
+    var cur = '';
+    for (final wd in words) {
+      final cand = cur.isEmpty ? wd : '$cur $wd';
+      if (cur.isNotEmpty && textCache.get(cand, fs, col, w).width > maxW) {
+        lines.add(cur);
+        cur = wd;
+      } else {
+        cur = cand;
+      }
+    }
+    if (cur.isNotEmpty) lines.add(cur);
+    return [for (final l in lines) textCache.get(l, fs, col, w)];
+  }
+
+  /// نوشته‌ی آزاد داخل دایره‌ای به شعاع [r]؛ اگر زیاد باشد کوچک‌تر می‌شود
+  void _fitTextInCircle(
+      Canvas canvas, Offset c, double r, String text, Color col) {
+    var fs = r * 0.75;
+    var tps = <TextPainter>[];
+    for (var i = 0; i < 16; i++) {
+      tps = _wrapLines(text, fs, r * 1.7, col, FontWeight.w600);
+      final h = tps.fold<double>(0, (a, t) => a + t.height);
+      final mw = tps.fold<double>(0, (a, t) => math.max(a, t.width));
+      if ((h <= r * 1.6 && mw <= r * 1.75) || fs < 5) break;
+      fs *= 0.85;
+    }
+    final total = tps.fold<double>(0, (a, t) => a + t.height);
+    var y = c.dy - total / 2;
+    for (final t in tps) {
+      t.paint(canvas, Offset(c.dx - t.width / 2, y));
+      y += t.height;
+    }
+  }
+
+  /// نشانِ نوشته‌ی آزاد گوشه‌ی بالا-راست (کپسولِ چندخطی، رشد به چپ/پایین)
+  void _textBadge(Canvas canvas, Offset c, double r, String text) {
+    final br = math.max(9.0, r * 0.46);
+    final fs = br * 0.95;
+    final bc = c + Offset(r * 0.72, -r * 0.72);
+    final tps = _wrapLines(text, fs, math.max(r * 3.2, 90.0),
+        const Color(0xFF000000), FontWeight.w600);
+    if (tps.isEmpty) return;
+    final pad = br * 0.4;
+    final maxLine = tps.fold<double>(0, (a, t) => math.max(a, t.width));
+    final textH = tps.fold<double>(0, (a, t) => a + t.height);
+    final w = maxLine + pad * 2;
+    final h = math.max(br * 2, textH + pad);
+    final rect = Rect.fromLTWH(bc.dx + br - w, bc.dy - br, w, h);
+    final rr = RRect.fromRectAndRadius(rect, Radius.circular(math.min(br, h / 2)));
+    canvas.drawRRect(rr, Paint()..color = withOp(const Color(0xFFFFFFFF), 0.92));
+    canvas.drawRRect(
+        rr,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = withOp(const Color(0xFF000000), 0.18));
+    var y = rect.top + (h - textH) / 2;
+    for (final t in tps) {
+      t.paint(canvas, Offset(rect.center.dx - t.width / 2, y));
+      y += t.height;
+    }
+  }
+
   void _emojiBadge(Canvas canvas, Offset c, double r, String emoji) {
+    if (isTextIcon(emoji)) {
+      _textBadge(canvas, c, r, emoji);
+      return;
+    }
     final list = emoji.characters.where((x) => x.trim().isNotEmpty).take(3).toList();
     if (list.isEmpty) return;
     final br = math.max(9.0, r * 0.46);
@@ -523,9 +596,13 @@ class MapPainter extends CustomPainter {
         : '';
     if (meEmoji.isNotEmpty && me.images.isEmpty) {
       // ایموجیِ «من» (وقتی عکس نیست؛ اگر عکس هم باشد هر دو نشان داده می‌شوند) — همه‌ی ایموجی‌ها
-      final tp = textCache.get(
-          meEmoji, r * 1.9, const Color(0xFF000000), FontWeight.w400);
-      tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+      if (isTextIcon(meEmoji)) {
+        _fitTextInCircle(canvas, c, r, meEmoji, const Color(0xFF000000));
+      } else {
+        final tp = textCache.get(
+            meEmoji, r * 1.9, const Color(0xFF000000), FontWeight.w400);
+        tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+      }
       if (me.name.isNotEmpty) {
         final lr = drawText(canvas, me.name, c.dx + me.labelDX,
             c.dy + r * 1.05 + me.labelDY,
@@ -613,6 +690,8 @@ class MapPainter extends CustomPainter {
         canvas.drawCircle(c, r, Paint()..color = withOp(color, 0.4));
       }
       if (icon.trim().isNotEmpty) _emojiBadge(canvas, c, r, icon);
+    } else if (icon.trim().isNotEmpty && isTextIcon(icon)) {
+      _fitTextInCircle(canvas, c, r, icon.trim(), tc);
     } else if (icon.trim().isNotEmpty) {
       final cs = icon.characters.where((e) => e.trim().isNotEmpty).take(3).toList();
       if (cs.length <= 1) {
@@ -1028,7 +1107,7 @@ class MapPainter extends CustomPainter {
       speed: speed.toDouble(),
       manualT: manualT,
       baseSize: 20.0 *
-          state.footScale.clamp(kWalkerSizeMin, kFootScaleMax) *
+          state.footScale.clamp(kFootScaleMin, kFootScaleMax) *
           ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
               .clamp(kWalkerSizeMin, kWalkerSizeMax),
       trailCount: 5,
@@ -1059,7 +1138,7 @@ class MapPainter extends CustomPainter {
     final fixed = _pastDoneDays(a, todayK);
     final route = _RouteCurve(routePts);
     hits.routes[a.id] = routePts;
-    final sizeMul = state.footScale.clamp(kWalkerSizeMin, kFootScaleMax);
+    final sizeMul = state.footScale.clamp(kFootScaleMin, kFootScaleMax);
     final footMul = (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax);
     final size = baseSize * 1.2 * sizeMul * footMul;
     final len = math.max(route.length, 1.0);

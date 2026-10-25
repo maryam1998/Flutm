@@ -572,7 +572,7 @@ class MapState {
     this.haloSub = false,
     this.haloRing = false,
     this.userName = '',
-    this.footScale = 1.0,
+    this.footScale = 0.35,
     this.walkerHalo = true,
     this.walkerHaloScale = 1.0,
     Map<String, dynamic>? extra,
@@ -584,7 +584,7 @@ class MapState {
   static const _known = {
     'me', 'goals', 'rings', 'textColor', 'trunkStyle', 'fontSize',
     'showDateStamps', 'showTimeStamps', 'showRingLinks', 'showEmotionWidget',
-    'userName', 'footScale', 'walkerHalo', 'walkerHaloScale',
+    'userName', 'footScale', 'footScale35', 'walkerHalo', 'walkerHaloScale',
     'haloMe', 'haloGoal', 'haloAction', 'haloSub', 'haloRing', 'stampsOffV2',
   };
 
@@ -596,6 +596,11 @@ class MapState {
     final extra = _rest(j, _known)..remove('_lite');
     // یک‌بار: تاریخ/ساعتِ ذخیره‌شده‌ی قبلی (که پیش‌فرضِ روشن بود) خاموش می‌شود
     final stampsMigrated = j['stampsOffV2'] == true;
+    // یک‌بار: اندازه‌ی قدمِ قدیمی (۱۰۰٪ پیش‌فرض) به پیش‌فرضِ جدید ۳۵٪ می‌رود
+    var footScaleV = _d(j['footScale'], 0.35);
+    if (j['footScale35'] != true && (footScaleV - 1.0).abs() < 1e-9) {
+      footScaleV = 0.35;
+    }
     return MapState(
       me: MeNode.fromJson(j['me']),
       goals: j['goals'] is List
@@ -619,7 +624,7 @@ class MapState {
       showRingLinks: _b(j['showRingLinks'], false),
       showEmotionWidget: _b(j['showEmotionWidget'], true),
       userName: _s(j['userName'], ''),
-      footScale: _d(j['footScale'], 1.0),
+      footScale: footScaleV,
       walkerHalo: _b(j['walkerHalo'], true),
       walkerHaloScale: _d(j['walkerHaloScale'], 1.0).clamp(0.3, 2.5).toDouble(),
       extra: extra,
@@ -646,6 +651,7 @@ class MapState {
         'stampsOffV2': true,
         'userName': userName,
         'footScale': footScale,
+        'footScale35': true,
         'walkerHalo': walkerHalo,
         'walkerHaloScale': walkerHaloScale,
         '_savedAt': DateTime.now().millisecondsSinceEpoch,

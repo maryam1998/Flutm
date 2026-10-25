@@ -1,6 +1,17 @@
 import 'package:flutter/foundation.dart' show StringCharacters;
 import 'package:flutter/material.dart';
 
+final _kLetterOrDigit = RegExp(r'[\p{L}\p{N}]', unicode: true);
+
+/// اگر آیکون «نوشته» باشد (حرف/عدد دارد یا بیشتر از ۳ نماد است) true.
+/// نوشته بدون محدودیت تعداد کلمه است و کامل نمایش داده می‌شود.
+bool isTextIcon(String icon) {
+  final t = icon.trim();
+  if (t.isEmpty) return false;
+  if (_kLetterOrDigit.hasMatch(t)) return true;
+  return t.characters.where((c) => c.trim().isNotEmpty).length > 3;
+}
+
 /// جدا کردن ایموجی‌های یک متن آیکون (تا ۳ تا) — ایموجی ترکیبی/پرچم یک واحد حساب می‌شه
 List<String> splitIcons(String icon) => icon.characters
     .where((c) => c.trim().isNotEmpty)
@@ -16,6 +27,21 @@ class EmojiStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isTextIcon(icon)) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Padding(
+          padding: EdgeInsets.all(size * 0.08),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(icon.trim(),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: size * 0.4)),
+          ),
+        ),
+      );
+    }
     final cs = splitIcons(icon);
     if (cs.isEmpty) {
       return Text('•', style: TextStyle(fontSize: size * 0.5));

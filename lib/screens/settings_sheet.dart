@@ -106,7 +106,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _showEmotionWidget = s.showEmotionWidget;
     _trunkStyle =
         kTrunkStyles.containsKey(s.trunkStyle) ? s.trunkStyle : 'dashed';
-    _footScale = s.footScale.clamp(kWalkerSizeMin, kFootScaleMax).toDouble();
+    _footScale = s.footScale.clamp(kFootScaleMin, kFootScaleMax).toDouble();
     _userName = s.userName;
     _nameCtrl = TextEditingController(text: _userName);
   }
@@ -625,6 +625,20 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             store.state.showEmotionWidget = v;
             store.changedNow();
           },
+        ),
+        const _Hair(),
+        _sliderBlock(
+          label: 'اندازه‌ی پاها',
+          hint: 'پیش‌فرض ۳۵٪',
+          valueText: '${toFa((_footScale * 100).round())}٪',
+          value: _footScale,
+          min: kFootScaleMin,
+          max: kFootScaleMax,
+          divisions: 98,
+          onChanged: (v) => setState(() => _footScale = v),
+          onReset: (_footScale - kFootScaleDefault).abs() < 0.01
+              ? null
+              : () => setState(() => _footScale = kFootScaleDefault),
         ),
       ],
     );

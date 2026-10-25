@@ -134,7 +134,7 @@ class _IconPhotoEditorState extends State<IconPhotoEditor> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 20, color: _kInk),
                   decoration: InputDecoration(
-                    hintText: 'ایموجی',
+                    hintText: 'ایموجی یا نوشته',
                     hintStyle: const TextStyle(color: _kMuted),
                     filled: true,
                     fillColor: _kCard,
@@ -627,7 +627,7 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 16, color: _kInk),
                   decoration: InputDecoration(
-                    hintText: 'ایموجی',
+                    hintText: 'ایموجی یا نوشته',
                     hintStyle: const TextStyle(color: _kMuted),
                     filled: true,
                     fillColor: _kCard,
@@ -646,16 +646,9 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
                     ),
                   ),
                   onChanged: (v) {
-                    // تا ۳ ایموجی (ایموجی ترکیبی/پرچم یک واحد حساب می‌شود)
-                    final one = splitIcons(v).join();
-                    if (one != v) {
-                      _emojiCtl.value = TextEditingValue(
-                        text: one,
-                        selection: TextSelection.collapsed(offset: one.length),
-                      );
-                    }
+                    // ایموجی یا نوشته‌ی آزاد (بدون محدودیت تعداد کلمه)
                     setState(() {});
-                    widget.onEmojiChanged!(one);
+                    widget.onEmojiChanged!(v);
                   },
                 ),
               ),
@@ -777,7 +770,7 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16, color: _kInk),
                 decoration: InputDecoration(
-                  hintText: 'ایموجی',
+                  hintText: 'ایموجی یا نوشته',
                   hintStyle: const TextStyle(color: _kMuted),
                   filled: true,
                   fillColor: _kCard,
@@ -796,16 +789,9 @@ class _MultiPhotoFieldState extends State<MultiPhotoField> {
                   ),
                 ),
                 onChanged: (v) {
-                  // تا ۳ ایموجی (ترکیبی/پرچم یک واحد حساب می‌شود)
-                  final one = splitIcons(v).join();
-                  if (one != v) {
-                    _emojiCtl.value = TextEditingValue(
-                      text: one,
-                      selection: TextSelection.collapsed(offset: one.length),
-                    );
-                  }
+                  // ایموجی یا نوشته‌ی آزاد (بدون محدودیت تعداد کلمه)
                   setState(() {});
-                  widget.onEmojiChanged!(one);
+                  widget.onEmojiChanged!(v);
                 },
               ),
             ),

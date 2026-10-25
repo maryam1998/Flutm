@@ -17,6 +17,8 @@ const kWalkerSizeMin = 0.4;
 const kWalkerSizeMax = 20.0; // هدف / قدم‌زن اصلی (تا ۲۰۰۰٪)
 const kWalkerSizeDivisions = 98; // گام ۲۰٪ (۰.۴ تا ۲۰)
 const kFootSizeMax = 20.0; // قدم شاخه / زیرشاخه (تا ۲۰۰۰٪)
+const kFootScaleMin = 0.1; // کمترین مقیاس کلی قدم‌ها (۱۰٪)
+const kFootScaleDefault = 0.35; // پیش‌فرض اندازه‌ی قدم‌ها (۳۵٪)
 const kFootScaleMax = 5.0; // مقیاس کلی قدم‌ها در تنظیمات (تا ۵۰۰٪)
 
 class FreqBand {
