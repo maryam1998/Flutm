@@ -572,9 +572,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           max: 40,
           divisions: 32,
           onChanged: (v) => setState(() => _fontSize = v),
-          onReset: _fontSize.round() == kDefaultFontSize.round()
+          onReset: _fontSize.round() == kMapFontSizeDefault.round()
               ? null
-              : () => setState(() => _fontSize = kDefaultFontSize),
+              : () => setState(() => _fontSize = kMapFontSizeDefault),
         ),
         const SizedBox(height: 2),
         // پیش‌نمایش با همان اندازه‌ی واقعیِ نقشه (بدون اثر اندازه‌ی نوشته‌ی برنامه)

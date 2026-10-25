@@ -561,7 +561,7 @@ class MapState {
     List<Ring>? rings,
     this.textColor = kDefaultTextColor,
     this.trunkStyle = kDefaultTrunkStyle,
-    this.fontSize = kDefaultFontSize,
+    this.fontSize = kMapFontSizeDefault,
     this.showDateStamps = false,
     this.showTimeStamps = false,
     this.showRingLinks = false,
@@ -592,12 +592,12 @@ class MapState {
   factory MapState.fromJson(dynamic raw) {
     final j = _m(raw);
     var ts = _s(j['trunkStyle'], kDefaultTrunkStyle);
-    var fs = _d(j['fontSize'], kDefaultFontSize);
-    if (fs < 8) fs = kDefaultFontSize;
+    var fs = _d(j['fontSize'], kMapFontSizeDefault);
+    if (fs < 8) fs = kMapFontSizeDefault;
     // یک‌بار: پیش‌فرض‌های قدیمیِ ریز (فونت ۱۴، خط‌چین، دایره‌های کوچک) به پیش‌فرض‌های جدید می‌روند
     final sizesMigrated = j['sizesV2'] == true;
     if (!sizesMigrated) {
-      if ((fs - 14).abs() < 1e-9) fs = kDefaultFontSize;
+      if ((fs - 14).abs() < 1e-9) fs = kMapFontSizeDefault;
       if (ts == 'dashed') ts = kDefaultTrunkStyle;
     }
     final extra = _rest(j, _known)..remove('_lite');

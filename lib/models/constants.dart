@@ -9,7 +9,7 @@ const kIconScaleMin = 0.5;
 const kIconScaleMax = 3.0;
 
 // ─── پیش‌فرض‌های خوانا برای نقشه‌ی هدف‌گذاری ───
-const kDefaultFontSize = 18.0; // اندازه‌ی نوشته‌ها
+const kMapFontSizeDefault = 18.0; // اندازه‌ی نوشته‌ها
 const kMeRadiusDefault = 46.0; // دایره‌ی «من»
 const kGoalRadiusDefault = 28.0; // دایره‌ی هدف
 const kRingRadiusDefault = 36.0; // «نزدیک شدن به هدف»
