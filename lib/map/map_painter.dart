@@ -1231,11 +1231,11 @@ class MapPainter extends CustomPainter {
     }
 
     // ─── روزهای قبل: هر روزِ ثبت‌شده یک جفت پا (چپ و راست)، پشت سر هم از شروع مسیر ───
+    // جفت پا کنار هم (چپ و راست روی یک نقطه)، کمی کم‌رنگ‌تر از قدمِ امروز
     for (var k = 0; k < fixed; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
-      final u2 = (u + stride * 0.3).clamp(0.0, 0.95).toDouble();
-      _drawWalkerFoot(canvas, route, u, -1.0, pastSize, color);
-      _drawWalkerFoot(canvas, route, u2, 1.0, pastSize, color);
+      _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, 0.6));
+      _drawWalkerFoot(canvas, route, u, 1.0, pastSize, withOp(color, 0.6));
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
@@ -1276,7 +1276,7 @@ class MapPainter extends CustomPainter {
         );
 
     if (!doneToday) {
-      // ─── امروز هنوز ثبت نشده: قدم جدید، کم‌رنگ (متوقف؛ مگر کاربر پلی بزند) ───
+      // ─── امروز هنوز ثبت نشده: قدم جدید، پررنگ (متوقف؛ مگر کاربر پلی بزند) ───
       final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
       final bodyU =
           (posToday ?? (u + stepLen * 0.45)).clamp(0.0, 1.0).toDouble();
@@ -1292,21 +1292,7 @@ class MapPainter extends CustomPainter {
         st.frozenRet = false;
         st.seenManual = bodyU;
       }
-      var minX = routePts.first.dx, maxX = minX;
-      var minY = routePts.first.dy, maxY = minY;
-      for (final p in routePts) {
-        minX = math.min(minX, p.dx);
-        maxX = math.max(maxX, p.dx);
-        minY = math.min(minY, p.dy);
-        maxY = math.max(maxY, p.dy);
-      }
-      final pad = size * 8 + 60;
-      canvas.saveLayer(
-        Rect.fromLTRB(minX - pad, minY - pad, maxX + pad, maxY + pad),
-        Paint()..color = const Color.fromRGBO(0, 0, 0, 0.35),
-      );
       core(playingNow, playingNow ? posToday : bodyU);
-      canvas.restore();
     } else {
       // ─── امروز ثبت شده: قدم با رنگ واقعی ───
       // اگر متوقف است و جای مشخصی ندارد، به‌ترتیب بعد از آخرین قدمِ ثبت‌شده
@@ -1884,7 +1870,7 @@ class MapPainter extends CustomPainter {
     final tipW = math.max(0.7, baseW * 0.38);
     final cub = geo.Cubic(geom.originPt, geom.c1, geom.c2, end);
     // خط درخشان پیش‌فرض برای شاخه و زیرشاخه: یک لایه‌ی پهن و کم‌رنگ زیر خط
-    if (state.extra['twigGlow'] != false && a.extra['twigGlow'] != false) {
+    if (a.extra['twigGlow'] != false) {
       final gp = Path();
       if (geom.poly != null && geom.poly!.length > 1) {
         gp.moveTo(geom.poly!.first.dx, geom.poly!.first.dy);

@@ -1312,6 +1312,12 @@ class _EditSheetState extends State<EditSheet> {
                 '${(((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
             onChanged: (v) => _edit(() => a.extra['circleScale'] = v),
           ),
+          _switchTile(
+            title: 'هاله‌ی دور شاخه',
+            subtitle: 'نوار پهن و کم‌رنگ دور خط شاخه',
+            value: a.extra['twigGlow'] != false,
+            onChanged: (v) => _edit(() => a.extra['twigGlow'] = v),
+          ),
         ],
       ),
       _card(

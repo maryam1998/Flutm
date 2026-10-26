@@ -626,31 +626,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             store.changedNow();
           },
         ),
-        const _Hair(),
-        _switchRow(
-          title: 'هاله‌ی دور شاخه‌ها',
-          subtitle: 'نوار پهن و کم‌رنگ دور خط شاخه و زیرشاخه',
-          value: context.read<MapStore>().state.extra['twigGlow'] != false,
-          onChanged: (v) {
-            final store = context.read<MapStore>();
-            setState(() => store.state.extra['twigGlow'] = v);
-            store.changedNow();
-          },
-        ),
-        const _Hair(),
-        _sliderBlock(
-          label: 'اندازه‌ی پاها',
-          hint: 'پیش‌فرض ۳۵٪',
-          valueText: '${toFa((_footScale * 100).round())}٪',
-          value: _footScale,
-          min: kFootScaleMin,
-          max: kFootScaleMax,
-          divisions: 98,
-          onChanged: (v) => setState(() => _footScale = v),
-          onReset: (_footScale - kFootScaleDefault).abs() < 0.01
-              ? null
-              : () => setState(() => _footScale = kFootScaleDefault),
-        ),
       ],
     );
   }
