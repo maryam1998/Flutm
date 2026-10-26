@@ -454,7 +454,12 @@ class _MapTabState extends State<MapTab> {
     final msg = ScaffoldMessenger.of(context);
     try {
       final ok = await StorageService().exportBackup(await store.exportJson());
-      if (ok) msg.quietSnack(const SnackBar(content: Text('بکاپ ذخیره شد')));
+      if (ok) {
+        msg.showSnackBar(SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text('بکاپ ذخیره شد\n${StorageService.describeExportLocation()}'),
+        ));
+      }
     } catch (e) {
       msg.showSnackBar(SnackBar(content: Text('خروجی ناموفق بود: $e')));
     }

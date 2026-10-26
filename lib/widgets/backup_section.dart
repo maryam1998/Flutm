@@ -154,7 +154,11 @@ class _BackupSectionState extends State<BackupSection> {
     });
     try {
       final ok = await _doExport(media: _withMedia);
-      _say(ok ? 'بکاپ ذخیره شد ✅' : 'ذخیره‌ی بکاپ لغو شد', ok: ok);
+      _say(
+          ok
+              ? 'بکاپ ذخیره شد ✅\n${StorageService.describeExportLocation()}'
+              : 'ذخیره‌ی بکاپ لغو شد',
+          ok: ok);
     } catch (e) {
       _say('بکاپ ناموفق بود: $e', ok: false);
     } finally {
@@ -430,7 +434,7 @@ class _BackupSectionState extends State<BackupSection> {
         ],
         if (_result != null) ...[
           const SizedBox(height: 10),
-          Text(_result!,
+          SelectableText(_result!,
               style: TextStyle(
                   fontSize: 12.5,
                   height: 1.6,

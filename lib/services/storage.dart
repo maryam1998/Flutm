@@ -16,6 +16,25 @@ const String kYsqCheckinKey  = 'ysq_checkins_v1';      // چک‌این روزا
 
 /// ذخیره‌سازی عمومی (فایل JSON روی موبایل/دسکتاپ — SharedPreferences روی وب)
 class StorageService {
+  /// مسیر/محل آخرین بکاپی که ذخیره شد (برای نمایش به کاربر) — بعد از هر خروجی موفق مقدار می‌گیرد
+  static String? lastExportPath;
+
+  /// نام فایلِ آخرین بکاپ
+  static String? lastExportName;
+
+  /// متن قابل‌نمایش برای کاربر درباره‌ی محل ذخیره‌ی بکاپ
+  static String describeExportLocation() {
+    final name = lastExportName ?? '';
+    final path = lastExportPath;
+    if (kIsWeb) {
+      return 'فایل «$name» در پوشه‌ی دانلودهای مرورگر ذخیره شد (Downloads).';
+    }
+    if (path == null || path.isEmpty) {
+      return 'فایل «$name» در همان پوشه‌ای که انتخاب کردی ذخیره شد.';
+    }
+    return 'نام فایل: $name\nمسیر ذخیره:\n$path';
+  }
+
   // ──────────── سازگاری با گذشته: API بدون کلید برای نقشه ────────────
   Future<String?> read() => readKey(kMapKey);
   Future<void> write(String data) => writeKey(kMapKey, data);
@@ -92,6 +111,8 @@ class StorageService {
         '$prefix-${DateTime.now().toIso8601String().substring(0, 10)}.json';
     if (kIsWeb) {
       await downloadBytesWeb(Uint8List.fromList(bytes), name);
+      lastExportName = name;
+      lastExportPath = null;
       return true;
     }
     final path = await FilePicker.platform.saveFile(
@@ -99,13 +120,14 @@ class StorageService {
       fileName: name,
       type: FileType.custom,
       allowedExtensions: ['json'],
-      bytes: (kIsWeb || Platform.isAndroid || Platform.isIOS) ? bytes : null,
+      bytes: (Platform.isAndroid || Platform.isIOS) ? Uint8List.fromList(bytes) : null,
     );
-    if (kIsWeb) return true;
     if (path == null) return false;
     if (!(Platform.isAndroid || Platform.isIOS)) {
       await File(path).writeAsBytes(bytes, flush: true);
     }
+    lastExportName = name;
+    lastExportPath = path;
     return true;
   }
 
