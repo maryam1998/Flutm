@@ -10,6 +10,7 @@ import '../state/map_store.dart';
 import '../widgets/goal_path_card.dart';
 import '../widgets/icon_photo_editor.dart';
 import '../widgets/label_font_picker.dart';
+import '../widgets/node_video_field.dart';
 import '../widgets/node_voice_field.dart';
 import '../widgets/panel_kit.dart';
 import '../widgets/web_color_picker.dart';
@@ -835,6 +836,22 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
+  /// ویدیو (افزودن/پخش) ذخیره‌شده در extra
+  Widget _videoField(Map<String, dynamic> ex, String key, String idKey) {
+    final cur = ex[key];
+    return NodeVideoField(
+      key: ValueKey('video-$idKey-$key'),
+      initial: cur is String ? cur : '',
+      onChanged: (v) => _editNow(() {
+        if (v.isEmpty) {
+          ex.remove(key);
+        } else {
+          ex[key] = v;
+        }
+      }),
+    );
+  }
+
   // ============================================================
   // من
   // ============================================================
@@ -866,6 +883,7 @@ class _EditSheetState extends State<EditSheet> {
             }),
           ),
           _voiceField(me.extra, 'voice', 'me'),
+          _videoField(me.extra, 'video', 'me'),
           _slider(
             label: 'اندازه',
             value: (me.radius / _kMeBaseRadius).clamp(0.6, 10.0).toDouble(),
@@ -935,6 +953,7 @@ class _EditSheetState extends State<EditSheet> {
       _walkerModeTile(ex),
       const SizedBox(height: 8),
       _voiceField(ex, 'walkerVoice', 'walker:${t.hostId}:${t.actionId}'),
+      _videoField(ex, 'walkerVideo', 'walker:${t.hostId}:${t.actionId}'),
       ..._walkerHaloControls(ex),
       const SizedBox(height: 8),
       _sectionLabel('رنگ انیمیشن'),
@@ -1086,6 +1105,7 @@ class _EditSheetState extends State<EditSheet> {
             }),
           ),
           _voiceField(g.extra, 'voice', 'goal:${g.id}'),
+          _videoField(g.extra, 'video', 'goal:${g.id}'),
         ],
       ),
       _card(
@@ -1157,6 +1177,7 @@ class _EditSheetState extends State<EditSheet> {
             onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
           ),
           _voiceField(g.extra, 'walkerVoice', 'walker:${g.id}'),
+          _videoField(g.extra, 'walkerVideo', 'walker:${g.id}'),
           ..._walkerHaloControls(g.extra),
         ],
       ),
@@ -1217,6 +1238,7 @@ class _EditSheetState extends State<EditSheet> {
             }),
           ),
           _voiceField(r.extra, 'voice', 'ring:${r.id}'),
+          _videoField(r.extra, 'video', 'ring:${r.id}'),
           const PanelLabel('یادداشت'),
           _textField(
             ctlKey: 'ring:${r.id}:note',
@@ -1301,6 +1323,7 @@ class _EditSheetState extends State<EditSheet> {
             onChange: (_, images, __) => _edit(() => a.images = images),
           ),
           _voiceField(a.extra, 'voice', 'node:${a.id}'),
+          _videoField(a.extra, 'video', 'node:${a.id}'),
         ],
       ),
       _card(
@@ -1446,6 +1469,7 @@ class _EditSheetState extends State<EditSheet> {
       _walkerEmojiSizeSlider(a.extra),
       _fontPicker(a.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
       _voiceField(a.extra, 'walkerVoice', 'walker:${a.id}'),
+      _videoField(a.extra, 'walkerVideo', 'walker:${a.id}'),
       ..._walkerHaloControls(a.extra),
       const Padding(
         padding: EdgeInsets.only(top: 4, bottom: 4),

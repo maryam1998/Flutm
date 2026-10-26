@@ -11,6 +11,7 @@ import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
+import '../widgets/map_video_overlay.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'foot_stats_sheet.dart';
@@ -248,6 +249,9 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
           ),
+
+          // ویدیوی گره‌ها روی نقشه
+          const MapVideoOverlay(),
 
           // عدد زوم — `#zoom-readout`: چپ، بالای نوار ابزار
           Positioned(

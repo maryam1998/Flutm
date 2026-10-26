@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/constants.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
+import '../services/map_video_player.dart';
 import '../services/map_voice_player.dart';
 import '../theme/vazir_font.dart';
 import '../state/goal_ops.dart';
@@ -123,7 +124,13 @@ class MapPainter extends CustomPainter {
     this.isDark = true,
   }) : super(
             repaint: Listenable.merge(
-                [cam, time, images, MapVoicePlayer.instance.playing]));
+                [
+              cam,
+              time,
+              images,
+              MapVoicePlayer.instance.playing,
+              MapVideoPlayer.instance.current
+            ]));
 
   final MapState state;
   final CameraController cam;
@@ -667,6 +674,40 @@ class MapPainter extends CustomPainter {
         voiceKey: key));
   }
 
+  /// دکمه‌ی ویدیو (پخش روی نقشه) کنار گرهٔ دارای ویدیو
+  void _videoBtn(Canvas canvas, Offset c, String type, String id,
+      Map<String, dynamic> extra, String key,
+      {double r = 11}) {
+    final v = extra[key];
+    if (v is! String || v.isEmpty) return;
+    final pid = '$type:$id:$key';
+    final on = MapVideoPlayer.instance.current.value?.id == pid;
+    const blue = Color(0xFF5B5BD6);
+    const deep = Color(0xFF3C3CA8);
+    canvas.drawCircle(c, r + 1.6, Paint()..color = const Color(0xF2FFFFFF));
+    canvas.drawCircle(c, r, Paint()..color = on ? deep : blue);
+    final ink = Paint()..color = Colors.white;
+    final body = Rect.fromCenter(
+        center: c + Offset(-r * 0.12, 0), width: r * 0.95, height: r * 0.7);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(body, Radius.circular(r * 0.14)), ink);
+    final lens = Path()
+      ..moveTo(body.right + r * 0.06, c.dy - r * 0.12)
+      ..lineTo(body.right + r * 0.36, c.dy - r * 0.3)
+      ..lineTo(body.right + r * 0.36, c.dy + r * 0.3)
+      ..lineTo(body.right + r * 0.06, c.dy + r * 0.12)
+      ..close();
+    canvas.drawPath(lens, ink);
+    hits.add(HitEntry(
+        type: 'videoPlay',
+        id: pid,
+        kind: HitKind.handle,
+        center: c,
+        radius: r + 4,
+        payload: extra,
+        voiceKey: key));
+  }
+
   // ───────────────────────── من ─────────────────────────
 
   void _drawMe(Canvas canvas, Color tc) {
@@ -685,6 +726,8 @@ class MapPainter extends CustomPainter {
         type: 'me', id: '', kind: HitKind.node, center: c, radius: r));
     _voiceBtn(canvas, c + Offset((r + 16) * 0.7071, -(r + 16) * 0.7071), 'me',
         'me', me.extra, 'voice');
+    _videoBtn(canvas, c + Offset(-(r + 16) * 0.7071, -(r + 16) * 0.7071), 'me',
+        'me', me.extra, 'video');
 
     final meFont = _fontOf(me.extra);
     final meEmoji = (me.extra['emoji'] is String)
@@ -836,6 +879,8 @@ class MapPainter extends CustomPainter {
       final d = math.max(r, r0) + 22;
       _voiceBtn(canvas, c + Offset(d * 0.7071, -d * 0.7071), 'goal', g.id,
           g.extra, 'voice');
+      _videoBtn(canvas, c + Offset(-d * 0.7071, -d * 0.7071), 'goal', g.id,
+          g.extra, 'video');
     }
 
     var off = -(r0 + 22);
@@ -940,6 +985,8 @@ class MapPainter extends CustomPainter {
       final d = math.max(big, rad) + 22;
       _voiceBtn(canvas, c + Offset(d * 0.7071, -d * 0.7071), 'ring', r.id,
           r.extra, 'voice');
+      _videoBtn(canvas, c + Offset(-d * 0.7071, -d * 0.7071), 'ring', r.id,
+          r.extra, 'video');
     }
 
     if (r.label.isNotEmpty) {
@@ -1760,6 +1807,9 @@ class MapPainter extends CustomPainter {
       _voiceBtn(canvas, bodyPos + Offset(d * 0.7071, -d * 0.7071), hitType,
           hitId, voiceExtra, 'walkerVoice',
           r: 10);
+      _videoBtn(canvas, bodyPos + Offset(-d * 0.7071, -d * 0.7071), hitType,
+          hitId, voiceExtra, 'walkerVideo',
+          r: 10);
     }
   }
 
@@ -2099,6 +2149,16 @@ class MapPainter extends CustomPainter {
     _voiceBtn(canvas, end + Offset(side > 0 ? -22 : 22, -14), 'action', a.id,
         a.extra, 'voice',
         dir: side > 0 ? -1 : 1, r: 10);
+    _videoBtn(
+        canvas,
+        end +
+            Offset(side > 0 ? -22 : 22,
+                (a.extra['voice'] is String && (a.extra['voice'] as String).isNotEmpty) ? -42 : -14),
+        'action',
+        a.id,
+        a.extra,
+        'video',
+        r: 10);
 
     if (isRoutine) {
       final tipR = math.max(1.8, 2 + weight * 0.28 * scale) * cs;

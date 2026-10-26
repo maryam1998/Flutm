@@ -13,6 +13,7 @@ import 'hit_registry.dart';
 import 'map_ops.dart';
 import 'walker_photos.dart';
 import '../services/image_service.dart';
+import '../services/map_video_player.dart';
 import '../services/map_voice_player.dart';
 
 enum _Mode {
@@ -255,6 +256,10 @@ class MapInteraction {
     // دکمه‌ی پلی/توقف و دکمه‌ی تعداد تکرار (۱× ۲× ۳× ∞) کنار گره‌هایی که صدا دارند
     if (_ptrs.isEmpty && hit != null && hit.type == 'voicePlay') {
       MapVoicePlayer.instance.toggle(hit.id, hit.payload, hit.voiceKey);
+      return;
+    }
+    if (_ptrs.isEmpty && hit != null && hit.type == 'videoPlay') {
+      MapVideoPlayer.instance.toggle(hit.id, hit.payload, hit.voiceKey);
       return;
     }
     if (_ptrs.isEmpty && hit != null && hit.type == 'voiceRepeat') {
