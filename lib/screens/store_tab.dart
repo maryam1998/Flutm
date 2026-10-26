@@ -267,7 +267,7 @@ class _StoreTabState extends State<StoreTab> {
   List<Widget> _purchasesSection(AbundanceStore store, GratPalette pal) {
     final list = store.history.reversed.toList();
     return [
-      _sectionLabel(pal, Icons.receipt_long_outlined, 'لیست خریدها'),
+      _sectionLabel(pal, Icons.receipt_long_outlined, 'لیست خریدها (فراوانی)'),
       const SizedBox(height: 8),
       if (list.isEmpty)
         const Padding(
