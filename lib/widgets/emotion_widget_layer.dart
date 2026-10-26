@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -39,6 +41,27 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
 
   late final AnimationController _openCtrl;
 
+  // بسته‌شدن خودکار بعد از ۴ ثانیه بیکاری
+  Timer? _idle;
+
+  void _bumpIdle() {
+    _idle?.cancel();
+    if (!_open) return;
+    _idle = Timer(const Duration(seconds: 4), _autoClose);
+  }
+
+  void _autoClose() {
+    if (!mounted || !_open) return;
+    final st = context.read<EmotionStore>();
+    // وسط ثبت احساس یا کشیدن پنل/آدمک نبند؛ بعداً دوباره چک کن
+    if (st.isCapturing || _panelDragAnchor != null || _figActive) {
+      _bumpIdle();
+      return;
+    }
+    st.fireCommitClose(); // مثل بستن با دکمه
+    _setOpen(false);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,11 +84,13 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
         _loaded = true;
         if (_open) _openCtrl.value = 1;
       });
+      _bumpIdle();
     });
   }
 
   @override
   void dispose() {
+    _idle?.cancel();
     _openCtrl.dispose();
     super.dispose();
   }
@@ -134,7 +159,9 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     setState(() => _open = v);
     if (v) {
       _openCtrl.forward();
+      _bumpIdle();
     } else {
+      _idle?.cancel();
       _openCtrl.reverse();
     }
     _persist();
@@ -183,7 +210,12 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                 child: Transform.scale(
                   scale: 0.88 + 0.12 * t,
                   alignment: _originAlignment(originSide),
-                  child: GestureDetector(
+                  child: Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: (_) => _bumpIdle(),
+                    onPointerMove: (_) => _bumpIdle(),
+                    onPointerUp: (_) => _bumpIdle(),
+                    child: GestureDetector(
                     behavior: HitTestBehavior.deferToChild,
                     onScaleStart: (d) {
                       // انگشت روی آدمک است → آدمک می‌کشد، نه پنل
@@ -236,6 +268,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
                         _persist();
                       },
                     ),
+                  ),
                   ),
                 ),
               ),

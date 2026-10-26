@@ -749,11 +749,12 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   Navigator.pop(context);
                   widget.onShowOnMap(h);
                 }),
-                if (h is Goal) ...[
-                  divider,
-                  _action(Icons.check_circle_outline_rounded, 'رسیدم',
-                      const Color(0xFF178A7C), () => _reach(store, h)),
-                ],
+                // فعلاً مخفی: دکمه‌ی «رسیدم» (کد حفظ شده؛ برای نمایش دوباره کامنت را بردار)
+                // if (h is Goal) ...[
+                //   divider,
+                //   _action(Icons.check_circle_outline_rounded, 'رسیدم',
+                //       const Color(0xFF178A7C), () => _reach(store, h)),
+                // ],
               ],
             ),
           ),
