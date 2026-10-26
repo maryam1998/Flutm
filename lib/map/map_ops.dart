@@ -238,3 +238,23 @@ double? footPosToday(ActionNode a, String todayJK) =>
 
 /// حالت «ثابت» انیمیشن (هدف/شاخه/زیرشاخه): ثبت روی نقشه دیده می‌شود ولی حرکت ندارد
 bool walkerIsStill(Map<String, dynamic> extra) => extra['walkerMode'] == 'still';
+
+
+/// استایلِ یادداشتِ یک روزِ شاخه روی نقشه: font, size, color, dx, dy, hidden
+/// (متنِ یادداشت جدا در extra['footNotes'] می‌ماند و با حذف از نقشه پاک نمی‌شود)
+Map<String, dynamic> footNoteStyle(ActionNode n, String jk,
+    {bool create = true}) {
+  var all = n.extra['footNoteStyles'];
+  if (all is! Map) {
+    if (!create) return const <String, dynamic>{};
+    all = <String, dynamic>{};
+    n.extra['footNoteStyles'] = all;
+  }
+  var st = all[jk];
+  if (st is! Map) {
+    if (!create) return const <String, dynamic>{};
+    st = <String, dynamic>{};
+    all[jk] = st;
+  }
+  return st.cast<String, dynamic>();
+}

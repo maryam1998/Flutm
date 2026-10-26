@@ -22,18 +22,19 @@ class TextCache {
     _m.clear();
   }
 
-  TextPainter get(String text, double size, Color color, FontWeight w, {double? strokeW, Color? outlineOverride}) {
+  TextPainter get(String text, double size, Color color, FontWeight w, {double? strokeW, Color? outlineOverride, String? fontFamily}) {
     // دور نوشته: برای نوشته‌ی مشکی/تیره سفید؛ برای نوشته‌ی رنگی و سفید مشکی
     final oc = outlineOverride ??
         (color.computeLuminance() < 0.18
             ? const Color(0xFFFFFFFF)
             : const Color(0xFF000000));
-    final key = '$text|${size.toStringAsFixed(1)}|${color.hashCode}|${w.index}|${strokeW ?? 0}|${oc.hashCode}';
+    final key = '$text|${size.toStringAsFixed(1)}|${color.hashCode}|${w.index}|${strokeW ?? 0}|${oc.hashCode}|${fontFamily ?? ''}';
     final hit = _m[key];
     if (hit != null) return hit;
     if (_m.length > 500) _m.clear();
-    final style = GoogleFonts.vazirmatn().copyWith(
-      fontFamilyFallback: [...GoogleFonts.emojiFallback, 'Segoe UI', 'Tahoma', 'Noto Sans', 'Noto Color Emoji', 'Segoe UI Emoji', 'Apple Color Emoji'],
+    final base = GoogleFonts.vazirmatn();
+    final style = (fontFamily == null ? base : base.copyWith(fontFamily: fontFamily)).copyWith(
+      fontFamilyFallback: [if (fontFamily != null) 'Vazirmatn', ...GoogleFonts.emojiFallback, 'Segoe UI', 'Tahoma', 'Noto Sans', 'Noto Color Emoji', 'Segoe UI Emoji', 'Apple Color Emoji'],
       fontSize: size,
       fontWeight: w,
       color: strokeW == null ? color : null,
@@ -57,15 +58,15 @@ Rect drawText(
   Canvas c, String text, double x, double y, {
   required double size, required Color color, FontWeight weight = FontWeight.w600,
   LabelAlign align = LabelAlign.center, double? outline, bool vCenter = false,
-  Color? outlineColor,
+  Color? outlineColor, String? fontFamily,
 }) {
   if (text.isEmpty) return Rect.zero;
-  final fill = textCache.get(text, size, color, weight);
+  final fill = textCache.get(text, size, color, weight, fontFamily: fontFamily);
   final w = fill.width;
   final left = switch (align) { LabelAlign.center => x - w / 2, LabelAlign.left => x, LabelAlign.right => x - w };
   final top = vCenter ? y - fill.height / 2 : y - fill.computeDistanceToActualBaseline(TextBaseline.alphabetic);
   if (outline != null) {
-    textCache.get(text, size, color, weight, strokeW: outline, outlineOverride: outlineColor).paint(c, Offset(left, top));
+    textCache.get(text, size, color, weight, strokeW: outline, outlineOverride: outlineColor, fontFamily: fontFamily).paint(c, Offset(left, top));
   }
   fill.paint(c, Offset(left, top));
   return Rect.fromLTWH(left, top, w, fill.height);

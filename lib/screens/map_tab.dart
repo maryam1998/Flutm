@@ -14,6 +14,7 @@ import '../theme/web_palette.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'foot_stats_sheet.dart';
+import 'foot_note_sheet.dart';
 import 'goals_sheet.dart';
 import 'help_dialog.dart';
 import 'settings_sheet.dart';
@@ -118,6 +119,13 @@ class _MapTabState extends State<MapTab> {
               actionId: actionId,
               onPhotos: () => showEditSheet(
                   context, WalkerPhotosTarget(hostId, actionId, false)),
+            ),
+            onEditFootNote: (hostId, actionId, jk) => showFootNoteSheet(
+              context,
+              store: store,
+              hostId: hostId,
+              actionId: actionId,
+              jk: jk,
             ),
             onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),

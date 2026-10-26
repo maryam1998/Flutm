@@ -510,6 +510,25 @@ Future<void> showFootStatsSheet(
                                       style: TextStyle(
                                           fontSize: 11, color: _kMiss)),
                                 ),
+                              if (note.isNotEmpty &&
+                                  footNoteStyle(n, jk, create: false)['hidden'] ==
+                                      true)
+                                Align(
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: TextButton.icon(
+                                    onPressed: () {
+                                      footNoteStyle(n, jk).remove('hidden');
+                                      store.changed();
+                                      setS(() {});
+                                    },
+                                    icon: const Icon(
+                                        Icons.visibility_outlined,
+                                        size: 16),
+                                    label: const Text(
+                                        'نمایش دوباره روی نقشه',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ),
                               if (note.isNotEmpty)
                                 Container(
                                   margin: const EdgeInsets.only(top: 6),

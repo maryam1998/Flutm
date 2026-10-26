@@ -28,6 +28,7 @@ enum _Mode {
   dragFoot,
   dragWalker,
   dragEye,
+  dragNote,
 }
 
 class _Pending {
@@ -41,6 +42,8 @@ class _Pending {
     this.isWalker = false,
     this.isTrophy = false,
     this.isFace = false,
+    this.isNote = false,
+    this.noteKey = '',
   });
   final String hostId;
   final String actionId;
@@ -50,6 +53,8 @@ class _Pending {
   final bool isWalker;
   final bool isTrophy;
   final bool isFace;
+  final bool isNote;
+  final String noteKey;
   final Offset start;
 }
 
@@ -67,6 +72,7 @@ class MapInteraction {
     this.onShowBranchMenu,
     this.onWalkerPhotos,
     this.onFootStats,
+    this.onEditFootNote,
   });
 
   final CameraController cam;
@@ -85,6 +91,10 @@ class MapInteraction {
 
   /// تپ روی قدمِ شاخه: آمار روزهای دوره
   final void Function(String hostId, String actionId)? onFootStats;
+
+  /// تپ روی یادداشتِ کنار قدم: ویرایش متن/فونت/اندازه/رنگ یا حذف از نقشه
+  final void Function(String hostId, String actionId, String jk)?
+      onEditFootNote;
 
   static const double _slop = 6;
 
@@ -108,6 +118,7 @@ class MapInteraction {
   Offset _dOff = Offset.zero;
   int _dImg = 0;
   double _dStartA = 0, _dStartB = 0;
+  String _dNoteKey = '';
   Offset _dStartWorld = Offset.zero;
 
   // long press
@@ -294,6 +305,14 @@ class MapInteraction {
     }
 
     final world = cam.screenToWorld(pos);
+
+    // ─── یادداشتِ کنار قدم: تپ = ویرایش ، کشیدن = جابه‌جایی ───
+    if (hit.type == 'footNote') {
+      _pending = _Pending(hit.hostId, hit.id, null, false, pos,
+          isNote: true, noteKey: hit.voiceKey);
+      _slopPassed = false;
+      return;
+    }
 
     // ─── چهره‌ی قدم‌زن / قدم / قدم‌زن روی تنه ───
     // تپ = توقف/پلی ، کشیدن = جابه‌جایی روی مسیر ، نگه‌داشتن = مدیریت عکس‌ها
@@ -483,6 +502,15 @@ class MapInteraction {
         _mark();
       case _Mode.dragNode:
         _doDragNode(w);
+      case _Mode.dragNote:
+        final nh = store.state.findHost(_dHost);
+        if (nh is! MapHost) return;
+        final nf = findActionNode(nh.actions, _dId);
+        if (nf == null) return;
+        final nst = footNoteStyle(nf.node, _dNoteKey);
+        nst['dx'] = _dStartA + (w.dx - _dStartWorld.dx);
+        nst['dy'] = _dStartB + (w.dy - _dStartWorld.dy);
+        _mark();
       case _Mode.dragFoot:
         _doDragFoot(w);
       case _Mode.dragWalker:
@@ -527,6 +555,24 @@ class MapInteraction {
     }
 
     if (p.isTrophy) {
+      return;
+    }
+
+    if (p.isNote) {
+      final nh = store.state.findHost(p.hostId);
+      if (nh is! MapHost) return;
+      final nf = findActionNode(nh.actions, p.actionId);
+      if (nf == null) return;
+      final nst = footNoteStyle(nf.node, p.noteKey);
+      _mode = _Mode.dragNote;
+      _dHost = p.hostId;
+      _dId = p.actionId;
+      _dNoteKey = p.noteKey;
+      _dStartA = (nst['dx'] as num?)?.toDouble() ?? 0.0;
+      _dStartB = (nst['dy'] as num?)?.toDouble() ?? 0.0;
+      _dStartWorld = cam.screenToWorld(p.start);
+      _slopPassed = true;
+      _tap = null;
       return;
     }
 
@@ -881,6 +927,12 @@ class MapInteraction {
       final held = _faceHeld;
       _faceHeld = false;
       _finish();
+
+      // ─── یادداشتِ کنار قدم: تپ = کادر ویرایش ───
+      if (p.isNote) {
+        if (!wasDrag) onEditFootNote?.call(p.hostId, p.actionId, p.noteKey);
+        return;
+      }
 
       // ─── قدم‌زن/پاها: لمس طولانی قبلاً حرکت/توقف رو عوض کرده؛ تپ ساده کاری نمی‌کنه ───
       // تپ = انتخاب عکس (چندتایی، بدون محدودیت تعداد)

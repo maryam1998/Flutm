@@ -12,6 +12,7 @@ import '../theme/vazir_font.dart';
 import '../state/goal_ops.dart';
 import 'camera.dart';
 import 'draw_utils.dart';
+import '../services/note_fonts.dart';
 import 'foot_shape.dart';
 import 'geometry.dart' as geo;
 import 'hit_registry.dart';
@@ -1259,17 +1260,39 @@ class MapPainter extends CustomPainter {
             ((a.extra['footNotesSize'] as num?)?.toDouble() ?? 1.0)
                 .clamp(0.5, 4.0))
         .toDouble();
-    void noteAbove(Object? t, Offset anchor, double lift) {
-      if (t is! String) return;
+    // هر یادداشت استایلِ خودش را دارد (فونت/اندازه/رنگ/جابه‌جایی/پنهان از نقشه)
+    void noteAbove(String? jk, Object? t, Offset anchor, double lift) {
+      if (t is! String || jk == null) return;
+      final st = footNoteStyle(a, jk, create: false);
+      if (st['hidden'] == true) return;
       var txt = t.trim().replaceAll('\n', ' ');
       if (txt.isEmpty) return;
-      if (txt.length > 18) txt = '${txt.substring(0, 17)}…';
-      drawText(canvas, txt, anchor.dx, anchor.dy - lift,
-          size: noteSize, color: Colors.black, vCenter: true);
+      if (txt.length > 28) txt = '${txt.substring(0, 27)}…';
+      final fid = st['font'] as String?;
+      String? fam;
+      if (fid != null && fid != 'default') {
+        NoteFonts.ensure(fid);
+        fam = NoteFonts.familyOf(fid);
+      }
+      final mul = ((st['size'] as num?)?.toDouble() ?? 1.0).clamp(0.4, 5.0);
+      final col = st['color'] is int ? Color(st['color'] as int) : Colors.black;
+      final dx = (st['dx'] as num?)?.toDouble() ?? 0.0;
+      final dy = (st['dy'] as num?)?.toDouble() ?? 0.0;
+      final r = drawText(canvas, txt, anchor.dx + dx, anchor.dy - lift + dy,
+          size: noteSize * mul, color: col, vCenter: true, fontFamily: fam);
+      hits.add(HitEntry(
+        type: 'footNote',
+        id: a.id,
+        hostId: hostId,
+        kind: HitKind.label,
+        rect: r.inflate(4),
+        voiceKey: jk,
+      ));
     }
 
     // یادداشتِ «قدمِ فعلی»: امروز؛ اگه نداشت نزدیک‌ترین روزِ آینده؛ بعد روزِ از دست رفته
     Object? curNote;
+    String? curKey;
     if (showNotes) {
       final past = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys}
           .where((k) => k != todayK && _doneOn(a, k))
@@ -1277,7 +1300,7 @@ class MapPainter extends CustomPainter {
         ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
       for (var k = 0; k < past.length; k++) {
         final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
-        noteAbove(notes[past[k]], route.at(u), pastSize * 1.3 + 4);
+        noteAbove(past[k], notes[past[k]], route.at(u), pastSize * 1.3 + 4);
       }
       final cand = notes.keys
           .whereType<String>()
@@ -1300,13 +1323,14 @@ class MapPainter extends CustomPainter {
         }
         pick ??= cand.isEmpty ? null : cand.last;
       }
+      curKey = pick;
       curNote = pick == null ? null : notes[pick];
     }
 
     if (hiddenW) {
       // انیمیشن پنهان است: یادداشت بالای جای قدمِ جدید روی مسیر
       final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
-      noteAbove(curNote, route.at(u), pastSize * 1.3 + 4);
+      noteAbove(curKey, curNote, route.at(u), pastSize * 1.3 + 4);
       return;
     }
 
@@ -1382,7 +1406,7 @@ class MapPainter extends CustomPainter {
       core(playingNow, posToday);
     }
     // یادداشت بالای انیمیشن، همراه با حرکتش
-    noteAbove(curNote, _lastBodyPos, _lastBodyR * 1.5 + 8);
+    noteAbove(curKey, curNote, _lastBodyPos, _lastBodyR * 1.5 + 8);
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
     _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
   }
