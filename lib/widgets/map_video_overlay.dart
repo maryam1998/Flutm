@@ -300,6 +300,29 @@ class _MapVideoCardState extends State<_MapVideoCard> {
                           const Icon(Icons.drag_indicator,
                               size: 18, color: Colors.white54),
                           const Spacer(),
+                          if (ready)
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                if (kIsWeb) {
+                                  toggleMapHtmlVideo('${widget.req.token}');
+                                } else if (c != null) {
+                                  c.value.isPlaying ? c.pause() : c.play();
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  (kIsWeb
+                                          ? _webPlaying
+                                          : (c?.value.isPlaying ?? false))
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  size: 24,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTap: () {
