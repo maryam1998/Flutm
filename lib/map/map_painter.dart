@@ -1265,7 +1265,11 @@ class MapPainter extends CustomPainter {
         final off = pastSize * 1.3 + 4;
         drawText(canvas, txt, pt.dx - math.sin(tg) * off,
             pt.dy + math.cos(tg) * off,
-            size: (_fs() * 0.5).toDouble(),
+            size: (_fs() *
+                    0.5 *
+                    ((a.extra['footNotesSize'] as num?)?.toDouble() ?? 1.0)
+                        .clamp(0.5, 4.0))
+                .toDouble(),
             color: tcol,
             outline: 2.5,
             vCenter: true);
@@ -1274,8 +1278,18 @@ class MapPainter extends CustomPainter {
       for (var k = 0; k < keys.length; k++) {
         noteAt(notes[keys[k]], (0.03 + k * stride).clamp(0.0, 0.95).toDouble());
       }
-      noteAt(notes[todayK],
-          (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble());
+      // یادداشتِ امروز در جای قدمِ جدید؛ روزهای دیگر (از دست رفته/آینده) پشت‌سرش
+      var slot = fixed;
+      noteAt(notes[todayK], (0.03 + slot * stride).clamp(0.0, 0.95).toDouble());
+      final others = notes.keys
+          .whereType<String>()
+          .where((k) => k != todayK && !keys.contains(k))
+          .toList()
+        ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
+      for (final k in others) {
+        slot++;
+        noteAt(notes[k], (0.03 + slot * stride).clamp(0.0, 0.95).toDouble());
+      }
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);

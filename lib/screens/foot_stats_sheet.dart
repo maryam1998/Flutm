@@ -536,16 +536,54 @@ Future<void> showFootStatsSheet(
                                 style: TextStyle(
                                     fontSize: 12.5, color: wp.textMain)),
                           ),
-                          Switch(
-                            value: f.node.extra['footNotesShow'] == true,
-                            onChanged: (v) {
-                              f.node.extra['footNotesShow'] = v;
-                              store.changed();
-                              setS(() {});
-                            },
+                          Transform.scale(
+                            scale: 0.72,
+                            child: Switch(
+                              activeColor: _kDone,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              value: f.node.extra['footNotesShow'] == true,
+                              onChanged: (v) {
+                                f.node.extra['footNotesShow'] = v;
+                                store.changed();
+                                setS(() {});
+                              },
+                            ),
                           ),
                         ],
                       ),
+                      if (f.node.extra['footNotesShow'] == true)
+                        Row(
+                          children: [
+                            Text('اندازه',
+                                style: TextStyle(
+                                    fontSize: 12, color: wp.textDim)),
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(ctx).copyWith(
+                                  activeTrackColor: _kDone,
+                                  thumbColor: _kDone,
+                                  trackHeight: 3,
+                                ),
+                                child: Slider(
+                                  min: 0.5,
+                                  max: 4.0,
+                                  value: ((f.node.extra['footNotesSize']
+                                                  as num?)
+                                              ?.toDouble() ??
+                                          1.0)
+                                      .clamp(0.5, 4.0)
+                                      .toDouble(),
+                                  onChanged: (v) {
+                                    f.node.extra['footNotesSize'] = v;
+                                    store.changed();
+                                    setS(() {});
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       if (onPhotos != null)
                         Align(
                           alignment: AlignmentDirectional.centerStart,
