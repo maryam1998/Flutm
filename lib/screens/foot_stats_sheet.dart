@@ -407,6 +407,16 @@ Future<void> showFootStatsSheet(
                                     : wp.textMain),
                           ),
                         ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final m in months.values) monthGrid(m),
+                            ],
+                          ),
+                        ),
+                      ),
                       if (selDay != null) ...[
                         Builder(builder: (_) {
                           final n = f.node;
@@ -519,20 +529,10 @@ Future<void> showFootStatsSheet(
                           );
                         }),
                       ],
-                      Flexible(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (final m in months.values) monthGrid(m),
-                            ],
-                          ),
-                        ),
-                      ),
                       Row(
                         children: [
                           Expanded(
-                            child: Text('نمایش یادداشت‌ها روی قدم‌ها',
+                            child: Text('نمایش یادداشت',
                                 style: TextStyle(
                                     fontSize: 12.5, color: wp.textMain)),
                           ),

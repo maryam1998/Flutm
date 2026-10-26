@@ -309,7 +309,7 @@ class MapInteraction {
       }
       _slopPassed = false;
       final pp = _pending!;
-      _lp = Timer(const Duration(milliseconds: 550), () {
+      _lp = Timer(const Duration(milliseconds: 280), () {
         _faceHeld = true;
         HapticFeedback.mediumImpact();
         _toggleWalk(pp); // لمس طولانی = توقف / ادامه‌ی حرکت
