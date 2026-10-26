@@ -258,7 +258,7 @@ class _CalBubble {
       _data.value = data;
     }
     _timer?.cancel();
-    _timer = Timer(const Duration(milliseconds: 2600), hide);
+    _timer = Timer(const Duration(seconds: 6), hide);
   }
 
   static void hide() {

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/abundance_models.dart';
 import '../models/gratitude_entry.dart';
+import '../models/jalali.dart';
 import '../services/data_url_cache.dart';
 import '../services/image_service.dart';
 import '../state/abundance_store.dart';
@@ -231,7 +232,122 @@ class _StoreTabState extends State<StoreTab> {
         feltWidth: 1.8,
         onChange: () => store.saveNeural(),
       ),
+      const SizedBox(height: 22),
+      ..._purchasesSection(store, pal),
     ];
+  }
+
+  /// بنر شمارنده + لیست خریدهای ثبت‌شده (بعد از مسیر عصبی)
+  List<Widget> _purchasesSection(AbundanceStore store, GratPalette pal) {
+    final list = store.history.reversed.toList();
+    return [
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [pal.emerald900, pal.emerald700],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: pal.emerald900.withValues(alpha: 0.25),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: toFaDigits(list.length.toString()),
+                style: const TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const TextSpan(
+                  text: ' بار فراوانی رو توی تک‌تک سلول‌های بدنم حس کردم'),
+            ],
+          ),
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.rtl,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            height: 1.7,
+          ),
+        ),
+      ),
+      const SizedBox(height: 14),
+      _sectionLabel(pal, Icons.receipt_long_outlined, 'لیست خریدها'),
+      const SizedBox(height: 8),
+      if (list.isEmpty)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Text(
+            'هنوز هیچ خریدی ثبت نشده 🌱',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: _kMuted, height: 1.9),
+          ),
+        )
+      else
+        ...list.map(_purchaseTile),
+    ];
+  }
+
+  Widget _purchaseTile(Purchase p) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => ReceiptSheet.show(context: context, record: p),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _kCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      faStampFromRecord(
+                          iso: p.iso, date: p.date, day: p.day, time: p.time),
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: _kInk),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    formatMoney(p.total),
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: _kGold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ...p.items.map((it) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      '• ${it.name} ×${toFaDigits(it.qty.toString())}',
+                      style: const TextStyle(fontSize: 11.5, color: _kInk),
+                    ),
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _sectionLabel(GratPalette pal, IconData icon, String title) {
