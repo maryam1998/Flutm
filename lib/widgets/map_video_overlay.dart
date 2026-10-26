@@ -188,6 +188,7 @@ class _MapVideoCardState extends State<_MapVideoCard> {
           width: w,
           height: vh,
           child: buildMapHtmlVideo(
+            key: ValueKey('mapvid-${widget.req.token}'),
             id: '${widget.req.token}',
             url: _webUrl!,
             loop: _loop,
@@ -262,11 +263,24 @@ class _MapVideoCardState extends State<_MapVideoCard> {
             left: p.dx,
             top: p.dy,
             width: w,
-            child: Material(
-              color: const Color(0xF2111111),
-              elevation: 10,
-              borderRadius: BorderRadius.circular(14),
-              child: Column(
+            // به‌جای Material(elevation) از DecoratedBox + ClipRRect استفاده شده:
+            // لایه‌ی PhysicalShape روی وب باعث می‌شد عنصر <video> HTML از کارت
+            // جدا شود و بیرون از کادر (کنار صفحه) بیفتد.
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xF2111111),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x66000000),
+                      blurRadius: 14,
+                      offset: Offset(0, 5)),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.hardEdge,
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   gestures(
@@ -342,6 +356,7 @@ class _MapVideoCardState extends State<_MapVideoCard> {
                           allowScrubbing: true, padding: EdgeInsets.zero),
                     ),
                 ],
+              ),
               ),
             ),
           ),

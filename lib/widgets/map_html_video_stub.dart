@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 /// فقط وب از `<video>` HTML استفاده می‌کند؛ جاهای دیگر خالی.
 Widget buildMapHtmlVideo({
+  Key? key,
   required String id,
   required String url,
   required bool loop,

@@ -99,11 +99,15 @@ class _AngelsLayerState extends State<AngelsLayer>
       it.x += it.vx * sp * dt;
       it.y += it.vy * sp * dt;
 
-      final m = -s * 0.15;
+      // با لبه‌ی محو (soft) کمی بیرون‌زدگی مجاز است؛ بدون محو، آیتم کاملاً داخل صفحه می‌ماند
+      final spill = store.soft ? 0.15 : 0.0;
+      final m = -s * spill;
+      final maxX = math.max(m, w - s * (1 - spill));
+      final maxY = math.max(m, h - s * (1 - spill));
       if (it.x < m) { it.x = m; it.vx = it.vx.abs(); }
-      if (it.x > w - s * 0.85) { it.x = w - s * 0.85; it.vx = -it.vx.abs(); }
+      if (it.x > maxX) { it.x = maxX; it.vx = -it.vx.abs(); }
       if (it.y < m) { it.y = m; it.vy = it.vy.abs(); }
-      if (it.y > h - s * 0.85) { it.y = h - s * 0.85; it.vy = -it.vy.abs(); }
+      if (it.y > maxY) { it.y = maxY; it.vy = -it.vy.abs(); }
 
       it.dispY = it.y + math.sin(it.ph * 2) * 6;
     }

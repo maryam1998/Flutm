@@ -19,6 +19,7 @@ final Map<String, _Cb> _cb = <String, _Cb>{};
 final Set<String> _registered = <String>{};
 
 Widget buildMapHtmlVideo({
+  Key? key,
   required String id,
   required String url,
   required bool loop,
@@ -75,7 +76,7 @@ Widget buildMapHtmlVideo({
   final v = _videos[viewType];
   if (v != null && v.loop != loop) v.loop = loop;
 
-  return HtmlElementView(viewType: viewType);
+  return HtmlElementView(key: key, viewType: viewType);
 }
 
 /// بستن کارت: پخش را کامل قطع کن (وگرنه صدا می‌ماند)

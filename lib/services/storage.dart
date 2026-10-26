@@ -27,7 +27,7 @@ class StorageService {
     final name = lastExportName ?? '';
     final path = lastExportPath;
     if (kIsWeb) {
-      return 'فایل «$name» در پوشه‌ی دانلودهای مرورگر ذخیره شد (Downloads).';
+      return 'نام فایل: $name\nمحل ذخیره: پوشه‌ی Download گوشی (برنامه‌ی Files / فایل‌ها ← Download).\nاگر مرورگر محل دیگری پرسید، همان محل است.';
     }
     if (path == null || path.isEmpty) {
       return 'فایل «$name» در همان پوشه‌ای که انتخاب کردی ذخیره شد.';
