@@ -40,8 +40,21 @@ class _StoreTabState extends State<StoreTab> {
   final _qty = TextEditingController(text: '1');
   String? _image;
 
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _price.addListener(_onDraftChanged);
+    _qty.addListener(_onDraftChanged);
+  }
+
   @override
   void dispose() {
+    _price.removeListener(_onDraftChanged);
+    _qty.removeListener(_onDraftChanged);
     _name.dispose();
     _price.dispose();
     _qty.dispose();
@@ -154,20 +167,6 @@ class _StoreTabState extends State<StoreTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
-            // بنر شمارنده (بالای صفحه) + تاریخچه
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(child: _countBanner(store, GratPalette.of(context))),
-                IconButton(
-                  tooltip: 'تاریخچه خریدها',
-                  icon: const Icon(Icons.history, color: _kInk),
-                  onPressed: () => ShopHistorySheet.show(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
             // بنر موجودی
             _balanceBanner(store),
             const SizedBox(height: 16),
@@ -249,7 +248,7 @@ class _StoreTabState extends State<StoreTab> {
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w900),
             ),
-            const TextSpan(text: ' بار فراوانی رو دیدم و شکر کردم'),
+            const TextSpan(text: ' بار فراوانی را دیدم و شکر کردم'),
           ],
         ),
         textAlign: TextAlign.center,
@@ -366,7 +365,9 @@ class _StoreTabState extends State<StoreTab> {
   }
 
   Widget _balanceBanner(AbundanceStore store) {
-    final left = store.remainingToday;
+    // مبلغِ خریدی که همین الان در فرم تایپ می‌شود (قیمت × تعداد)، قبل از افزودن
+    final draft = parseMoneyInput(_price.text) * _qtyValue();
+    final left = store.remainingToday - draft;
     final over = left < 0;
     return Container(
       padding: const EdgeInsets.all(12),
@@ -399,6 +400,27 @@ class _StoreTabState extends State<StoreTab> {
               ),
             ],
           ),
+          if (draft > 0) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  _qtyValue() > 1
+                      ? 'این خرید (${toFaDigits(_qtyValue().toString())} × ${formatMoney(parseMoneyInput(_price.text))})'
+                      : 'این خرید',
+                  style: const TextStyle(fontSize: 11, color: _kMuted),
+                ),
+                const Spacer(),
+                Text(
+                  formatMoney(draft),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _kGold),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             over
