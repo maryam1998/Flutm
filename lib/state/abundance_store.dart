@@ -228,7 +228,7 @@ class AbundanceStore extends ChangeNotifier {
 
   double get cartTotal => cart.fold<double>(0, (sum, i) => sum + i.total);
   double get pendingTotal =>
-      pending.fold<double>(0, (sum, i) => sum + i.price);
+      pending.fold<double>(0, (sum, i) => sum + i.total);
   double get remainingToday => balance - cartTotal - pendingTotal;
 
   int get cartCount => cart.fold<int>(0, (sum, i) => sum + i.qty);
@@ -256,7 +256,7 @@ class AbundanceStore extends ChangeNotifier {
         icon: item.icon,
         image: item.image,
         price: item.price,
-        qty: 1,
+        qty: item.qty < 1 ? 1 : item.qty,
       ));
     }
     pending.clear();

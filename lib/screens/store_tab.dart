@@ -36,12 +36,14 @@ class StoreTab extends StatefulWidget {
 class _StoreTabState extends State<StoreTab> {
   final _name = TextEditingController();
   final _price = TextEditingController();
+  final _qty = TextEditingController(text: '1');
   String? _image;
 
   @override
   void dispose() {
     _name.dispose();
     _price.dispose();
+    _qty.dispose();
     super.dispose();
   }
 
@@ -59,6 +61,16 @@ class _StoreTabState extends State<StoreTab> {
     setState(() => _image = n);
   }
 
+  int _qtyValue() {
+    final q = parseMoneyInput(_qty.text).toInt();
+    return q < 1 ? 1 : (q > 9999 ? 9999 : q);
+  }
+
+  void _bumpQty(int delta) {
+    final q = (_qtyValue() + delta).clamp(1, 9999);
+    setState(() => _qty.text = q.toString());
+  }
+
   void _addItem() {
     final name = _name.text.trim();
     final price = parseMoneyInput(_price.text);
@@ -73,9 +85,11 @@ class _StoreTabState extends State<StoreTab> {
       name: name,
       image: _image,
       price: price,
+      qty: _qtyValue(),
     ));
     _name.clear();
     _price.clear();
+    _qty.text = '1';
     setState(() => _image = null);
   }
 
@@ -378,8 +392,10 @@ class _StoreTabState extends State<StoreTab> {
                     textAlign: TextAlign.right,
                     textDirection: TextDirection.rtl,
                     style: const TextStyle(fontSize: 13, color: _kInk),
-                    decoration: _inputDeco('قیمت (تومان)'),
+                    decoration: _inputDeco('قیمت هر عدد (تومان)'),
                   ),
+                  const SizedBox(height: 6),
+                  _qtyField(),
                 ],
               ),
             ),
@@ -405,6 +421,40 @@ class _StoreTabState extends State<StoreTab> {
     ),
   );
 }
+
+  /// تعداد خرید — قبل از افزودن به لیست
+  Widget _qtyField() {
+    Widget btn(IconData icon, int delta) => InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => _bumpQty(delta),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 18, color: _kInk),
+          ),
+        );
+    return Row(
+      children: [
+        const Text('تعداد',
+            style: TextStyle(fontSize: 12, color: _kMuted)),
+        const SizedBox(width: 10),
+        btn(Icons.remove, -1),
+        SizedBox(
+          width: 64,
+          child: TextField(
+            controller: _qty,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w800, color: _kInk),
+            decoration: _inputDeco('۱'),
+            onTap: () => _qty.selection =
+                TextSelection(baseOffset: 0, extentOffset: _qty.text.length),
+          ),
+        ),
+        btn(Icons.add, 1),
+      ],
+    );
+  }
 
   Widget _pendingList(AbundanceStore store) {
     return Container(
@@ -483,7 +533,10 @@ class _StoreTabState extends State<StoreTab> {
                 Text(it.name,
                     style: const TextStyle(fontSize: 12.5, color: _kInk)),
                 const SizedBox(height: 2),
-                Text(formatMoney(it.price),
+                Text(
+                    it.qty > 1
+                        ? '${toFaDigits(it.qty.toString())} × ${formatMoney(it.price)} = ${formatMoney(it.total)}'
+                        : formatMoney(it.price),
                     style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
