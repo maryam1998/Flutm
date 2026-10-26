@@ -249,7 +249,7 @@ class _StoreTabState extends State<StoreTab> {
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w900),
             ),
-            const TextSpan(text: ' بار فراوانی را دیدم و شکر کردم'),
+            const TextSpan(text: ' بار فراوانی رو دیدم و شکر کردم'),
           ],
         ),
         textAlign: TextAlign.center,
