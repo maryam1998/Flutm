@@ -1309,10 +1309,26 @@ class MapPainter extends CustomPainter {
 
     // ─── روزهای قبل: هر روزِ ثبت‌شده یک جفت پا (چپ و راست)، پشت سر هم از شروع مسیر ───
     // جفت پا کنار هم (چپ و راست روی یک نقطه)، کمی کم‌رنگ‌تر از قدمِ امروز
+    // روزهای انجام‌شده به ترتیب تاریخ؛ هر قدمِ کم‌رنگ = یک روز (تپ = تقویم همان روز)
+    final pastDayKeys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys}
+        .where((k) => k != todayK && _doneOn(a, k))
+        .toList()
+      ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
     for (var k = 0; k < fixed && !hiddenW; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
       _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, 0.6));
       _drawWalkerFoot(canvas, route, u, 1.0, pastSize, withOp(color, 0.6));
+      if (k < pastDayKeys.length) {
+        hits.add(HitEntry(
+          type: 'pastFoot',
+          id: a.id,
+          hostId: hostId,
+          kind: HitKind.handle,
+          center: route.at(u),
+          radius: pastSize * 1.3,
+          voiceKey: pastDayKeys[k],
+        ));
+      }
     }
 
     // یادداشتِ روزها: بالای پاها، مشکی، بدون دورخط؛ همراه با انیمیشن

@@ -44,6 +44,7 @@ class _Pending {
     this.isTrophy = false,
     this.isFace = false,
     this.isNote = false,
+    this.isPastFoot = false,
     this.noteKey = '',
   });
   final String hostId;
@@ -55,6 +56,7 @@ class _Pending {
   final bool isTrophy;
   final bool isFace;
   final bool isNote;
+  final bool isPastFoot;
   final String noteKey;
   final Offset start;
 }
@@ -91,7 +93,7 @@ class MapInteraction {
   final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
 
   /// تپ روی قدمِ شاخه: آمار روزهای دوره
-  final void Function(String hostId, String actionId)? onFootStats;
+  final void Function(String hostId, String actionId, String? jk)? onFootStats;
 
   /// تپ روی یادداشتِ کنار قدم: ویرایش متن/فونت/اندازه/رنگ یا حذف از نقشه
   final void Function(String hostId, String actionId, String jk)?
@@ -310,6 +312,14 @@ class MapInteraction {
     }
 
     final world = cam.screenToWorld(pos);
+
+    // ─── قدم‌های کم‌رنگِ روزهای گذشته: تپ = تقویم با تاریخِ همان قدم ، کشیدن = جابه‌جایی نقشه ───
+    if (hit.type == 'pastFoot') {
+      _pending = _Pending(hit.hostId, hit.id, null, false, pos,
+          isPastFoot: true, noteKey: hit.voiceKey);
+      _slopPassed = false;
+      return;
+    }
 
     // ─── یادداشتِ کنار قدم: تپ = ویرایش ، کشیدن = جابه‌جایی ───
     if (hit.type == 'footNote') {
@@ -560,6 +570,12 @@ class MapInteraction {
     }
 
     if (p.isTrophy) {
+      return;
+    }
+
+    if (p.isPastFoot) {
+      _startPan(p.start);
+      _tap = null;
       return;
     }
 
@@ -933,6 +949,12 @@ class MapInteraction {
       _faceHeld = false;
       _finish();
 
+      // ─── قدمِ کم‌رنگِ یک روزِ گذشته: تپ = تقویم و تاریخِ همان قدم ───
+      if (p.isPastFoot) {
+        if (!wasDrag) onFootStats?.call(p.hostId, p.actionId, p.noteKey);
+        return;
+      }
+
       // ─── یادداشتِ کنار قدم: تپ = کادر ویرایش ───
       if (p.isNote) {
         if (!wasDrag) onEditFootNote?.call(p.hostId, p.actionId, p.noteKey);
@@ -944,7 +966,7 @@ class MapInteraction {
       if (p.isWalker || p.isFoot) {
         if (!wasDrag && !held) {
           if (p.isFoot && onFootStats != null) {
-            onFootStats!(p.hostId, p.actionId);
+            onFootStats!(p.hostId, p.actionId, null);
             return;
           }
           final cb = onWalkerPhotos;

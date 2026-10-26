@@ -41,7 +41,7 @@ class MapCanvas extends StatefulWidget {
   final void Function(String hostId, String actionId, bool isWalker)? onWalkerPhotos;
 
   /// تپ روی قدمِ شاخه: آمار دوره
-  final void Function(String hostId, String actionId)? onFootStats;
+  final void Function(String hostId, String actionId, String? jk)? onFootStats;
   final void Function(String hostId, String actionId, String jk)?
       onEditFootNote;
 

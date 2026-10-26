@@ -113,11 +113,12 @@ class _MapTabState extends State<MapTab> {
             onEditMe: () => showEditSheet(context, const MeTarget()),
             onWalkerPhotos: (hostId, actionId, isWalker) => showEditSheet(
                 context, WalkerPhotosTarget(hostId, actionId, isWalker)),
-            onFootStats: (hostId, actionId) => showFootStatsSheet(
+            onFootStats: (hostId, actionId, jk) => showFootStatsSheet(
               context,
               store: store,
               hostId: hostId,
               actionId: actionId,
+              initialJk: jk,
               onPhotos: () => showEditSheet(
                   context, WalkerPhotosTarget(hostId, actionId, false)),
             ),

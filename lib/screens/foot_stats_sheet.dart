@@ -74,18 +74,20 @@ String _ord(int n) => n >= 1 && n <= kPeriodOrd.length ? periodOrd(n - 1) : toFa
 
 /// متنِ «قدم» برای یک روزِ لمس‌شده
 String _stepCaption(_Day d) {
+  final dateStr =
+      '${toFa(d.j.jd)} ${kJalaliMonths[d.j.jm - 1]} ${toFa(d.j.jy)}';
   final gapNote =
       d.gap > 0 ? ' (${toFa(d.gap)} روز را از دست دادی)' : '';
   switch (d.st) {
     case _St.done:
-      return 'روز ${_ord(d.idx)}، قدم ${_ord(d.step)}$gapNote';
+      return '$dateStr · روز ${_ord(d.idx)}، قدم ${_ord(d.step)}$gapNote';
     case _St.missed:
-      return 'روز ${_ord(d.idx)} · قدم ${_ord(d.step)} '
+      return '$dateStr · روز ${_ord(d.idx)} · قدم ${_ord(d.step)} '
           '(${toFa(d.lost)} روز را از دست دادی)';
     case _St.today:
-      return 'امروز · روز ${_ord(d.idx)}، قدم ${_ord(d.step)}$gapNote';
+      return '$dateStr · امروز · روز ${_ord(d.idx)}، قدم ${_ord(d.step)}$gapNote';
     case _St.future:
-      return 'روز ${_ord(d.idx)} · قدم ${_ord(d.step)} در راه است';
+      return '$dateStr · روز ${_ord(d.idx)} · قدم ${_ord(d.step)} در راه است';
   }
 }
 
@@ -189,6 +191,7 @@ Future<void> showFootStatsSheet(
   required String hostId,
   required String actionId,
   VoidCallback? onPhotos,
+  String? initialJk,
 }) {
   final host0 = store.state.findHost(hostId);
   if (host0 is! MapHost) return Future.value();
@@ -196,6 +199,8 @@ Future<void> showFootStatsSheet(
   final wp = WebPalette.of(context);
   var sel = -1; // روزِ انتخاب‌شده (idx)
   String? hint; // پیام کوتاه زیر دکمه‌ها
+  String? jkPending = initialJk; // روزی که باید باز شدن انتخاب بشه
+  final selKey = GlobalKey();
 
   return showModalBottomSheet<void>(
     context: context,
@@ -214,6 +219,22 @@ Future<void> showFootStatsSheet(
           final days = _periodDays(host, f.node, store);
           final title = f.node.text.isEmpty ? 'قدم' : f.node.text;
           final future = days.where((d) => d.st == _St.future).length;
+
+          if (jkPending != null) {
+            final i = days.indexWhere((d) => _jkOf(d) == jkPending);
+            if (i >= 0) {
+              sel = i + 1;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final c = selKey.currentContext;
+                if (c != null && c.mounted) {
+                  Scrollable.ensureVisible(c,
+                      alignment: 0.5,
+                      duration: const Duration(milliseconds: 250));
+                }
+              });
+            }
+            jkPending = null;
+          }
 
           if (sel < 1 || sel > days.length) {
             final t = days.indexWhere((d) => d.st == _St.today);
@@ -255,6 +276,7 @@ Future<void> showFootStatsSheet(
                 }
                 return Expanded(
                   child: Padding(
+                    key: d.idx == sel ? selKey : null,
                     padding: const EdgeInsets.all(2),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
