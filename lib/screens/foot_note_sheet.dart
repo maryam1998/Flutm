@@ -45,6 +45,8 @@ Future<void> showFootNoteSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    enableDrag: true,
+    barrierColor: Colors.black.withValues(alpha: 0.15),
     backgroundColor: Colors.transparent,
     builder: (ctx) => Directionality(
       textDirection: TextDirection.rtl,
@@ -132,183 +134,218 @@ Future<void> showFootNoteSheet(
             );
           }
 
-          return Container(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.82),
-            padding: EdgeInsets.fromLTRB(
-                16, 14, 16, 14 + MediaQuery.of(ctx).viewInsets.bottom),
-            decoration: BoxDecoration(
-              color: wp.panelBg,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(22)),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text('یادداشت روی نقشه',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: wp.textMain)),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.check_rounded),
-                        color: _kOk,
-                        tooltip: 'تأیید',
-                      ),
-                    ],
-                  ),
-                  TextField(
-                    controller: ctl,
-                    minLines: 1,
-                    maxLines: 3,
-                    textDirection: TextDirection.rtl,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'متن یادداشت',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onChanged: (v) {
-                      final m = _notes(node);
-                      final t = v.trim();
-                      if (t.isEmpty) {
-                        m.remove(jk);
-                      } else {
-                        m[jk] = t;
-                      }
-                      node.extra['footNotes'] = m;
-                      store.changed();
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  Text('فونت',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: wp.textMain)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      fontTile('default', 'وزیرمتن (پیش‌فرض)'),
-                      for (final nf in kNoteFonts) fontTile(nf.id, nf.label),
-                    ],
-                  ),
-                  if (err != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(err!,
-                          style: const TextStyle(
-                              fontSize: 11.5, color: Color(0xFFD9534F))),
-                    ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Text('اندازه',
-                          style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: wp.textMain)),
-                      Expanded(
-                        child: SliderTheme(
-                          data: SliderTheme.of(ctx).copyWith(
-                              activeTrackColor: _kOk,
-                              thumbColor: _kOk,
-                              trackHeight: 3),
-                          child: Slider(
-                            min: 0.4,
-                            max: 5.0,
-                            value: size.toDouble(),
-                            onChanged: (v) {
-                              st['size'] = v;
-                              save();
-                            },
-                          ),
+          Widget label(String t) => Text(t,
+              style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: wp.textMain));
+
+          final keyboardOpen = MediaQuery.of(ctx).viewInsets.bottom > 0;
+
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onVerticalDragEnd: (d) {
+              if ((d.primaryVelocity ?? 0) > 250) Navigator.pop(ctx);
+            },
+            child: Container(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+              padding: EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  10 +
+                      (keyboardOpen
+                          ? MediaQuery.of(ctx).viewInsets.bottom
+                          : MediaQuery.of(ctx).padding.bottom)),
+              decoration: BoxDecoration(
+                color: wp.panelBg,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: SingleChildScrollView(
+                physics: keyboardOpen
+                    ? const ClampingScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 4),
+                        decoration: BoxDecoration(
+                          color: wp.textDim.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                    ],
-                  ),
-                  Text('رنگ',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: wp.textMain)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      for (final c in _kNoteColors)
-                        GestureDetector(
-                          onTap: () {
-                            st['color'] = c.toARGB32();
-                            save();
-                          },
-                          child: Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: c,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: colVal == c.toARGB32()
-                                    ? _kGoldN
-                                    : wp.textDim.withValues(alpha: 0.4),
-                                width: colVal == c.toARGB32() ? 3 : 1,
-                              ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text('یادداشت روی نقشه',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: wp.textMain)),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.check_rounded),
+                          color: _kOk,
+                          tooltip: 'تأیید',
+                        ),
+                      ],
+                    ),
+                    TextField(
+                      controller: ctl,
+                      minLines: 1,
+                      maxLines: 2,
+                      textDirection: TextDirection.rtl,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'متن یادداشت',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onChanged: (v) {
+                        final m = _notes(node);
+                        final t = v.trim();
+                        if (t.isEmpty) {
+                          m.remove(jk);
+                        } else {
+                          m[jk] = t;
+                        }
+                        node.extra['footNotes'] = m;
+                        store.changed();
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        label('فونت'),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: SizedBox(
+                            height: 38,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: [
+                                fontTile('default', 'وزیرمتن (پیش‌فرض)'),
+                                for (final nf in kNoteFonts) ...[
+                                  const SizedBox(width: 8),
+                                  fontTile(nf.id, nf.label),
+                                ],
+                              ],
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            st.remove('dx');
-                            st.remove('dy');
-                            save();
-                          },
-                          icon: const Icon(Icons.undo_rounded, size: 18),
-                          label: const Text('برگشت به جای اول',
-                              style: TextStyle(fontSize: 12.5)),
-                        ),
+                      ],
+                    ),
+                    if (err != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(err!,
+                            style: const TextStyle(
+                                fontSize: 11.5, color: Color(0xFFD9534F))),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFD9534F)),
-                          onPressed: () {
-                            st['hidden'] = true;
-                            store.changed();
-                            Navigator.pop(ctx);
-                          },
-                          icon: const Icon(Icons.visibility_off_outlined,
-                              size: 18),
-                          label: const Text('حذف از نقشه',
-                              style: TextStyle(fontSize: 12.5)),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        label('اندازه'),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(ctx).copyWith(
+                                activeTrackColor: _kOk,
+                                thumbColor: _kOk,
+                                trackHeight: 3),
+                            child: Slider(
+                              min: 0.4,
+                              max: 5.0,
+                              value: size.toDouble(),
+                              onChanged: (v) {
+                                st['size'] = v;
+                                save();
+                              },
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'با «حذف از نقشه» فقط نمایشش روی نقشه برداشته می‌شود؛ متن یادداشت در تقویم می‌ماند. برای نمایش دوباره، در تقویم همان روز را بزن. برای جابه‌جایی، یادداشت را روی نقشه بکش.',
-                    style:
-                        TextStyle(fontSize: 11, height: 1.7, color: wp.textDim),
-                  ),
-                ],
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        label('رنگ'),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              for (final c in _kNoteColors)
+                                GestureDetector(
+                                  onTap: () {
+                                    st['color'] = c.toARGB32();
+                                    save();
+                                  },
+                                  child: Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: c,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: colVal == c.toARGB32()
+                                            ? _kGoldN
+                                            : wp.textDim
+                                                .withValues(alpha: 0.4),
+                                        width:
+                                            colVal == c.toARGB32() ? 3 : 1,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              st.remove('dx');
+                              st.remove('dy');
+                              save();
+                            },
+                            icon: const Icon(Icons.undo_rounded, size: 18),
+                            label: const Text('برگشت به جای اول',
+                                style: TextStyle(fontSize: 12.5)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFFD9534F)),
+                            onPressed: () {
+                              st['hidden'] = true;
+                              store.changed();
+                              Navigator.pop(ctx);
+                            },
+                            icon: const Icon(Icons.visibility_off_outlined,
+                                size: 18),
+                            label: const Text('حذف از نقشه',
+                                style: TextStyle(fontSize: 12.5)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           );
