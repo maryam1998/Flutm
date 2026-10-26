@@ -501,11 +501,19 @@ class GratitudeStore extends ChangeNotifier {
   /// حلقه‌ی روزش در تقویم هم به‌روز می‌شن.
   Future<bool> setEntryEmotions(String id, List<String> emotionIds) async {
     final e = byId(id);
-    if (e == null || e.source == 'purchase') return false;
+    if (e == null) return false;
     final valid =
         emotionIds.where((x) => emotionById(x) != null).toSet().toList();
     if (valid.isEmpty) return false;
     e.emotionIds = valid;
+    // خریدِ بازی فراوانی: فقط حسِ همین ثبت ذخیره می‌شه؛ تقویم و رشته‌های
+    // شکرگذاری دست نمی‌خورن.
+    if (e.source == 'purchase') {
+      notifyListeners();
+      await _persist();
+      notifyListeners();
+      return true;
+    }
     e.editedAt = DateTime.now().millisecondsSinceEpoch;
 
     // حسِ روز = ترکیبِ حسِ همه‌ی ثبت‌های همان روز (تقویم از این می‌خونه)

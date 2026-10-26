@@ -1031,7 +1031,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
               height: 46,
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: _kGold,
+                  backgroundColor: const Color(0xFF0F5B53),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),

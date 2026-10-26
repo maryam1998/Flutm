@@ -377,10 +377,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final emo = context.read<EmotionStore>();
     final prevSel = emo.selectedIds.toList();
     final prevOverride = emo.commitOverride;
-    if (!isPurchase) {
-      emo.setSelected(g.emotionIds);
-      emo.commitOverride = (ids) => gStore.setEntryEmotions(g.id, ids);
-    }
+    emo.setSelected(g.emotionIds);
+    emo.commitOverride = (ids) => gStore.setEntryEmotions(g.id, ids);
 
     showModalBottomSheet(
       context: context,
@@ -531,7 +529,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                           }).toList(),
                         ),
                       ],
-                      if (!isPurchase) ...[
+                      ...[
                         const SizedBox(height: 14),
                         AnimatedBuilder(
                           animation: gStore,
@@ -635,7 +633,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                 );
                             // حسِ انتخاب‌شده روی ویجت هم همین‌جا ثبت می‌شود
                             // (لازم نیست ویجت بسته شود)
-                            if (!isPurchase && emo.selectedIds.isNotEmpty) {
+                            if (emo.selectedIds.isNotEmpty) {
                               await gStore.setEntryEmotions(
                                   g.id, emo.selectedIds.toList());
                             }
@@ -697,10 +695,8 @@ class _GratitudeTabState extends State<GratitudeTab> {
         },
       ),
     ).whenComplete(() {
-      if (!isPurchase) {
-        emo.commitOverride = prevOverride;
-        emo.setSelected(prevSel);
-      }
+      emo.commitOverride = prevOverride;
+      emo.setSelected(prevSel);
     });
   }
 
