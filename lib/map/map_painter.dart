@@ -102,6 +102,15 @@ class _RouteCurve implements _Curve {
   }
 }
 
+/// ترتیب زمانی کلید روز جلالی «سال-ماه-روز»
+int _jkOrd(String k) {
+  final p = k.split('-');
+  if (p.length != 3) return 0;
+  return (int.tryParse(p[0]) ?? 0) * 10000 +
+      (int.tryParse(p[1]) ?? 0) * 100 +
+      (int.tryParse(p[2]) ?? 0);
+}
+
 class MapPainter extends CustomPainter {
   MapPainter({
     required this.state,
@@ -1236,6 +1245,37 @@ class MapPainter extends CustomPainter {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
       _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, 0.6));
       _drawWalkerFoot(canvas, route, u, 1.0, pastSize, withOp(color, 0.6));
+    }
+
+    // یادداشتِ روزها کنار قدم‌ها (اگه کاربر «نمایش یادداشت‌ها» را روشن کرده)
+    if (a.extra['footNotesShow'] == true && a.extra['footNotes'] is Map) {
+      final notes = a.extra['footNotes'] as Map;
+      final keys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys}
+          .where((k) => k != todayK && _doneOn(a, k))
+          .toList()
+        ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
+      final tcol = hexColor(state.textColor, Colors.black);
+      void noteAt(Object? t, double u) {
+        if (t is! String) return;
+        var txt = t.trim().replaceAll('\n', ' ');
+        if (txt.isEmpty) return;
+        if (txt.length > 18) txt = '${txt.substring(0, 17)}…';
+        final pt = route.at(u);
+        final tg = route.tangent(u);
+        final off = pastSize * 1.3 + 4;
+        drawText(canvas, txt, pt.dx - math.sin(tg) * off,
+            pt.dy + math.cos(tg) * off,
+            size: (_fs() * 0.5).toDouble(),
+            color: tcol,
+            outline: 2.5,
+            vCenter: true);
+      }
+
+      for (var k = 0; k < keys.length; k++) {
+        noteAt(notes[keys[k]], (0.03 + k * stride).clamp(0.0, 0.95).toDouble());
+      }
+      noteAt(notes[todayK],
+          (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble());
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);

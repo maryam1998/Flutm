@@ -23,7 +23,12 @@ class TextCache {
   }
 
   TextPainter get(String text, double size, Color color, FontWeight w, {double? strokeW, Color? outlineOverride}) {
-    final key = '$text|${size.toStringAsFixed(1)}|${color.hashCode}|${w.index}|${strokeW ?? 0}|${outlineOverride?.hashCode ?? 0}';
+    // دور نوشته: برای نوشته‌ی مشکی/تیره سفید؛ برای نوشته‌ی رنگی و سفید مشکی
+    final oc = outlineOverride ??
+        (color.computeLuminance() < 0.18
+            ? const Color(0xFFFFFFFF)
+            : const Color(0xFF000000));
+    final key = '$text|${size.toStringAsFixed(1)}|${color.hashCode}|${w.index}|${strokeW ?? 0}|${oc.hashCode}';
     final hit = _m[key];
     if (hit != null) return hit;
     if (_m.length > 500) _m.clear();
@@ -38,7 +43,7 @@ class TextCache {
             ..style = PaintingStyle.stroke
             ..strokeWidth = strokeW
             ..strokeJoin = StrokeJoin.round
-            ..color = outlineOverride ?? outlineColor),
+            ..color = oc),
     );
     final tp = TextPainter(text: TextSpan(text: text, style: style), textDirection: TextDirection.rtl)..layout();
     return _m[key] = tp;

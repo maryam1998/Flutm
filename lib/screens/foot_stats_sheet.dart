@@ -143,6 +143,46 @@ Future<int?> _askPeriodDays(BuildContext context, int def) async {
   return res;
 }
 
+String _jkOf(_Day d) => '${d.j.jy}-${d.j.jm}-${d.j.jd}';
+
+Map<String, dynamic> _notesOf(ActionNode n) {
+  final v = n.extra['footNotes'];
+  return v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+}
+
+/// نوشتن/ویرایش یادداشتِ یک روز؛ خروجی null = لغو، '' = حذف
+Future<String?> _askNote(BuildContext context, String initial) async {
+  final c = TextEditingController(text: initial);
+  final res = await showDialog<String>(
+    context: context,
+    builder: (ctx) => Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: const Text('یادداشت این روز', style: TextStyle(fontSize: 15)),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          maxLines: 4,
+          minLines: 2,
+        ),
+        actions: [
+          if (initial.isNotEmpty)
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, ''),
+                child: const Text('حذف')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('لغو')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, c.text.trim()),
+              child: const Text('ذخیره')),
+        ],
+      ),
+    ),
+  );
+  c.dispose();
+  return res;
+}
+
 Future<void> showFootStatsSheet(
   BuildContext context, {
   required MapStore store,
@@ -155,6 +195,7 @@ Future<void> showFootStatsSheet(
   if (findActionNode(host0.actions, actionId) == null) return Future.value();
   final wp = WebPalette.of(context);
   var sel = -1; // روزِ انتخاب‌شده (idx)
+  String? hint; // پیام کوتاه زیر دکمه‌ها
 
   return showModalBottomSheet<void>(
     context: context,
@@ -217,7 +258,10 @@ Future<void> showFootStatsSheet(
                     padding: const EdgeInsets.all(2),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () => setS(() => sel = d.idx),
+                      onTap: () => setS(() {
+                        sel = d.idx;
+                        hint = null;
+                      }),
                       child: AspectRatio(
                         aspectRatio: 1,
                         child: Container(
@@ -363,6 +407,118 @@ Future<void> showFootStatsSheet(
                                     : wp.textMain),
                           ),
                         ),
+                      if (selDay != null) ...[
+                        Builder(builder: (_) {
+                          final n = f.node;
+                          final jk = _jkOf(selDay);
+                          final note = (_notesOf(n)[jk] as String?) ?? '';
+                          final isDone = selDay.st == _St.done;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Row(
+                                  children: [
+                                    if (selDay.st != _St.future)
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          style: OutlinedButton.styleFrom(
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            foregroundColor:
+                                                isDone ? wp.textDim : _kDone,
+                                          ),
+                                          onPressed: () {
+                                            if (isDone) {
+                                              if (n.logs[jk] == true) {
+                                                n.logs.remove(jk);
+                                                hint = null;
+                                              } else {
+                                                hint =
+                                                    'این روز با متن/زمان ثبت شده؛ از خودِ اقدام تغییرش بده';
+                                              }
+                                            } else {
+                                              n.logs[jk] = true;
+                                              hint = null;
+                                            }
+                                            store.changed();
+                                            setS(() {});
+                                          },
+                                          icon: Icon(
+                                              isDone
+                                                  ? Icons.undo_rounded
+                                                  : Icons.check_circle_outline,
+                                              size: 17),
+                                          label: Text(
+                                              isDone
+                                                  ? 'برداشتن تیک'
+                                                  : 'انجام دادم',
+                                              style: const TextStyle(
+                                                  fontSize: 12.5)),
+                                        ),
+                                      ),
+                                    if (selDay.st != _St.future)
+                                      const SizedBox(width: 8),
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          visualDensity:
+                                              VisualDensity.compact,
+                                          foregroundColor: _kToday,
+                                        ),
+                                        onPressed: () async {
+                                          final t = await _askNote(ctx, note);
+                                          if (t == null) return;
+                                          final m = _notesOf(n);
+                                          if (t.isEmpty) {
+                                            m.remove(jk);
+                                          } else {
+                                            m[jk] = t;
+                                          }
+                                          n.extra['footNotes'] = m;
+                                          store.changed();
+                                          setS(() {});
+                                        },
+                                        icon: const Icon(Icons.edit_note_rounded,
+                                            size: 18),
+                                        label: Text(
+                                            note.isEmpty
+                                                ? 'یادداشت'
+                                                : 'ویرایش یادداشت',
+                                            style: const TextStyle(
+                                                fontSize: 12.5)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (hint != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(hint!,
+                                      style: TextStyle(
+                                          fontSize: 11, color: _kMiss)),
+                                ),
+                              if (note.isNotEmpty)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: _kToday.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(note,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          height: 1.5,
+                                          color: wp.textMain)),
+                                ),
+                            ],
+                          );
+                        }),
+                      ],
                       Flexible(
                         child: SingleChildScrollView(
                           child: Column(
@@ -372,6 +528,23 @@ Future<void> showFootStatsSheet(
                             ],
                           ),
                         ),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('نمایش یادداشت‌ها روی قدم‌ها',
+                                style: TextStyle(
+                                    fontSize: 12.5, color: wp.textMain)),
+                          ),
+                          Switch(
+                            value: f.node.extra['footNotesShow'] == true,
+                            onChanged: (v) {
+                              f.node.extra['footNotesShow'] = v;
+                              store.changed();
+                              setS(() {});
+                            },
+                          ),
+                        ],
                       ),
                       if (onPhotos != null)
                         Align(
