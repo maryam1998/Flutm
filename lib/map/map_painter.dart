@@ -1212,8 +1212,10 @@ class MapPainter extends CustomPainter {
   void _branchWalker(Canvas canvas, List<Offset> routePts, int lane,
       ActionNode a, Color color0, double baseSize, String hostId) {
     if (routePts.length < 2) return;
-    // کاربر «نمایش انیمیشن» این شاخه/زیرشاخه را خاموش کرده
-    if (a.extra['showWalker'] == false) return;
+    // کاربر «نمایش انیمیشن» این شاخه/زیرشاخه را خاموش کرده (فقط یادداشت‌ها
+    // اگه روشن باشند هنوز کشیده می‌شوند)
+    final hiddenW = a.extra['showWalker'] == false;
+    if (hiddenW && a.extra['footNotesShow'] != true) return;
     final fcHex = a.extra['footColor'];
     final color = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, color0)
@@ -1241,55 +1243,71 @@ class MapPainter extends CustomPainter {
 
     // ─── روزهای قبل: هر روزِ ثبت‌شده یک جفت پا (چپ و راست)، پشت سر هم از شروع مسیر ───
     // جفت پا کنار هم (چپ و راست روی یک نقطه)، کمی کم‌رنگ‌تر از قدمِ امروز
-    for (var k = 0; k < fixed; k++) {
+    for (var k = 0; k < fixed && !hiddenW; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
       _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, 0.6));
       _drawWalkerFoot(canvas, route, u, 1.0, pastSize, withOp(color, 0.6));
     }
 
-    // یادداشتِ روزها کنار قدم‌ها (اگه کاربر «نمایش یادداشت‌ها» را روشن کرده)
-    if (a.extra['footNotesShow'] == true && a.extra['footNotes'] is Map) {
-      final notes = a.extra['footNotes'] as Map;
-      final keys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys}
+    // یادداشتِ روزها: بالای پاها، مشکی، بدون دورخط؛ همراه با انیمیشن
+    // (چه متحرک، چه ثابت، چه پنهان)
+    final showNotes =
+        a.extra['footNotesShow'] == true && a.extra['footNotes'] is Map;
+    final notes = showNotes ? a.extra['footNotes'] as Map : const {};
+    final noteSize = (_fs() *
+            0.5 *
+            ((a.extra['footNotesSize'] as num?)?.toDouble() ?? 1.0)
+                .clamp(0.5, 4.0))
+        .toDouble();
+    void noteAbove(Object? t, Offset anchor, double lift) {
+      if (t is! String) return;
+      var txt = t.trim().replaceAll('\n', ' ');
+      if (txt.isEmpty) return;
+      if (txt.length > 18) txt = '${txt.substring(0, 17)}…';
+      drawText(canvas, txt, anchor.dx, anchor.dy - lift,
+          size: noteSize, color: Colors.black, vCenter: true);
+    }
+
+    // یادداشتِ «قدمِ فعلی»: امروز؛ اگه نداشت نزدیک‌ترین روزِ آینده؛ بعد روزِ از دست رفته
+    Object? curNote;
+    if (showNotes) {
+      final past = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys}
           .where((k) => k != todayK && _doneOn(a, k))
           .toList()
         ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
-      final tcol = hexColor(state.textColor, Colors.black);
-      void noteAt(Object? t, double u) {
-        if (t is! String) return;
-        var txt = t.trim().replaceAll('\n', ' ');
-        if (txt.isEmpty) return;
-        if (txt.length > 18) txt = '${txt.substring(0, 17)}…';
-        final pt = route.at(u);
-        final tg = route.tangent(u);
-        final off = pastSize * 1.3 + 4;
-        drawText(canvas, txt, pt.dx - math.sin(tg) * off,
-            pt.dy + math.cos(tg) * off,
-            size: (_fs() *
-                    0.5 *
-                    ((a.extra['footNotesSize'] as num?)?.toDouble() ?? 1.0)
-                        .clamp(0.5, 4.0))
-                .toDouble(),
-            color: tcol,
-            outline: 2.5,
-            vCenter: true);
+      for (var k = 0; k < past.length; k++) {
+        final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
+        noteAbove(notes[past[k]], route.at(u), pastSize * 1.3 + 4);
       }
-
-      for (var k = 0; k < keys.length; k++) {
-        noteAt(notes[keys[k]], (0.03 + k * stride).clamp(0.0, 0.95).toDouble());
-      }
-      // یادداشتِ امروز در جای قدمِ جدید؛ روزهای دیگر (از دست رفته/آینده) پشت‌سرش
-      var slot = fixed;
-      noteAt(notes[todayK], (0.03 + slot * stride).clamp(0.0, 0.95).toDouble());
-      final others = notes.keys
+      final cand = notes.keys
           .whereType<String>()
-          .where((k) => k != todayK && !keys.contains(k))
+          .where((k) =>
+              !past.contains(k) &&
+              (notes[k] as Object?) is String &&
+              (notes[k] as String).trim().isNotEmpty)
           .toList()
         ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
-      for (final k in others) {
-        slot++;
-        noteAt(notes[k], (0.03 + slot * stride).clamp(0.0, 0.95).toDouble());
+      final tOrd = _jkOrd(todayK);
+      String? pick;
+      if (cand.contains(todayK)) {
+        pick = todayK;
+      } else {
+        for (final k in cand) {
+          if (_jkOrd(k) > tOrd) {
+            pick = k;
+            break;
+          }
+        }
+        pick ??= cand.isEmpty ? null : cand.last;
       }
+      curNote = pick == null ? null : notes[pick];
+    }
+
+    if (hiddenW) {
+      // انیمیشن پنهان است: یادداشت بالای جای قدمِ جدید روی مسیر
+      final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
+      noteAbove(curNote, route.at(u), pastSize * 1.3 + 4);
+      return;
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
@@ -1363,6 +1381,8 @@ class MapPainter extends CustomPainter {
       }
       core(playingNow, posToday);
     }
+    // یادداشت بالای انیمیشن، همراه با حرکتش
+    noteAbove(curNote, _lastBodyPos, _lastBodyR * 1.5 + 8);
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
     _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
   }
