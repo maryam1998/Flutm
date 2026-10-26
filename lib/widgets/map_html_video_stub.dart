@@ -12,6 +12,8 @@ Widget buildMapHtmlVideo({
 }) =>
     const SizedBox.shrink();
 
+Future<double?> probeMapVideoRatio(String url) async => null;
+
 void disposeMapHtmlVideo(String id) {}
 
 void toggleMapHtmlVideo(String id) {}

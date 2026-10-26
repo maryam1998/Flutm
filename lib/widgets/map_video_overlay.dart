@@ -65,7 +65,13 @@ class _MapVideoCardState extends State<_MapVideoCard> {
       final url = MediaBlob.isRef(src) ? await MediaBlob.playableSource(src) : src;
       if (url == null || url.isEmpty) throw StateError('video missing');
       if (!mounted) return;
-      setState(() => _webUrl = url);
+      // نسبت واقعی را قبل از نمایش کارت بخوان تا کارت بعداً تغییر اندازه نده
+      final r = await probeMapVideoRatio(url);
+      if (!mounted) return;
+      setState(() {
+        _webRatio = r;
+        _webUrl = url;
+      });
     } catch (_) {
       if (mounted) setState(() => _failed = true);
     }
@@ -277,9 +283,11 @@ class _MapVideoCardState extends State<_MapVideoCard> {
                       offset: Offset(0, 5)),
                 ],
               ),
+              // وب: هیچ کلیپی روی <video> نباید باشد (کلیپ روی platform view
+              // ویدیو را از کادر جدا می‌کرد)؛ گوشه‌ها را همان DecoratedBox گرد می‌کند
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                clipBehavior: Clip.hardEdge,
+                clipBehavior: kIsWeb ? Clip.none : Clip.hardEdge,
                 child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
