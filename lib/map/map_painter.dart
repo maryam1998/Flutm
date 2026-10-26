@@ -167,6 +167,14 @@ class MapPainter extends CustomPainter {
     return tc;
   }
 
+  /// فونت اختصاصیِ نوشته‌ی هر گره (extra[key]؛ پیش‌فرض labelFont). تا دانلود نشده null.
+  String? _fontOf(Map<String, dynamic> extra, [String key = 'labelFont']) {
+    final id = extra[key];
+    if (id is! String || id.isEmpty || id == 'default') return null;
+    NoteFonts.ensure(id);
+    return NoteFonts.familyOf(id);
+  }
+
   /// ضریب اندازه‌ی دایره‌ی نوک اقدام/زیراقدام (extra['circleScale'])
   double _circleScaleOf(ActionNode a) {
     final v = a.extra['circleScale'];
@@ -473,13 +481,14 @@ class MapPainter extends CustomPainter {
   /// لبه‌ی راستِ کپسول همان‌جای نشان تک‌ایموجی می‌ماند و به سمت داخل بزرگ می‌شود.
   /// نوشته‌ی آزاد (چند کلمه) به‌صورت چندخطی؛ [maxW] حداکثر عرض هر خط
   List<TextPainter> _wrapLines(
-      String text, double fs, double maxW, Color col, FontWeight w) {
+      String text, double fs, double maxW, Color col, FontWeight w,
+      [String? ff]) {
     final words = text.trim().split(RegExp(r'\s+'));
     final lines = <String>[];
     var cur = '';
     for (final wd in words) {
       final cand = cur.isEmpty ? wd : '$cur $wd';
-      if (cur.isNotEmpty && textCache.get(cand, fs, col, w).width > maxW) {
+      if (cur.isNotEmpty && textCache.get(cand, fs, col, w, fontFamily: ff).width > maxW) {
         lines.add(cur);
         cur = wd;
       } else {
@@ -487,16 +496,17 @@ class MapPainter extends CustomPainter {
       }
     }
     if (cur.isNotEmpty) lines.add(cur);
-    return [for (final l in lines) textCache.get(l, fs, col, w)];
+    return [for (final l in lines) textCache.get(l, fs, col, w, fontFamily: ff)];
   }
 
   /// نوشته‌ی آزاد داخل دایره‌ای به شعاع [r]؛ اگر زیاد باشد کوچک‌تر می‌شود
   void _fitTextInCircle(
-      Canvas canvas, Offset c, double r, String text, Color col) {
+      Canvas canvas, Offset c, double r, String text, Color col,
+      [String? ff]) {
     var fs = r * 0.75;
     var tps = <TextPainter>[];
     for (var i = 0; i < 16; i++) {
-      tps = _wrapLines(text, fs, r * 1.7, col, FontWeight.w600);
+      tps = _wrapLines(text, fs, r * 1.7, col, FontWeight.w600, ff);
       final h = tps.fold<double>(0, (a, t) => a + t.height);
       final mw = tps.fold<double>(0, (a, t) => math.max(a, t.width));
       if ((h <= r * 1.6 && mw <= r * 1.75) || fs < 5) break;
@@ -512,12 +522,12 @@ class MapPainter extends CustomPainter {
 
   /// نشانِ نوشته‌ی آزاد گوشه‌ی بالا-راست (کپسولِ چندخطی، رشد به چپ/پایین)
   void _textBadge(Canvas canvas, Offset c, double r, String text,
-      [double k = 1.0]) {
+      [double k = 1.0, String? ff]) {
     final br = math.max(9.0, r * 0.46) * k;
     final fs = br * 0.95;
     final bc = c + Offset(r * 0.72, -r * 0.72);
     final tps = _wrapLines(text, fs, math.max(r * 3.2, 90.0),
-        const Color(0xFF000000), FontWeight.w600);
+        const Color(0xFF000000), FontWeight.w600, ff);
     if (tps.isEmpty) return;
     final pad = br * 0.4;
     final maxLine = tps.fold<double>(0, (a, t) => math.max(a, t.width));
@@ -541,9 +551,9 @@ class MapPainter extends CustomPainter {
   }
 
   void _emojiBadge(Canvas canvas, Offset c, double r, String emoji,
-      [double k = 1.0]) {
+      [double k = 1.0, String? ff]) {
     if (isTextIcon(emoji)) {
-      _textBadge(canvas, c, r, emoji, k);
+      _textBadge(canvas, c, r, emoji, k, ff);
       return;
     }
     final list = emoji.characters.where((x) => x.trim().isNotEmpty).take(3).toList();
@@ -676,13 +686,14 @@ class MapPainter extends CustomPainter {
     _voiceBtn(canvas, c + Offset((r + 16) * 0.7071, -(r + 16) * 0.7071), 'me',
         'me', me.extra, 'voice');
 
+    final meFont = _fontOf(me.extra);
     final meEmoji = (me.extra['emoji'] is String)
         ? (me.extra['emoji'] as String).trim()
         : '';
     if (meEmoji.isNotEmpty && me.images.isEmpty) {
       // ایموجیِ «من» (وقتی عکس نیست؛ اگر عکس هم باشد هر دو نشان داده می‌شوند) — همه‌ی ایموجی‌ها
       if (isTextIcon(meEmoji)) {
-        _fitTextInCircle(canvas, c, r, meEmoji, const Color(0xFF000000));
+        _fitTextInCircle(canvas, c, r, meEmoji, const Color(0xFF000000), meFont);
       } else {
         final tp = textCache.get(
             meEmoji, r * 1.9, const Color(0xFF000000), FontWeight.w400);
@@ -694,7 +705,8 @@ class MapPainter extends CustomPainter {
             size: me.labelSize ?? _labelSize('me'),
             color: tc,
             weight: FontWeight.w700,
-            outline: 3);
+            outline: 3,
+            fontFamily: meFont);
         hits.add(HitEntry(type: 'me', id: '', kind: HitKind.label, rect: lr));
       }
     } else if (me.images.isEmpty) {
@@ -728,7 +740,8 @@ class MapPainter extends CustomPainter {
       drawText(canvas, me.name, c.dx, c.dy + r * 0.62,
           size: math.max(8, _fs() - 4),
           color: tc,
-          weight: FontWeight.w700);
+          weight: FontWeight.w700,
+          fontFamily: meFont);
     } else {
       final im = images.get(me.images.first.src, animate: true, t: _t);
       if (im != null) {
@@ -743,13 +756,14 @@ class MapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 3.5
             ..color = meColor);
-      if (meEmoji.isNotEmpty) _emojiBadge(canvas, c, r, meEmoji);
+      if (meEmoji.isNotEmpty) _emojiBadge(canvas, c, r, meEmoji, 1.0, meFont);
       final lr = drawText(canvas, me.name, c.dx + me.labelDX,
           c.dy + 6 + me.labelDY,
           size: me.labelSize ?? _labelSize('me'),
           color: tc,
           weight: FontWeight.w700,
-          outline: 3);
+          outline: 3,
+          fontFamily: meFont);
       if (me.name.isNotEmpty) {
         hits.add(
             HitEntry(type: 'me', id: '', kind: HitKind.label, rect: lr));
@@ -832,7 +846,8 @@ class MapPainter extends CustomPainter {
         size: g.labelSize ?? _labelSize('goal'),
         color: gtc,
         weight: FontWeight.w600,
-        outline: 3);
+        outline: 3,
+        fontFamily: _fontOf(g.extra));
     if (g.name.isNotEmpty) {
       hits.add(HitEntry(
           type: 'goal', id: g.id, kind: HitKind.label, rect: lr));
@@ -938,7 +953,8 @@ class MapPainter extends CustomPainter {
             color: _tcOf(r.extra, col),
             weight: FontWeight.w700,
             outline: 3,
-            outlineColor: const Color(0xFF0A0C18));
+            outlineColor: const Color(0xFF0A0C18),
+            fontFamily: _fontOf(r.extra));
         lr = lr == null ? b : lr.expandToInclude(b);
       }
       if (lr != null) {
@@ -954,7 +970,8 @@ class MapPainter extends CustomPainter {
             size: math.max(8, _fs() - 3),
             color: _tcOf(r.extra, tc),
             weight: FontWeight.w400,
-            outline: 2.5);
+            outline: 2.5,
+            fontFamily: _fontOf(r.extra));
       }
     }
   }
@@ -1202,6 +1219,7 @@ class MapPainter extends CustomPainter {
       photos: walkerPhotosOf(g.extra),
       emoji: walkerEmojiOf(g.extra),
       emojiScale: _walkerEmojiScale(g.extra),
+      emojiFont: _fontOf(g.extra, 'walkerFont'),
       halo: g.extra['walkerHalo'] != false,
       haloScale: ((g.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
       voiceExtra: g.extra,
@@ -1365,6 +1383,7 @@ class MapPainter extends CustomPainter {
           photos: walkerPhotosOf(a.extra),
           emoji: walkerEmojiOf(a.extra),
           emojiScale: _walkerEmojiScale(a.extra),
+          emojiFont: _fontOf(a.extra, 'walkerFont'),
           halo: a.extra['walkerHalo'] != false,
           haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
           voiceExtra: a.extra,
@@ -1462,6 +1481,7 @@ class MapPainter extends CustomPainter {
     List<String> photos = const [],
     String emoji = '',
     double emojiScale = 1.0,
+    String? emojiFont,
     bool halo = true,
     double haloScale = 1.0,
     Map<String, dynamic>? voiceExtra,
@@ -1653,7 +1673,8 @@ class MapPainter extends CustomPainter {
       // ایموجی به‌جای دایره (بدون قاب)، وسط همان جایگاه
       final tp = textCache.get(
           emoji, bodyR * 1.9 * emojiScale, const Color(0xFF000000),
-          FontWeight.w400);
+          FontWeight.w400,
+          fontFamily: emojiFont);
       tp.paint(canvas, bodyPos - Offset(tp.width / 2, tp.height / 2));
       if (!playing) {
         final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
@@ -1685,7 +1706,7 @@ class MapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.2
             ..color = withOp(col, 0.95));
-      if (hasEmoji) _emojiBadge(canvas, bodyPos, bodyR, emoji, emojiScale);
+      if (hasEmoji) _emojiBadge(canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
       if (!playing) {
         // نشان ▶ : با یک تپ دوباره راه می‌افته
         final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
@@ -2098,7 +2119,8 @@ class MapPainter extends CustomPainter {
             color: atc,
             weight: FontWeight.w400,
             align: right ? LabelAlign.right : LabelAlign.left,
-            outline: 2.5);
+            outline: 2.5,
+            fontFamily: _fontOf(a.extra));
         lr = lr == null ? b : lr.expandToInclude(b);
       }
       if (lr != null) {

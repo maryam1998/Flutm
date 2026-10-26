@@ -9,6 +9,7 @@ import '../models/map_models.dart';
 import '../state/map_store.dart';
 import '../widgets/goal_path_card.dart';
 import '../widgets/icon_photo_editor.dart';
+import '../widgets/label_font_picker.dart';
 import '../widgets/node_voice_field.dart';
 import '../widgets/panel_kit.dart';
 import '../widgets/web_color_picker.dart';
@@ -576,7 +577,26 @@ class _EditSheetState extends State<EditSheet> {
         inheritText: 'مثل تنظیمات کلی',
         extra: const ['#000000', '#ffffff'],
       ),
+      _fontPicker(extra, 'labelFont'),
     ];
+  }
+
+  /// انتخاب فونتِ نوشته (ذخیره در extra[key]؛ خالی = فونت پیش‌فرض)
+  Widget _fontPicker(Map<String, dynamic> extra, String key,
+      {String title = 'فونت نوشته'}) {
+    final cur = extra[key];
+    return LabelFontPicker(
+      key: ValueKey('font-$key-${identityHashCode(extra)}'),
+      title: title,
+      current: cur is String && cur.isNotEmpty ? cur : null,
+      onChanged: (id) => _editNow(() {
+        if (id == null) {
+          extra.remove(key);
+        } else {
+          extra[key] = id;
+        }
+      }),
+    );
   }
 
   Widget _slider({
@@ -858,6 +878,7 @@ class _EditSheetState extends State<EditSheet> {
           const SizedBox(height: 8),
           const PanelLabel('رنگ'),
           _swatches(me.color, (c) => me.color = c),
+          _fontPicker(me.extra, 'labelFont'),
         ],
       ),
       _haloCard(me.extra, false),
@@ -909,6 +930,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       _walkerEmojiSizeSlider(ex),
+      _fontPicker(ex, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
       const SizedBox(height: 8),
       _walkerModeTile(ex),
       const SizedBox(height: 8),
@@ -1123,6 +1145,7 @@ class _EditSheetState extends State<EditSheet> {
             }),
           ),
           _walkerEmojiSizeSlider(g.extra),
+          _fontPicker(g.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
           const SizedBox(height: 6),
           _slider(
             label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
@@ -1421,6 +1444,7 @@ class _EditSheetState extends State<EditSheet> {
         }),
       ),
       _walkerEmojiSizeSlider(a.extra),
+      _fontPicker(a.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
       _voiceField(a.extra, 'walkerVoice', 'walker:${a.id}'),
       ..._walkerHaloControls(a.extra),
       const Padding(
