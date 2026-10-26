@@ -7,7 +7,12 @@ Widget buildMapHtmlVideo({
   required bool loop,
   required ValueChanged<double> onRatio,
   required VoidCallback onError,
+  required void Function(double frac, bool playing) onState,
 }) =>
     const SizedBox.shrink();
 
 void disposeMapHtmlVideo(String id) {}
+
+void toggleMapHtmlVideo(String id) {}
+
+void seekMapHtmlVideo(String id, double frac) {}

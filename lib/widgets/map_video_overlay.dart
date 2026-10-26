@@ -46,6 +46,8 @@ class _MapVideoCardState extends State<_MapVideoCard> {
   // وب: آدرس ویدیو برای <video> HTML و نسبت واقعی ویدیو (بعد از لود متادیتا)
   String? _webUrl;
   double? _webRatio;
+  double _webFrac = 0;
+  bool _webPlaying = true;
 
   @override
   void initState() {
@@ -115,8 +117,8 @@ class _MapVideoCardState extends State<_MapVideoCard> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, bc) {
       const headerH = 36.0;
-      // وب: کنترل‌ها داخل خود <video> است، پس نوار پیشرفت جدا لازم نیست
-      final barH = kIsWeb ? 0.0 : 6.0;
+      // وب: <video> بدون کنترل و بدون لمس؛ لمس‌ها (جابه‌جایی/پینچ/پخش) با فلاتر
+      final barH = kIsWeb ? 16.0 : 6.0;
       const minW = 120.0;
       final c = _c;
       final ready = kIsWeb
@@ -197,6 +199,33 @@ class _MapVideoCardState extends State<_MapVideoCard> {
             onError: () {
               if (mounted) setState(() => _failed = true);
             },
+            onState: (f, pl) {
+              if (mounted && (pl != _webPlaying || (f - _webFrac).abs() > 0.002)) {
+                setState(() {
+                  _webFrac = f;
+                  _webPlaying = pl;
+                });
+              }
+            },
+          ),
+        );
+        video = GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => toggleMapHtmlVideo('${widget.req.token}'),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              video,
+              if (!_webPlaying)
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                      color: Colors.black54, shape: BoxShape.circle),
+                  child: const Icon(Icons.play_arrow,
+                      color: Colors.white, size: 32),
+                ),
+            ],
           ),
         );
       } else {
@@ -277,7 +306,35 @@ class _MapVideoCardState extends State<_MapVideoCard> {
                       ),
                     ),
                   ),
-                  ready && !kIsWeb ? gestures(video) : video,
+                  ready ? gestures(video) : video,
+                  if (ready && kIsWeb)
+                    LayoutBuilder(builder: (_, bc2) {
+                      void seek(double dx) => seekMapHtmlVideo(
+                          '${widget.req.token}', dx / bc2.maxWidth);
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (d) => seek(d.localPosition.dx),
+                        onHorizontalDragUpdate: (d) => seek(d.localPosition.dx),
+                        child: SizedBox(
+                          height: barH,
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Stack(
+                              alignment: Alignment.centerLeft,
+                              children: [
+                                Container(height: 4, color: Colors.white24),
+                                FractionallySizedBox(
+                                  widthFactor: _webFrac.clamp(0.0, 1.0),
+                                  child: Container(
+                                      height: 4,
+                                      color: const Color(0xFF4FD1C5)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                   if (ready && !kIsWeb)
                     SizedBox(
                       height: barH,
