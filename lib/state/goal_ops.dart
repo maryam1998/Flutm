@@ -191,6 +191,9 @@ bool timerRunning(ActionNode n) => (n.timerStart ?? 0) > 0;
 
 void startTimer(ActionNode n) {
   n.timerStart = DateTime.now().millisecondsSinceEpoch;
+  // با شروع تایمر انیمیشن قدم هم راه می‌افتد
+  n.footPlaying = true;
+  n.extra['footToggleDay'] = jKey(DateTime.now());
 }
 
 /// صفر برمی‌گردونه اگه تایمر فعال نبود
@@ -200,6 +203,9 @@ int stopTimer(ActionNode n) {
   final elapsed =
       (DateTime.now().difference(start).inMilliseconds / 1000).floor();
   n.timerStart = null;
+  // با توقف تایمر انیمیشن قدم هم همان‌جا می‌ایستد
+  n.footPlaying = false;
+  n.extra['footToggleDay'] = jKey(DateTime.now());
   if (elapsed > 0) {
     final jk = jKey(start);
     n.time[jk] = ((n.time[jk] as num?)?.toInt() ?? 0) + elapsed;

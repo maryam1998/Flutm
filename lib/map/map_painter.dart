@@ -1293,7 +1293,10 @@ class MapPainter extends CustomPainter {
     hits.routes[a.id] = routePts;
     final sizeMul = state.footScale.clamp(kFootScaleMin, kFootScaleMax);
     final footMul = (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax);
-    final size = baseSize * 1.2 * sizeMul * footMul;
+    // ضریبِ بزرگ‌نمایی قدمِ شاخه/زیرشاخه: قبلاً حتی روی ۲۰۰٪ از دایره‌ی متصل و
+    // دکمه‌ی تایمر کوچک‌تر بود (آن‌ها حداقل اندازه‌ی ثابت دارند).
+    const kBranchFootBoost = 2.4;
+    final size = baseSize * 1.2 * sizeMul * footMul * kBranchFootBoost;
     final len = math.max(route.length, 1.0);
     // قدم‌های ثبت‌شده: کوچک‌تر از قدم‌زن، اندازه‌شان قابل تنظیم؛ اگر جا کم بود
     // کوچک‌تر می‌شوند تا همه پشت‌سرهم و بدون روی‌هم‌افتادن در مسیر جا شوند.
