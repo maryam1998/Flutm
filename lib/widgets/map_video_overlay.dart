@@ -1,10 +1,13 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/map_video_player.dart';
+import '../services/media_blob.dart';
 import 'grat_media.dart' show gratVideoController;
+import 'map_html_video.dart';
 
 /// کارت شناور پخش ویدیو روی نقشه (قابل جابه‌جایی با کشیدن نوار بالا)
 class MapVideoOverlay extends StatelessWidget {
@@ -40,6 +43,9 @@ class _MapVideoCardState extends State<_MapVideoCard> {
   // عرض کارت — با پینچ دو انگشتی تغییر می‌کند
   double? _w;
   double _baseW = 0;
+  // وب: آدرس ویدیو برای <video> HTML و نسبت واقعی ویدیو (بعد از لود متادیتا)
+  String? _webUrl;
+  double? _webRatio;
 
   @override
   void initState() {
@@ -51,7 +57,23 @@ class _MapVideoCardState extends State<_MapVideoCard> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _initWeb() async {
+    try {
+      final src = widget.req.src;
+      final url = MediaBlob.isRef(src) ? await MediaBlob.playableSource(src) : src;
+      if (url == null || url.isEmpty) throw StateError('video missing');
+      if (!mounted) return;
+      setState(() => _webUrl = url);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
   Future<void> _init() async {
+    if (kIsWeb) {
+      await _initWeb();
+      return;
+    }
     try {
       final c = await gratVideoController(widget.req.src);
       await c.initialize();
@@ -73,6 +95,7 @@ class _MapVideoCardState extends State<_MapVideoCard> {
 
   @override
   void dispose() {
+    if (kIsWeb) disposeMapHtmlVideo('${widget.req.token}');
     final c = _c;
     if (c != null) {
       c.removeListener(_tick);
@@ -92,11 +115,16 @@ class _MapVideoCardState extends State<_MapVideoCard> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, bc) {
       const headerH = 36.0;
-      const barH = 6.0;
+      // وب: کنترل‌ها داخل خود <video> است، پس نوار پیشرفت جدا لازم نیست
+      final barH = kIsWeb ? 0.0 : 6.0;
       const minW = 120.0;
       final c = _c;
-      final ready = !_failed && c != null && c.value.isInitialized;
-      final ratio = ready ? _ratio(c!) : 16 / 9;
+      final ready = kIsWeb
+          ? (!_failed && _webUrl != null)
+          : (!_failed && c != null && c.value.isInitialized);
+      final ratio = kIsWeb
+          ? (_webRatio ?? 16 / 9)
+          : (ready ? _ratio(c!) : 16 / 9);
 
       // حداکثر عرض: هم از نظر عرض صفحه، هم ارتفاع (تا ویدیو از کادر بیرون نزند)
       final maxByW = math.max(minW, bc.maxWidth - 8);
@@ -152,6 +180,24 @@ class _MapVideoCardState extends State<_MapVideoCard> {
         video = const SizedBox(
           height: 120,
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        );
+      } else if (kIsWeb) {
+        video = SizedBox(
+          width: w,
+          height: vh,
+          child: buildMapHtmlVideo(
+            id: '${widget.req.token}',
+            url: _webUrl!,
+            loop: _loop,
+            onRatio: (r) {
+              if (mounted && r > 0 && r != _webRatio) {
+                setState(() => _webRatio = r);
+              }
+            },
+            onError: () {
+              if (mounted) setState(() => _failed = true);
+            },
+          ),
         );
       } else {
         // اندازه‌ی دقیق (بدون AspectRatio/ConstrainedBox/Clip) تا روی وب
@@ -231,8 +277,8 @@ class _MapVideoCardState extends State<_MapVideoCard> {
                       ),
                     ),
                   ),
-                  ready ? gestures(video) : video,
-                  if (ready)
+                  ready && !kIsWeb ? gestures(video) : video,
+                  if (ready && !kIsWeb)
                     SizedBox(
                       height: barH,
                       child: VideoProgressIndicator(c!,
