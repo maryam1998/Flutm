@@ -793,7 +793,7 @@ class _CounterCard extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w900),
               ),
-              const TextSpan(text: ' بار شکر کردم'),
+              const TextSpan(text: ' بار دیدم و شکر کردم'),
             ],
           ),
           textAlign: TextAlign.center,

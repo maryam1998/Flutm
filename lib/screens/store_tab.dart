@@ -154,32 +154,17 @@ class _StoreTabState extends State<StoreTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
-            // هدر
+            // بنر شمارنده (بالای صفحه) + تاریخچه
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text('🛍️',
-                    style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'بازی فراوانی',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: _kInk),
-                  ),
-                ),
+                Expanded(child: _countBanner(store, GratPalette.of(context))),
                 IconButton(
                   tooltip: 'تاریخچه خریدها',
                   icon: const Icon(Icons.history, color: _kInk),
                   onPressed: () => ShopHistorySheet.show(context),
                 ),
               ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'هر چیزی که دوستش داری رو یکی‌یکی اضافه کن، بعد همه رو با هم بریز تو سبد',
-              style: TextStyle(fontSize: 11.5, color: _kMuted, height: 1.7),
             ),
             const SizedBox(height: 14),
 
@@ -237,50 +222,52 @@ class _StoreTabState extends State<StoreTab> {
     ];
   }
 
-  /// بنر شمارنده + لیست خریدهای ثبت‌شده (بعد از مسیر عصبی)
+  /// بنر بالای صفحه: «… بار فراوانی را دیدم و شکر کردم»
+  Widget _countBanner(AbundanceStore store, GratPalette pal) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [pal.emerald900, pal.emerald700],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: pal.emerald900.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: toFaDigits(store.history.length.toString()),
+              style: const TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+            const TextSpan(text: ' بار فراوانی را دیدم و شکر کردم'),
+          ],
+        ),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.rtl,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+          height: 1.7,
+        ),
+      ),
+    );
+  }
+
+  /// لیست خریدهای ثبت‌شده (بعد از مسیر عصبی)
   List<Widget> _purchasesSection(AbundanceStore store, GratPalette pal) {
     final list = store.history.reversed.toList();
     return [
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [pal.emerald900, pal.emerald700],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: pal.emerald900.withValues(alpha: 0.25),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: toFaDigits(list.length.toString()),
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.w900),
-              ),
-              const TextSpan(
-                  text: ' بار فراوانی رو توی تک‌تک سلول‌های بدنم حس کردم'),
-            ],
-          ),
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.rtl,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            height: 1.7,
-          ),
-        ),
-      ),
-      const SizedBox(height: 14),
       _sectionLabel(pal, Icons.receipt_long_outlined, 'لیست خریدها'),
       const SizedBox(height: 8),
       if (list.isEmpty)
