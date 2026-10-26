@@ -19,6 +19,22 @@ typedef _Cb = ({
 final Map<String, _Cb> _cb = <String, _Cb>{};
 final Set<String> _registered = <String>{};
 
+/// علت اصلی باگ: `<html dir="rtl">`. اسلات platform-view فلاتر `position:absolute`
+/// بدون `left` است و در صفحه‌ی راست‌به‌چپ مبدأ آن لبه‌ی «راست» می‌شود؛ یعنی
+/// ویدیو به اندازه‌ی (عرض صفحه − عرض کارت) به راست پرت می‌شد. جهت زنجیره‌ی
+/// والدهای همین اسلات را ltr می‌کنیم (فقط برای همین ویدیو؛ متن‌ها دست‌نخورده).
+void _forceLtrChain(web.Element? start) {
+  var e = start;
+  var n = 0;
+  while (e != null && n < 16) {
+    try {
+      (e as web.HTMLElement).style.setProperty('direction', 'ltr');
+    } catch (_) {}
+    e = e.parentElement;
+    n++;
+  }
+}
+
 Widget buildMapHtmlVideo({
   Key? key,
   required String id,
@@ -61,6 +77,10 @@ Widget buildMapHtmlVideo({
         ..objectFit = 'contain'
         ..backgroundColor = '#000';
       box.append(v);
+      // بعد از اینکه فلاتر عنصر را داخل اسلات گذاشت، جهت والدها را ltr کن
+      for (final ms in const [0, 60, 300]) {
+        Timer(Duration(milliseconds: ms), () => _forceLtrChain(box));
+      }
       v.addEventListener(
           'loadedmetadata',
           ((web.Event _) {
