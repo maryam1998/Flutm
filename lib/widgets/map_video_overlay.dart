@@ -37,6 +37,9 @@ class _MapVideoCardState extends State<_MapVideoCard> {
   bool _failed = false;
   bool _loop = false;
   Offset? _pos;
+  // عرض کارت — با پینچ دو انگشتی تغییر می‌کند
+  double? _w;
+  double _baseW = 0;
 
   @override
   void initState() {
@@ -78,17 +81,65 @@ class _MapVideoCardState extends State<_MapVideoCard> {
     super.dispose();
   }
 
+  double _ratio(VideoPlayerController c) {
+    final sz = c.value.size;
+    if (sz.width > 0 && sz.height > 0) return sz.width / sz.height;
+    final r = c.value.aspectRatio;
+    return r <= 0 ? 16 / 9 : r;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, bc) {
-      final w = math.min(bc.maxWidth - 24, 340.0);
-      final maxVideoH = math.max(120.0, bc.maxHeight * 0.55);
+      const headerH = 36.0;
+      const barH = 6.0;
+      const minW = 120.0;
+      final c = _c;
+      final ready = !_failed && c != null && c.value.isInitialized;
+      final ratio = ready ? _ratio(c!) : 16 / 9;
+
+      // حداکثر عرض: هم از نظر عرض صفحه، هم ارتفاع (تا ویدیو از کادر بیرون نزند)
+      final maxByW = math.max(minW, bc.maxWidth - 8);
+      final maxByH =
+          math.max(minW, (bc.maxHeight - headerH - barH - 90) * ratio);
+      final maxW = math.min(maxByW, maxByH);
+      final defW = math.min(math.min(bc.maxWidth - 24, 340.0), maxW);
+      final w = (_w ?? defW).clamp(minW, maxW).toDouble();
+      final vh = ready ? w / ratio : 120.0;
+      final cardH = headerH + vh + (ready ? barH : 0);
+
       _pos ??= Offset((bc.maxWidth - w) / 2, 64);
       final p = Offset(
         _pos!.dx.clamp(0.0, math.max(0.0, bc.maxWidth - w)).toDouble(),
-        _pos!.dy.clamp(0.0, math.max(0.0, bc.maxHeight - 120)).toDouble(),
+        _pos!.dy.clamp(0.0, math.max(0.0, bc.maxHeight - cardH)).toDouble(),
       );
-      final c = _c;
+
+      double heightFor(double cw) =>
+          headerH + (ready ? cw / ratio : 120.0) + (ready ? barH : 0);
+
+      // جابه‌جایی با یک انگشت + تغییر اندازه با پینچ (حول مرکز کارت)
+      Widget gestures(Widget child) => GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onScaleStart: (d) {
+              _baseW = w;
+              _pos = p;
+            },
+            onScaleUpdate: (d) {
+              final oldW = (_w ?? defW).clamp(minW, maxW).toDouble();
+              final newW = d.pointerCount >= 2
+                  ? (_baseW * d.scale).clamp(minW, maxW).toDouble()
+                  : oldW;
+              setState(() {
+                _w = newW;
+                _pos = (_pos ?? p) +
+                    d.focalPointDelta +
+                    Offset((oldW - newW) / 2,
+                        (heightFor(oldW) - heightFor(newW)) / 2);
+              });
+            },
+            child: child,
+          );
+
       Widget video;
       if (_failed) {
         video = const SizedBox(
@@ -97,25 +148,25 @@ class _MapVideoCardState extends State<_MapVideoCard> {
               child: Text('ویدیو پخش نشد',
                   style: TextStyle(color: Colors.white70, fontSize: 12))),
         );
-      } else if (c == null || !c.value.isInitialized) {
+      } else if (!ready) {
         video = const SizedBox(
           height: 120,
           child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
         );
       } else {
-        video = ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxVideoH),
-          child: GestureDetector(
-            onTap: () => c.value.isPlaying ? c.pause() : c.play(),
+        // اندازه‌ی دقیق (بدون AspectRatio/ConstrainedBox/Clip) تا روی وب
+        // ویدیو در یک نوار باریک بیرون از کادر نیفتد
+        video = GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => c!.value.isPlaying ? c.pause() : c.play(),
+          child: SizedBox(
+            width: w,
+            height: vh,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                AspectRatio(
-                    aspectRatio: c.value.aspectRatio <= 0
-                        ? 16 / 9
-                        : c.value.aspectRatio,
-                    child: VideoPlayer(c)),
-                if (!c.value.isPlaying)
+                SizedBox(width: w, height: vh, child: VideoPlayer(c!)),
+                if (!c!.value.isPlaying)
                   Container(
                     width: 52,
                     height: 52,
@@ -129,6 +180,7 @@ class _MapVideoCardState extends State<_MapVideoCard> {
           ),
         );
       }
+
       return Stack(
         children: [
           Positioned(
@@ -139,15 +191,12 @@ class _MapVideoCardState extends State<_MapVideoCard> {
               color: const Color(0xF2111111),
               elevation: 10,
               borderRadius: BorderRadius.circular(14),
-              clipBehavior: Clip.antiAlias,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onPanUpdate: (d) => setState(() => _pos = p + d.delta),
-                    child: SizedBox(
-                      height: 36,
+                  gestures(
+                    SizedBox(
+                      height: headerH,
                       child: Row(
                         children: [
                           const SizedBox(width: 8),
@@ -182,9 +231,13 @@ class _MapVideoCardState extends State<_MapVideoCard> {
                       ),
                     ),
                   ),
-                  video,
-                  if (c != null && c.value.isInitialized)
-                    VideoProgressIndicator(c, allowScrubbing: true),
+                  ready ? gestures(video) : video,
+                  if (ready)
+                    SizedBox(
+                      height: barH,
+                      child: VideoProgressIndicator(c!,
+                          allowScrubbing: true, padding: EdgeInsets.zero),
+                    ),
                 ],
               ),
             ),
