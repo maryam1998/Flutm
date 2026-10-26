@@ -627,6 +627,17 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           },
         ),
         const _Hair(),
+        _switchRow(
+          title: 'هاله‌ی دور شاخه‌ها',
+          subtitle: 'نوار پهن و کم‌رنگ دور خط شاخه و زیرشاخه',
+          value: context.read<MapStore>().state.extra['twigGlow'] != false,
+          onChanged: (v) {
+            final store = context.read<MapStore>();
+            setState(() => store.state.extra['twigGlow'] = v);
+            store.changedNow();
+          },
+        ),
+        const _Hair(),
         _sliderBlock(
           label: 'اندازه‌ی پاها',
           hint: 'پیش‌فرض ۳۵٪',

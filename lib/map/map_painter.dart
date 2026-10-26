@@ -1221,9 +1221,9 @@ class MapPainter extends CustomPainter {
     // قدم‌های ثبت‌شده: کوچک‌تر از قدم‌زن، اندازه‌شان قابل تنظیم؛ اگر جا کم بود
     // کوچک‌تر می‌شوند تا همه پشت‌سرهم و بدون روی‌هم‌افتادن در مسیر جا شوند.
     final pastMul =
-        ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0).clamp(0.2, 6.0);
+        ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 0.6).clamp(0.2, 6.0);
     var pastSize = size * 0.5 * pastMul;
-    var stride = pastSize * 1.7 / len;
+    var stride = pastSize * 2.2 / len;
     if (fixed * stride > 0.88) {
       final fit = 0.88 / (fixed * stride);
       pastSize *= fit;
@@ -1234,8 +1234,8 @@ class MapPainter extends CustomPainter {
     for (var k = 0; k < fixed; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
       final u2 = (u + stride * 0.3).clamp(0.0, 0.95).toDouble();
-      _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, 0.28));
-      _drawWalkerFoot(canvas, route, u2, 1.0, pastSize, withOp(color, 0.28));
+      _drawWalkerFoot(canvas, route, u, -1.0, pastSize, color);
+      _drawWalkerFoot(canvas, route, u2, 1.0, pastSize, color);
     }
 
     final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
@@ -1884,7 +1884,7 @@ class MapPainter extends CustomPainter {
     final tipW = math.max(0.7, baseW * 0.38);
     final cub = geo.Cubic(geom.originPt, geom.c1, geom.c2, end);
     // خط درخشان پیش‌فرض برای شاخه و زیرشاخه: یک لایه‌ی پهن و کم‌رنگ زیر خط
-    if (a.extra['twigGlow'] != false) {
+    if (state.extra['twigGlow'] != false && a.extra['twigGlow'] != false) {
       final gp = Path();
       if (geom.poly != null && geom.poly!.length > 1) {
         gp.moveTo(geom.poly!.first.dx, geom.poly!.first.dy);

@@ -932,15 +932,15 @@ class _EditSheetState extends State<EditSheet> {
           onChanged: (v) => _edit(() => act!.footSize = v),
         ),
         _slider(
-          label: 'اندازه‌ی قدم‌های ثبت‌شده (کمرنگ)',
-          value: ((act.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0)
+          label: 'اندازه‌ی قدم‌های ثبت‌شده',
+          value: ((act.extra['pastFootSize'] as num?)?.toDouble() ?? 0.6)
               .clamp(0.2, 6.0)
               .toDouble(),
           min: 0.2,
           max: 6.0,
           divisions: 58,
           valueText:
-              '${(((act.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+              '${(((act.extra['pastFootSize'] as num?)?.toDouble() ?? 0.6) * 100).round()}٪',
           onChanged: (v) => _edit(() => act!.extra['pastFootSize'] = v),
         ),
         _slider(
@@ -1351,15 +1351,15 @@ class _EditSheetState extends State<EditSheet> {
         onChanged: (v) => _edit(() => a.footSize = v),
       ),
       _slider(
-        label: 'اندازه‌ی قدم‌های ثبت‌شده (کمرنگ)',
-        value: ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0)
+        label: 'اندازه‌ی قدم‌های ثبت‌شده',
+        value: ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 0.6)
             .clamp(0.2, 6.0)
             .toDouble(),
         min: 0.2,
         max: 6.0,
         divisions: 58,
         valueText:
-            '${(((a.extra['pastFootSize'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+            '${(((a.extra['pastFootSize'] as num?)?.toDouble() ?? 0.6) * 100).round()}٪',
         onChanged: (v) => _edit(() => a.extra['pastFootSize'] = v),
       ),
       _slider(
