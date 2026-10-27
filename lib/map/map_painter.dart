@@ -2104,7 +2104,8 @@ class MapPainter extends CustomPainter {
           _stroke(color, 1.2, 0.55));
       for (var i = 0; i < kids.length; i++) {
         // اولین زیرشاخه‌ی لیست سرِ شاخه (نوک) است؛ بعدی‌ها به‌ترتیب به ابتدای شاخه نزدیک می‌شوند
-        final tt = 0.5 + ((kids.length - i) / (kids.length + 1)) * 0.45;
+        // کل طول شاخه استفاده می‌شود تا زیرشاخه‌ها یک‌جا جمع نشوند
+        final tt = 0.15 + ((kids.length - i) / (kids.length + 1)) * 0.8;
         Offset co;
         double cd;
         if (geom.poly != null) {

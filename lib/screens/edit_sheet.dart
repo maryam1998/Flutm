@@ -1152,6 +1152,13 @@ class _EditSheetState extends State<EditSheet> {
         children: [
           _walkerModeTile(g.extra),
           const SizedBox(height: 10),
+          _sectionLabel('رنگ قدم'),
+          _swatches(
+            (g.extra['footColor'] as String?) ?? '',
+            (c) => g.extra['footColor'] = c,
+            onInherit: () => g.extra.remove('footColor'),
+          ),
+          const SizedBox(height: 8),
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
             initialEmoji: walkerEmojiOf(g.extra),
@@ -1393,6 +1400,13 @@ class _EditSheetState extends State<EditSheet> {
         collapsible: true,
         children: [
       _walkerModeTile(a.extra),
+      _sectionLabel('رنگ قدم'),
+      _swatches(
+        (a.extra['footColor'] as String?) ?? '',
+        (c) => a.extra['footColor'] = c,
+        onInherit: () => a.extra.remove('footColor'),
+      ),
+      const SizedBox(height: 8),
       _slider(
         label: 'اندازه‌ی قدم و دایره‌ی متصل',
         value: (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax),
