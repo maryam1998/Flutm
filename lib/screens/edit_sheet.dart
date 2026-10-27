@@ -1487,7 +1487,7 @@ class _EditSheetState extends State<EditSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ..._tree(host, a.children, 0),
+            ..._tree(host, a.children, 0, reorder: true),
             const SizedBox(height: 8),
             Material(
               color: Colors.transparent,
@@ -1600,10 +1600,49 @@ class _EditSheetState extends State<EditSheet> {
     ];
   }
 
-  List<Widget> _tree(MapHost host, List<ActionNode> list, int depth) {
+  List<Widget> _tree(MapHost host, List<ActionNode> list, int depth,
+      {bool reorder = false}) {
+    if (reorder) return [_reorderTree(host, list, depth)];
     final out = <Widget>[];
     for (final a in list) {
-      out.add(Padding(
+      out.add(_treeTile(host, a, depth));
+      // زیرشاخه‌ها: ترتیبشان با کشیدنِ انگشت عوض می‌شود
+      out.addAll(_tree(host, a.children, depth + 1, reorder: true));
+    }
+    return out;
+  }
+
+  /// لیستِ هم‌ردیف‌ها با دستگیره‌ی کشیدن؛ ترتیبِ جدید در خودِ لیست ذخیره می‌شود
+  Widget _reorderTree(MapHost host, List<ActionNode> list, int depth) {
+    return ReorderableListView(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      padding: EdgeInsets.zero,
+      onReorder: (oldIndex, newIndex) {
+        if (newIndex > oldIndex) newIndex -= 1;
+        if (oldIndex < 0 || oldIndex >= list.length) return;
+        final item = list.removeAt(oldIndex);
+        list.insert(newIndex < 0 ? 0 : (newIndex > list.length ? list.length : newIndex), item);
+        _store.changed();
+        setState(() {});
+      },
+      children: [
+        for (var i = 0; i < list.length; i++)
+          Column(
+            key: ValueKey('sub:${list[i].id}'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _treeTile(host, list[i], depth, dragIndex: i),
+              ..._tree(host, list[i].children, depth + 1, reorder: true),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _treeTile(MapHost host, ActionNode a, int depth, {int? dragIndex}) {
+    return Padding(
         padding: EdgeInsetsDirectional.only(start: depth * 14.0, top: 6),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1614,6 +1653,17 @@ class _EditSheetState extends State<EditSheet> {
           ),
           child: Row(
             children: [
+              if (dragIndex != null) ...[
+                ReorderableDragStartListener(
+                  index: dragIndex,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                    child: Icon(Icons.drag_indicator,
+                        size: 22, color: _kMuted),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               Container(
                 width: 10,
                 height: 10,
@@ -1667,9 +1717,6 @@ class _EditSheetState extends State<EditSheet> {
             ],
           ),
         ),
-      ));
-      out.addAll(_tree(host, a.children, depth + 1));
-    }
-    return out;
+      );
   }
 }

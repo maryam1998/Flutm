@@ -2103,7 +2103,8 @@ class MapPainter extends CustomPainter {
       canvas.drawCircle(end, math.max(2.0, 2.6 * scale) * cs,
           _stroke(color, 1.2, 0.55));
       for (var i = 0; i < kids.length; i++) {
-        final tt = 0.5 + ((i + 1) / (kids.length + 1)) * 0.45;
+        // اولین زیرشاخه‌ی لیست سرِ شاخه (نوک) است؛ بعدی‌ها به‌ترتیب به ابتدای شاخه نزدیک می‌شوند
+        final tt = 0.5 + ((kids.length - i) / (kids.length + 1)) * 0.45;
         Offset co;
         double cd;
         if (geom.poly != null) {
