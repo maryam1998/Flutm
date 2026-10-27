@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/camera.dart';
+import '../map/draw_utils.dart' show toFa;
 import '../map/map_canvas.dart';
 import '../map/map_ops.dart';
+import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../services/storage.dart';
 import '../state/background_store.dart';
@@ -12,6 +14,8 @@ import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
 import '../widgets/map_video_overlay.dart';
+import '../widgets/next_step_card.dart';
+import '../widgets/step_reward.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'foot_stats_sheet.dart';
@@ -39,6 +43,16 @@ class _MapTabState extends State<MapTab> {
     super.initState();
     _store = context.read<MapStore>();
     _store.toast = _toast;
+    // پاداش فوری بعد از تیک زدنِ هر قدم
+    _store.onStepDone = (h, n) {
+      if (!mounted) return;
+      final jk = jKey(DateTime.now());
+      var total = 0;
+      for (final g in _store.state.goals) {
+        total += todayCount(g, jk);
+      }
+      StepReward.play(context, sub: 'قدم ${toFa(total)} امروز ✨');
+    };
     // بار اول که تب باز شد، همه‌ی هدف‌ها در کادر بیایند
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoFit());
   }
@@ -60,6 +74,7 @@ class _MapTabState extends State<MapTab> {
   @override
   void dispose() {
     _store.toast = null;
+    _store.onStepDone = null;
     cam.dispose();
     super.dispose();
   }
@@ -154,6 +169,7 @@ class _MapTabState extends State<MapTab> {
                 f.node.logs[pi.todayJK] = 'انجام شد ✓';
                 h.lastActivity = DateTime.now().millisecondsSinceEpoch;
                 store.changed();
+                store.onStepDone?.call(h, f.node);
               }
             },
           ),
@@ -247,6 +263,20 @@ class _MapTabState extends State<MapTab> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          // کارت «قدم بعدیِ امروز» (یک قدم کوچک از بین همه‌ی هدف‌ها)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: const Padding(
+                padding: EdgeInsets.only(top: 62),
+                child: NextStepCard(),
               ),
             ),
           ),

@@ -22,6 +22,9 @@ class MapStore extends ChangeNotifier {
   /// پیام کوتاه برای کاربر (تب نقشه SnackBar نشون میده)
   void Function(String message)? toast;
 
+  /// وقتی یک قدم «انجام شد» می‌خورد صدا زده می‌شود (تب نقشه پاداش نشان می‌دهد)
+  void Function(MapHost host, ActionNode node)? onStepDone;
+
   Future<void> load() async {
     try {
       final raw = await _storage.read();

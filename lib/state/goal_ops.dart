@@ -79,13 +79,16 @@ double sumWeight(List<ActionNode> list) =>
 extension GoalListOps on MapStore {
   /// تیک روزانه: اگه آن روز انجام شده بود برمی‌دارد، وگرنه ثبت می‌کند
   void toggleLog(MapHost host, ActionNode n, String jk) {
+    var marked = false;
     if (truthy(n.logs[jk])) {
       n.logs.remove(jk);
     } else {
       n.logs[jk] = kRoutineDoneMark;
       host.lastActivity = DateTime.now().millisecondsSinceEpoch;
+      marked = true;
     }
     changed();
+    if (marked) onStepDone?.call(host, n); // پاداش فوری
   }
 
   void reachGoal(Goal g) {

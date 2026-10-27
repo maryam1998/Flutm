@@ -80,14 +80,17 @@ class _DaySheetState extends State<_DaySheet> {
 
   Future<void> _toggle() async {
     // همون toggleLog موجود
+    var marked = false;
     if (_done) {
       widget.node.logs.remove(widget.jk);
       // اگه یادداشت خاصی داشت، توی نسخه‌ی جدید حذف نمی‌کنیم — کاربر خودش می‌تونه پاک کنه
     } else {
       widget.node.logs[widget.jk] = 'انجام شد ✓';
       widget.host.lastActivity = DateTime.now().millisecondsSinceEpoch;
+      marked = true;
     }
     widget.store.changed();
+    if (marked) widget.store.onStepDone?.call(widget.host, widget.node);
     if (mounted) setState(() {});
   }
 
