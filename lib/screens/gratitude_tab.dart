@@ -379,8 +379,10 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final prevSel = emo.selectedIds.toList();
     final prevOverride = emo.commitOverride;
     emo.setSelected(g.emotionIds);
-    emo.commitOverride = (ids) => gStore.setEntryEmotions(g.id, ids);
-    emo.requestOpen(hold: true); // ادمک خودکار باز می‌شود
+    emo.commitOverride =
+        (ids) => gStore.setEntryEmotions(g.id, ids, allowEmpty: true);
+    emo.keepSelectionAfterOverride = true;
+    // ویجت حس خودکار باز نمی‌شود؛ فقط با دکمه‌ی «ثبت حس» (یا دکمه‌ی شناور) باز می‌شود
 
     showModalBottomSheet(
       context: context,
@@ -594,9 +596,30 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                     ),
                                   const SizedBox(height: 6),
                                   Text(
-                                      'برای تغییر: ویجت حس را باز کن، حس‌ها را انتخاب کن و «ذخیره تغییرات» را بزن (نیازی به بستن ویجت نیست).',
+                                      'برای تغییر: «ثبت حس» را بزن؛ حس‌های ثبت‌شده تیک‌خورده‌اند. برای حذف یک حس روی تیکش بزن، بعد «ذخیره تغییرات» را بزن (نیازی به بستن ویجت نیست).',
                                       style: TextStyle(
                                           fontSize: 11, color: pal.muted)),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          emo.requestOpen(hold: true),
+                                      icon: const Icon(Icons.favorite_outline,
+                                          size: 16),
+                                      label: const Text('ثبت حس',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800)),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: pal.emerald700,
+                                        side:
+                                            BorderSide(color: pal.emerald300),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
@@ -635,10 +658,10 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                 );
                             // حسِ انتخاب‌شده روی ویجت هم همین‌جا ثبت می‌شود
                             // (لازم نیست ویجت بسته شود)
-                            if (emo.selectedIds.isNotEmpty) {
-                              await gStore.setEntryEmotions(
-                                  g.id, emo.selectedIds.toList());
-                            }
+                            // (اگه همه‌ی تیک‌ها برداشته شده باشن، حسِ ثبت حذف می‌شه)
+                            await gStore.setEntryEmotions(
+                                g.id, emo.selectedIds.toList(),
+                                allowEmpty: true);
                             if (context.mounted) Navigator.pop(ctx);
                             _toast(context, 'ویرایش شد ✏️');
                           },
@@ -698,6 +721,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
       ),
     ).whenComplete(() {
       emo.commitOverride = prevOverride;
+      emo.keepSelectionAfterOverride = false;
       emo.holdOpen = false;
       emo.setSelected(prevSel);
     });

@@ -46,6 +46,10 @@ class EmotionStore extends ChangeNotifier {
   /// تا وقتی true است، ویجت با بیکاری ۴ ثانیه‌ای خودبه‌خود بسته نمی‌شود.
   bool holdOpen = false;
 
+  /// اگه true باشه بعد از «ثبت حس» با [commitOverride] انتخاب‌ها پاک نمی‌شن
+  /// (تا با باز کردن دوباره‌ی ویجت، حس‌های ثبت‌شده تیک‌خورده بمونن).
+  bool keepSelectionAfterOverride = false;
+
   void requestOpen({bool hold = false}) {
     holdOpen = hold;
     openTick++;
@@ -156,7 +160,9 @@ class EmotionStore extends ChangeNotifier {
 
   /// وقتی کاربر دکمه‌ی شناور رو می‌بندد و انتخاب دارد، این صدا زده می‌شود.
   Future<void> fireCommitClose() async {
-    if (_selected.isEmpty) return;
+    // وقتی ویرایشِ یک ثبت در جریانه (commitOverride)، خالی بودنِ انتخاب هم
+    // یعنی «حس حذف بشه»؛ پس این‌جا برنمی‌گردیم.
+    if (_selected.isEmpty && (_capturing || commitOverride == null)) return;
     if (_capturing) {
       await saveCapture();
       return;
@@ -171,7 +177,7 @@ class EmotionStore extends ChangeNotifier {
       await onEmotionsCommitted!(ids, _todayKey());
       consumed = true;
     }
-    if (consumed) {
+    if (consumed && !(commitOverride != null && keepSelectionAfterOverride)) {
       _selected.clear();
       _persist();
       notifyListeners();
