@@ -16,6 +16,7 @@ import '../theme/grat_palette.dart';
 import '../widgets/grat_period_calendar.dart';
 import '../widgets/neural_pathway.dart';
 import '../state/emotion_store.dart';
+import '../widgets/media_slideshow.dart';
 import '../widgets/purchase_celebration.dart';
 import '../widgets/receipt_sheet.dart';
 import '../widgets/shop_history_sheet.dart';
@@ -295,6 +296,17 @@ class _StoreTabState extends State<StoreTab> {
     return [
       _sectionLabel(pal, Icons.receipt_long_outlined, 'لیست خریدها (فراوانی)'),
       const SizedBox(height: 8),
+      if (list.isNotEmpty) _evidenceCard(store),
+      if (list.isNotEmpty) const SizedBox(height: 10),
+      if (_purchaseSlides(store).isNotEmpty) ...[
+        MediaSlideshow(
+          listenable: store,
+          collect: () => _purchaseSlides(store),
+          cfgKey: 'abundanceSlideshow',
+          title: '🖼️ خریدهای فراوانی من',
+        ),
+        const SizedBox(height: 12),
+      ],
       if (list.isEmpty)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 20),
@@ -307,6 +319,60 @@ class _StoreTabState extends State<StoreTab> {
       else
         ...list.map(_purchaseTile),
     ];
+  }
+
+  /// عکس‌های همهٔ خریدها برای اسلایدشو (جدیدترین اول)
+  List<MediaSlide> _purchaseSlides(AbundanceStore store) {
+    final out = <MediaSlide>[];
+    for (final p in store.history.reversed) {
+      for (var i = 0; i < p.items.length; i++) {
+        final src = p.items[i].image;
+        if (src == null || src.isEmpty) continue;
+        out.add(MediaSlide(key: 'p${p.id}_$i', isVideo: false, src: src));
+      }
+    }
+    return out;
+  }
+
+  /// شاهدِ جمع‌شده: مغز با شواهدِ تکرارشونده باور می‌کنه
+  Widget _evidenceCard(AbundanceStore store) {
+    final times = store.history.length;
+    final things = store.history.fold<int>(
+        0, (sum, p) => sum + p.items.fold<int>(0, (a, it) => a + it.qty));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _kGold.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kGold.withValues(alpha: 0.55)),
+      ),
+      child: Row(
+        children: [
+          const Text('🌟', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'تا حالا ${toFaDigits(times.toString())} بار فراوانی گرفتی',
+                  style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: _kInk),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${toFaDigits(things.toString())} چیز مال تو شد — هر کدوم یه شاهد که فراوانی واقعیه',
+                  style: const TextStyle(
+                      fontSize: 11.5, color: _kMuted, height: 1.6),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _purchaseTile(Purchase p) {

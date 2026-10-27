@@ -12,6 +12,34 @@ import '../utils/money_format.dart';
 const _kGold = Color(0xFFC9A24B);
 const _kGoldLight = Color(0xFFF2D98B);
 
+const _kAffirmations = <String>[
+  'فراوانی داره به سمتت میاد 🌱',
+  'تو لایق بهترین‌هایی ✨',
+  'دنیا با تو سخاوتمنده',
+  'جریان فراوانی توی زندگیت جاریه',
+  'هرچی بیشتر قدردان باشی، بیشتر می‌گیری',
+  'این فقط شروعشه 🌟',
+  'تو یه آدمِ فراوونی',
+  'چیزای خوب راحت به سمتت میان',
+  'بدنت داره یاد می‌گیره «داشتن» یعنی چی',
+  'همین الان همه‌چیز داره سر جای درستش قرار می‌گیره',
+  'تو مغناطیس فراوانی هستی 🧲',
+  'گرفتن برات امنه و خوشاینده',
+  'هر خرید، یه شاهد جدید که فراوانی واقعیه',
+  'تو هم می‌دی، هم می‌گیری؛ جریان کامله 💛',
+];
+
+/// آخرین جمله‌ای که نشون داده شد (تا دو خرید پشت‌هم یه جمله نگیرن)
+int _lastAffirmation = -1;
+
+String _pickAffirmation() {
+  final r = math.Random();
+  var i = r.nextInt(_kAffirmations.length);
+  if (i == _lastAffirmation) i = (i + 1) % _kAffirmations.length;
+  _lastAffirmation = i;
+  return _kAffirmations[i];
+}
+
 /// لحظهٔ «مال من شد» بعد از خرید در بازی فراوانی:
 /// ۱) جشن کوتاه: عکسِ خرید بزرگ + بارون سکه + لرزش + صدای سکه
 /// ۲) ۱۰ ثانیه «حس کردنِ داشتن» با دایرهٔ تپنده (قابل رد کردن)
@@ -49,6 +77,7 @@ class _PurchaseCelebrationState extends State<PurchaseCelebration>
   late final AnimationController _pulse;
   final AudioPlayer _player = AudioPlayer();
   final List<_Coin> _coinList = _makeCoins();
+  final String _affirmation = _pickAffirmation();
 
   Timer? _toFeel;
   Timer? _tick;
@@ -252,9 +281,12 @@ class _PurchaseCelebrationState extends State<PurchaseCelebration>
         ),
         const SizedBox(height: 8),
         Text(
-          'فراوانی داره به سمتت میاد 🌱',
+          _affirmation,
+          textAlign: TextAlign.center,
           style: TextStyle(
-              color: _kGoldLight.withValues(alpha: 0.9), fontSize: 14),
+              color: _kGoldLight.withValues(alpha: 0.9),
+              fontSize: 15,
+              height: 1.6),
         ),
       ],
     );
