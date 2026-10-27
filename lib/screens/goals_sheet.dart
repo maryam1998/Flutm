@@ -1247,11 +1247,26 @@ class _GoalsSheetState extends State<GoalsSheet> {
               spacing: 6,
               runSpacing: 6,
               children: [
-                if (kShowSubActions)
-                  _miniAction(Icons.add_rounded, 'زیرشاخه', () => setState(() {
-                        _addingFor = n.id;
-                        _addCtl.clear();
-                      })),
+                // دکمه‌ی «+»: افزودن زیرشاخه برای همین شاخه
+                Material(
+                  color: Colors.white,
+                  shape: CircleBorder(
+                      side: BorderSide(
+                          color: _addingFor == n.id ? color : kGoalsBorder)),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => setState(() {
+                      _addingFor = n.id;
+                      _addCtl.clear();
+                    }),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(Icons.add_rounded,
+                          size: 18,
+                          color: _addingFor == n.id ? color : kGoalsMuted),
+                    ),
+                  ),
+                ),
                 _miniAction(
                   Icons.calendar_month_outlined,
                   'روزها',
@@ -1350,7 +1365,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
       if (_addingFor == n.id)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: _addRow(store, h, n, ''),
+          child: _addRow(store, h, n, 'نام زیرشاخه'),
         ),
       ..._childrenList(store, h, n, pi, hostColor, depth),
     ];

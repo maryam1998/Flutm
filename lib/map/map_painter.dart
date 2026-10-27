@@ -1244,16 +1244,33 @@ class MapPainter extends CustomPainter {
     final speed =
         ((g.extra['walkerSpeed'] as num?)?.toDouble() ?? 1.5).clamp(0.3, 4.0);
     final manualT = (g.extra['walkerPos'] as num?)?.toDouble();
+    // طول گام متناسب با اندازه‌ی پا (قبلاً همیشه ۱/۳۲ طول تنه بود و روی تنه‌ی
+    // بلند گام‌ها خیلی بزرگ می‌شد). سرعتِ حرکت روی مسیر تقریباً ثابت می‌ماند.
+    final walkerBase = 20.0 *
+        state.footScale.clamp(kFootScaleMin, kFootScaleMax) *
+        ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
+            .clamp(kWalkerSizeMin, kWalkerSizeMax);
+    var trunkLen = 0.0;
+    var prevPt = cp.at(0);
+    for (var i = 1; i <= 24; i++) {
+      final q = cp.at(i / 24);
+      trunkLen += (q - prevPt).distance;
+      prevPt = q;
+    }
+    final wStepLen =
+        (walkerBase * 1.5 / math.max(trunkLen, 1.0)).clamp(0.004, 1.0 / 32);
+    final wSteps = math.max(32, (1.0 / wStepLen).round());
+    final wSpeed = speed * math.min(2.5, wSteps / 32.0);
     _walkerCore(
       canvas,
       _CubicCurve(cp),
       col,
       tMin: 0.06,
       tMax: 0.94,
-      stepLen: 1.0 / 32,
-      totalSteps: 32,
+      stepLen: wStepLen.toDouble(),
+      totalSteps: wSteps,
       playing: playing,
-      speed: speed.toDouble(),
+      speed: wSpeed.toDouble(),
       manualT: manualT,
       baseSize: 20.0 *
           state.footScale.clamp(kFootScaleMin, kFootScaleMax) *
