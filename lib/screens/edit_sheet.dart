@@ -156,8 +156,8 @@ class _EditSheetState extends State<EditSheet> {
   final Map<String, TextEditingController> _ctl = {};
   String? _focusId;
 
-  /// بخش‌های «شخصی‌سازی» که باز شده‌اند (پیش‌فرض همه بسته: نمای ساده)
-  final Set<String> _persOpen = {};
+  /// بخش‌های «شخصی‌سازی» که کاربر خودش بسته است (پیش‌فرض: همه باز)
+  final Set<String> _persClosed = {};
 
   MapStore get _store => widget.store;
   MapState get _s => _store.state;
@@ -1042,7 +1042,7 @@ class _EditSheetState extends State<EditSheet> {
   /// دکمه‌ی «شخصی‌سازی»: تنظیمات پیشرفته (اندازه، هاله، ایموجی، فونت…) پشت آن
   /// پنهان‌اند؛ نمای پیش‌فرض ساده می‌ماند.
   Widget _personalize(String key, List<Widget> children) {
-    final open = _persOpen.contains(key);
+    final open = !_persClosed.contains(key);
     return Column(
       key: ValueKey('${_t.key}|pers|$key'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1059,11 +1059,11 @@ class _EditSheetState extends State<EditSheet> {
               ),
             ),
             onPressed: () => setState(() {
-              if (!_persOpen.remove(key)) _persOpen.add(key);
+              if (!_persClosed.remove(key)) _persClosed.add(key);
             }),
             icon: Icon(open ? Icons.expand_less_rounded : Icons.tune_rounded,
                 size: 18),
-            label: Text(open ? 'بستن شخصی‌سازی' : 'شخصی‌سازی',
+            label: Text(open ? 'جمع کردن شخصی‌سازی' : 'شخصی‌سازی',
                 style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ),
