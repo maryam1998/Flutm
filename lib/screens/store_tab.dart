@@ -517,7 +517,7 @@ class _StoreTabState extends State<StoreTab> {
                     textAlign: TextAlign.right,
                     textDirection: TextDirection.rtl,
                     style: const TextStyle(fontSize: 13, color: _kInk),
-                    decoration: _inputDeco('قیمت هر عدد (تومان)'),
+                    decoration: _inputDeco('قیمت هر عدد ($gMoneyUnit)'),
                   ),
                   const SizedBox(height: 6),
                   _qtyField(),

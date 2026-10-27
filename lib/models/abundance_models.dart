@@ -66,11 +66,13 @@ class AbundanceSettings {
   double startAmount;
   double step;
   String startDate;
+  String currency; // واحد پول: تومان | دلار | یورو | ریال
 
   AbundanceSettings({
     this.startAmount = 1000000,
     this.step = 1000000,
     required this.startDate,
+    this.currency = 'تومان',
   });
 
   factory AbundanceSettings.fromJson(Map<String, dynamic>? j, String fallbackDate) {
@@ -79,6 +81,9 @@ class AbundanceSettings {
       startAmount: (j['startAmount'] as num?)?.toDouble() ?? 1000000,
       step: (j['step'] as num?)?.toDouble() ?? 1000000,
       startDate: j['startDate'] as String? ?? fallbackDate,
+      currency: (j['currency'] as String?)?.trim().isNotEmpty == true
+          ? j['currency'] as String
+          : 'تومان',
     );
   }
 
@@ -86,6 +91,7 @@ class AbundanceSettings {
         'startAmount': startAmount,
         'step': step,
         'startDate': startDate,
+        'currency': currency,
       };
 }
 

@@ -70,9 +70,11 @@ class HomeTab extends StatelessWidget {
                   context: context,
                   startAmount: store.settings.startAmount,
                   step: store.settings.step,
+                  currency: store.settings.currency,
                   onSave: (v) => store.updateSettings(
                     startAmount: v.startAmount,
                     step: v.step,
+                    currency: v.currency,
                   ),
                 ),
               ),

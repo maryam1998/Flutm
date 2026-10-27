@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../utils/money_format.dart' show gMoneyUnit;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -1650,7 +1651,7 @@ class _EntryRow extends StatelessWidget {
     }
     final fa = buf.toString().replaceAllMapped(
         RegExp(r'\d'), (m) => '۰۱۲۳۴۵۶۷۸۹'[int.parse(m.group(0)!)]);
-    return '$fa تومان';
+    return '$fa $gMoneyUnit';
   }
 }
 

@@ -9,16 +9,20 @@ const _kMuted = Color(0xFF7A6B57);
 const _kBorder = Color(0xFFE0D5C0);
 const _kCard = Colors.white;
 const _kCream = Color(0xFFFBF6EA);
+const _kGreen = Color(0xFF0F5B53);
 
 class AbundanceSettingsSheet extends StatefulWidget {
   final double startAmount;
   final double step;
-  final ValueChanged<({double startAmount, double step})> onSave;
+  final String currency;
+  final ValueChanged<({double startAmount, double step, String currency})>
+      onSave;
 
   const AbundanceSettingsSheet({
     super.key,
     required this.startAmount,
     required this.step,
+    this.currency = 'تومان',
     required this.onSave,
   });
 
@@ -26,7 +30,9 @@ class AbundanceSettingsSheet extends StatefulWidget {
     required BuildContext context,
     required double startAmount,
     required double step,
-    required ValueChanged<({double startAmount, double step})> onSave,
+    String currency = 'تومان',
+    required ValueChanged<({double startAmount, double step, String currency})>
+        onSave,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -36,6 +42,7 @@ class AbundanceSettingsSheet extends StatefulWidget {
       builder: (_) => AbundanceSettingsSheet(
         startAmount: startAmount,
         step: step,
+        currency: currency,
         onSave: onSave,
       ),
     );
@@ -48,10 +55,12 @@ class AbundanceSettingsSheet extends StatefulWidget {
 class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
   late final TextEditingController _start;
   late final TextEditingController _step;
+  late String _currency;
 
   @override
   void initState() {
     super.initState();
+    _currency = widget.currency;
     _start = TextEditingController(
         text: groupThousands(widget.startAmount.round().toString()));
     _step = TextEditingController(
@@ -69,7 +78,7 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
     final s = parseMoneyInput(_start.text);
     final st = parseMoneyInput(_step.text);
     if (s <= 0 || st <= 0) return;
-    widget.onSave((startAmount: s, step: st));
+    widget.onSave((startAmount: s, step: st, currency: _currency));
     Navigator.pop(context);
   }
 
@@ -111,6 +120,8 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
                 ),
                 const SizedBox(height: 16),
 
+                _currencyPicker(),
+                const SizedBox(height: 12),
                 _field('روز اول از چه مبلغی شروع کنم؟', _start),
                 const SizedBox(height: 12),
                 _field('هر روز چقدر بیشتر بشه؟', _step),
@@ -135,8 +146,8 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: _kMuted,
-                          side: const BorderSide(color: _kBorder),
+                          foregroundColor: _kGreen,
+                          side: const BorderSide(color: Color(0xFF63D6A8)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -151,7 +162,7 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
                       flex: 2,
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: _kGold,
+                          backgroundColor: _kGreen,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -173,11 +184,54 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
     );
   }
 
+  /// انتخاب واحد پول (تومان، دلار، …)
+  Widget _currencyPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'واحد پول',
+          style: TextStyle(
+              fontSize: 12.5, fontWeight: FontWeight.w700, color: _kInk),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: kMoneyUnits.map((u) {
+            final on = u == _currency;
+            return GestureDetector(
+              onTap: () => setState(() => _currency = u),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: on ? _kGreen : _kCard,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: on ? _kGreen : _kBorder, width: on ? 1.5 : 1),
+                ),
+                child: Text(
+                  u,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: on ? Colors.white : _kInk,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   String _preview() {
     final s = parseMoneyInput(_start.text);
     final st = parseMoneyInput(_step.text);
     if (s <= 0 || st <= 0) return 'مبلغ شروع و افزایش روزانه رو وارد کن';
-    return 'روز ۱: ${formatMoney(s)} ← روز ۲: ${formatMoney(s + st)} ← روز ۳: ${formatMoney(s + st * 2)}';
+    return 'روز ۱: ${formatMoney(s, unit: _currency)} ← روز ۲: ${formatMoney(s + st, unit: _currency)} ← روز ۳: ${formatMoney(s + st * 2, unit: _currency)}';
   }
 
   Widget _field(String label, TextEditingController ctrl) {
@@ -209,7 +263,7 @@ class _AbundanceSettingsSheetState extends State<AbundanceSettingsSheet> {
             fillColor: _kCard,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            suffixText: 'تومان',
+            suffixText: _currency,
             suffixStyle: const TextStyle(fontSize: 11, color: _kMuted),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

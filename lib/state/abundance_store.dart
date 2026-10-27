@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../services/app_prefs.dart';
 
 import '../models/abundance_models.dart';
+import '../utils/money_format.dart' show gMoneyUnit;
 import '../models/neural_container.dart';
 
 class AbundanceStore extends ChangeNotifier {
@@ -48,6 +49,7 @@ class AbundanceStore extends ChangeNotifier {
             : null,
         _todayKey(),
       );
+      gMoneyUnit = settings.currency;
 
       final cRaw = sp.getString(_kCard);
       card = BankCard.fromJson(
@@ -313,9 +315,14 @@ class AbundanceStore extends ChangeNotifier {
     return record;
   }
 
-  void updateSettings({required double startAmount, required double step}) {
+  void updateSettings(
+      {required double startAmount, required double step, String? currency}) {
     settings.startAmount = startAmount;
     settings.step = step;
+    if (currency != null && currency.isNotEmpty) {
+      settings.currency = currency;
+      gMoneyUnit = currency;
+    }
     notifyListeners();
     _persist();
   }
