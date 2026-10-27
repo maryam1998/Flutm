@@ -1250,8 +1250,8 @@ class MapPainter extends CustomPainter {
       col,
       tMin: 0.06,
       tMax: 0.94,
-      stepLen: 1.0 / 20,
-      totalSteps: 20,
+      stepLen: 1.0 / 32,
+      totalSteps: 32,
       playing: playing,
       speed: speed.toDouble(),
       manualT: manualT,
@@ -1418,7 +1418,7 @@ class MapPainter extends CustomPainter {
       return;
     }
 
-    final stepLen = (size * 1.4 / len).clamp(0.01, 0.12);
+    final stepLen = (size * 0.8 / len).clamp(0.006, 0.07);
     final totalSteps = math.max(4, (1.0 / stepLen).round());
     final speed = 1.5 * (a.footSpeed ?? 1.0).clamp(0.2, 3.0);
     final stagger = (a.id.hashCode & 0xFF) / 255.0 * 10.0;

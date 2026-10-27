@@ -43,6 +43,11 @@ class _BeliefsTabState extends State<BeliefsTab> {
   bool _showArchive = false;
   String? _selectedDay;
 
+  // ویرایش متن خواسته به‌صورت درجا (بدون باز شدن کادر/پنجره)
+  bool _editingFuture = false;
+  String _editInitial = '';
+  bool _editHadVersion = false;
+
   // آکاردئونِ مراحل: هر مرحله یک کارت جمع‌شونده؛ محتوای هر مرحله اولین بار که
   // باز شد ساخته می‌شود و بعد زنده می‌ماند (تایمر/یادداشت/صدا گم نمی‌شود).
   int _openStep = 0;
@@ -939,6 +944,29 @@ Widget _seedStep(BeliefsStore store, Set<String> steps) {
 }
 
 Widget _futureBox(BeliefsStore store) {
+  if (_editingFuture) {
+    return Container(
+      key: _futureKey,
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kBeliefsCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBeliefsBorder),
+      ),
+      child: _TextEditor(
+        initial: _editInitial,
+        format: store.format,
+        onFormatChange: store.setFormat,
+        onClose: (result) {
+          setState(() => _editingFuture = false);
+          if (result != null) {
+            _applyEditorResult(store, _editHadVersion, _editInitial, result);
+          }
+        },
+      ),
+    );
+  }
   final text = (store.activeVersion?.text ?? '').trim();
 
   return GestureDetector(
@@ -1505,21 +1533,19 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
     return ok == true;
   }
 
-  Future<void> _openEditor(BeliefsStore store) async {
+  /// ویرایش درجا: کادر ویرایش جای خودِ متن باز می‌شود (نه پنجره‌ی پایین)
+  void _openEditor(BeliefsStore store) {
+    if (_editingFuture) return;
     final cur = store.activeVersion;
-    final hadVersion = cur != null;
-    final initial = cur?.text ?? '';
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _TextEditor(
-        initial: initial,
-        format: store.format,
-        onFormatChange: store.setFormat,
-      ),
-    );
+    setState(() {
+      _editHadVersion = cur != null;
+      _editInitial = cur?.text ?? '';
+      _editingFuture = true;
+    });
+  }
+
+  Future<void> _applyEditorResult(BeliefsStore store, bool hadVersion,
+      String initial, String? result) async {
     if (result == null || result.trim().isEmpty) return;
     if (result.trim() == initial.trim()) return;
     await store.saveText(result);
@@ -1687,10 +1713,15 @@ class _TextEditor extends StatefulWidget {
   final FutureTextFormat format;
   final ValueChanged<FutureTextFormat> onFormatChange;
 
+  /// اگر داده شود، ویرایشگر «درجا» (داخل صفحه) نمایش داده می‌شود و نتیجه
+  /// (متن یا null برای لغو) از همین راه برمی‌گردد؛ وگرنه مثل پنجره‌ی پایین.
+  final ValueChanged<String?>? onClose;
+
   const _TextEditor({
     required this.initial,
     required this.format,
     required this.onFormatChange,
+    this.onClose,
   });
 
   @override
@@ -1714,29 +1745,18 @@ class _TextEditorState extends State<_TextEditor> {
     super.dispose();
   }
 
+  void _close(String? v) {
+    if (widget.onClose != null) {
+      widget.onClose!(v);
+    } else {
+      Navigator.pop(context, v);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: kBeliefsCream,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 14,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
+    final inline = widget.onClose != null;
+    final Widget content = Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1767,6 +1787,7 @@ class _TextEditorState extends State<_TextEditor> {
                       const SizedBox(height: 10),
                       TextField(
                         controller: _ctrl,
+                        autofocus: inline,
                         maxLines: null,
                         minLines: 5,
                         textAlign: _fmt.textAlign,
@@ -1797,9 +1818,36 @@ class _TextEditorState extends State<_TextEditor> {
                         ),
                       ),
                     ],
-                  ),
+                  );
+    return Container(
+      decoration: inline
+          ? null
+          : const BoxDecoration(
+              color: kBeliefsCream,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+      child: SafeArea(
+        top: false,
+        left: !inline,
+        right: !inline,
+        bottom: !inline,
+        child: Padding(
+          padding: inline
+              ? EdgeInsets.zero
+              : EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 14,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
                 ),
-              ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (inline)
+                content
+              else
+                Flexible(child: SingleChildScrollView(child: content)),
               const SizedBox(height: 12),
               // دکمه‌های لغو / ذخیره همیشه پایین و در دسترس می‌مانند
               Row(
@@ -1824,7 +1872,7 @@ class _TextEditorState extends State<_TextEditor> {
                           );
                           return;
                         }
-                        Navigator.pop(context, t);
+                        _close(t);
                       },
                       child: const Text('💾 ذخیره',
                           style: TextStyle(fontWeight: FontWeight.w800)),
@@ -1842,7 +1890,7 @@ class _TextEditorState extends State<_TextEditor> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => _close(null),
                       child: const Text('لغو'),
                     ),
                   ),
