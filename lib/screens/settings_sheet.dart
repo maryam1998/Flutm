@@ -17,6 +17,7 @@ import '../state/beliefs_store.dart';
 import '../state/gratitude_store.dart';
 import '../state/linked_goals.dart';
 import '../state/map_store.dart';
+import '../state/main_tab.dart';
 import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
 import '../widgets/backup_section.dart';
@@ -615,7 +616,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
       children: [
         _switchRow(
           title: 'ویجت شناورِ «آدم و احساسات»',
-          subtitle: 'روی صفحه در تمام تب‌ها دیده می‌شود',
+          subtitle: 'پیش‌فرض در همه‌ی تب‌ها؛ پایین می‌توانی تب‌ها را انتخاب کنی',
           value: _showEmotionWidget,
           // مثل کلیدهای «پیش‌زمینه»: همان لحظه اعمال می‌شود (قبلاً فقط با زدنِ
           // «ذخیره‌ی تنظیمات» ویجت مخفی می‌شد و با «انصراف/بستن» هیچ اثری نداشت).
@@ -626,7 +627,62 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             store.changedNow();
           },
         ),
+        if (_showEmotionWidget) _emotionTabsPicker(),
       ],
+    );
+  }
+
+  /// «نمایش در تب‌ها»: انتخاب تب‌هایی که ویجت آدم و احساسات در آن‌ها دیده شود
+  Widget _emotionTabsPicker() {
+    final store = context.read<MapStore>();
+    final hidden = emotionHiddenTabs(store.state.extra);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('نمایش در تب‌ها',
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: _kMuted)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (var i = 0; i < kMainTabNames.length; i++)
+                FilterChip(
+                  label: Text(kMainTabNames[i],
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          color: hidden.contains(i) ? _kMuted : _kGold,
+                          fontWeight: FontWeight.w600)),
+                  selected: !hidden.contains(i),
+                  showCheckmark: true,
+                  checkmarkColor: _kGold,
+                  selectedColor: _kGold.withAlpha(30),
+                  backgroundColor: _kField,
+                  side: const BorderSide(color: _kBorder),
+                  onSelected: (on) {
+                    final next = List<int>.of(hidden);
+                    if (on) {
+                      next.remove(i);
+                    } else if (!next.contains(i)) {
+                      next.add(i);
+                    }
+                    setState(() {
+                      if (next.isEmpty) {
+                        store.state.extra.remove(kEmotionHiddenTabsKey);
+                      } else {
+                        store.state.extra[kEmotionHiddenTabsKey] = next;
+                      }
+                    });
+                    store.changedNow();
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

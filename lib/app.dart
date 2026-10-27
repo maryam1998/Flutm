@@ -12,6 +12,7 @@ import 'state/beliefs_store.dart';
 import 'state/gratitude_store.dart';
 import 'state/linked_goals.dart';
 import 'state/map_store.dart';
+import 'state/main_tab.dart';
 import 'state/theme_store.dart';
 import 'widgets/angels_layer.dart';
 import 'widgets/background_layer.dart';
@@ -190,7 +191,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ),
         bottomNavigationBar: WebMainTabBar(
           index: _index,
-          onTap: (i) => setState(() => _index = i),
+          onTap: (i) {
+            kMainTabIndex.value = i;
+            setState(() => _index = i);
+          },
           items: const [
             WebTabItem(
               icon: Icons.psychology_outlined,

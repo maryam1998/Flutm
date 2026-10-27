@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../services/emotion_widget_prefs.dart';
 import '../state/emotion_store.dart';
 import '../state/map_store.dart';
+import '../state/main_tab.dart';
 import 'emotion_floating_button.dart';
 import 'emotion_panel.dart';
 
@@ -63,9 +64,15 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     _setOpen(false);
   }
 
+  void _onTabChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    kMainTabIndex.addListener(_onTabChanged);
     _openCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 280),
@@ -91,6 +98,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
 
   @override
   void dispose() {
+    kMainTabIndex.removeListener(_onTabChanged);
     _idle?.cancel();
     _openCtrl.dispose();
     super.dispose();
@@ -176,6 +184,13 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     // مخفی‌کردن کل ویجت اگر کاربر در تنظیمات خاموش کرده باشد
     final showWidget = context.watch<MapStore>().state.showEmotionWidget;
     if (!showWidget) return const SizedBox.shrink();
+
+    // پنهان بودن در تبِ فعال (تنظیمات ← نمایش روی نقشه ← «نمایش در تب‌ها»)
+    final hiddenTabs =
+        emotionHiddenTabs(context.watch<MapStore>().state.extra);
+    if (hiddenTabs.contains(kMainTabIndex.value)) {
+      return const SizedBox.shrink();
+    }
 
     final screen = MediaQuery.of(context).size;
     final store = context.watch<EmotionStore>();
