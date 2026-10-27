@@ -33,6 +33,7 @@ flutter:
   assets:
     - assets/body.svg
     - assets/icon-192.png
+    - assets/coin.wav
   fonts:
     - family: Vazirmatn
       fonts:

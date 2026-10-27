@@ -15,6 +15,8 @@ import '../utils/thousands_input_formatter.dart';
 import '../theme/grat_palette.dart';
 import '../widgets/grat_period_calendar.dart';
 import '../widgets/neural_pathway.dart';
+import '../state/emotion_store.dart';
+import '../widgets/purchase_celebration.dart';
 import '../widgets/receipt_sheet.dart';
 import '../widgets/shop_history_sheet.dart';
 import '../services/quiet_snack.dart';
@@ -143,18 +145,42 @@ class _StoreTabState extends State<StoreTab> {
     final record = store.checkout(store.card.number);
 
     // ساخت شکرگذاری برای هر آیتم
+    final entryIds = <String>[];
     for (final item in record.items) {
-      await grat.add(
+      final entry = await grat.add(
         text: item.name,
         icon: item.icon,
         images: item.image != null ? [GratitudeImage(src: item.image!)] : null,
         amount: item.qty * item.price,
         source: 'purchase',
       );
+      entryIds.add(entry.id);
     }
 
     if (!mounted) return;
+
+    // لحظهٔ «مال من شد»: جشن کوتاه + ۱۰ ثانیه حس کردنِ داشتن
+    await PurchaseCelebration.show(context: context, record: record);
+    if (!mounted) return;
+
+    // بعدش ادمک خودکار باز می‌شه تا حسِ همین خرید ثبت بشه
+    final emo = context.read<EmotionStore>();
+    final prevOverride = emo.commitOverride;
+    emo.commitOverride = (ids) async {
+      var ok = false;
+      for (final id in entryIds) {
+        ok = await grat.setEntryEmotions(id, ids) || ok;
+      }
+      return ok;
+    };
+    emo.requestOpen(hold: true);
+
     await ReceiptSheet.show(context: context, record: record);
+
+    // با بسته‌شدن رسید، اگه حسی انتخاب شده بود روی همین خرید ثبت می‌شه
+    await emo.fireCommitClose();
+    emo.commitOverride = prevOverride;
+    emo.holdOpen = false;
   }
 
   @override

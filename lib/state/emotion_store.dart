@@ -40,6 +40,18 @@ class EmotionStore extends ChangeNotifier {
   /// [onCommitClose] این رو صدا می‌زنه. true = مصرف شد.
   Future<bool> Function(List<String> ids)? commitOverride;
 
+  /// درخواست بازشدن خودکار ویجت (مثلاً هنگام ویرایش یک ثبت یا بعد از خرید).
+  int openTick = 0;
+
+  /// تا وقتی true است، ویجت با بیکاری ۴ ثانیه‌ای خودبه‌خود بسته نمی‌شود.
+  bool holdOpen = false;
+
+  void requestOpen({bool hold = false}) {
+    holdOpen = hold;
+    openTick++;
+    notifyListeners();
+  }
+
   EmotionStore() {
     _load();
   }

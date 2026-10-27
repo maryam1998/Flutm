@@ -380,6 +380,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final prevOverride = emo.commitOverride;
     emo.setSelected(g.emotionIds);
     emo.commitOverride = (ids) => gStore.setEntryEmotions(g.id, ids);
+    emo.requestOpen(hold: true); // ادمک خودکار باز می‌شود
 
     showModalBottomSheet(
       context: context,
@@ -697,6 +698,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
       ),
     ).whenComplete(() {
       emo.commitOverride = prevOverride;
+      emo.holdOpen = false;
       emo.setSelected(prevSel);
     });
   }

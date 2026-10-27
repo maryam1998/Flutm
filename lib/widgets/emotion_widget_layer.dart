@@ -25,6 +25,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
 
   bool _loaded = false;
   bool _open = false;
+  int? _seenTick;
   bool _glass = false;
   Offset _btnPos = Offset.zero;
   Offset? _panelPos;
@@ -54,7 +55,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     if (!mounted || !_open) return;
     final st = context.read<EmotionStore>();
     // وسط ثبت احساس یا کشیدن پنل/آدمک نبند؛ بعداً دوباره چک کن
-    if (st.isCapturing || _panelDragAnchor != null || _figActive) {
+    if (st.isCapturing || st.holdOpen || _panelDragAnchor != null || _figActive) {
       _bumpIdle();
       return;
     }
@@ -162,6 +163,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
       _bumpIdle();
     } else {
       _idle?.cancel();
+      context.read<EmotionStore>().holdOpen = false;
       _openCtrl.reverse();
     }
     _persist();
@@ -177,6 +179,19 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
 
     final screen = MediaQuery.of(context).size;
     final store = context.watch<EmotionStore>();
+    if (_seenTick == null) {
+      _seenTick = store.openTick;
+    } else if (store.openTick != _seenTick) {
+      _seenTick = store.openTick;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_open) {
+          _bumpIdle();
+        } else {
+          _setOpen(true);
+        }
+      });
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final effectiveOpen = _open || store.isCapturing;
