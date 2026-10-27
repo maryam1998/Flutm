@@ -73,16 +73,6 @@ String? _findInActions(List<ActionNode> list, String q) {
   return null;
 }
 
-String _ago(int ts) {
-  if (ts <= 0) return '';
-  final d = DateTime.now()
-      .difference(DateTime.fromMillisecondsSinceEpoch(ts))
-      .inDays;
-  if (d <= 0) return 'امروز';
-  if (d == 1) return 'دیروز';
-  return '${toFa(d)} روز پیش';
-}
-
 int? _parseDays(String s) {
   const fa = '۰۱۲۳۴۵۶۷۸۹', ar = '٠١٢٣٤٥٦٧٨٩';
   final b = StringBuffer();
@@ -527,14 +517,25 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
   }
 
-  Widget _metaChip(IconData i, String t) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(i, size: 13, color: kGoalsMuted),
-          const SizedBox(width: 3),
-          Text(t, style: const TextStyle(fontSize: 11, color: kGoalsMuted)),
-        ],
-      );
+  /// قدم بعدیِ امروز: اولین قدمِ کوچک (بدون زیرشاخه) که امروز انجام نشده
+  String _nextStep(MapHost h) {
+    final jk = jKey(DateTime.now());
+    String? pick(List<ActionNode> l) {
+      for (final n in l) {
+        if (n.children.isEmpty) {
+          if (n.text.trim().isNotEmpty && !truthy(n.logs[jk])) {
+            return n.text.trim();
+          }
+        } else {
+          final r = pick(n.children);
+          if (r != null) return r;
+        }
+      }
+      return null;
+    }
+
+    return pick(h.actions) ?? '';
+  }
 
   Widget _action(IconData i, String label, Color color, VoidCallback onTap) =>
       Expanded(
@@ -557,9 +558,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
           ),
         ),
       );
-
-  static int _countAll(List<ActionNode> l) =>
-      l.fold(0, (n, a) => n + 1 + _countAll(a.children));
 
   Widget _iconBtn(IconData i, String tip, VoidCallback onTap, {Color? color}) =>
       IconButton(
@@ -617,14 +615,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
     final isOpen =
         _open.contains(h.id) || (_q.isNotEmpty && r.hit.isNotEmpty);
     final power = math.min(100.0, sumWeight(h.actions) * 3);
-    final stale = h.lastActivity > 0 &&
-        DateTime.now().millisecondsSinceEpoch - h.lastActivity >
-            30 * 86400000;
     final linked =
         h is Ring ? store.state.goals.where((g) => g.id == h.goalId).toList() : <Goal>[];
-    final ago = _ago(h.lastActivity);
-
-    final branches = _countAll(h.actions);
+    final next = _nextStep(h);
     const divider = VerticalDivider(width: 1, thickness: 1, color: kGoalsBorder);
 
     return _accentCard(
@@ -672,19 +665,30 @@ class _GoalsSheetState extends State<GoalsSheet> {
                                 fontWeight: FontWeight.w800,
                                 color: kGoalsInk)),
                         const SizedBox(height: 5),
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 10,
-                          runSpacing: 4,
+                        if (h.isRing)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: _tag(
+                                'نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
+                          ),
+                        Row(
                           children: [
-                            if (h.isRing)
-                              _tag(
-                                  'نزدیک شدن به هدف${linked.isEmpty ? '' : ' · «${linked.first.name.isEmpty ? 'هدف' : linked.first.name}»'}'),
-                            if (stale) _tag('کم‌فعالیت'),
-                            _metaChip(Icons.account_tree_rounded,
-                                branches == 0 ? 'بدون اقدام' : '${toFa(branches)} اقدام'),
-                            if (ago.isNotEmpty)
-                              _metaChip(Icons.schedule_rounded, ago),
+                            const Icon(Icons.arrow_circle_left_outlined,
+                                size: 15, color: kGoalsMuted),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                next.isNotEmpty
+                                    ? 'قدم بعدی: $next'
+                                    : (h.actions.isEmpty
+                                        ? 'هنوز قدمی نیست'
+                                        : 'قدم‌های امروز انجام شد ✓'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 12.5, color: kGoalsMuted),
+                              ),
+                            ),
                           ],
                         ),
                         if (r.hit.isNotEmpty)
@@ -752,6 +756,15 @@ class _GoalsSheetState extends State<GoalsSheet> {
                     _reorderMode.add(h.id);
                     _open.add(h.id);
                     _addingFor = null;
+                  });
+                }),
+                divider,
+                _action(
+                    Icons.tune_rounded,
+                    _editing.contains(h.id) ? 'بستن شخصی‌سازی' : 'شخصی‌سازی',
+                    _kGold, () {
+                  setState(() {
+                    if (!_editing.remove(h.id)) _editing.add(h.id);
                   });
                 }),
                 divider,

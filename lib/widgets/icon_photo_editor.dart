@@ -508,12 +508,18 @@ class WalkerPhotoField extends StatefulWidget {
   final void Function(List<String> photos) onChanged;
   final String initialEmoji;
   final void Function(String emoji)? onEmojiChanged;
+
+  /// ساده‌ی پیش‌فرض: کادر ایموجی/نوشته را می‌شود جدا (پشت «شخصی‌سازی») نشان داد
+  final bool showEmoji;
+  final bool showPhotos;
   const WalkerPhotoField({
     super.key,
     this.initial = const [],
     required this.onChanged,
     this.initialEmoji = '',
     this.onEmojiChanged,
+    this.showEmoji = true,
+    this.showPhotos = true,
   });
 
   @override
@@ -593,7 +599,7 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (widget.onEmojiChanged != null) ...[
+        if (widget.onEmojiChanged != null && widget.showEmoji) ...[
           Row(
             children: [
               Container(
@@ -654,13 +660,14 @@ class _WalkerPhotoFieldState extends State<WalkerPhotoField> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          if (widget.showPhotos) const SizedBox(height: 10),
         ],
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),
-        ),
-        if (_items.isNotEmpty) ...[
+        if (widget.showPhotos)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: PhotoAddButton(label: 'افزودن عکس (چندگانه)', onTap: _pick),
+          ),
+        if (widget.showPhotos && _items.isNotEmpty) ...[
           const SizedBox(height: 12),
           ReorderablePhotoStrip(
             ids: [for (final e in _items) e.id],

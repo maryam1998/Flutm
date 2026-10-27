@@ -557,6 +557,67 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  static final RegExp _kTextChar = RegExp(r'[\p{L}\p{N}\p{P}\p{Z}]', unicode: true);
+
+  /// ایموجی/نوشته‌ی انیمیشن (وقتی عکس نیست): ایموجی‌ها کنار هم در یک ردیفِ
+  /// فاصله‌دار، نوشته در خط جدا (زیر ایموجی‌ها) تا قاطی و شلوغ نشوند.
+  void _walkerGlyphs(Canvas canvas, Offset c, double r, String text, double k,
+      String? ff) {
+    final emojis = <String>[];
+    final buf = StringBuffer();
+    for (final ch in text.characters) {
+      if (ch.trim().isEmpty) {
+        buf.write(' ');
+      } else if (_kTextChar.hasMatch(ch)) {
+        buf.write(ch);
+      } else {
+        emojis.add(ch);
+      }
+    }
+    final label = buf.toString().trim();
+    const black = Color(0xFF000000);
+    final base = r * 1.9 * k;
+
+    // فقط نوشته: مثل قبل، یک خط
+    if (emojis.isEmpty) {
+      final tp = textCache.get(label, base, black, FontWeight.w400, fontFamily: ff);
+      tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+      return;
+    }
+
+    // اندازه‌ی ایموجی‌ها: هرچه تعداد بیشتر، کمی کوچک‌تر تا ردیف از حد بیرون نزند
+    final n = emojis.length;
+    final efs = base * (n == 1 ? 1.0 : (n == 2 ? 0.8 : (n == 3 ? 0.68 : 0.56)));
+    final etps = [
+      for (final e in emojis) textCache.get(e, efs, black, FontWeight.w400)
+    ];
+    final gap = efs * 0.22;
+    var rowW = gap * (etps.length - 1);
+    var rowH = 0.0;
+    for (final t in etps) {
+      rowW += t.width;
+      rowH = math.max(rowH, t.height);
+    }
+
+    TextPainter? ttp;
+    if (label.isNotEmpty) {
+      // نوشته کمی کوچک‌تر از ایموجی‌ها، تا همه با هم جا بگیرند
+      ttp = textCache.get(label, base * 0.55, black, FontWeight.w600,
+          fontFamily: ff);
+    }
+    final lineGap = ttp == null ? 0.0 : efs * 0.12;
+    final totalH = rowH + lineGap + (ttp?.height ?? 0);
+    var y = c.dy - totalH / 2;
+    var x = c.dx - rowW / 2;
+    for (final t in etps) {
+      t.paint(canvas, Offset(x, y + (rowH - t.height) / 2));
+      x += t.width + gap;
+    }
+    if (ttp != null) {
+      ttp.paint(canvas, Offset(c.dx - ttp.width / 2, y + rowH + lineGap));
+    }
+  }
+
   void _emojiBadge(Canvas canvas, Offset c, double r, String emoji,
       [double k = 1.0, String? ff]) {
     if (isTextIcon(emoji)) {
@@ -1754,11 +1815,7 @@ class MapPainter extends CustomPainter {
     }
     if (hasEmoji && faceImg == null) {
       // ایموجی به‌جای دایره (بدون قاب)، وسط همان جایگاه
-      final tp = textCache.get(
-          emoji, bodyR * 1.9 * emojiScale, const Color(0xFF000000),
-          FontWeight.w400,
-          fontFamily: emojiFont);
-      tp.paint(canvas, bodyPos - Offset(tp.width / 2, tp.height / 2));
+      _walkerGlyphs(canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
       if (!playing) {
         final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
         final br = math.max(7.0, bodyR * 0.34);

@@ -156,6 +156,9 @@ class _EditSheetState extends State<EditSheet> {
   final Map<String, TextEditingController> _ctl = {};
   String? _focusId;
 
+  /// بخش‌های «شخصی‌سازی» که باز شده‌اند (پیش‌فرض همه بسته: نمای ساده)
+  final Set<String> _persOpen = {};
+
   MapStore get _store => widget.store;
   MapState get _s => _store.state;
 
@@ -931,8 +934,7 @@ class _EditSheetState extends State<EditSheet> {
     return [
       WalkerPhotoField(
         initial: walkerPhotosOf(ex),
-        initialEmoji: walkerEmojiOf(ex),
-        onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(ex, e)),
+        showEmoji: false,
         onChanged: (v) => _edit(() {
           setWalkerPhotos(ex, v);
           if (v.isNotEmpty) {
@@ -947,6 +949,13 @@ class _EditSheetState extends State<EditSheet> {
           }
         }),
       ),
+      _personalize('walker', [
+        WalkerPhotoField(
+          showPhotos: false,
+          initialEmoji: walkerEmojiOf(ex),
+          onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(ex, e)),
+          onChanged: (_) {},
+        ),
       _walkerEmojiSizeSlider(ex),
       _fontPicker(ex, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
       const SizedBox(height: 8),
@@ -1019,6 +1028,7 @@ class _EditSheetState extends State<EditSheet> {
           onChanged: (v) => _edit(() => ex['walkerSpeed'] = v),
         ),
       ],
+      ]),
       _bottomActions(
         saveLabel: 'ذخیره',
         onSave: () {
@@ -1027,6 +1037,39 @@ class _EditSheetState extends State<EditSheet> {
         },
       ),
     ];
+  }
+
+  /// دکمه‌ی «شخصی‌سازی»: تنظیمات پیشرفته (اندازه، هاله، ایموجی، فونت…) پشت آن
+  /// پنهان‌اند؛ نمای پیش‌فرض ساده می‌ماند.
+  Widget _personalize(String key, List<Widget> children) {
+    final open = _persOpen.contains(key);
+    return Column(
+      key: ValueKey('${_t.key}|pers|$key'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 6),
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _kGold,
+              side: BorderSide(color: _kGold.withAlpha(open ? 255 : 140)),
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => setState(() {
+              if (!_persOpen.remove(key)) _persOpen.add(key);
+            }),
+            icon: Icon(open ? Icons.expand_less_rounded : Icons.tune_rounded,
+                size: 18),
+            label: Text(open ? 'بستن شخصی‌سازی' : 'شخصی‌سازی',
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ),
+        if (open) ...children,
+      ],
+    );
   }
 
   /// اندازه‌ی نوشته/ایکونِ انیمیشن (همان کادر «ایموجی یا نوشته»)
@@ -1150,19 +1193,9 @@ class _EditSheetState extends State<EditSheet> {
         title: 'انیمیشن روی مسیر',
         collapsible: true,
         children: [
-          _walkerModeTile(g.extra),
-          const SizedBox(height: 10),
-          _sectionLabel('رنگ قدم'),
-          _swatches(
-            (g.extra['footColor'] as String?) ?? '',
-            (c) => g.extra['footColor'] = c,
-            onInherit: () => g.extra.remove('footColor'),
-          ),
-          const SizedBox(height: 8),
           WalkerPhotoField(
             initial: walkerPhotosOf(g.extra),
-            initialEmoji: walkerEmojiOf(g.extra),
-            onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(g.extra, e)),
+            showEmoji: false,
             onChanged: (v) => _edit(() {
               setWalkerPhotos(g.extra, v);
               if (v.isNotEmpty) {
@@ -1171,21 +1204,38 @@ class _EditSheetState extends State<EditSheet> {
               }
             }),
           ),
-          _walkerEmojiSizeSlider(g.extra),
-          _fontPicker(g.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
-          const SizedBox(height: 6),
-          _slider(
-            label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
-            value: walkerSize.clamp(kWalkerSizeMin, kWalkerSizeMax),
-            min: kWalkerSizeMin,
-            max: kWalkerSizeMax,
-            divisions: kWalkerSizeDivisions,
-            valueText: '${(walkerSize * 100).round()}٪',
-            onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
-          ),
-          _voiceField(g.extra, 'walkerVoice', 'walker:${g.id}'),
-          _videoField(g.extra, 'walkerVideo', 'walker:${g.id}'),
-          ..._walkerHaloControls(g.extra),
+          _personalize('goalwalker:${g.id}', [
+            WalkerPhotoField(
+              showPhotos: false,
+              initialEmoji: walkerEmojiOf(g.extra),
+              onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(g.extra, e)),
+              onChanged: (_) {},
+            ),
+            _walkerEmojiSizeSlider(g.extra),
+            _fontPicker(g.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
+            const SizedBox(height: 6),
+            _walkerModeTile(g.extra),
+            const SizedBox(height: 10),
+            _sectionLabel('رنگ قدم'),
+            _swatches(
+              (g.extra['footColor'] as String?) ?? '',
+              (c) => g.extra['footColor'] = c,
+              onInherit: () => g.extra.remove('footColor'),
+            ),
+            const SizedBox(height: 8),
+            _slider(
+              label: 'اندازه‌ی انیمیشن و دایره‌ی متصل',
+              value: walkerSize.clamp(kWalkerSizeMin, kWalkerSizeMax),
+              min: kWalkerSizeMin,
+              max: kWalkerSizeMax,
+              divisions: kWalkerSizeDivisions,
+              valueText: '${(walkerSize * 100).round()}٪',
+              onChanged: (v) => _edit(() => g.extra['walkerSize'] = v),
+            ),
+            _voiceField(g.extra, 'walkerVoice', 'walker:${g.id}'),
+            _videoField(g.extra, 'walkerVideo', 'walker:${g.id}'),
+            ..._walkerHaloControls(g.extra),
+          ]),
         ],
       ),
       _switchTile(
@@ -1399,6 +1449,60 @@ class _EditSheetState extends State<EditSheet> {
         title: 'قدم روی مسیر 👣',
         collapsible: true,
         children: [
+      Container(
+        margin: const EdgeInsets.only(top: 6, bottom: 4),
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: footPlaying
+                ? const Color(0xFFE5484D)
+                : const Color(0xFF0F5B53),
+            side: BorderSide(
+              color: footPlaying
+                  ? const Color(0xFFE5484D)
+                  : const Color(0xFF63D6A8),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: () => _edit(() => a.footPlaying = !a.footPlaying),
+          icon: Icon(
+            footPlaying
+                ? Icons.pause_circle_outline
+                : Icons.play_circle_outline,
+            size: 20,
+          ),
+          label: Text(
+            footPlaying ? 'توقف قدم' : 'شروع حرکت قدم',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+      const PanelLabel('عکس انیمیشن'),
+      WalkerPhotoField(
+        initial: walkerPhotosOf(a.extra),
+        showEmoji: false,
+        onChanged: (v) => _edit(() {
+          setWalkerPhotos(a.extra, v);
+          if (v.isNotEmpty) {
+            a.footPlaying = true;
+            a.footPos = null;
+          }
+        }),
+      ),
+      _personalize('actwalker:${a.id}', [
+        WalkerPhotoField(
+          showPhotos: false,
+          initialEmoji: walkerEmojiOf(a.extra),
+          onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(a.extra, e)),
+          onChanged: (_) {},
+        ),
+      _walkerEmojiSizeSlider(a.extra),
+      _fontPicker(a.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
+      _voiceField(a.extra, 'walkerVoice', 'walker:${a.id}'),
+      _videoField(a.extra, 'walkerVideo', 'walker:${a.id}'),
+      ..._walkerHaloControls(a.extra),
       _walkerModeTile(a.extra),
       _sectionLabel('رنگ قدم'),
       _swatches(
@@ -1437,54 +1541,6 @@ class _EditSheetState extends State<EditSheet> {
         valueText: '${(a.footSpeed ?? 1.0).toStringAsFixed(1)}×',
         onChanged: (v) => _edit(() => a.footSpeed = v),
       ),
-      Container(
-        margin: const EdgeInsets.only(top: 6, bottom: 4),
-        child: OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: footPlaying
-                ? const Color(0xFFE5484D)
-                : const Color(0xFF0F5B53),
-            side: BorderSide(
-              color: footPlaying
-                  ? const Color(0xFFE5484D)
-                  : const Color(0xFF63D6A8),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          onPressed: () => _edit(() => a.footPlaying = !a.footPlaying),
-          icon: Icon(
-            footPlaying
-                ? Icons.pause_circle_outline
-                : Icons.play_circle_outline,
-            size: 20,
-          ),
-          label: Text(
-            footPlaying ? 'توقف قدم' : 'شروع حرکت قدم',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-      ),
-      const PanelLabel('عکس انیمیشن'),
-      WalkerPhotoField(
-        initial: walkerPhotosOf(a.extra),
-        initialEmoji: walkerEmojiOf(a.extra),
-        onEmojiChanged: (e) => _editNow(() => setWalkerEmoji(a.extra, e)),
-        onChanged: (v) => _edit(() {
-          setWalkerPhotos(a.extra, v);
-          if (v.isNotEmpty) {
-            a.footPlaying = true;
-            a.footPos = null;
-          }
-        }),
-      ),
-      _walkerEmojiSizeSlider(a.extra),
-      _fontPicker(a.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
-      _voiceField(a.extra, 'walkerVoice', 'walker:${a.id}'),
-      _videoField(a.extra, 'walkerVideo', 'walker:${a.id}'),
-      ..._walkerHaloControls(a.extra),
       const Padding(
         padding: EdgeInsets.only(top: 4, bottom: 4),
         child: Text(
@@ -1492,6 +1548,7 @@ class _EditSheetState extends State<EditSheet> {
           style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6),
         ),
       ),
+      ]),
 
         ],
       ),
