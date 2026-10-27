@@ -199,6 +199,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
   /// هدف‌هایی که پنل ویرایش درجا (ایکون/عکس/اندازه) بازه
   final Set<String> _editing = {};
 
+  /// هدف‌هایی که در حالت «ویرایش» لیست‌اند (جابه‌جایی شاخه/زیرشاخه با کشیدن)
+  final Set<String> _reorderMode = {};
+
   int _tab = 0; // 0=در جریان, 1=محقق‌شده
   String _q = '';
   final _search = TextEditingController();
@@ -737,12 +740,19 @@ class _GoalsSheetState extends State<GoalsSheet> {
             height: 42,
             child: Row(
               children: [
-                _action(Icons.edit_outlined, 'ویرایش', _kGold, () {
-                  Navigator.pop(context);
-                  showEditSheet(
-                    widget.parentContext,
-                    h is Goal ? GoalTarget(h.id) : RingTarget(h.id),
-                  );
+                _action(
+                    _reorderMode.contains(h.id)
+                        ? Icons.check_rounded
+                        : Icons.edit_outlined,
+                    _reorderMode.contains(h.id) ? 'پایان ویرایش' : 'ویرایش',
+                    _kGold, () {
+                  // لیست اهداف (شاخه‌ها) باز می‌شود؛ با کشیدنِ دستگیره جابه‌جا می‌شوند
+                  setState(() {
+                    if (_reorderMode.remove(h.id)) return;
+                    _reorderMode.add(h.id);
+                    _open.add(h.id);
+                    _addingFor = null;
+                  });
                 }),
                 divider,
                 _action(Icons.my_location_rounded, 'روی نقشه', kGoalsMuted, () {
@@ -981,8 +991,33 @@ class _GoalsSheetState extends State<GoalsSheet> {
               child: Text('با ＋ شروع کن؛ مثلاً «گوش دادن به پادکست».',
                   style: TextStyle(color: kGoalsMuted)),
             ),
-          for (final a in h.actions)
-            ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
+          if (_reorderMode.contains(h.id) && h.actions.length > 1)
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: h.actions.length,
+              onReorder: (oldIdx, newIdx) {
+                setState(() {
+                  if (newIdx > oldIdx) newIdx--;
+                  final item = h.actions.removeAt(oldIdx);
+                  h.actions.insert(newIdx, item);
+                  store.changed();
+                });
+              },
+              itemBuilder: (ctx, i) => KeyedSubtree(
+                key: ValueKey(h.actions[i].id),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _nodeTiles(
+                      store, h, h.actions[i], pi, hostColor, 0, '',
+                      reorderIndex: i),
+                ),
+              ),
+            )
+          else
+            for (final a in h.actions)
+              ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
           ..._trophiesSection(store, h, hostColor),
 
           const SizedBox(height: 6),
@@ -1083,6 +1118,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             child: TextButton.icon(
               onPressed: () => setState(() {
                 _open.remove(h.id);
+                _reorderMode.remove(h.id);
                 _addingFor = null;
               }),
               icon: const Icon(Icons.expand_less, size: 18),
@@ -1167,9 +1203,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 ReorderableDragStartListener(
                   index: reorderIndex,
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 2),
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                     child: Icon(Icons.drag_indicator,
-                        size: 18, color: kGoalsMuted),
+                        size: 22, color: kGoalsMuted),
                   ),
                 ),
               GestureDetector(
