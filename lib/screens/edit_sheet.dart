@@ -1444,6 +1444,23 @@ class _EditSheetState extends State<EditSheet> {
         value: a.isRoutine,
         onChanged: (v) => _edit(() => a.isRoutine = v),
       ),
+      if (!a.isRoutine)
+        _switchTile(
+          boxed: true,
+          title: 'این کار کاملاً تموم شد',
+          subtitle:
+              'ثبت زمان یا تیکِ روز فقط یعنی «امروز کار کردم»؛ این کلید یعنی کار بسته شد',
+          value: a.extra['finished'] == true,
+          onChanged: (v) => _edit(() {
+            if (v) {
+              a.extra['finished'] = true;
+              a.extra['finishedAt'] = DateTime.now().millisecondsSinceEpoch;
+            } else {
+              a.extra.remove('finished');
+              a.extra.remove('finishedAt');
+            }
+          }),
+        ),
       _card(
         icon: Icons.directions_walk_rounded,
         title: 'قدم روی مسیر 👣',

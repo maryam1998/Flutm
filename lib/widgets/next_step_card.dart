@@ -254,6 +254,7 @@ class _NextStepCardState extends State<NextStepCard> {
             const SizedBox(height: 8),
             Row(
               children: [
+                _collapseBtn(wp),
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -266,30 +267,28 @@ class _NextStepCardState extends State<NextStepCard> {
                 ),
                 Text('${toFa(withStep)} از ${toFa(goals.length)} هدف',
                     style: TextStyle(fontSize: 10.5, color: wp.textDim)),
-                const SizedBox(width: 4),
-                InkWell(
-                  onTap: () => setState(() => _collapsed = true),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.keyboard_arrow_up,
-                        size: 18, color: wp.textDim),
-                  ),
-                ),
               ],
             ),
           ] else
             Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: InkWell(
-                onTap: () => setState(() => _collapsed = true),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
-                  child: Icon(Icons.keyboard_arrow_up,
-                      size: 18, color: wp.textDim),
-                ),
-              ),
+              alignment: AlignmentDirectional.centerStart,
+              child: _collapseBtn(wp),
             ),
         ],
+      ),
+    );
+  }
+
+  /// دکمه‌ی جمع‌کردنِ کارت: سمت راست (دست‌رس) و با ناحیه‌ی لمسِ بزرگ
+  Widget _collapseBtn(WebPalette wp) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _collapsed = true),
+      child: SizedBox(
+        width: 44,
+        height: 36,
+        child: Icon(Icons.keyboard_arrow_up_rounded,
+            size: 26, color: wp.textDim),
       ),
     );
   }

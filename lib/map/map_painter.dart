@@ -1323,7 +1323,22 @@ class MapPainter extends CustomPainter {
       _goalTrophy(canvas, h, col);
     }
 
-    if (trunkOnly) return;
+    if (trunkOnly) {
+      // جمع‌شده: مسیر شاخه‌ها (خطِ بسیار کم‌رنگ) و ردپای قدم‌ها می‌ماند
+      if (state.extra['doneFeetCollapse'] != true) {
+        final ga = _visibleActs(h.actions);
+        for (var i = 0; i < ga.length; i++) {
+          final t = math.min(0.9, 0.15 + i * 0.09);
+          _twigGhost(canvas, h, col, cp.at(t), cp.tangent(t), ga[i],
+              i.isEven ? 1 : -1, 1.0, tc,
+              route: [
+                for (var k = 0; k <= 16; k++) cp.at(t + (0.94 - t) * k / 16)
+              ],
+              trunkLane: (i % 3) - 1);
+        }
+      }
+      return;
+    }
     final acts = _visibleActs(h.actions);
     for (var i = 0; i < acts.length; i++) {
       final t = math.min(0.9, 0.15 + i * 0.09);
