@@ -371,7 +371,7 @@ Future<void> showFootStatsSheet(
               return Container(
                 margin: const EdgeInsets.fromLTRB(22, 0, 22, 12),
                 constraints: BoxConstraints(
-                    maxHeight: MediaQuery.sizeOf(ctx).height * 0.6),
+                    maxHeight: MediaQuery.sizeOf(ctx).height * 0.85),
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
                 decoration: BoxDecoration(
                   color: wp.panelBg,
@@ -454,10 +454,6 @@ Future<void> showFootStatsSheet(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               for (final m in months.values) monthGrid(m),
-                            ],
-                          ),
-                        ),
-                      ),
                       if (selDay != null) ...[
                         Builder(builder: (_) {
                           final n = f.node;
@@ -622,6 +618,10 @@ Future<void> showFootStatsSheet(
                           );
                         }),
                       ],
+                            ],
+                          ),
+                        ),
+                      ),
                       Row(
                         children: [
                           Expanded(
