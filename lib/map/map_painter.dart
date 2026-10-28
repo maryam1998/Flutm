@@ -648,6 +648,44 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  /// ایموجی‌های انیمیشنِ دارای عکس: بدون کادر سفید و با همان چیدمانِ «روی‌هم»ِ آیکونِ هدف
+  /// (اولی جلو و بزرگ‌تر، بقیه پشتش)، گوشه‌ی بالا-راستِ عکس.
+  void _walkerEmojiCluster(Canvas canvas, Offset c, double r, String emoji,
+      [double k = 1.0, String? ff]) {
+    final text = emoji.trim();
+    if (text.isEmpty) return;
+    final rr = math.max(11.0, r * 0.56) * k;
+    final bc = c + Offset(r * 0.78, -r * 0.78);
+    const black = Color(0xFF000000);
+    if (isTextIcon(text)) {
+      drawText(canvas, text, bc.dx, bc.dy,
+          size: rr * 0.95,
+          color: black,
+          weight: FontWeight.w600,
+          outline: 3,
+          vCenter: true,
+          fontFamily: ff);
+      return;
+    }
+    final cs = text.characters.where((e) => e.trim().isNotEmpty).take(3).toList();
+    if (cs.isEmpty) return;
+    if (cs.length == 1) {
+      drawText(canvas, cs.first, bc.dx, bc.dy,
+          size: rr * 1.7, color: black, vCenter: true);
+      return;
+    }
+    const slots = [
+      (0.28, 0.30, 1.25),
+      (-0.14, -0.34, 1.05),
+      (-0.46, 0.34, 0.85),
+    ];
+    for (var i = cs.length - 1; i >= 0; i--) {
+      drawText(canvas, cs[i], bc.dx + rr * slots[i].$1,
+          bc.dy + rr * slots[i].$2,
+          size: rr * slots[i].$3, color: black, vCenter: true);
+    }
+  }
+
   void _emojiBadge(Canvas canvas, Offset c, double r, String emoji,
       [double k = 1.0, String? ff]) {
     if (isTextIcon(emoji)) {
@@ -1913,7 +1951,10 @@ class MapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2.2
             ..color = withOp(col, 0.95));
-      if (hasEmoji) _emojiBadge(canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
+      if (hasEmoji) {
+        _walkerEmojiCluster(
+            canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
+      }
       if (!playing) {
         // نشان ▶ : با یک تپ دوباره راه می‌افته
         final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
