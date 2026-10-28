@@ -29,6 +29,10 @@ const kLabelRtlAnchor = false;
 const double _kReachedFade = 0.42;
 const double _kDoneFade = 0.5;
 
+/// وضعیتِ «انجام شد» برای مُهر و انیمیشنِ پاداش (فقط در حافظه‌ی همین اجرا)
+final Map<String, bool> _doneSeen = {};
+final Map<String, double> _doneBurstAt = {};
+
 double _l(double a, double b, double t) => a + (b - a) * t;
 
 /// ease in-out (کند → تند → کند)
@@ -1716,6 +1720,115 @@ class MapPainter extends CustomPainter {
     noteAbove(curKey, curNote, _lastBodyPos, _lastBodyR * 1.5 + 8);
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
     _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
+    // مُهرِ «انجام شد» + پالسِ عصبی تا هدف
+    _doneSeal(canvas, a, footDoneOn(a, todayK), route, _lastBodyPos, _lastBodyR);
+  }
+
+  /// پاداشِ مغز: وقتی قدمِ امروز ثبت شد
+  /// ۱) حلقه‌ی کامل و مُهرِ ✓ روی چهره (حالتِ دائمی تا آخر امروز)
+  /// ۲) لحظه‌ی ثبت: موج از چهره + پالسِ نوری که روی مسیر تا هدف می‌رود و آنجا می‌درخشد
+  void _doneSeal(Canvas canvas, ActionNode a, bool done, _Curve route,
+      Offset body, double bodyR) {
+    if (!done) {
+      _doneSeen[a.id] = false;
+      _doneBurstAt.remove(a.id);
+      return;
+    }
+    // انتقال از «نشده» به «شده» در همین اجرا → انیمیشن؛ بازکردن اپ با قدمِ انجام‌شده بی‌صدا
+    if (_doneSeen[a.id] == false) _doneBurstAt[a.id] = _t;
+    _doneSeen[a.id] = true;
+
+    const green = Color(0xFF1E9E6A);
+    canvas.drawCircle(
+        body,
+        bodyR * 1.9,
+        Paint()
+          ..color = withOp(green, 0.16)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
+    canvas.drawCircle(
+        body,
+        bodyR + 3.5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..color = withOp(green, 0.92));
+
+    // مُهر ✓ بالای قاب
+    final mc = body + Offset(0, -bodyR - 2);
+    const mr = 9.0;
+    canvas.drawCircle(mc, mr + 1.8, Paint()..color = const Color(0xF2FFFFFF));
+    canvas.drawCircle(mc, mr, Paint()..color = green);
+    final ck = Path()
+      ..moveTo(mc.dx - mr * 0.45, mc.dy + mr * 0.02)
+      ..lineTo(mc.dx - mr * 0.1, mc.dy + mr * 0.38)
+      ..lineTo(mc.dx + mr * 0.5, mc.dy - mr * 0.34);
+    canvas.drawPath(
+        ck,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.1
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round);
+
+    final t0 = _doneBurstAt[a.id];
+    if (t0 == null) return;
+    final el = _t - t0;
+    if (el > 2.6) {
+      _doneBurstAt.remove(a.id);
+      return;
+    }
+
+    // موج‌ها از چهره
+    for (var k = 0; k < 2; k++) {
+      final p = ((el - k * 0.35) / 1.1).clamp(0.0, 1.0).toDouble();
+      if (p <= 0 || p >= 1) continue;
+      final e = 1 - (1 - p) * (1 - p);
+      canvas.drawCircle(
+          body,
+          bodyR * (1.0 + 2.4 * e),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.0 * (1 - p) + 0.5
+            ..color = withOp(green, 0.7 * (1 - p)));
+    }
+
+    // پالسِ عصبی: از جای چهره روی مسیر تا هدف
+    var tb = 0.0;
+    var best = double.infinity;
+    for (var k = 0; k <= 40; k++) {
+      final d = (route.at(k / 40) - body).distanceSquared;
+      if (d < best) {
+        best = d;
+        tb = k / 40;
+      }
+    }
+    final u = ((el - 0.15) / 1.6).clamp(0.0, 1.0).toDouble();
+    final eu = u * u * (3 - 2 * u);
+    final head = tb + (1 - tb) * eu;
+    if (u > 0 && u < 1) {
+      for (var j = 0; j < 7; j++) {
+        final tj = math.max(tb, head - j * 0.018);
+        canvas.drawCircle(
+            route.at(tj),
+            math.max(1.2, 4.6 - j * 0.55),
+            Paint()
+              ..color = withOp(const Color(0xFFFFE08A), 0.95 - j * 0.12)
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5));
+      }
+    }
+    // رسیدن به هدف: درخششِ کوتاه
+    final pg = ((el - 1.75) / 0.8).clamp(0.0, 1.0).toDouble();
+    if (pg > 0 && pg < 1) {
+      final gp = route.at(1.0);
+      canvas.drawCircle(
+          gp,
+          8 + 30 * pg,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.2 * (1 - pg) + 0.5
+            ..color = withOp(const Color(0xFFFFC94D), 0.85 * (1 - pg)));
+    }
   }
 
   /// دکمه‌ی کوچک ⏱ کنار قدم: باز کردن تایمر و ثبت زمانِ امروز
