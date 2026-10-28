@@ -1241,7 +1241,7 @@ class _EditSheetState extends State<EditSheet> {
       _switchTile(
         boxed: true,
         title: 'به این هدف رسیدم',
-        subtitle: 'روی نقشه از من می‌پرسه چه حسی دارم',
+        subtitle: 'روی نقشه کم‌رنگ و جمع می‌شود',
         value: g.reached,
         onChanged: (v) => _edit(() {
           g.reached = v;

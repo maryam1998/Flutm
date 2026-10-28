@@ -25,6 +25,10 @@ import '../widgets/emoji_stack.dart' show isTextIcon;
 
 const kLabelRtlAnchor = false;
 
+/// پاداشِ دیداری: هدفِ رسیده‌شده / شاخه‌ی انجام‌شده‌ی امروز کم‌رنگ می‌شود
+const double _kReachedFade = 0.42;
+const double _kDoneFade = 0.5;
+
 double _l(double a, double b, double t) => a + (b - a) * t;
 
 /// ease in-out (کند → تند → کند)
@@ -309,8 +313,11 @@ class MapPainter extends CustomPainter {
         if (_isHidden(g)) continue;
         if (only && dimG(g) != dimPass) continue;
         final focusOpen = only && !dimPass;
-        _branches(canvas, g, tc,
-            trunkOnly: g.collapsed && g.actions.isNotEmpty && !focusOpen);
+        _fade(canvas, g.reached ? _kReachedFade : 1.0, () {
+          _branches(canvas, g, tc,
+              trunkOnly: g.reached ||
+                  (g.collapsed && g.actions.isNotEmpty && !focusOpen));
+        });
       }
       if (!state.ringsCollapsed) {
         for (final r in state.rings) {
@@ -318,8 +325,12 @@ class MapPainter extends CustomPainter {
           if (r.actions.isNotEmpty) {
             final lg = _goalOf(r);
             if (lg != null && _isHidden(lg)) continue;
-            _branches(canvas, r, tc,
-                trunkOnly: r.collapsed || (lg?.collapsed ?? false));
+            final lgReached = lg?.reached ?? false;
+            _fade(canvas, lgReached ? _kReachedFade : 1.0, () {
+              _branches(canvas, r, tc,
+                  trunkOnly:
+                      r.collapsed || (lg?.collapsed ?? false) || lgReached);
+            });
           }
         }
       }
@@ -345,7 +356,10 @@ class MapPainter extends CustomPainter {
       if (dimPass) canvas.saveLayer(null, dimPaint);
       for (final g in state.goals) {
         if (only && dimG(g) != dimPass) continue;
-        if (!_isHidden(g)) _drawGoal(canvas, g, tc);
+        if (!_isHidden(g)) {
+          _fade(canvas, g.reached ? _kReachedFade : 1.0,
+              () => _drawGoal(canvas, g, tc));
+        }
         _hideBtn(canvas, g, tc);
       }
       if (!state.ringsCollapsed) {
@@ -353,7 +367,8 @@ class MapPainter extends CustomPainter {
           if (only && dimR(r) != dimPass) continue;
           final lg = _goalOf(r);
           if (lg != null && _isHidden(lg)) continue;
-          _drawRing(canvas, r, tc);
+          _fade(canvas, (lg?.reached ?? false) ? _kReachedFade : 1.0,
+              () => _drawRing(canvas, r, tc));
         }
       }
       if (dimPass) canvas.restore();
@@ -373,6 +388,30 @@ class MapPainter extends CustomPainter {
   }
 
   bool _isHidden(Goal g) => g.extra['hidden'] == true;
+
+  /// اجرای [draw] با شفافیتِ [op] (۱ = بدون تغییر)
+  void _fade(Canvas canvas, double op, void Function() draw) {
+    if (op >= 0.999) {
+      draw();
+      return;
+    }
+    canvas.saveLayer(null, Paint()..color = Color.fromRGBO(0, 0, 0, op));
+    draw();
+    canvas.restore();
+  }
+
+  /// این شاخه و همه‌ی زیرشاخه‌هایش در روزِ [tk] انجام شده‌اند؟
+  bool _subtreeDone(ActionNode n, String tk) =>
+      footDoneOn(n, tk) &&
+      _visibleActs(n.children).every((k) => _subtreeDone(k, tk));
+
+  int _countVisible(List<ActionNode> list) {
+    var c = 0;
+    for (final n in list) {
+      c += 1 + _countVisible(_visibleActs(n.children));
+    }
+    return c;
+  }
 
   /// دکمه‌ی پنهان/نمایشِ کامل هدف: روی خط «من ← هدف»، کمی بیرون از دایره‌ی «من».
   /// هدفِ پنهان فقط به یک نگین کم‌رنگ با اسمش تبدیل می‌شود؛ با یک تپ برمی‌گردد.
@@ -2223,6 +2262,30 @@ class MapPainter extends CustomPainter {
     final isRoutine = a.isRoutine;
     final cs = _circleScaleOf(a);
     final atc = _tcOf(a.extra, tc);
+
+    // پاداش: شاخه‌ای که امروز انجام شده کم‌رنگ می‌شود؛ اگر خودش و همه‌ی
+    // زیرشاخه‌هایش انجام شده باشند، زیرشاخه‌ها هم جمع می‌شوند (فقط برای امروز).
+    final tk = todayJK();
+    final doneNow = footDoneOn(a, tk);
+    final visKids = _visibleActs(a.children);
+    final foldKids =
+        doneNow && visKids.isNotEmpty && visKids.every((k) => _subtreeDone(k, tk));
+    var fadeOpen = false;
+    void openFade() {
+      if (doneNow && !fadeOpen) {
+        canvas.saveLayer(null, Paint()..color = Color.fromRGBO(0, 0, 0, _kDoneFade));
+        fadeOpen = true;
+      }
+    }
+
+    void closeFade() {
+      if (fadeOpen) {
+        canvas.restore();
+        fadeOpen = false;
+      }
+    }
+
+    openFade();
     final geom = geo.computeTwigGeom(h, a, originPt, originDir, side, scale);
     geo.applyBranchStyle(geom, geo.effBranchStyle(h, a), side);
     final end = geom.end;
@@ -2277,13 +2340,16 @@ class MapPainter extends CustomPainter {
         }
       }
       own.addAll(route);
+      closeFade();
       _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id);
+      openFade();
     }
 
-    final kids = _visibleActs(a.children);
+    final kids = foldKids ? const <ActionNode>[] : visKids;
     if (kids.isNotEmpty) {
       canvas.drawCircle(end, math.max(2.0, 2.6 * scale) * cs,
           _stroke(color, 1.2, 0.55));
+      closeFade(); // زیرشاخه‌ها با شفافیتِ خودشان کشیده می‌شوند
       for (var i = 0; i < kids.length; i++) {
         // اولین زیرشاخه‌ی لیست سرِ شاخه (نوک) است؛ بعدی‌ها به‌ترتیب به ابتدای شاخه نزدیک می‌شوند
         // کل طول شاخه استفاده می‌شود تا زیرشاخه‌ها یک‌جا جمع نشوند
@@ -2315,6 +2381,7 @@ class MapPainter extends CustomPainter {
             trunkLane: trunkLane,
             depth: depth + 1);
       }
+      openFade();
     } else if (a.images.isNotEmpty) {
       final radius = math.max(1.8, 2 + weight * 0.28 * scale);
       final cnt = math.min(a.images.length, 3);
@@ -2346,6 +2413,12 @@ class MapPainter extends CustomPainter {
     } else {
       canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale) * cs,
           Paint()..color = color);
+    }
+
+    if (foldKids) {
+      drawText(canvas, '+${toFa(_countVisible(visKids))}', end.dx,
+          end.dy + 17 * math.max(0.8, scale),
+          size: 10, color: atc, outline: 2);
     }
 
     if (state.extra['todayOnly'] == true &&
@@ -2416,5 +2489,6 @@ class MapPainter extends CustomPainter {
         }
       }
     }
+    closeFade();
   }
 }

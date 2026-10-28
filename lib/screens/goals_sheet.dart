@@ -902,44 +902,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   Text(when,
                       style:
                           const TextStyle(fontSize: 11, color: kGoalsMuted)),
-                if (g.feeling.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('💗 ',
-                            style: TextStyle(fontSize: 11)),
-                        Expanded(
-                          child: Text(
-                            g.feeling,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: kGoalsMuted,
-                                fontStyle: FontStyle.italic,
-                                height: 1.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: TextButton.icon(
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 28),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: () => _editFeeling(store, g),
-                      icon: const Text('💗', style: TextStyle(fontSize: 12)),
-                      label: const Text('حس خودت را بنویس',
-                          style: TextStyle(fontSize: 11.5)),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -2372,74 +2334,6 @@ class _GoalsSheetState extends State<GoalsSheet> {
           ],
         ),
       );
-
-  Future<void> _editFeeling(MapStore store, Goal g) async {
-    final c = TextEditingController(text: g.feeling);
-    final res = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: kGoalsBg,
-      builder: (ctx) => goalsLightSheet(Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 0,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Row(
-              children: [
-                Text('💗 ', style: TextStyle(fontSize: 18)),
-                Text('حالا که به این هدف رسیدی، چه حسی داری؟',
-                    style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: c,
-              autofocus: true,
-              maxLines: 5,
-              minLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'همین‌جا بنویسش...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('لغو'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(ctx, c.text.trim()),
-                    child: const Text('ذخیره'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      )),
-    );
-    c.dispose();
-    if (res != null) {
-      g.feeling = res;
-      store.changed();
-      setState(() {});
-    }
-  }
 
   double _sumDay(MapHost h, String jk) {
     double t = 0;
