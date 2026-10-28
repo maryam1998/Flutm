@@ -165,6 +165,13 @@ class _Trophy {
   final String parentText;
 }
 
+/// داده‌ی کشیدنِ یک شاخه (برای انداختن روی شاخه‌ی دیگر)
+class _NodeDrag {
+  const _NodeDrag(this.hostId, this.node);
+  final String hostId;
+  final ActionNode node;
+}
+
 class GoalsSheet extends StatefulWidget {
   const GoalsSheet({
     super.key,
@@ -200,6 +207,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
   final _daysOpen = <String>{};
   final _statsOpen = <String>{};
   String? _addingFor;
+
+  /// شاخه‌ای که همین الان با انگشت کشیده می‌شود (برای نشان‌دادنِ «شاخه‌ی اصلی» پایین لیست)
+  ActionNode? _dragNode;
+  String _dragHostId = '';
   List<String> _currentVisibleOrder = [];
 
   @override
@@ -1031,6 +1042,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
           else
             for (final a in h.actions)
               ..._nodeTiles(store, h, a, pi, hostColor, 0, ''),
+          _rootDropZone(store, h),
           ..._trophiesSection(store, h, hostColor),
 
           const SizedBox(height: 6),
@@ -1221,6 +1233,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                         size: 22, color: kGoalsMuted),
                   ),
                 ),
+              _moveHandle(h, n),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => store.toggleLog(h, n, pi.todayJK),
@@ -1393,19 +1406,34 @@ class _GoalsSheetState extends State<GoalsSheet> {
       ),
     );
 
-    final tile = Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
-            BoxShadow(
-                color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: tileBody,
+    final tile = DragTarget<_NodeDrag>(
+      onWillAcceptWithDetails: (d) => _canDropInto(h, d.data, n),
+      onAcceptWithDetails: (d) => _moveNode(store, h, d.data.node, n),
+      builder: (ctx, cand, rej) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2)),
+            ],
+          ),
+          child: Container(
+            foregroundDecoration: cand.isEmpty
+                ? null
+                : BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: color.withAlpha(40),
+                    border: Border.all(color: color, width: 2.5),
+                  ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: tileBody,
+            ),
+          ),
         ),
       ),
     );
@@ -1970,6 +1998,117 @@ class _GoalsSheetState extends State<GoalsSheet> {
     store.state.extra['goalOrder'] = List<String>.from(_currentVisibleOrder);
     store.changed();
     setState(() {});
+  }
+
+  // ------------------------------------------------------------------ کشیدنِ شاخه زیرِ شاخه‌ی دیگر
+
+  /// دستگیره‌ی ✥: نگه دار و با انگشت روی شاخه‌ی دیگر بکش تا زیرشاخه‌اش شود
+  Widget _moveHandle(MapHost h, ActionNode n) {
+    const grip = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Icon(Icons.open_with, size: 20, color: kGoalsMuted),
+    );
+    return LongPressDraggable<_NodeDrag>(
+      data: _NodeDrag(h.id, n),
+      delay: const Duration(milliseconds: 180),
+      hapticFeedbackOnStart: true,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedbackOffset: const Offset(0, -56),
+      onDragStarted: () => setState(() {
+        _dragNode = n;
+        _dragHostId = h.id;
+      }),
+      onDragEnd: (_) {
+        if (mounted) setState(() => _dragNode = null);
+      },
+      feedback: Material(
+        color: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: hexColor(n.color, kGoalsMuted), width: 2),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 4)),
+            ],
+          ),
+          child: Text(
+            n.text.isEmpty ? 'بدون نام' : n.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontSize: 14,
+                color: kGoalsInk,
+                fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: grip),
+      child: grip,
+    );
+  }
+
+  /// آیا [drag] را می‌شود زیرِ [target] انداخت؟ (همان هدف، نه خودش، نه نوه‌اش، نه پدر فعلی‌اش)
+  bool _canDropInto(MapHost h, _NodeDrag drag, ActionNode target) {
+    if (drag.hostId != h.id) return false;
+    if (drag.node.id == target.id) return false;
+    if (findActionNode(drag.node.children, target.id) != null) return false;
+    final f = findActionNode(h.actions, drag.node.id);
+    if (f == null) return false;
+    return !identical(f.list, target.children);
+  }
+
+  /// [newParent] == null یعنی شاخه‌ی اصلیِ هدف شود
+  void _moveNode(
+      MapStore store, MapHost h, ActionNode node, ActionNode? newParent) {
+    final f = findActionNode(h.actions, node.id);
+    if (f == null) return;
+    final dest = newParent?.children ?? h.actions;
+    if (identical(f.list, dest)) return;
+    if (newParent != null) {
+      if (newParent.id == node.id ||
+          findActionNode(node.children, newParent.id) != null) {
+        return;
+      }
+    }
+    f.list.remove(node);
+    dest.add(node);
+    h.collapsed = false;
+    h.lastActivity = DateTime.now().millisecondsSinceEpoch;
+    store.changed();
+    setState(() {
+      _dragNode = null;
+      _addingFor = null;
+    });
+  }
+
+  /// فقط وقتی یک زیرشاخه در حال کشیده‌شدن است: انداختن اینجا = شاخه‌ی اصلی
+  Widget _rootDropZone(MapStore store, MapHost h) {
+    final dn = _dragNode;
+    if (dn == null || _dragHostId != h.id) return const SizedBox.shrink();
+    if (h.actions.any((a) => a.id == dn.id)) return const SizedBox.shrink();
+    return DragTarget<_NodeDrag>(
+      onWillAcceptWithDetails: (d) => d.data.hostId == h.id,
+      onAcceptWithDetails: (d) => _moveNode(store, h, d.data.node, null),
+      builder: (ctx, cand, rej) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: cand.isEmpty ? Colors.transparent : _kGold.withAlpha(40),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kGold, width: cand.isEmpty ? 1.5 : 2.5),
+        ),
+        child: const Text('اینجا رها کن تا شاخه‌ی اصلی شود',
+            style: TextStyle(
+                fontSize: 13, color: kGoalsInk, fontWeight: FontWeight.w600)),
+      ),
+    );
   }
 
   List<Widget> _childrenList(
