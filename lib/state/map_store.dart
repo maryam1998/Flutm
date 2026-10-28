@@ -41,6 +41,21 @@ class MapStore extends ChangeNotifier {
     }
   }
 
+  /// قبل از بازیابی بکاپ: ذخیره‌ی منتظرِ نقشه‌ی فعلی لغو شود تا روی داده‌ی بازیابی‌شده ننشیند
+  void cancelPendingSave() {
+    _timer?.cancel();
+    _dirty = false;
+  }
+
+  /// بعد از بازیابی بکاپ: نقشه دوباره از حافظه خوانده می‌شود (بدون بستن برنامه)
+  Future<void> reloadFromStorage() async {
+    cancelPendingSave();
+    state = MapState();
+    loadedFromFile = false;
+    await load();
+    notifyListeners();
+  }
+
   /// ذخیره‌ی با تأخیر (بدون بازسازی UI). موقع درگ استفاده میشه چون painter خودش هر فریم دوباره می‌کشه
   void touch() => _schedule(const Duration(milliseconds: 900));
 

@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../services/full_backup.dart';
 import '../services/storage.dart';
+import '../state/abundance_store.dart';
+import '../state/angels_store.dart';
+import '../state/background_store.dart';
+import '../state/beliefs_store.dart';
+import '../state/gratitude_store.dart';
+import '../state/map_store.dart';
+import '../state/motivation_store.dart';
+import '../state/shenakht_store.dart';
+import '../state/theme_store.dart';
 
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF5B5F77);
@@ -136,9 +146,14 @@ class _BackupSectionState extends State<BackupSection> {
 
   /// ساخت و ذخیره‌ی فایل بکاپ؛ true = کاربر فایل را ذخیره کرد
   Future<bool> _doExport({required bool media, String? prefix}) async {
+    // آخرین تغییرِ نقشه هم داخل بکاپ بیاید
+    try {
+      await context.read<MapStore>().flushIfDirty();
+    } catch (_) {}
     final json = await FullBackup.build(includeMedia: media);
     final ok = await StorageService().exportBackup(json,
-        prefix: prefix ?? (media ? 'maghz-full-backup' : 'maghz-lite-backup'));
+        prefix: prefix ??
+            (media ? 'Same Frequency' : 'Same Frequency - lite'));
     if (ok) {
       await FullBackup.markBackedUp();
       await _loadLast();
@@ -178,11 +193,35 @@ class _BackupSectionState extends State<BackupSection> {
     }
     if (raw == null || !mounted) return;
 
+    // storeها پیش از هر await گرفته می‌شن تا بعد از بازیابی، همه فوراً دوباره بارگذاری بشن
+    final reloaders = <Future<void> Function()>[
+      context.read<MapStore>().reloadFromStorage,
+      context.read<ThemeStore>().load,
+      context.read<BackgroundStore>().load,
+      context.read<MotivationStore>().load,
+      context.read<GratitudeStore>().load,
+      context.read<BeliefsStore>().load,
+      context.read<AbundanceStore>().load,
+      context.read<AngelsStore>().load,
+      context.read<ShenakhtStore>().load,
+    ];
+    final mapStore = context.read<MapStore>();
+
     BackupInfo info;
     try {
       info = FullBackup.describe(raw);
     } catch (e) {
-      _say('این فایل بکاپ معتبر نیست', ok: false);
+      // بکاپ‌های قدیمیِ «فقط نقشه» هم همچنان قابل بازیابی‌اند
+      try {
+        setState(() => _busy = true);
+        await mapStore.importJson(raw);
+        _say('این فایل فقط داده‌ی نقشه داشت و همان بازیابی شد ✅\n'
+            'برای بقیه‌ی بخش‌ها از «بکاپ کامل» استفاده کن.');
+      } catch (_) {
+        _say('این فایل بکاپ معتبر نیست', ok: false);
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
       return;
     }
 
@@ -193,15 +232,26 @@ class _BackupSectionState extends State<BackupSection> {
     try {
       if (safety) {
         final saved =
-            await _doExport(media: true, prefix: 'maghz-before-restore');
+            await _doExport(media: true, prefix: 'Same Frequency - before restore');
         if (!saved) {
           _say('بازیابی لغو شد (بکاپ ایمنی ذخیره نشد)', ok: false);
           return;
         }
       }
+      // ذخیره‌ی منتظرِ نقشه‌ی قدیمی نباید روی داده‌ی بازیابی‌شده بنشیند
+      mapStore.cancelPendingSave();
       final r = await FullBackup.restore(raw);
+      var reloadFailed = false;
+      for (final reload in reloaders) {
+        try {
+          await reload();
+        } catch (_) {
+          reloadFailed = true;
+        }
+      }
       _say('${toFa(r.prefs + r.files)} مورد و ${toFa(r.videos)} رسانه بازیابی شد ✅\n'
-          'برنامه را کامل ببند و دوباره باز کن.');
+          '${reloadFailed ? 'بعضی بخش‌ها هنوز تازه نشدند؛ ' : ''}'
+          'داده‌ها همین الان بارگذاری شدند. اگر جایی هنوز داده‌ی قدیمی دیدی، برنامه را کامل ببند و دوباره باز کن.');
     } catch (e) {
       _say('بازیابی ناموفق بود: $e', ok: false);
     } finally {
@@ -217,7 +267,7 @@ class _BackupSectionState extends State<BackupSection> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
           backgroundColor: Colors.white,
-          title: const Text('بازیابی از بکاپ',
+          title: const Text('بازیابی از بکاپ Same Frequency',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -444,4 +494,36 @@ class _BackupSectionState extends State<BackupSection> {
       ],
     );
   }
+}
+
+/// پنجره‌ی «بکاپ و بازیابی» برای تب‌های دیگر (مثلاً منوی نقشه): همان بکاپ کامل کل برنامه
+Future<void> showFullBackupSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+            14, 18, 14, 18 + MediaQuery.viewInsetsOf(ctx).bottom),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('بکاپ و بازیابی Same Frequency',
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w800, color: _kInk)),
+            SizedBox(height: 4),
+            Text('همه‌ی تب‌ها و داده‌های برنامه در یک فایل ذخیره و بازیابی می‌شود.',
+                style: TextStyle(fontSize: 12, color: _kMuted, height: 1.6)),
+            SizedBox(height: 12),
+            BackupSection(),
+          ],
+        ),
+      ),
+    ),
+  );
 }

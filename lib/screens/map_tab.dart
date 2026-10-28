@@ -8,12 +8,12 @@ import '../map/map_ops.dart';
 import '../map/today_focus.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
-import '../services/storage.dart';
 import '../state/background_store.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
+import '../widgets/backup_section.dart';
 import '../widgets/map_video_overlay.dart';
 import '../widgets/next_step_card.dart';
 import '../widgets/step_reward.dart';
@@ -479,42 +479,13 @@ class _MapTabState extends State<MapTab> {
             child: Text(_resizeMode
                 ? 'خاموش کردن حالت تغییر اندازه'
                 : 'حالت تغییر اندازه')),
-        const PopupMenuItem(value: 'in', child: Text('ورودی بکاپ (JSON)')),
-        const PopupMenuItem(value: 'out', child: Text('خروجی بکاپ')),
+        const PopupMenuItem(
+            value: 'backup', child: Text('بکاپ و بازیابی (کل برنامه)')),
       ],
     ).then((v) {
       if (v == 'resize') setState(() => _resizeMode = !_resizeMode);
-      if (v == 'in') _import(context, store);
-      if (v == 'out') _export(context, store);
+      if (v == 'backup' && mounted) showFullBackupSheet(context);
     });
-  }
-
-  Future<void> _import(BuildContext context, MapStore store) async {
-    final msg = ScaffoldMessenger.of(context);
-    try {
-      final raw = await StorageService().pickBackup();
-      if (raw == null) return;
-      await store.importJson(raw);
-      msg.quietSnack(const SnackBar(content: Text('بکاپ وارد شد')));
-    } catch (e) {
-      msg.showSnackBar(
-          SnackBar(content: Text('ورود بکاپ ناموفق بود: $e')));
-    }
-  }
-
-  Future<void> _export(BuildContext context, MapStore store) async {
-    final msg = ScaffoldMessenger.of(context);
-    try {
-      final ok = await StorageService().exportBackup(await store.exportJson());
-      if (ok) {
-        msg.showSnackBar(SnackBar(
-          duration: const Duration(seconds: 8),
-          content: Text('بکاپ ذخیره شد\n${StorageService.describeExportLocation()}'),
-        ));
-      }
-    } catch (e) {
-      msg.showSnackBar(SnackBar(content: Text('خروجی ناموفق بود: $e')));
-    }
   }
 }
 
