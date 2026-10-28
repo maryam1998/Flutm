@@ -332,11 +332,11 @@ class MapPainter extends CustomPainter {
       for (final g in state.goals) {
         if (_isHidden(g)) continue;
         if (only && dimG(g) != dimPass) continue;
-        final focusOpen = only && !dimPass;
+        // جمع‌کردنِ هدف (دکمه‌ی ۹ یا دکمه‌ی بالا-چپ) در حالت «فقط امروز» هم رعایت می‌شود
         _fade(canvas, g.reached ? _kReachedFade : 1.0, () {
           _branches(canvas, g, tc,
               trunkOnly: g.reached ||
-                  (g.collapsed && g.actions.isNotEmpty && !focusOpen));
+                  (g.collapsed && g.actions.isNotEmpty));
         });
       }
       if (!state.ringsCollapsed) {
@@ -2722,9 +2722,33 @@ class MapPainter extends CustomPainter {
       final cy = end.dy + 17 * math.max(0.8, scale);
       Rect rr;
       if (foldKids) {
-        rr = drawText(canvas, '${toFa(_countFinished(visKids))} از ${toFa(total)}',
-            end.dx, cy,
-            size: 10, color: withOp(atc, 0.85), outline: 2);
+        // شاخه‌ی جمع‌شده: «قرص» قابل‌لمس با فلشِ باز کردن (قبلاً فقط یک نوشته‌ی ریز بود)
+        final label = '${toFa(_countFinished(visKids))} از ${toFa(total)}';
+        final tr = drawText(canvas, label, end.dx - 4, cy,
+            size: 10.5, color: withOp(atc, 0.95), outline: 2);
+        final pill = RRect.fromRectAndRadius(
+            Rect.fromLTRB(tr.left - 7, tr.top - 3, tr.right + 17, tr.bottom + 3),
+            const Radius.circular(10));
+        canvas.drawRRect(pill, Paint()..color = withOp(atc, 0.10));
+        canvas.drawRRect(
+            pill,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.1
+              ..color = withOp(atc, 0.55));
+        final ch = Offset(tr.right + 8, tr.center.dy);
+        canvas.drawPath(
+            Path()
+              ..moveTo(ch.dx - 3, ch.dy - 1.5)
+              ..lineTo(ch.dx, ch.dy + 1.8)
+              ..lineTo(ch.dx + 3, ch.dy - 1.5),
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.6
+              ..strokeCap = StrokeCap.round
+              ..strokeJoin = StrokeJoin.round
+              ..color = withOp(atc, 0.85));
+        rr = pill.outerRect;
       } else {
         final cc = Offset(end.dx, cy - 3);
         canvas.drawCircle(cc, 6.5, Paint()..color = withOp(atc, 0.10));

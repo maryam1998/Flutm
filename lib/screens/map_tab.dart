@@ -15,6 +15,7 @@ import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
 import '../widgets/backup_section.dart';
 import '../widgets/map_video_overlay.dart';
+import '../widgets/finish_reward.dart';
 import '../widgets/next_step_card.dart';
 import '../widgets/step_reward.dart';
 import 'add_goal_dialog.dart';
@@ -47,6 +48,15 @@ class _MapTabState extends State<MapTab> {
     // پاداش فوری بعد از تیک زدنِ هر قدم
     _store.onStepDone = (h, n) {
       if (!mounted) return;
+      // «کاملاً تمام شد» → پاداشِ کاملِ مغز (پیشرفت + حسِ پیروزی + یک جمله)
+      if (FinishReward.isFresh(n)) {
+        StepReward.play(context, sub: 'یک کار تمام شد ✅');
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (!mounted) return;
+          FinishReward.show(context, store: _store, host: h, node: n);
+        });
+        return;
+      }
       final jk = jKey(DateTime.now());
       var total = 0;
       for (final g in _store.state.goals) {
