@@ -254,6 +254,11 @@ class MapInteraction {
       store.toggleGoalCollapse(hit.id);
       return;
     }
+    if (_ptrs.isEmpty && hit != null && hit.type == 'foldToggle') {
+      HapticFeedback.selectionClick();
+      store.toggleActionFold(hit.id);
+      return;
+    }
 
     // دکمه‌ی پلی/توقف و دکمه‌ی تعداد تکرار (۱× ۲× ۳× ∞) کنار گره‌هایی که صدا دارند
     if (_ptrs.isEmpty && hit != null && hit.type == 'voicePlay') {

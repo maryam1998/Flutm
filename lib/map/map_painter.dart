@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show StringCharacters;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../models/constants.dart';
 import '../models/jalali.dart';
@@ -32,6 +33,21 @@ const double _kDoneFade = 0.5;
 /// وضعیتِ «انجام شد» برای مُهر و انیمیشنِ پاداش (فقط در حافظه‌ی همین اجرا)
 final Map<String, bool> _doneSeen = {};
 final Map<String, double> _doneBurstAt = {};
+
+/// شفافیتِ قدم‌زنِ (عکس + پاها) بعد از «انجام شد»
+const double _kDoneWalkerFade = 0.42;
+
+/// وضعیتِ جمع/بازشدنِ حلزونیِ زیرشاخه‌ها (فقط در حافظه‌ی همین اجرا)
+/// p: ۱ = کاملاً باز ، ۰ = کاملاً جمع
+class _FoldRt {
+  double p = 1.0;
+  bool? target;
+  double lastT = 0;
+  double delayUntil = 0;
+  double msgAt = -100;
+}
+
+final Map<String, _FoldRt> _foldRt = {};
 
 double _l(double a, double b, double t) => a + (b - a) * t;
 
@@ -402,6 +418,46 @@ class MapPainter extends CustomPainter {
     canvas.saveLayer(null, Paint()..color = Color.fromRGBO(0, 0, 0, op));
     draw();
     canvas.restore();
+  }
+
+  /// پیشبردِ انیمیشنِ جمع/بازشدنِ زیرشاخه‌های [id]؛ بدون زیرشاخه → null
+  _FoldRt? _stepFold(String id, bool hasKids, bool wantFold, int n) {
+    if (!hasKids) {
+      _foldRt.remove(id);
+      return null;
+    }
+    var fr = _foldRt[id];
+    if (fr == null) {
+      // اولین دیدن (مثلاً بازکردن اپ): بدون انیمیشن، مستقیم در حالتِ درست
+      fr = _FoldRt()
+        ..p = wantFold ? 0.0 : 1.0
+        ..target = wantFold
+        ..lastT = _t;
+      _foldRt[id] = fr;
+      return fr;
+    }
+    if (fr.target != wantFold) {
+      fr.target = wantFold;
+      // ۳۰۰ میلی‌ثانیه بعد از جشنِ تیک → جمع شدن (پاداشِ دوم)
+      fr.delayUntil = wantFold ? _t + 0.3 : _t;
+      if (wantFold) fr.msgAt = _t + 0.3;
+    }
+    final dt = (_t - fr.lastT).clamp(0.0, 0.05).toDouble();
+    fr.lastT = _t;
+    if (_t >= fr.delayUntil) {
+      final dur = n > 14 ? 0.45 : 0.75;
+      fr.p = (fr.p + (wantFold ? -dt : dt) / dur).clamp(0.0, 1.0).toDouble();
+    }
+    return fr;
+  }
+
+  /// شفافیتِ قدم‌زن: بعد از انجام، نرم به حالتِ کم‌رنگ می‌رود
+  double _doneWalkerOp(ActionNode a, String tk) {
+    if (!footDoneOn(a, tk)) return 1.0;
+    final t0 = _doneBurstAt[a.id];
+    if (t0 == null) return _kDoneWalkerFade;
+    final p = ((_t - t0 - 0.5) / 0.6).clamp(0.0, 1.0).toDouble();
+    return _l(1.0, _kDoneWalkerFade, p * p * (3 - 2 * p));
   }
 
   /// این شاخه و همه‌ی زیرشاخه‌هایش در روزِ [tk] انجام شده‌اند؟
@@ -1502,7 +1558,8 @@ class MapPainter extends CustomPainter {
   /// قدم‌زن شاخه/زیرشاخه: از نقطه‌ی ساخته شدن شاخه، روی شاخه‌های پدر تا تنه،
   /// و بعد روی تنه تا هدف اصلی؛ رفت و برگشتی.
   void _branchWalker(Canvas canvas, List<Offset> routePts, int lane,
-      ActionNode a, Color color0, double baseSize, String hostId) {
+      ActionNode a, Color color0, double baseSize, String hostId,
+      {bool ghost = false}) {
     if (routePts.length < 2) return;
     // کاربر «نمایش انیمیشن» این شاخه/زیرشاخه را خاموش کرده (فقط یادداشت‌ها
     // اگه روشن باشند هنوز کشیده می‌شوند)
@@ -1514,7 +1571,8 @@ class MapPainter extends CustomPainter {
         : color0;
     final todayK = jKey(DateTime.now());
     final doneToday = footDoneToday(a, todayK);
-    final fixed = _pastDoneDays(a, todayK);
+    final fixed = _pastDoneDays(a, todayK) +
+        ((ghost && footDoneOn(a, todayK)) ? 1 : 0);
     final route = _RouteCurve(routePts);
     hits.routes[a.id] = routePts;
     final sizeMul = state.footScale.clamp(kFootScaleMin, kFootScaleMax);
@@ -1540,7 +1598,7 @@ class MapPainter extends CustomPainter {
     // جفت پا کنار هم (چپ و راست روی یک نقطه)، کمی کم‌رنگ‌تر از قدمِ امروز
     // روزهای انجام‌شده به ترتیب تاریخ؛ هر قدمِ کم‌رنگ = یک روز (تپ = تقویم همان روز)
     final pastDayKeys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys}
-        .where((k) => k != todayK && _doneOn(a, k))
+        .where((k) => (k != todayK || ghost) && _doneOn(a, k))
         .toList()
       ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
     for (var k = 0; k < fixed && !hiddenW; k++) {
@@ -1559,6 +1617,9 @@ class MapPainter extends CustomPainter {
         ));
       }
     }
+
+    // شاخه‌ی جمع‌شده: فقط ردپای پیشرفت می‌ماند
+    if (ghost) return;
 
     // یادداشتِ روزها: بالای پاها، مشکی، بدون دورخط؛ همراه با انیمیشن
     // (چه متحرک، چه ثابت، چه پنهان)
@@ -1653,7 +1714,8 @@ class MapPainter extends CustomPainter {
     final still = walkerIsStill(a.extra);
     final playingNow = !still && footEffectivePlaying(a, todayK);
 
-    void core(bool playing, double? manual) => _walkerCore(
+    void core(bool playing, double? manual) =>
+        _fade(canvas, _doneWalkerOp(a, todayK), () => _walkerCore(
           canvas,
           route,
           color,
@@ -1680,7 +1742,7 @@ class MapPainter extends CustomPainter {
           haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
           voiceExtra: a.extra,
           followManual: true,
-        );
+        ));
 
     if (!doneToday) {
       // ─── امروز هنوز ثبت نشده: قدم جدید، پررنگ (متوقف؛ مگر کاربر پلی بزند) ───
@@ -1719,7 +1781,12 @@ class MapPainter extends CustomPainter {
     // یادداشت بالای انیمیشن، همراه با حرکتش
     noteAbove(curKey, curNote, _lastBodyPos, _lastBodyR * 1.5 + 8);
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
-    _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
+    // بعد از انجام، دکمه‌ی ⏱ فقط با زوم دیده می‌شود (نقشه خلوت بماند)
+    if (!footDoneOn(a, todayK) ||
+        (a.timerStart ?? 0) > 0 ||
+        cam.scale >= 1.4) {
+      _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
+    }
     // مُهرِ «انجام شد» + پالسِ عصبی تا هدف
     _doneSeal(canvas, a, footDoneOn(a, todayK), route, _lastBodyPos, _lastBodyR,
         (a.time[todayK] as num?)?.toDouble() ?? 0);
@@ -1736,47 +1803,61 @@ class MapPainter extends CustomPainter {
       return;
     }
     // انتقال از «نشده» به «شده» در همین اجرا → انیمیشن؛ بازکردن اپ با قدمِ انجام‌شده بی‌صدا
-    if (_doneSeen[a.id] == false) _doneBurstAt[a.id] = _t;
+    if (_doneSeen[a.id] == false) {
+      _doneBurstAt[a.id] = _t;
+      HapticFeedback.lightImpact();
+    }
     _doneSeen[a.id] = true;
 
     const green = Color(0xFF1E9E6A);
-    canvas.drawCircle(
-        body,
-        bodyR * 1.9,
-        Paint()
-          ..color = withOp(green, 0.16)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
-    canvas.drawCircle(
-        body,
-        bodyR + 3.5,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..color = withOp(green, 0.92));
+    final tb0 = _doneBurstAt[a.id];
+    final el0 = tb0 == null ? 99.0 : _t - tb0;
 
-    // زمانِ ثبت‌شده‌ی امروز زیرِ چهره
-    if (todaySecs > 0) {
-      drawText(canvas, '⏱ ${fmtDur(todaySecs)}', body.dx, body.dy + bodyR + 20,
-          size: 10.5, color: green, outline: 2.5);
+    // حلقه: بعد از تیک، ساعت‌گرد پر می‌شود؛ بعدش یک حلقه‌ی ساده و آرام (بدون هاله)
+    final ringR = bodyR + 3.5;
+    final sweep = Curves.easeOutCubic.transform((el0 / 0.45).clamp(0.0, 1.0).toDouble());
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round
+      ..color = withOp(green, 0.9);
+    if (sweep >= 0.999) {
+      canvas.drawCircle(body, ringR, ringPaint);
+    } else {
+      canvas.drawArc(Rect.fromCircle(center: body, radius: ringR), -math.pi / 2,
+          2 * math.pi * sweep, false, ringPaint);
     }
 
-    // مُهر ✓ بالای قاب
-    final mc = body + Offset(0, -bodyR - 2);
-    const mr = 9.0;
-    canvas.drawCircle(mc, mr + 1.8, Paint()..color = const Color(0xF2FFFFFF));
-    canvas.drawCircle(mc, mr, Paint()..color = green);
-    final ck = Path()
-      ..moveTo(mc.dx - mr * 0.45, mc.dy + mr * 0.02)
-      ..lineTo(mc.dx - mr * 0.1, mc.dy + mr * 0.38)
-      ..lineTo(mc.dx + mr * 0.5, mc.dy - mr * 0.34);
-    canvas.drawPath(
-        ck,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.1
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round);
+    // تیکِ ادغام‌شده روی خودِ حلقه (نه شناور بالای عکس)
+    final bp = Curves.easeOutBack.transform(((el0 - 0.3) / 0.25).clamp(0.0, 1.0).toDouble());
+    if (bp > 0) {
+      final mc = body + Offset(0, -ringR);
+      const mr = 7.0;
+      canvas.drawCircle(mc, (mr + 1.5) * bp, Paint()..color = const Color(0xF2FFFFFF));
+      canvas.drawCircle(mc, mr * bp, Paint()..color = green);
+      final tp = ((el0 - 0.4) / 0.3).clamp(0.0, 1.0).toDouble();
+      if (tp > 0) {
+        final ck = Path()
+          ..moveTo(mc.dx - mr * 0.42, mc.dy + mr * 0.02)
+          ..lineTo(mc.dx - mr * 0.1, mc.dy + mr * 0.36)
+          ..lineTo(mc.dx + mr * 0.46, mc.dy - mr * 0.32);
+        final m = ck.computeMetrics().first;
+        canvas.drawPath(
+            m.extractPath(0, m.length * tp),
+            Paint()
+              ..color = Colors.white
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.9
+              ..strokeCap = StrokeCap.round
+              ..strokeJoin = StrokeJoin.round);
+      }
+    }
+
+    // مدتِ ثبت‌شده: فقط وقتی کاربر زوم کرده
+    if (todaySecs > 0 && cam.scale >= 1.4) {
+      drawText(canvas, fmtDur(todaySecs), body.dx, body.dy + bodyR + 17,
+          size: 10, color: withOp(green, 0.9), outline: 2.5);
+    }
 
     final t0 = _doneBurstAt[a.id];
     if (t0 == null) return;
@@ -2388,8 +2469,16 @@ class MapPainter extends CustomPainter {
     final tk = todayJK();
     final doneNow = footDoneOn(a, tk);
     final visKids = _visibleActs(a.children);
-    final foldKids =
+    final allKidsDone =
         doneNow && visKids.isNotEmpty && visKids.every((k) => _subtreeDone(k, tk));
+    // کاربر می‌تواند شاخه‌ی جمع‌شده را دستی باز کند (foldOpen)
+    final manualOpen = a.extra['foldOpen'] == true;
+    final fr = _stepFold(a.id, visKids.isNotEmpty, allKidsDone && !manualOpen,
+        allKidsDone ? _countVisible(visKids) : 0);
+    final frp = fr?.p ?? 1.0;
+    final foldKids = fr != null && frp <= 0.001;
+    final foldAnim = fr != null && frp > 0.001 && frp < 0.999;
+    final keepFeet = state.extra['doneFeetCollapse'] != true;
     var fadeOpen = false;
     void openFade() {
       if (doneNow && !fadeOpen) {
@@ -2495,11 +2584,36 @@ class MapPainter extends CustomPainter {
           }
           childRoute.addAll(route);
         }
-        _twig(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
-            scale * 0.72, tc,
+        void drawKid() => _twig(canvas, h, hostColor, co, cd, kids[i],
+            i.isEven ? 1 : -1, scale * 0.72, tc,
             route: route == null ? null : childRoute,
             trunkLane: trunkLane,
             depth: depth + 1);
+        if (!foldAnim) {
+          drawKid();
+        } else {
+          // جمع شدنِ حلزونی: هر زیرشاخه (از دورترین به نزدیک‌ترین) دور نقطه‌ی
+          // اتصالش می‌پیچد، کوچک و محو می‌شود
+          final f = 1.0 - frp;
+          final r = kids.length <= 1 ? 0.0 : i / (kids.length - 1);
+          final fi = ((f - r * 0.4) / 0.6).clamp(0.0, 1.0).toDouble();
+          final e = fi * fi * (3 - 2 * fi);
+          final sc = 1.0 - e;
+          if (sc > 0.03) {
+            canvas.saveLayer(
+                null, Paint()..color = Color.fromRGBO(0, 0, 0, 1 - e * 0.85));
+            canvas.save();
+            canvas.translate(co.dx, co.dy);
+            if (_countVisible(kids) <= 14) {
+              canvas.rotate(e * 2.6 * (i.isEven ? 1 : -1));
+            }
+            canvas.scale(sc);
+            canvas.translate(-co.dx, -co.dy);
+            drawKid();
+            canvas.restore();
+            canvas.restore();
+          }
+        }
       }
       openFade();
     } else if (a.images.isNotEmpty) {
@@ -2535,10 +2649,28 @@ class MapPainter extends CustomPainter {
           Paint()..color = color);
     }
 
-    if (foldKids) {
-      drawText(canvas, '+${toFa(_countVisible(visKids))}', end.dx,
-          end.dy + 17 * math.max(0.8, scale),
-          size: 10, color: atc, outline: 2);
+    // ردپای پیشرفت: شاخه جمع می‌شود ولی قدم‌هایش (کم‌رنگ) سر جایشان می‌مانند
+    if ((foldKids || foldAnim) && keepFeet) {
+      closeFade();
+      _fade(canvas, foldKids ? 1.0 : (1.0 - frp), () {
+        _ghostKids(canvas, h, hostColor, a, geom, cub, visKids, route,
+            trunkLane, scale, tc, depth);
+      });
+      openFade();
+    }
+
+    // شمارنده‌ی روی گره‌ی جمع‌شده («۵ از ۵»)؛ لمس = باز/بسته کردن دستی
+    if (foldKids || (allKidsDone && manualOpen)) {
+      final n = _countVisible(visKids);
+      final txt = foldKids ? '${toFa(n)} از ${toFa(n)}' : '▴';
+      final rr = drawText(canvas, txt, end.dx, end.dy + 17 * math.max(0.8, scale),
+          size: 10, color: withOp(atc, 0.85), outline: 2);
+      hits.add(HitEntry(
+          type: 'foldToggle',
+          id: a.id,
+          hostId: h.id,
+          kind: HitKind.label,
+          rect: rr.inflate(8)));
     }
 
     if (state.extra['todayOnly'] == true &&
@@ -2610,5 +2742,94 @@ class MapPainter extends CustomPainter {
       }
     }
     closeFade();
+
+    // پیامِ کوتاهِ تکمیل، هم‌زمان با شروعِ جمع شدن
+    if (fr != null && fr.target == true) {
+      final me = _t - fr.msgAt;
+      if (me >= 0 && me < 2.0) {
+        final op = me < 0.3 ? me / 0.3 : (me > 1.5 ? (2.0 - me) / 0.5 : 1.0);
+        drawText(canvas, 'یک شاخه تموم شد ✓', end.dx,
+            end.dy - 24 * math.max(0.8, scale) - me * 6,
+            size: 11,
+            color: withOp(const Color(0xFF1E9E6A), op.clamp(0.0, 1.0).toDouble()),
+            outline: 2.5);
+      }
+    }
+  }
+
+  /// زیرشاخه‌های جمع‌شده: خطِ بسیار کم‌رنگ + فقط ردپای قدم‌ها
+  void _ghostKids(Canvas canvas, MapHost h, Color hostColor, ActionNode a,
+      geo.TwigGeom geom, geo.Cubic cub, List<ActionNode> kids,
+      List<Offset>? route, int trunkLane, double scale, Color tc, int depth) {
+    for (var i = 0; i < kids.length; i++) {
+      final tt = 0.15 + ((kids.length - i) / (kids.length + 1)) * 0.8;
+      Offset co;
+      double cd;
+      if (geom.poly != null) {
+        final q = geo.polyPointAt(geom.poly!, tt);
+        co = q.pt;
+        cd = q.angle;
+      } else {
+        co = cub.at(tt);
+        cd = cub.tangent(tt);
+      }
+      final childRoute = <Offset>[];
+      if (route != null) {
+        for (var k = 0; k <= 12; k++) {
+          final u = tt * (1 - k / 12);
+          childRoute.add(geom.poly != null
+              ? geo.polyPointAt(geom.poly!, u).pt
+              : cub.at(u));
+        }
+        childRoute.addAll(route);
+      }
+      _twigGhost(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
+          scale * 0.72, tc,
+          route: route == null ? null : childRoute, trunkLane: trunkLane);
+    }
+  }
+
+  void _twigGhost(Canvas canvas, MapHost h, Color hostColor, Offset originPt,
+      double originDir, ActionNode a, int side, double scale, Color tc,
+      {List<Offset>? route, int trunkLane = 0}) {
+    final color = (a.color != null && a.color!.isNotEmpty)
+        ? hexColor(a.color, hostColor)
+        : hostColor;
+    final geom = geo.computeTwigGeom(h, a, originPt, originDir, side, scale);
+    geo.applyBranchStyle(geom, geo.effBranchStyle(h, a), side);
+    final end = geom.end;
+    final cub = geo.Cubic(geom.originPt, geom.c1, geom.c2, end);
+    _pts.add(end);
+    hits.geom[a.id] = ActionGeomEntry(h.id, geom.originPt, end, scale);
+    final gp = Path();
+    if (geom.poly != null && geom.poly!.length > 1) {
+      gp.moveTo(geom.poly!.first.dx, geom.poly!.first.dy);
+      for (var i = 1; i < geom.poly!.length; i++) {
+        gp.lineTo(geom.poly![i].dx, geom.poly![i].dy);
+      }
+    } else {
+      gp.moveTo(cub.p0.dx, cub.p0.dy);
+      gp.cubicTo(
+          cub.p1.dx, cub.p1.dy, cub.p2.dx, cub.p2.dy, cub.p3.dx, cub.p3.dy);
+    }
+    canvas.drawPath(gp, _stroke(color, 1.1, 0.13));
+    if (route != null) {
+      final own = <Offset>[];
+      if (geom.poly != null) {
+        own.addAll(geom.poly!.reversed);
+      } else {
+        for (var k = 0; k <= 16; k++) {
+          own.add(cub.at(1.0 - k / 16));
+        }
+      }
+      own.addAll(route);
+      _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id,
+          ghost: true);
+    }
+    final kids = _visibleActs(a.children);
+    if (kids.isNotEmpty) {
+      _ghostKids(canvas, h, hostColor, a, geom, cub, kids, route, trunkLane,
+          scale, tc, 0);
+    }
   }
 }

@@ -222,6 +222,36 @@ class MapStore extends ChangeNotifier {
     changed();
   }
 
+  /// باز/بسته کردنِ دستیِ زیرشاخه‌های جمع‌شده‌ی یک شاخه (بعد از انجام)
+  void toggleActionFold(String actionId) {
+    ActionNode? target;
+    void walk(List<ActionNode> list) {
+      for (final n in list) {
+        if (target != null) return;
+        if (n.id == actionId) {
+          target = n;
+          return;
+        }
+        walk(n.children);
+      }
+    }
+
+    for (final g in state.goals) {
+      walk(g.actions);
+    }
+    for (final r in state.rings) {
+      walk(r.actions);
+    }
+    final n = target;
+    if (n == null) return;
+    if (n.extra['foldOpen'] == true) {
+      n.extra.remove('foldOpen');
+    } else {
+      n.extra['foldOpen'] = true;
+    }
+    changed();
+  }
+
   /// پنهان/نمایش کامل یک هدف (خط «من ← هدف»، خودِ هدف، شاخه‌ها و انیمیشن‌ها)
   void toggleGoalHidden(String id) {
     final h = state.findHost(id);
