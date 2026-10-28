@@ -222,7 +222,8 @@ class MapStore extends ChangeNotifier {
     changed();
   }
 
-  /// باز/بسته کردنِ دستیِ زیرشاخه‌های جمع‌شده‌ی یک شاخه (بعد از انجام)
+  /// باز/بسته کردنِ دستیِ زیرشاخه‌های یک شاخه (هر شاخه‌ای که زیرشاخه دارد)
+  /// folded = کاربر جمع کرده ، foldOpen = جمعِ خودکار (همه تمام) را کاربر باز کرده
   void toggleActionFold(String actionId) {
     ActionNode? target;
     void walk(List<ActionNode> list) {
@@ -244,10 +245,16 @@ class MapStore extends ChangeNotifier {
     }
     final n = target;
     if (n == null) return;
-    if (n.extra['foldOpen'] == true) {
-      n.extra.remove('foldOpen');
+    bool sub(ActionNode k) => nodeFinished(k) && k.children.every(sub);
+    final allFin = n.children.isNotEmpty && n.children.every(sub);
+    final folded = n.extra['folded'] == true ||
+        (allFin && n.extra['foldOpen'] != true);
+    if (folded) {
+      n.extra.remove('folded');
+      if (allFin) n.extra['foldOpen'] = true;
     } else {
-      n.extra['foldOpen'] = true;
+      n.extra['folded'] = true;
+      n.extra.remove('foldOpen');
     }
     changed();
   }

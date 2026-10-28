@@ -91,6 +91,23 @@ extension GoalListOps on MapStore {
     if (marked) onStepDone?.call(host, n); // پاداش فوری
   }
 
+  /// «کاملاً تمام شد» (برای کارهای غیرتکراری): پاداشِ بزرگ + جمع شدن شاخه وقتی همه‌ی زیرشاخه‌ها تمام شدند
+  void toggleFinished(MapHost host, ActionNode n) {
+    if (n.isRoutine) return;
+    if (nodeFinished(n)) {
+      n.extra.remove('finished');
+      n.extra.remove('finishedAt');
+      changed();
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    n.extra['finished'] = true;
+    n.extra['finishedAt'] = now;
+    host.lastActivity = now;
+    changed();
+    onStepDone?.call(host, n);
+  }
+
   /// ثبت زمان = انجام شدنِ آن روز: اگر هنوز تیک نخورده، تیک می‌خورد (با پاداشِ فوری)
   void markDoneByTime(MapHost host, ActionNode n, String jk) {
     if (truthy(n.logs[jk])) return;

@@ -220,6 +220,10 @@ bool footDoneOn(ActionNode a, String jk) {
   return e is List && e.isNotEmpty;
 }
 
+/// «کاملاً تمام شد»: جدا از ثبتِ روزانه. ثبتِ زمان/تیکِ روز فقط یعنی «امروز کار کردم»؛
+/// کارهای تکراریِ روزانه (روتین) هیچ‌وقت «تمام» نمی‌شوند.
+bool nodeFinished(ActionNode a) => a.extra['finished'] == true && !a.isRoutine;
+
 /// امروز انجام شده؟ (تایمرِ در حال اجرا هم یعنی در حال انجام)
 bool footDoneToday(ActionNode a, String todayJK) =>
     footDoneOn(a, todayJK) || (a.timerStart ?? 0) > 0;

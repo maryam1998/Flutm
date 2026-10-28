@@ -421,7 +421,8 @@ class MapPainter extends CustomPainter {
   }
 
   /// پیشبردِ انیمیشنِ جمع/بازشدنِ زیرشاخه‌های [id]؛ بدون زیرشاخه → null
-  _FoldRt? _stepFold(String id, bool hasKids, bool wantFold, int n) {
+  _FoldRt? _stepFold(String id, bool hasKids, bool wantFold, int n,
+      {bool celebrate = false}) {
     if (!hasKids) {
       _foldRt.remove(id);
       return null;
@@ -440,7 +441,7 @@ class MapPainter extends CustomPainter {
       fr.target = wantFold;
       // ۳۰۰ میلی‌ثانیه بعد از جشنِ تیک → جمع شدن (پاداشِ دوم)
       fr.delayUntil = wantFold ? _t + 0.3 : _t;
-      if (wantFold) fr.msgAt = _t + 0.3;
+      if (wantFold && celebrate) fr.msgAt = _t + 0.3;
     }
     final dt = (_t - fr.lastT).clamp(0.0, 0.05).toDouble();
     fr.lastT = _t;
@@ -453,7 +454,7 @@ class MapPainter extends CustomPainter {
 
   /// شفافیتِ قدم‌زن: بعد از انجام، نرم به حالتِ کم‌رنگ می‌رود
   double _doneWalkerOp(ActionNode a, String tk) {
-    if (!footDoneOn(a, tk)) return 1.0;
+    if (!nodeFinished(a)) return 1.0;
     final t0 = _doneBurstAt[a.id];
     if (t0 == null) return _kDoneWalkerFade;
     final p = ((_t - t0 - 0.5) / 0.6).clamp(0.0, 1.0).toDouble();
@@ -462,8 +463,17 @@ class MapPainter extends CustomPainter {
 
   /// این شاخه و همه‌ی زیرشاخه‌هایش در روزِ [tk] انجام شده‌اند؟
   bool _subtreeDone(ActionNode n, String tk) =>
-      footDoneOn(n, tk) &&
+      nodeFinished(n) &&
       _visibleActs(n.children).every((k) => _subtreeDone(k, tk));
+
+  /// تعدادِ گره‌های «تمام‌شده» در فرزندان
+  int _countFinished(List<ActionNode> list) {
+    var c = 0;
+    for (final n in list) {
+      c += (nodeFinished(n) ? 1 : 0) + _countFinished(_visibleActs(n.children));
+    }
+    return c;
+  }
 
   int _countVisible(List<ActionNode> list) {
     var c = 0;
@@ -1781,15 +1791,24 @@ class MapPainter extends CustomPainter {
     // یادداشت بالای انیمیشن، همراه با حرکتش
     noteAbove(curKey, curNote, _lastBodyPos, _lastBodyR * 1.5 + 8);
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
-    // بعد از انجام، دکمه‌ی ⏱ فقط با زوم دیده می‌شود (نقشه خلوت بماند)
-    if (!footDoneOn(a, todayK) ||
-        (a.timerStart ?? 0) > 0 ||
-        cam.scale >= 1.4) {
+    // ساعت روی نقشه نمایش داده نمی‌شود؛ دکمه‌ی ⏱ هم برای کارِ تمام‌شده پنهان است
+    if (!nodeFinished(a) || (a.timerStart ?? 0) > 0) {
       _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
     }
     // مُهرِ «انجام شد» + پالسِ عصبی تا هدف
-    _doneSeal(canvas, a, footDoneOn(a, todayK), route, _lastBodyPos, _lastBodyR,
-        (a.time[todayK] as num?)?.toDouble() ?? 0);
+    final fin = nodeFinished(a);
+    // «امروز کار کردم» (ثبتِ زمان/تیکِ روز): فقط یک حلقه‌ی نازکِ کهربایی، بدون کم‌رنگ شدن
+    if (!fin && footDoneOn(a, todayK)) {
+      canvas.drawCircle(
+          _lastBodyPos,
+          _lastBodyR + 3.0,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.8
+            ..color = withOp(const Color(0xFFE8A33D), 0.85));
+    }
+    // «کاملاً تمام شد»: حلقه‌ی سبز + تیک + جشن
+    _doneSeal(canvas, a, fin, route, _lastBodyPos, _lastBodyR, 0);
   }
 
   /// پاداشِ مغز: وقتی قدمِ امروز ثبت شد
@@ -1851,12 +1870,6 @@ class MapPainter extends CustomPainter {
               ..strokeCap = StrokeCap.round
               ..strokeJoin = StrokeJoin.round);
       }
-    }
-
-    // مدتِ ثبت‌شده: فقط وقتی کاربر زوم کرده
-    if (todaySecs > 0 && cam.scale >= 1.4) {
-      drawText(canvas, fmtDur(todaySecs), body.dx, body.dy + bodyR + 17,
-          size: 10, color: withOp(green, 0.9), outline: 2.5);
     }
 
     final t0 = _doneBurstAt[a.id];
@@ -2467,14 +2480,18 @@ class MapPainter extends CustomPainter {
     // پاداش: شاخه‌ای که امروز انجام شده کم‌رنگ می‌شود؛ اگر خودش و همه‌ی
     // زیرشاخه‌هایش انجام شده باشند، زیرشاخه‌ها هم جمع می‌شوند (فقط برای امروز).
     final tk = todayJK();
-    final doneNow = footDoneOn(a, tk);
+    final doneNow = nodeFinished(a);
     final visKids = _visibleActs(a.children);
+    // همه‌ی زیرشاخه‌ها «کاملاً تمام» شده‌اند؟ (ثبتِ زمان/تیکِ روزانه حساب نمی‌شود)
     final allKidsDone =
-        doneNow && visKids.isNotEmpty && visKids.every((k) => _subtreeDone(k, tk));
-    // کاربر می‌تواند شاخه‌ی جمع‌شده را دستی باز کند (foldOpen)
+        visKids.isNotEmpty && visKids.every((k) => _subtreeDone(k, tk));
+    // کاربر می‌تواند جمعِ خودکار را باز کند (foldOpen) یا هر شاخه را دستی جمع کند (folded)
     final manualOpen = a.extra['foldOpen'] == true;
-    final fr = _stepFold(a.id, visKids.isNotEmpty, allKidsDone && !manualOpen,
-        allKidsDone ? _countVisible(visKids) : 0);
+    final manualFold = a.extra['folded'] == true;
+    final autoFold = allKidsDone && !manualOpen;
+    final fr = _stepFold(a.id, visKids.isNotEmpty, autoFold || manualFold,
+        _countVisible(visKids),
+        celebrate: autoFold && !manualFold);
     final frp = fr?.p ?? 1.0;
     final foldKids = fr != null && frp <= 0.001;
     final foldAnim = fr != null && frp > 0.001 && frp < 0.999;
@@ -2659,12 +2676,23 @@ class MapPainter extends CustomPainter {
       openFade();
     }
 
-    // شمارنده‌ی روی گره‌ی جمع‌شده («۵ از ۵»)؛ لمس = باز/بسته کردن دستی
-    if (foldKids || (allKidsDone && manualOpen)) {
-      final n = _countVisible(visKids);
-      final txt = foldKids ? '${toFa(n)} از ${toFa(n)}' : '▴';
-      final rr = drawText(canvas, txt, end.dx, end.dy + 17 * math.max(0.8, scale),
-          size: 10, color: withOp(atc, 0.85), outline: 2);
+    // دکمه‌ی جمع/باز: روی گره‌ی جمع‌شده «تمام‌شده از کل» (مثلاً ۲ از ۵)؛
+    // روی گره‌ی باز یک «−» خیلی کم‌رنگ. لمس = جمع/باز کردن دستی
+    if (visKids.isNotEmpty && !foldAnim) {
+      final total = _countVisible(visKids);
+      final cy = end.dy + 17 * math.max(0.8, scale);
+      Rect rr;
+      if (foldKids) {
+        rr = drawText(canvas, '${toFa(_countFinished(visKids))} از ${toFa(total)}',
+            end.dx, cy,
+            size: 10, color: withOp(atc, 0.85), outline: 2);
+      } else {
+        final cc = Offset(end.dx, cy - 3);
+        canvas.drawCircle(cc, 6.5, Paint()..color = withOp(atc, 0.10));
+        canvas.drawLine(cc + const Offset(-3, 0), cc + const Offset(3, 0),
+            _stroke(atc, 1.4, 0.45));
+        rr = Rect.fromCircle(center: cc, radius: 6.5);
+      }
       hits.add(HitEntry(
           type: 'foldToggle',
           id: a.id,

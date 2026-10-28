@@ -1300,6 +1300,16 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   color: daysOpen ? color : null,
                   active: daysOpen,
                 ),
+                if (!n.isRoutine)
+                  _miniAction(
+                    nodeFinished(n)
+                        ? Icons.check_circle_rounded
+                        : Icons.check_circle_outline_rounded,
+                    'تمام شد',
+                    () => store.toggleFinished(h, n),
+                    color: const Color(0xFF1E9E6A),
+                    active: nodeFinished(n),
+                  ),
                 _miniAction(
                   n.extra['achieved'] == true
                       ? Icons.emoji_events
