@@ -2538,7 +2538,12 @@ class MapPainter extends CustomPainter {
     var fadeOpen = false;
     void openFade() {
       if (doneNow && !fadeOpen) {
-        canvas.saveLayer(null, Paint()..color = Color.fromRGBO(0, 0, 0, _kDoneFade));
+        // پیش‌فرض: خیلی ملایم (۸۵٪) + ✓ سبز؛ با گزینه‌ی تنظیمات (doneDim) مثل قبل ۵۰٪
+        canvas.saveLayer(
+            null,
+            Paint()
+              ..color = Color.fromRGBO(
+                  0, 0, 0, state.extra['doneDim'] == true ? _kDoneFade : 0.85));
         fadeOpen = true;
       }
     }
@@ -2809,6 +2814,18 @@ class MapPainter extends CustomPainter {
         lr = lr == null ? b : lr.expandToInclude(b);
       }
       if (lr != null) {
+        // کارِ تمام‌شده: ✓ سبز کنار اسم
+        if (doneNow) {
+          final first = Rect.fromLTRB(lr.left, lr.top, lr.right,
+              lr.top + (lr.height / lines.length));
+          drawText(canvas, '✓',
+              right ? lr.left - 9 : lr.right + 9, first.center.dy,
+              size: fs * 1.05,
+              color: const Color(0xFF1E9E6A),
+              weight: FontWeight.w800,
+              outline: 2.5,
+              vCenter: true);
+        }
         hits.add(HitEntry(
             type: 'action',
             id: a.id,

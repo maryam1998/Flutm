@@ -644,6 +644,21 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             setState(() {});
           },
         ),
+        _switchRow(
+          title: 'کارهای انجام‌شده کم‌رنگ باشند',
+          subtitle: 'پیش‌فرض خاموش: پررنگ با ✓ سبز؛ روشن: نیمه‌محو مثل قبل',
+          value: context.read<MapStore>().state.extra['doneDim'] == true,
+          onChanged: (v) {
+            final store = context.read<MapStore>();
+            if (v) {
+              store.state.extra['doneDim'] = true;
+            } else {
+              store.state.extra.remove('doneDim');
+            }
+            store.changedNow();
+            setState(() {});
+          },
+        ),
       ],
     );
   }
