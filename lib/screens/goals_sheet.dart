@@ -1552,7 +1552,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             children: [
               // چیپ تاریخ + افزودن ساعت (دیالوگ ثبت زمان)
               GestureDetector(
-                onTap: () => _addTimeFor(store, n, selJk, selLabel),
+                onTap: () => _addTimeFor(store, h, n, selJk, selLabel),
                 child: _DashedBox(
                   radius: 14,
                   padding: const EdgeInsets.symmetric(
@@ -1666,8 +1666,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
   }
 
-  Future<void> _addTimeFor(
-      MapStore store, ActionNode n, String jk, String dayLabel) async {
+  Future<void> _addTimeFor(MapStore store, MapHost h, ActionNode n, String jk,
+      String dayLabel) async {
     final res = await askDurationTabbed(
       context,
       title: 'ثبت زمان جدید',
@@ -1680,8 +1680,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
     } else {
       addDuration(n, jk, res.mins, note: res.note);
     }
-    // تیک خودکار نمی‌خوره؛ کاربر خودش تیک می‌زنه
     store.changed();
+    // ثبت زمان (حتی فقط بازه‌ی ساعت) = آن روز انجام شده
+    store.markDoneByTime(h, n, jk);
   }
 
   Future<void> _clearDay(MapStore store, ActionNode n, String jk) async {

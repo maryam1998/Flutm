@@ -13,7 +13,7 @@ import '../services/quiet_snack.dart';
 // رنگ‌های شیت زمان (روشن — هم‌رنگ Goals Sheet)
 const _kCream = Color(0xFFFFFFFF);
 const _kCard = Colors.white;
-const _kGold = Color(0xFFC9962B);
+const _kGold = Color(0xFF1E9E6A); // سبز: دکمه‌ها و رنگِ تاییدِ تایمر/ثبت زمان
 const _kInk = Color(0xFF000000);
 const _kMuted = Color(0xFF5B5F77);
 const _kBorder = Color(0xFFE4E6EE);
@@ -105,12 +105,19 @@ class _TimeSheetState extends State<_TimeSheet> {
       addDuration(widget.node, widget.jk, res.mins, note: res.note);
     }
     widget.store.changed();
+    // ثبت زمان (حتی فقط بازه‌ی ساعت) = آن روز انجام شده
+    widget.store.markDoneByTime(widget.host, widget.node, widget.jk);
     if (mounted) setState(() {});
   }
 
   void _toggle() {
     if (timerRunning(widget.node)) {
-      stopTimer(widget.node);
+      final startJk =
+          jKey(DateTime.fromMillisecondsSinceEpoch(widget.node.timerStart!));
+      final secs = stopTimer(widget.node);
+      if (secs > 0) {
+        widget.store.markDoneByTime(widget.host, widget.node, startJk);
+      }
     } else {
       startTimer(widget.node);
     }
@@ -822,9 +829,30 @@ class _DurationDialogState extends State<_DurationDialog> {
     );
   }
 
+  /// باز کردنِ ساعتِ انتخاب (۲۴ ساعته) برای فیلدِ «از ساعت / تا ساعت»
+  Future<void> _pickTime(TextEditingController c) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final cur = _parseHM(c.text) ?? 9 * 60;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final hh = picked.hour.toString().padLeft(2, '0');
+    final mm = picked.minute.toString().padLeft(2, '0');
+    setState(() => c.text = toFa('$hh:$mm'));
+  }
+
   Widget _timeField(TextEditingController c, String label) {
     return TextField(
       controller: c,
+      readOnly: true,
+      showCursor: false,
+      onTap: () => _pickTime(c),
       keyboardType: TextInputType.datetime,
       textAlign: TextAlign.center,
       style: const TextStyle(

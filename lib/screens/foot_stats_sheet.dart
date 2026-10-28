@@ -308,6 +308,16 @@ Future<void> showFootStatsSheet(
                                         color:
                                             Colors.white.withValues(alpha: 0.85),
                                         height: 1.1)),
+                              if (nodeDaySecs(f.node, _jkOf(d)) > 0)
+                                Text(
+                                    toFa(
+                                        '${nodeDaySecs(f.node, _jkOf(d)) ~/ 3600}:${((nodeDaySecs(f.node, _jkOf(d)) % 3600) ~/ 60).toString().padLeft(2, '0')}'),
+                                    style: TextStyle(
+                                        fontSize: 8,
+                                        color: d.st == _St.done
+                                            ? Colors.white.withValues(alpha: 0.9)
+                                            : wp.textDim,
+                                        height: 1.1)),
                             ],
                           ),
                         ),
@@ -549,6 +559,41 @@ Future<void> showFootStatsSheet(
                                     label: const Text(
                                         'نمایش دوباره روی نقشه',
                                         style: TextStyle(fontSize: 12)),
+                                  ),
+                                ),
+                              if (nodeEntries(n, jk).isNotEmpty)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: _kDone.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          '⏱ مجموع این روز: ${fmtDur(nodeDaySecs(n, jk))}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: wp.textMain)),
+                                      for (final e in nodeEntries(n, jk))
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 3),
+                                          child: Text(
+                                              e['kind'] == 'range'
+                                                  ? '🕒 ${fmtHM((e['s'] as num?)?.toInt() ?? 0)} تا ${fmtHM((e['e'] as num?)?.toInt() ?? 0)} — ${fmtDur(((e['mins'] as num?)?.toInt() ?? 0) * 60)}'
+                                                  : '⏱ ${fmtDur(((e['mins'] as num?)?.toInt() ?? 0) * 60)}',
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  height: 1.4,
+                                                  color: wp.textMain)),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               if (note.isNotEmpty)

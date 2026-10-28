@@ -91,6 +91,12 @@ extension GoalListOps on MapStore {
     if (marked) onStepDone?.call(host, n); // پاداش فوری
   }
 
+  /// ثبت زمان = انجام شدنِ آن روز: اگر هنوز تیک نخورده، تیک می‌خورد (با پاداشِ فوری)
+  void markDoneByTime(MapHost host, ActionNode n, String jk) {
+    if (truthy(n.logs[jk])) return;
+    toggleLog(host, n, jk);
+  }
+
   void reachGoal(Goal g) {
     final now = DateTime.now().millisecondsSinceEpoch;
     g.reached = true;

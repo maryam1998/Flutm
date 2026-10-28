@@ -1721,14 +1721,15 @@ class MapPainter extends CustomPainter {
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
     _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
     // مُهرِ «انجام شد» + پالسِ عصبی تا هدف
-    _doneSeal(canvas, a, footDoneOn(a, todayK), route, _lastBodyPos, _lastBodyR);
+    _doneSeal(canvas, a, footDoneOn(a, todayK), route, _lastBodyPos, _lastBodyR,
+        (a.time[todayK] as num?)?.toDouble() ?? 0);
   }
 
   /// پاداشِ مغز: وقتی قدمِ امروز ثبت شد
   /// ۱) حلقه‌ی کامل و مُهرِ ✓ روی چهره (حالتِ دائمی تا آخر امروز)
   /// ۲) لحظه‌ی ثبت: موج از چهره + پالسِ نوری که روی مسیر تا هدف می‌رود و آنجا می‌درخشد
   void _doneSeal(Canvas canvas, ActionNode a, bool done, _Curve route,
-      Offset body, double bodyR) {
+      Offset body, double bodyR, double todaySecs) {
     if (!done) {
       _doneSeen[a.id] = false;
       _doneBurstAt.remove(a.id);
@@ -1752,6 +1753,12 @@ class MapPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3
           ..color = withOp(green, 0.92));
+
+    // زمانِ ثبت‌شده‌ی امروز زیرِ چهره
+    if (todaySecs > 0) {
+      drawText(canvas, '⏱ ${fmtDur(todaySecs)}', body.dx, body.dy + bodyR + 20,
+          size: 10.5, color: green, outline: 2.5);
+    }
 
     // مُهر ✓ بالای قاب
     final mc = body + Offset(0, -bodyR - 2);
@@ -1840,7 +1847,7 @@ class MapPainter extends CustomPainter {
     final live = (a.timerStart ?? 0) > 0;
     canvas.drawCircle(c, r + 1.6, Paint()..color = const Color(0xF2FFFFFF));
     canvas.drawCircle(c, r,
-        Paint()..color = live ? const Color(0xFFE5484D) : const Color(0xFFC9962B));
+        Paint()..color = live ? const Color(0xFFE5484D) : const Color(0xFF1E9E6A));
     final ink = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
