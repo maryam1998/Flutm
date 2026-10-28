@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
+import '../map/today_focus.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/goal_ops.dart';
@@ -65,7 +66,10 @@ class _NextStepCardState extends State<NextStepCard> {
     }
 
     final goals = store.state.goals.where((g) => !g.reached).toList();
-    if (goals.isEmpty) return const SizedBox.shrink();
+    if (goals.isEmpty) {
+      TodayFocus.clear();
+      return const SizedBox.shrink();
+    }
 
     if (_collapsed) {
       return Align(
@@ -113,6 +117,12 @@ class _NextStepCardState extends State<NextStepCard> {
       }
     }
     final cur = sugg.isEmpty ? null : sugg[_skip % sugg.length];
+    // نقشه در حالت «فقط امروز» همین هدف و قدم را پررنگ نشان می‌دهد
+    if (cur == null) {
+      TodayFocus.clear();
+    } else {
+      TodayFocus.update(cur.goal.id, cur.node.id);
+    }
     final showDone = totalDone > 0 && !_more && focus == null;
 
     Widget main;

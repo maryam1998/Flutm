@@ -18,6 +18,7 @@ import 'foot_shape.dart';
 import 'geometry.dart' as geo;
 import 'hit_registry.dart';
 import 'map_ops.dart';
+import 'today_focus.dart';
 import 'user_state.dart';
 import 'walker_photos.dart';
 import '../widgets/emoji_stack.dart' show isTextIcon;
@@ -288,45 +289,74 @@ class MapPainter extends CustomPainter {
     canvas.scale(cam.scale);
     final tc = _textColor;
 
-    for (final g in state.goals) {
-      if (_isHidden(g)) continue;
-      _branches(canvas, g, tc, trunkOnly: g.collapsed && g.actions.isNotEmpty);
+    // حالت «فقط امروز»: هدفِ قدم بعدی پررنگ، بقیه کم‌رنگ (هر گروه یک لایه)
+    final fid = TodayFocus.goalId;
+    final only = state.extra['todayOnly'] == true &&
+        fid.isNotEmpty &&
+        state.goals.any((g) => g.id == fid && !_isHidden(g));
+    final dimPaint = Paint()..color = const Color.fromRGBO(0, 0, 0, 0.22);
+    final passes = only ? const [true, false] : const [false];
+    bool dimG(Goal g) => only && g.id != fid;
+    bool dimR(Ring r) {
+      if (!only) return false;
+      final lg = _goalOf(r);
+      return lg == null || lg.id != fid;
     }
-    if (!state.ringsCollapsed) {
-      for (final r in state.rings) {
-        if (r.actions.isNotEmpty) {
-          final lg = _goalOf(r);
-          if (lg != null && _isHidden(lg)) continue;
-          _branches(canvas, r, tc,
-              trunkOnly: r.collapsed || (lg?.collapsed ?? false));
-        }
+
+    for (final dimPass in passes) {
+      if (dimPass) canvas.saveLayer(null, dimPaint);
+      for (final g in state.goals) {
+        if (_isHidden(g)) continue;
+        if (only && dimG(g) != dimPass) continue;
+        final focusOpen = only && !dimPass;
+        _branches(canvas, g, tc,
+            trunkOnly: g.collapsed && g.actions.isNotEmpty && !focusOpen);
       }
-    }
-    if (state.showRingLinks && !state.ringsCollapsed) {
-      for (final r in state.rings) {
-        if (r.goalId.isEmpty) continue;
-        Goal? lg;
-        for (final gg in state.goals) {
-          if (gg.id == r.goalId) {
-            lg = gg;
-            break;
+      if (!state.ringsCollapsed) {
+        for (final r in state.rings) {
+          if (only && dimR(r) != dimPass) continue;
+          if (r.actions.isNotEmpty) {
+            final lg = _goalOf(r);
+            if (lg != null && _isHidden(lg)) continue;
+            _branches(canvas, r, tc,
+                trunkOnly: r.collapsed || (lg?.collapsed ?? false));
           }
         }
-        if (lg == null || _isHidden(lg)) continue;
-        _ringLink(canvas, lg, r);
       }
+      if (state.showRingLinks && !state.ringsCollapsed) {
+        for (final r in state.rings) {
+          if (r.goalId.isEmpty) continue;
+          if (only && dimR(r) != dimPass) continue;
+          Goal? lg;
+          for (final gg in state.goals) {
+            if (gg.id == r.goalId) {
+              lg = gg;
+              break;
+            }
+          }
+          if (lg == null || _isHidden(lg)) continue;
+          _ringLink(canvas, lg, r);
+        }
+      }
+      if (dimPass) canvas.restore();
     }
     _drawMe(canvas, tc);
-    for (final g in state.goals) {
-      if (!_isHidden(g)) _drawGoal(canvas, g, tc);
-      _hideBtn(canvas, g, tc);
-    }
-    if (!state.ringsCollapsed) {
-      for (final r in state.rings) {
-        final lg = _goalOf(r);
-        if (lg != null && _isHidden(lg)) continue;
-        _drawRing(canvas, r, tc);
+    for (final dimPass in passes) {
+      if (dimPass) canvas.saveLayer(null, dimPaint);
+      for (final g in state.goals) {
+        if (only && dimG(g) != dimPass) continue;
+        if (!_isHidden(g)) _drawGoal(canvas, g, tc);
+        _hideBtn(canvas, g, tc);
       }
+      if (!state.ringsCollapsed) {
+        for (final r in state.rings) {
+          if (only && dimR(r) != dimPass) continue;
+          final lg = _goalOf(r);
+          if (lg != null && _isHidden(lg)) continue;
+          _drawRing(canvas, r, tc);
+        }
+      }
+      if (dimPass) canvas.restore();
     }
     canvas.restore();
 
@@ -929,6 +959,7 @@ class MapPainter extends CustomPainter {
     }
     _nodeIcon(canvas, c, r0, g.images, g.icon, col, g.iconScale, tc);
     final r = r0 * g.iconScale;
+    _goalProgressRing(canvas, g, c, math.max(r, r0), col);
     _addCircleBounds(c, r);
     hits.add(HitEntry(
         type: 'goal',
@@ -977,6 +1008,42 @@ class MapPainter extends CustomPainter {
     }
 
     _goalShutter(canvas, g, col, tc, r);
+  }
+
+  /// حلقه‌ی پیشرفت دور دایره‌ی هدف؛ همان درصدِ نوار «فهرست اهداف»
+  /// (مجموع وزن قدم‌ها × ۳، حداکثر ۱۰۰٪). هدفِ بدون قدم یا رسیده‌شده حلقه ندارد.
+  void _goalProgressRing(
+      Canvas canvas, Goal g, Offset c, double r, Color col) {
+    if (g.reached || g.actions.isEmpty) return;
+    final p = (sumWeight(g.actions) * 3 / 100).clamp(0.0, 1.0).toDouble();
+    final rr = r + 5;
+    const w = 3.2;
+    canvas.drawCircle(
+        c,
+        rr,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w
+          ..color = withOp(col, 0.18));
+    if (p <= 0) return;
+    canvas.drawArc(
+        Rect.fromCircle(center: c, radius: rr),
+        -math.pi / 2,
+        math.pi * 2 * p,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w
+          ..strokeCap = StrokeCap.round
+          ..color = withOp(col, 0.95));
+  }
+
+  /// نشانِ «قدم بعدی» روی نوکِ شاخه در حالت «فقط امروز»
+  void _nextStepMark(Canvas canvas, Offset end, Color color, double scale) {
+    final base = math.max(11.0, 13.0 * scale);
+    final pulse = 1.0 + 0.12 * math.sin(_t * 3.0);
+    canvas.drawCircle(end, base * 1.5 * pulse, _stroke(color, 6, 0.22));
+    canvas.drawCircle(end, base * pulse, _stroke(color, 2.4, 0.95));
   }
 
   void _goalShutter(Canvas canvas, Goal g, Color col, Color tc, double r) {
@@ -2238,6 +2305,12 @@ class MapPainter extends CustomPainter {
     } else {
       canvas.drawCircle(end, math.max(1.8, 2 + weight * 0.28 * scale) * cs,
           Paint()..color = color);
+    }
+
+    if (state.extra['todayOnly'] == true &&
+        TodayFocus.nodeId.isNotEmpty &&
+        a.id == TodayFocus.nodeId) {
+      _nextStepMark(canvas, end, color, scale);
     }
 
     // دکمه‌ی پلی صدای شاخه/زیرشاخه: سمتِ مخالفِ نوشته

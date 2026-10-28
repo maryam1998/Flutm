@@ -5,6 +5,7 @@ import '../map/camera.dart';
 import '../map/draw_utils.dart' show toFa;
 import '../map/map_canvas.dart';
 import '../map/map_ops.dart';
+import '../map/today_focus.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../services/storage.dart';
@@ -89,6 +90,20 @@ class _MapTabState extends State<MapTab> {
   void _fit() {
     final r = bounds.rect;
     if (r != null) cam.fitRect(r);
+  }
+
+  /// «فقط امروز»: نقشه فقط هدفِ فعال و قدم بعدی را پررنگ نشان می‌دهد
+  void _toggleTodayOnly(MapStore store) {
+    final on = store.state.extra['todayOnly'] == true;
+    if (on) {
+      store.state.extra.remove('todayOnly');
+    } else {
+      store.state.extra['todayOnly'] = true;
+      if (TodayFocus.goalId.isEmpty) {
+        _toast('قدم باقی‌مانده‌ای برای امروز نیست؛ نقشه همان‌طور عادی می‌ماند.');
+      }
+    }
+    store.changed();
   }
 
   void _openGoals() {
@@ -379,6 +394,13 @@ class _MapTabState extends State<MapTab> {
                     _toolBtn(Icons.format_list_bulleted, 'اهداف', ink,
                         _openGoals),
                     _toolBtn(Icons.fit_screen, 'نمایش همه', ink, _fit),
+                    _toolBtn(
+                      Icons.today,
+                      'فقط امروز',
+                      ink,
+                      () => _toggleTodayOnly(store),
+                      primary: store.state.extra['todayOnly'] == true,
+                    ),
                     _toolBtn(
                         Icons.stars_outlined, 'نشانه', ink, store.addRing),
                     _toolBtn(
