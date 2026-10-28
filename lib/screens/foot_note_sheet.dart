@@ -216,12 +216,53 @@ Future<void> showFootNoteSheet(
                         final t = v.trim();
                         if (t.isEmpty) {
                           m.remove(jk);
+                          clearFootNoteState(node, jk);
                         } else {
                           m[jk] = t;
                         }
                         node.extra['footNotes'] = m;
                         store.changed();
                       },
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _stateChip(
+                            wp: wp,
+                            icon: footNoteDone(node, jk)
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            text: footNoteDone(node, jk)
+                                ? 'انجام شد (خط خورد)'
+                                : 'انجامش دادم',
+                            color: _kOk,
+                            on: footNoteDone(node, jk),
+                            onTap: () {
+                              if (_noteText(node, jk).isEmpty) return;
+                              setFootNoteDone(
+                                  node, jk, !footNoteDone(node, jk));
+                              save();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _stateChip(
+                            wp: wp,
+                            icon: Icons.hourglass_bottom_rounded,
+                            text: 'منتظر جواب',
+                            color: _kGoldN,
+                            on: footNoteWaiting(node, jk),
+                            onTap: () {
+                              if (_noteText(node, jk).isEmpty) return;
+                              setFootNoteWaiting(
+                                  node, jk, !footNoteWaiting(node, jk));
+                              save();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -361,3 +402,44 @@ Map<String, dynamic> _notes(ActionNode n) {
 }
 
 String _noteText(ActionNode n, String jk) => (_notes(n)[jk] as String?) ?? '';
+
+/// دکمه‌ی گردِ وضعیتِ یادداشت (انجام شد / منتظر جواب)
+Widget _stateChip({
+  required WebPalette wp,
+  required IconData icon,
+  required String text,
+  required Color color,
+  required bool on,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    borderRadius: BorderRadius.circular(12),
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: on ? color.withValues(alpha: 0.14) : null,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: on ? color : wp.textDim.withValues(alpha: 0.35),
+            width: on ? 1.6 : 1),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 17, color: on ? color : wp.textDim),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(text,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: on ? color : wp.textMain)),
+          ),
+        ],
+      ),
+    ),
+  );
+}

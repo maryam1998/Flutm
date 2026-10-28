@@ -1671,17 +1671,41 @@ class MapPainter extends CustomPainter {
         fam = NoteFonts.familyOf(fid);
       }
       final mul = ((st['size'] as num?)?.toDouble() ?? 1.0).clamp(0.4, 5.0);
-      final col = st['color'] is int ? Color(st['color'] as int) : Colors.black;
+      final col0 = st['color'] is int ? Color(st['color'] as int) : Colors.black;
+      final noteDone = st['done'] == true;
+      final noteWait = st['waiting'] == true;
+      // یادداشتِ انجام‌شده کمی کم‌رنگ می‌شود و روی آن خط می‌خورد (مثل to-do)
+      final col = noteDone ? col0.withValues(alpha: 0.6) : col0;
       final dx = (st['dx'] as num?)?.toDouble() ?? 0.0;
       final dy = (st['dy'] as num?)?.toDouble() ?? 0.0;
+      final fs = noteSize * mul;
       final r = drawText(canvas, txt, anchor.dx + dx, anchor.dy - lift + dy,
-          size: noteSize * mul, color: col, vCenter: true, fontFamily: fam);
+          size: fs, color: col, vCenter: true, fontFamily: fam);
+      var hitRect = r;
+      if (noteDone) {
+        canvas.drawLine(
+          Offset(r.left - 1, r.center.dy),
+          Offset(r.right + 1, r.center.dy),
+          Paint()
+            ..color = col
+            ..strokeWidth = (fs * 0.09).clamp(1.2, 4.0).toDouble()
+            ..strokeCap = StrokeCap.round,
+        );
+        // نشانِ کوچک کنار نوشته: ✓ انجام شد / ⏳ منتظر جواب
+        final g = drawText(canvas, noteWait ? '⏳' : '✓',
+            r.right + fs * 0.8, r.center.dy,
+            size: fs * 0.95,
+            color: const Color(0xFF1E9E6A),
+            weight: FontWeight.w800,
+            vCenter: true);
+        hitRect = r.expandToInclude(g);
+      }
       hits.add(HitEntry(
         type: 'footNote',
         id: a.id,
         hostId: hostId,
         kind: HitKind.label,
-        rect: r.inflate(4),
+        rect: hitRect.inflate(4),
         voiceKey: jk,
       ));
     }

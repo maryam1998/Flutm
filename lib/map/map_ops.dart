@@ -262,3 +262,45 @@ Map<String, dynamic> footNoteStyle(ActionNode n, String jk,
   }
   return st.cast<String, dynamic>();
 }
+
+/// ── یادداشتِ قدم مثل to-do ──
+/// «انجام شد» (روی نقشه و تقویم خط می‌خورد) و «منتظر جواب» (سهمِ من تمام شد؛
+/// نتیجه دست دیگران است). هر دو در همان استایلِ یادداشت (footNoteStyles) ذخیره
+/// می‌شوند، پس در بکاپ هم هستند و ساختار قبلی عوض نمی‌شود.
+bool footNoteDone(ActionNode n, String jk) =>
+    footNoteStyle(n, jk, create: false)['done'] == true;
+
+bool footNoteWaiting(ActionNode n, String jk) =>
+    footNoteStyle(n, jk, create: false)['waiting'] == true;
+
+/// خط‌زدن / برداشتنِ خط. برداشتنِ تیک، «منتظر جواب» را هم برمی‌دارد.
+void setFootNoteDone(ActionNode n, String jk, bool v) {
+  final st = footNoteStyle(n, jk);
+  if (v) {
+    st['done'] = true;
+  } else {
+    st.remove('done');
+    st.remove('waiting');
+  }
+}
+
+/// «منتظر جواب» یعنی سهمِ من انجام شده؛ پس خودکار خط هم می‌خورد.
+void setFootNoteWaiting(ActionNode n, String jk, bool v) {
+  final st = footNoteStyle(n, jk);
+  if (v) {
+    st['waiting'] = true;
+    st['done'] = true;
+  } else {
+    st.remove('waiting');
+  }
+}
+
+/// با حذفِ متنِ یادداشت، وضعیتش هم پاک می‌شود (یادداشتِ تازه از اول شروع شود)
+void clearFootNoteState(ActionNode n, String jk) {
+  final all = n.extra['footNoteStyles'];
+  if (all is! Map) return;
+  final st = all[jk];
+  if (st is! Map) return;
+  st.remove('done');
+  st.remove('waiting');
+}

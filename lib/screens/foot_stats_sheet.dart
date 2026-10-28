@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../map/draw_utils.dart' show toFa;
 import '../map/map_ops.dart';
@@ -292,7 +293,10 @@ Future<void> showFootStatsSheet(
                             borderRadius: BorderRadius.circular(9),
                             border: border,
                           ),
-                          child: Column(
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                          Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(toFa(d.j.jd),
@@ -318,6 +322,11 @@ Future<void> showFootStatsSheet(
                                             ? Colors.white.withValues(alpha: 0.9)
                                             : wp.textDim,
                                         height: 1.1)),
+                            ],
+                          ),
+                          if (_noteBadge(f.node, _jkOf(d), d.st == _St.done)
+                              case final b?)
+                            PositionedDirectional(top: 2, end: 3, child: b),
                             ],
                           ),
                         ),
@@ -515,6 +524,7 @@ Future<void> showFootStatsSheet(
                                           final m = _notesOf(n);
                                           if (t.isEmpty) {
                                             m.remove(jk);
+                                            clearFootNoteState(n, jk);
                                           } else {
                                             m[jk] = t;
                                           }
@@ -597,19 +607,16 @@ Future<void> showFootStatsSheet(
                                   ),
                                 ),
                               if (note.isNotEmpty)
-                                Container(
-                                  margin: const EdgeInsets.only(top: 6),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: _kToday.withValues(alpha: 0.10),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(note,
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          height: 1.5,
-                                          color: wp.textMain)),
+                                _NoteTodoCard(
+                                  key: ValueKey('todo-$jk'),
+                                  wp: wp,
+                                  node: n,
+                                  jk: jk,
+                                  note: note,
+                                  onChanged: () {
+                                    store.changed();
+                                    setS(() {});
+                                  },
                                 ),
                             ],
                           );
@@ -691,4 +698,310 @@ Future<void> showFootStatsSheet(
       ),
     ),
   );
+}
+
+
+// ═══════════════ یادداشتِ قدم به شکل to-do ═══════════════
+
+/// نشانِ کوچکِ گوشه‌ی خانه‌ی تقویم: یادداشتِ باز = نقطه، منتظر جواب = ساعت شنی،
+/// انجام‌شده = تیک. اگر یادداشتی نباشد null.
+Widget? _noteBadge(ActionNode n, String jk, bool cellDone) {
+  final all = n.extra['footNotes'];
+  if (all is! Map) return null;
+  final t = all[jk];
+  if (t is! String || t.trim().isEmpty) return null;
+  final done = footNoteDone(n, jk);
+  final wait = footNoteWaiting(n, jk);
+  if (wait) {
+    return Icon(Icons.hourglass_bottom_rounded,
+        size: 10, color: cellDone ? Colors.white : _kToday);
+  }
+  if (done) {
+    return Icon(Icons.check_rounded,
+        size: 11, color: cellDone ? Colors.white : _kDone);
+  }
+  return Container(
+    width: 6,
+    height: 6,
+    decoration: BoxDecoration(
+      color: cellDone ? Colors.white.withValues(alpha: 0.9) : _kToday,
+      shape: BoxShape.circle,
+    ),
+  );
+}
+
+int _seedOf(String s) => s.codeUnits.fold<int>(0, (a, b) => a + b);
+
+/// **...** = بولد
+Widget _richFa(String text, {required Color color, double size = 11.5}) {
+  final parts = text.split('**');
+  return Text.rich(
+    TextSpan(
+      style: TextStyle(fontSize: size, height: 1.85, color: color),
+      children: [
+        for (var i = 0; i < parts.length; i++)
+          if (parts[i].isNotEmpty)
+            TextSpan(
+                text: parts[i],
+                style: i.isOdd
+                    ? const TextStyle(fontWeight: FontWeight.w800)
+                    : null),
+      ],
+    ),
+    textDirection: TextDirection.rtl,
+    textAlign: TextAlign.right,
+  );
+}
+
+const _kDoneTitles = [
+  'آفرین؛ یک حلقه‌ی باز بسته شد ✅',
+  'خط خورد! مغزت این را ثبت کرد 🎯',
+  'یک کارِ نیمه‌تمام، تمام شد 🌿',
+];
+
+const _kWaitTitles = [
+  'سهمِ تو انجام شد؛ حالا نوبتِ جواب است ⏳',
+  'توپ حالا در زمینِ بیرون است، نه در ذهنِ تو ⏳',
+];
+
+const _kDoneWhy =
+    '**چرا مغزت از این خوشش می‌آید؟** کاری که نیمه‌تمام بماند در حافظه‌ی کاری '
+    'می‌ماند و مدام مرور می‌شود (اثر زایگارنیک) و **قشر پیش‌پیشانی** (PFC) را '
+    'مشغول نگه می‌دارد. وقتی انجامش می‌دهی و خط می‌زنی، این حلقه بسته می‌شود و '
+    '**دوپامینِ پیشرفت** ترشح می‌شود؛ یعنی به مغزت می‌گویی «ما داریم به سمتِ '
+    'هدف می‌رویم». تکرارِ همین حس، مسیرِ عصبیِ «من آدمِ عمل‌کننده‌ام» را قوی‌تر '
+    'می‌کند.';
+
+const _kWaitWhy =
+    '**چرا «منتظر جواب» مهم است؟** کاری که نتیجه‌اش دستِ دیگران است، اگر '
+    'برچسب نخورد، برای مغز «ناتمام» می‌ماند و **آمیگدال** مدام نگرانِ نتیجه '
+    'است. با ثبتِ «سهمِ من تمام شد» به مغزت می‌گویی الان کاری جز صبر لازم '
+    'نیست؛ پژوهش‌ها نشان می‌دهد وقتی برای یک کارِ باز، برنامه‌ی روشن داریم '
+    '(اینجا: صبر)، فکرهای مزاحمش کم می‌شود. صبر هم یک قدم است. اگر جواب دیر '
+    'شد، یادداشتِ تازه‌ی «پیگیری» بنویس.';
+
+/// یادداشتِ یک روز شبیه کارهای to-do: با تیک خط می‌خورد، «منتظر جواب» می‌گیرد
+/// و مغز پاداشِ علمیِ کوتاه می‌گیرد.
+class _NoteTodoCard extends StatelessWidget {
+  const _NoteTodoCard({
+    super.key,
+    required this.wp,
+    required this.node,
+    required this.jk,
+    required this.note,
+    required this.onChanged,
+  });
+
+  final WebPalette wp;
+  final ActionNode node;
+  final String jk;
+  final String note;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = footNoteDone(node, jk);
+    final wait = footNoteWaiting(node, jk);
+    final accent = done ? _kDone : _kToday;
+    final seed = _seedOf(jk);
+
+    final title = wait
+        ? _kWaitTitles[seed % _kWaitTitles.length]
+        : _kDoneTitles[seed % _kDoneTitles.length];
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: done ? 0.09 : 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  final next = !done;
+                  setFootNoteDone(node, jk, next);
+                  if (next) HapticFeedback.mediumImpact();
+                  onChanged();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutBack,
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: done ? _kDone : Colors.transparent,
+                      border: Border.all(color: accent, width: 2),
+                      boxShadow: done
+                          ? [
+                              BoxShadow(
+                                  color: _kDone.withValues(alpha: 0.35),
+                                  blurRadius: 8,
+                                  spreadRadius: 1),
+                            ]
+                          : null,
+                    ),
+                    child: AnimatedScale(
+                      scale: done ? 1 : 0,
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutBack,
+                      child: const Icon(Icons.check_rounded,
+                          size: 18, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 260),
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.6,
+                    fontWeight: FontWeight.w600,
+                    color: done ? wp.textDim : wp.textMain,
+                    decoration:
+                        done ? TextDecoration.lineThrough : TextDecoration.none,
+                    decorationColor: _kDone,
+                    decorationThickness: 2.2,
+                  ),
+                  child: Text(note),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              children: [
+                _TodoChip(
+                  wp: wp,
+                  icon: Icons.hourglass_bottom_rounded,
+                  text: 'منتظر جواب',
+                  color: _kToday,
+                  on: wait,
+                  onTap: () {
+                    final next = !wait;
+                    setFootNoteWaiting(node, jk, next);
+                    if (next) HapticFeedback.selectionClick();
+                    onChanged();
+                  },
+                ),
+                const SizedBox(width: 8),
+                if (!done)
+                  Expanded(
+                    child: Text('انجامش دادی؟ تیک بزن تا خط بخورد',
+                        style: TextStyle(fontSize: 10.5, color: wp.textDim)),
+                  ),
+              ],
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              transitionBuilder: (c, a) => FadeTransition(
+                opacity: a,
+                child: SizeTransition(sizeFactor: a, child: c),
+              ),
+              child: !done
+                  ? const SizedBox.shrink(key: ValueKey('none'))
+                  : Container(
+                      key: ValueKey(wait ? 'wait' : 'done'),
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                      decoration: BoxDecoration(
+                        color: (wait ? _kToday : _kDone)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: (wait ? _kToday : _kDone)
+                                .withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(title,
+                              textDirection: TextDirection.rtl,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                  fontSize: 12.5,
+                                  height: 1.6,
+                                  fontWeight: FontWeight.w800,
+                                  color: wp.textMain)),
+                          const SizedBox(height: 4),
+                          _richFa(wait ? _kWaitWhy : _kDoneWhy,
+                              color: wp.textMain.withValues(alpha: 0.85)),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodoChip extends StatelessWidget {
+  const _TodoChip({
+    required this.wp,
+    required this.icon,
+    required this.text,
+    required this.color,
+    required this.on,
+    required this.onTap,
+  });
+
+  final WebPalette wp;
+  final IconData icon;
+  final String text;
+  final Color color;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: on ? color.withValues(alpha: 0.16) : null,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: on ? color : wp.textDim.withValues(alpha: 0.35),
+              width: on ? 1.5 : 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: on ? color : wp.textDim),
+            const SizedBox(width: 5),
+            Text(text,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: on ? color : wp.textMain)),
+          ],
+        ),
+      ),
+    );
+  }
 }
