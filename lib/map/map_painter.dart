@@ -1887,7 +1887,8 @@ class MapPainter extends CustomPainter {
     final pastMul =
         ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 0.6).clamp(0.2, 6.0);
     var pastSize = size * 0.5 * pastMul;
-    var stride = pastSize * 2.2 / len;
+    // فاصله‌ی هر قدم با قدمِ قبلی (قبلاً ۲٫۲؛ حالا جا برای گل/برگِ بین قدم‌ها)
+    var stride = pastSize * 3.6 / len;
     if (fixed * stride > 0.88) {
       final fit = 0.88 / (fixed * stride);
       pastSize *= fit;
@@ -1901,11 +1902,21 @@ class MapPainter extends CustomPainter {
         .where((k) => (k != todayK || ghost) && _doneOn(a, k))
         .toList()
       ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
+    final openDays = a.extra['dayNotesOpen'] is List
+        ? (a.extra['dayNotesOpen'] as List).whereType<String>().toSet()
+        : const <String>{};
+    final dayNotes =
+        a.extra['footNotes'] is Map ? a.extra['footNotes'] as Map : const {};
+    final notesAlways = a.extra['footNotesShow'] == true;
     for (var k = 0; k < fixed && !hiddenW; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
-      _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, 0.6));
-      _drawWalkerFoot(canvas, route, u, 1.0, pastSize, withOp(color, 0.6));
+      // هر روز که می‌گذرد قدمِ آن روز کم‌رنگ‌تر می‌شود (جدیدترین ۶۲٪ → قدیمی‌ترها تا ۱۴٪)
+      final age = fixed - 1 - k;
+      final footOp = (0.62 - 0.06 * age).clamp(0.14, 0.62).toDouble();
+      _drawWalkerFoot(canvas, route, u, -1.0, pastSize, withOp(color, footOp));
+      _drawWalkerFoot(canvas, route, u, 1.0, pastSize, withOp(color, footOp));
       if (k < pastDayKeys.length) {
+        final dk = pastDayKeys[k];
         hits.add(HitEntry(
           type: 'pastFoot',
           id: a.id,
@@ -1913,7 +1924,42 @@ class MapPainter extends CustomPainter {
           kind: HitKind.handle,
           center: route.at(u),
           radius: pastSize * 1.3,
-          voiceKey: pastDayKeys[k],
+          voiceKey: dk,
+        ));
+        // گل یا برگِ همان روز، بین این قدم و قدمِ بعدی (کنارِ مسیر)
+        final u2 = (u + stride * 0.5).clamp(0.0, 0.97).toDouble();
+        final pt = route.at(u2);
+        final tg = route.tangent(u2);
+        var hh = 11;
+        for (final c in '${a.id}|$dk'.codeUnits) {
+          hh = (hh * 31 + c) & 0x7fffffff;
+        }
+        final side = (hh & 1) == 0 ? 1.0 : -1.0;
+        final dir = tg + side * math.pi / 2;
+        final nv = Offset(math.cos(dir), math.sin(dir));
+        final sr = (pastSize * 0.5).clamp(4.5, 14.0).toDouble();
+        final tip = pt + nv * (pastSize * 0.5);
+        _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0);
+        final nt = dayNotes[dk];
+        final hasNote = nt is String && nt.trim().isNotEmpty;
+        final canReveal = hasNote && !notesAlways;
+        final isOpen = canReveal && openDays.contains(dk);
+        if (isOpen && !ghost) {
+          var txt = (nt as String).trim().replaceAll('\n', ' ');
+          if (txt.length > 40) txt = '${txt.substring(0, 39)}…';
+          final ta = tip + nv * (sr * 2.5 + _fs() * 0.5);
+          drawText(canvas, txt, ta.dx, ta.dy,
+              size: _fs() * 0.5, color: Colors.black, vCenter: true, outline: 2.5);
+        }
+        hits.add(HitEntry(
+          // با یادداشت: تپ = نشان دادن/پنهان کردنِ نوشته؛ بدون یادداشت: تقویمِ همان روز
+          type: canReveal ? 'pastBloom' : 'pastFoot',
+          id: a.id,
+          hostId: hostId,
+          kind: HitKind.handle,
+          center: tip + nv * (sr * 1.2),
+          radius: sr * 1.6,
+          voiceKey: dk,
         ));
       }
     }

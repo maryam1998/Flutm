@@ -271,6 +271,26 @@ class MapInteraction {
       }
       return;
     }
+    // لمسِ گل/برگِ بین قدم‌ها: نشان دادن/پنهان کردنِ یادداشتِ همان روز
+    if (_ptrs.isEmpty && hit != null && hit.type == 'pastBloom') {
+      HapticFeedback.selectionClick();
+      final bh = store.state.findHost(hit.hostId);
+      if (bh is MapHost) {
+        final bf = findActionNode(bh.actions, hit.id);
+        if (bf != null) {
+          final cur = bf.node.extra['dayNotesOpen'];
+          final list = cur is List ? cur.whereType<String>().toList() : <String>[];
+          if (!list.remove(hit.voiceKey)) list.add(hit.voiceKey);
+          if (list.isEmpty) {
+            bf.node.extra.remove('dayNotesOpen');
+          } else {
+            bf.node.extra['dayNotesOpen'] = list;
+          }
+          store.changed();
+        }
+      }
+      return;
+    }
     if (_ptrs.isEmpty && hit != null && hit.type == 'foldToggle') {
       HapticFeedback.selectionClick();
       store.toggleActionFold(hit.id);

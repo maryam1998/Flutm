@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import '../widgets/emoji_stack.dart';
 import '../widgets/icon_photo_editor.dart';
 import '../widgets/panel_kit.dart';
+import 'foot_note_sheet.dart' show showFootNoteSheet;
 import 'time_sheet.dart';
 import 'weekly_sheet.dart';
 import '../services/quiet_snack.dart';
@@ -1522,6 +1523,20 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 color: has ? doneInk : dim,
               ),
             ),
+            // یادداشتِ تقویمِ قدم (انیمیشن) برای این روز: نقطه‌ی کوچک گوشه‌ی خانه
+            if (_dayNote(n, jk).isNotEmpty)
+              Positioned(
+                top: 2,
+                right: 2,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: has ? doneInk : accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
           ],
         ),
       );
@@ -1596,6 +1611,40 @@ class _GoalsSheetState extends State<GoalsSheet> {
                 ),
             ],
           ),
+          // یادداشتِ همین روز در تقویمِ قدم (انیمیشن): اینجا هم دیده می‌شود؛ لمس = ویرایش
+          if (_dayNote(n, selJk).isNotEmpty) ...[
+            const SizedBox(height: 10),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => showFootNoteSheet(context,
+                  store: store, hostId: h.id, actionId: n.id, jk: selJk),
+              child: _DashedBox(
+                radius: 14,
+                padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+                child: Row(
+                  children: [
+                    const Icon(Icons.sticky_note_2_outlined,
+                        size: 16, color: _kMuted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _dayNote(n, selJk),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: _kInk,
+                          decoration: footNoteDone(n, selJk)
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.edit_outlined, size: 15, color: _kMuted),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (selEntries.isNotEmpty) ...[
             const SizedBox(height: 10),
             _DashedBox(
@@ -1674,6 +1723,14 @@ class _GoalsSheetState extends State<GoalsSheet> {
         ],
       ),
     );
+  }
+
+  /// یادداشتِ این روز در «تقویمِ قدم» (extra['footNotes']) — خالی = ندارد
+  String _dayNote(ActionNode n, String jk) {
+    final all = n.extra['footNotes'];
+    if (all is! Map) return '';
+    final t = all[jk];
+    return t is String ? t.trim() : '';
   }
 
   Future<void> _addTimeFor(MapStore store, MapHost h, ActionNode n, String jk,
