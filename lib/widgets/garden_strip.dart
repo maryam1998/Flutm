@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
+import '../models/constants.dart' show hexColor;
 import '../map/map_ops.dart' show nodeFinished;
 import '../map/map_painter.dart' show MapPainter;
 import '../models/jalali.dart';
@@ -60,13 +61,200 @@ Future<void> plantGoalInGarden(
     ),
   );
   if (ok != true) return;
-  g.extra['planted'] = true;
-  g.extra['plantedAt'] = DateTime.now().millisecondsSinceEpoch;
-  store.changed();
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).quietSnack(const SnackBar(
-        content: Text('🌳 درخت هدفت در باغچه کاشته شد')));
+  GardenStrip.collapsed.value = false;
+  void doPlant() {
+    g.extra['planted'] = true;
+    g.extra['plantedAt'] = DateTime.now().millisecondsSinceEpoch;
+    store.changed();
   }
+
+  if (!context.mounted) {
+    doPlant();
+    return;
+  }
+  // آدمک درخت (با همه‌ی شاخه و زیرشاخه‌هایش) را برمی‌دارد، تا باغچه می‌برد و می‌کارد
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) {
+    doPlant();
+    return;
+  }
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => Positioned.fill(
+      child: IgnorePointer(
+        child: _PlantingWalk(
+          goal: g,
+          onPlanted: doPlant,
+          onDone: () => entry.remove(),
+        ),
+      ),
+    ),
+  );
+  overlay.insert(entry);
+}
+
+// ───────────────────────── آدمک درخت را می‌برد و می‌کارد ─────────────────────────
+
+class _PlantingWalk extends StatefulWidget {
+  const _PlantingWalk(
+      {required this.goal, required this.onPlanted, required this.onDone});
+  final Goal goal;
+  final VoidCallback onPlanted, onDone;
+
+  @override
+  State<_PlantingWalk> createState() => _PlantingWalkState();
+}
+
+class _PlantingWalkState extends State<_PlantingWalk>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  bool _planted = false;
+
+  static const double _kPlantAt = 0.74;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 4800))
+      ..addListener(() {
+        if (!_planted && _c.value >= _kPlantAt) {
+          _planted = true;
+          widget.onPlanted();
+        }
+      })
+      ..addStatusListener((st) {
+        if (st == AnimationStatus.completed) widget.onDone();
+      })
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) => CustomPaint(
+        size: Size.infinite,
+        painter: _WalkPainter(widget.goal, _c.value, mq.size, mq.padding.top),
+      ),
+    );
+  }
+}
+
+class _WalkPainter extends CustomPainter {
+  _WalkPainter(this.g, this.t, this.screen, this.topInset);
+  final Goal g;
+  final double t;
+  final Size screen;
+  final double topInset;
+
+  static const double _walkEnd = 0.55;
+  static const double _plantAt = 0.74;
+  static const double _treeW = 92, _treeH = 104;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // جای درخت در باغچه: ابتدای نوار (سمت راست در صفحه‌ی راست‌به‌چپ)
+    final spot = Offset(screen.width - 8 - 8 - 46, topInset + 58 + 30 + 80);
+    final stand = spot + const Offset(0, 46);
+    final start = Offset(screen.width * 0.5, screen.height * 0.78);
+    final ctl = Offset(
+        (start.dx + stand.dx) / 2 - 70, (start.dy + stand.dy) / 2);
+
+    Offset q(double u) {
+      final v = 1 - u;
+      return Offset(v * v * start.dx + 2 * v * u * ctl.dx + u * u * stand.dx,
+          v * v * start.dy + 2 * v * u * ctl.dy + u * u * stand.dy);
+    }
+
+    final walkT = (t / _walkEnd).clamp(0.0, 1.0).toDouble();
+    final e = Curves.easeInOut.transform(walkT);
+    var pos = q(e);
+    var heading = math.atan2(q(math.min(1.0, e + 0.02)).dy - q(math.max(0.0, e - 0.02)).dy,
+        q(math.min(1.0, e + 0.02)).dx - q(math.max(0.0, e - 0.02)).dx);
+    var opacity = (t / 0.06).clamp(0.0, 1.0).toDouble();
+    final moving = walkT < 1.0 || t > 0.8;
+    var phase = walkT * 14.0;
+
+    // بعد از کاشتن: آدمک به عقب برمی‌گردد و محو می‌شود
+    if (t > 0.8) {
+      final u = ((t - 0.8) / 0.2).clamp(0.0, 1.0).toDouble();
+      pos = stand + Offset(0, 90 * u);
+      heading = math.pi / 2;
+      opacity = 1 - u;
+      phase = u * 8;
+    } else if (walkT >= 1.0) {
+      heading = -math.pi / 2;
+    }
+
+    // خاک و درخت (تا لحظه‌ی کاشت)
+    if (t < _plantAt) {
+      final plantU = ((t - _walkEnd) / (_plantAt - _walkEnd)).clamp(0.0, 1.0).toDouble();
+      final carried = pos + const Offset(0, -46);
+      final treeAt = Offset.lerp(carried, spot, 0.0)!;
+      final sc = 0.5 + 0.4 * Curves.easeOut.transform(plantU);
+      canvas.save();
+      canvas.translate(treeAt.dx, treeAt.dy - _treeH * 0.8 * sc);
+      canvas.translate(0, 0);
+      canvas.scale(sc);
+      canvas.translate(-_treeW / 2, 0);
+      _GoalTreePainter(g, 1.0, soil: plantU)
+          .paint(canvas, const Size(_treeW, _treeH));
+      canvas.restore();
+    }
+
+    if (opacity <= 0.01) return;
+    _walker(canvas, pos, heading, phase, moving, opacity);
+  }
+
+  /// آدمک از بالا: دایره (سر و بدن) + دو پا که یکی‌درمیان جلو می‌روند
+  void _walker(Canvas canvas, Offset c, double heading, double phase,
+      bool moving, double opacity) {
+    final col = hexColor(g.color, const Color(0xFF3E9B4F));
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.rotate(heading);
+    final sw = moving ? math.sin(phase) : 0.0;
+    final foot = Paint()..color = const Color(0xFF3B2A1A).withValues(alpha: 0.8 * opacity);
+    for (final side in const [-1.0, 1.0]) {
+      final off = side * sw * 7;
+      canvas.drawOval(
+          Rect.fromCenter(
+              center: Offset(off, side * 6), width: 11, height: 5.5),
+          foot);
+    }
+    canvas.restore();
+    canvas.drawCircle(c + const Offset(0, 2), 13, Paint()..color = Colors.black.withValues(alpha: 0.18 * opacity));
+    canvas.drawCircle(c, 13, Paint()..color = col.withValues(alpha: opacity));
+    canvas.drawCircle(
+        c,
+        13,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = Colors.white.withValues(alpha: 0.9 * opacity));
+    final icon = g.icon.characters.take(2).toString();
+    if (icon.isNotEmpty) {
+      final tp = TextPainter(
+        text: TextSpan(
+            text: icon,
+            style: TextStyle(
+                fontSize: 14, color: Colors.white.withValues(alpha: opacity))),
+        textDirection: TextDirection.rtl,
+      )..layout();
+      tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WalkPainter old) => true;
 }
 
 void _unplant(MapStore store, Goal g) {
@@ -98,8 +286,9 @@ class GardenStrip extends StatelessWidget {
     final planted = store.state.goals
         .where((g) => g.reached && goalPlanted(g))
         .toList()
-      ..sort((a, b) => ((a.extra['plantedAt'] as num?) ?? 0)
-          .compareTo((b.extra['plantedAt'] as num?) ?? 0));
+      // تازه‌ترین درخت اول (ابتدای نوار)، همان‌جایی که آدمک می‌کارد
+      ..sort((a, b) => ((b.extra['plantedAt'] as num?) ?? 0)
+          .compareTo((a.extra['plantedAt'] as num?) ?? 0));
     if (planted.isEmpty) return const SizedBox.shrink();
     final wp = WebPalette.of(context);
 
@@ -332,9 +521,12 @@ class _GoalTreeViewState extends State<GoalTreeView>
 }
 
 class _GoalTreePainter extends CustomPainter {
-  _GoalTreePainter(this.g, this.grow);
+  _GoalTreePainter(this.g, this.grow, {this.soil = 1.0});
   final Goal g;
   final double grow;
+
+  /// ۰..۱: اندازه‌ی تپه‌ی خاک (هنگام کاشتن از صفر بزرگ می‌شود)
+  final double soil;
 
   static const _wood = Color(0xFF7A5230);
   static const _twig = Color(0xFF5E8F3E);
@@ -351,7 +543,14 @@ class _GoalTreePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     final base = Offset(w / 2, h * 0.80);
-    _soil(canvas, w, h, base);
+    if (soil > 0.02) {
+      canvas.save();
+      canvas.translate(base.dx, base.dy);
+      canvas.scale(soil);
+      canvas.translate(-base.dx, -base.dy);
+      _soil(canvas, w, h, base);
+      canvas.restore();
+    }
     final k = grow.clamp(0.0, 1.15).toDouble();
     if (k <= 0.03) return;
     canvas.save();
