@@ -452,6 +452,7 @@ Future<void> showFootStatsSheet(
                           ),
                         ),
                       Flexible(
+                        flex: 3,
                         child: SingleChildScrollView(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -462,7 +463,9 @@ Future<void> showFootStatsSheet(
                         ),
                       ),
                       // جزئیاتِ روزِ انتخاب‌شده: همیشه زیرِ تقویم دیده می‌شود (اگر بلند بود، خودش اسکرول دارد)
-                      ConstrainedBox(
+                      Flexible(
+                        flex: 2,
+                        child: ConstrainedBox(
                         constraints: BoxConstraints(
                             maxHeight: MediaQuery.sizeOf(ctx).height * 0.32),
                         child: SingleChildScrollView(
@@ -637,6 +640,7 @@ Future<void> showFootStatsSheet(
                             ],
                           ),
                         ),
+                        ),
                       ),
                       Row(
                         children: [
@@ -661,42 +665,7 @@ Future<void> showFootStatsSheet(
                           ),
                         ],
                       ),
-                      if (f.node.extra['footNotesShow'] == true)
-                        Row(
-                          children: [
-                            Text('اندازه',
-                                style: TextStyle(
-                                    fontSize: 12, color: wp.textDim)),
-                            Expanded(
-                              child: SliderTheme(
-                                data: SliderTheme.of(ctx).copyWith(
-                                  activeTrackColor: _kDone,
-                                  thumbColor: _kDone,
-                                  trackHeight: 3,
-                                ),
-                                child: Slider(
-                                  min: 0.5,
-                                  max: 4.0,
-                                  value: ((f.node.extra['footNotesSize']
-                                                  as num?)
-                                              ?.toDouble() ??
-                                          1.0)
-                                      .clamp(0.5, 4.0)
-                                      .toDouble(),
-                                  onChanged: (v) {
-                                    f.node.extra['footNotesSize'] = v;
-                                    store.changed();
-                                    setS(() {});
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      if (selDay != null &&
-                          ((_notesOf(f.node)[_jkOf(selDay)] as String?) ?? '')
-                              .trim()
-                              .isNotEmpty)
+                      if (selDay != null)
                         Builder(builder: (_) {
                           final jk2 = _jkOf(selDay);
                           return Column(
@@ -739,7 +708,7 @@ Future<void> showFootStatsSheet(
                                       constraints: BoxConstraints(
                                           maxHeight:
                                               MediaQuery.sizeOf(ctx).height *
-                                                  0.26),
+                                                  0.2),
                                       child: SingleChildScrollView(
                                         child: FootNoteStyleControls(
                                           key: ValueKey('nstyle-$jk2'),
