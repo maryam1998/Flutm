@@ -1382,22 +1382,7 @@ class MapPainter extends CustomPainter {
     if (budOnly) {
       // غنچه‌ی واقعی: کاسبرگ سبز، گلبرگ‌های روی‌هم‌افتاده و نوکِ تیز.
       // به‌صورت تصادفی (ثابت برای هر id): بی‌برگ، تک‌برگ یا دوبرگ
-      // هر غنچه ظاهرِ مخصوصِ خودش را دارد (ثابت برای هر id): رنگ، اندازه، شکل
-      var h2 = (h % 2147483646) + 1;
-      double rnd() {
-        h2 = (h2 * 48271) % 2147483647; // بدون سرریز (سازگار با وب)
-        return h2 / 2147483647.0;
-      }
-      rnd();
-      rnd();
-      rnd();
-      final Rb = R * (0.75 + rnd() * 0.65); // اندازه: ۰٫۷۵ تا ۱٫۴ برابر
-      final bc = HSLColor.fromAHSL(
-              1.0, rnd() * 360, 0.5 + rnd() * 0.35, 0.56 + rnd() * 0.16)
-          .toColor();
-      final wK = 0.46 + rnd() * 0.38; // باریک تا چاق
-      final hK = 1.15 + rnd() * 0.85; // کوتاه تا کشیده
-      final belly = 0.8 + rnd() * 0.35; // گردی بدنه
+      final bc = (pc.computeLuminance() > 0.85) ? petals[0] : pc;
       final lc = (h ~/ 216) % 3; // تعداد برگ: ۰، ۱ یا ۲
       final side = ((h ~/ 648) & 1) == 0 ? 1.0 : -1.0;
       final lean = (((h ~/ 1296) % 5) - 2) * 0.05; // کمی خمیدگی
@@ -1407,25 +1392,25 @@ class MapPainter extends CustomPainter {
       // ساقه
       canvas.drawLine(
           Offset.zero,
-          Offset(0, -Rb * 0.8),
+          Offset(0, -R * 0.8),
           Paint()
             ..color = gc[0]
-            ..strokeWidth = math.max(1.1, Rb * 0.15)
+            ..strokeWidth = math.max(1.1, R * 0.15)
             ..strokeCap = StrokeCap.round);
       // برگ‌ها
-      if (lc >= 1) leaf(-Rb * 0.12, -0.95 * side, Rb * 0.95, Rb * 0.34);
-      if (lc == 2) leaf(-Rb * 0.12, 0.95 * side, Rb * 0.85, Rb * 0.30);
+      if (lc >= 1) leaf(-R * 0.12, -0.95 * side, R * 0.95, R * 0.34);
+      if (lc == 2) leaf(-R * 0.12, 0.95 * side, R * 0.85, R * 0.30);
 
       canvas.save();
-      canvas.translate(0, -Rb * 0.7);
+      canvas.translate(0, -R * 0.7);
       canvas.rotate(lean);
-      final w = Rb * wK;
-      final hh = Rb * hK;
+      final w = R * 0.62;
+      final hh = R * 1.55;
       // بدنه‌ی غنچه: قطره‌ی کشیده با نوکِ تیز
       final body = Path()
         ..moveTo(0, 0)
-        ..cubicTo(w * 1.05 * belly, -hh * 0.12, w * 0.95 * belly, -hh * 0.62, 0, -hh)
-        ..cubicTo(-w * 0.95 * belly, -hh * 0.62, -w * 1.05 * belly, -hh * 0.12, 0, 0)
+        ..cubicTo(w * 1.05, -hh * 0.12, w * 0.95, -hh * 0.62, 0, -hh)
+        ..cubicTo(-w * 0.95, -hh * 0.62, -w * 1.05, -hh * 0.12, 0, 0)
         ..close();
       canvas.drawPath(
           body,
@@ -1437,7 +1422,7 @@ class MapPainter extends CustomPainter {
       // درزِ گلبرگ‌های روی‌هم‌افتاده
       final seam = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(0.7, Rb * 0.07)
+        ..strokeWidth = math.max(0.7, R * 0.07)
         ..strokeCap = StrokeCap.round
         ..color = withOp(dark, 0.55);
       canvas.drawPath(
