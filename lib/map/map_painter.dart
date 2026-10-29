@@ -2252,9 +2252,9 @@ class MapPainter extends CustomPainter {
   /// دکمه‌ی کوچک ⏱ کنار قدم: باز کردن تایمر و ثبت زمانِ امروز
   void _timeBtn(
       Canvas canvas, ActionNode a, String hostId, Offset body, double bodyR) {
-    final d = math.max(bodyR * 1.3, 20.0) + 16;
+    final d = math.max(bodyR * 1.3, 20.0) + 12;
     final c = body + Offset(-d * 0.7071, d * 0.7071);
-    const r = 11.0;
+    const r = 6.5; // قبلاً ۱۱؛ کوچک‌تر تا روی نقشه جلب‌توجه نکند
     final live = (a.timerStart ?? 0) > 0;
     canvas.drawCircle(c, r + 1.6, Paint()..color = const Color(0xF2FFFFFF));
     canvas.drawCircle(c, r,
@@ -2262,7 +2262,7 @@ class MapPainter extends CustomPainter {
     final ink = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = 1.1
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(c, r * 0.55, ink);
     canvas.drawLine(c, c + const Offset(0, -r * 0.38), ink);
@@ -2273,7 +2273,7 @@ class MapPainter extends CustomPainter {
       hostId: hostId,
       kind: HitKind.handle,
       center: c,
-      radius: r + 6,
+      radius: r + 8,
     ));
   }
 

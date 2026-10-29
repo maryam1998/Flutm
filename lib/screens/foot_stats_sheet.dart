@@ -202,6 +202,7 @@ Future<void> showFootStatsSheet(
   String? hint; // پیام کوتاه زیر دکمه‌ها
   String? jkPending = initialJk; // روزی که باید باز شدن انتخاب بشه
   final selKey = GlobalKey();
+  final detailCtl = ScrollController();
 
   return showModalBottomSheet<void>(
     context: context,
@@ -284,6 +285,7 @@ Future<void> showFootStatsSheet(
                       onTap: () => setS(() {
                         sel = d.idx;
                         hint = null;
+                        if (detailCtl.hasClients) detailCtl.jumpTo(0);
                       }),
                       child: AspectRatio(
                         aspectRatio: 1,
@@ -454,6 +456,19 @@ Future<void> showFootStatsSheet(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               for (final m in months.values) monthGrid(m),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // جزئیاتِ روزِ انتخاب‌شده: همیشه زیرِ تقویم دیده می‌شود (اگر بلند بود، خودش اسکرول دارد)
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                            maxHeight: MediaQuery.sizeOf(ctx).height * 0.32),
+                        child: SingleChildScrollView(
+                          controller: detailCtl,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                       if (selDay != null) ...[
                         Builder(builder: (_) {
                           final n = f.node;
@@ -697,7 +712,7 @@ Future<void> showFootStatsSheet(
         },
       ),
     ),
-  );
+  ).whenComplete(detailCtl.dispose);
 }
 
 
