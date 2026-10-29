@@ -27,12 +27,18 @@ import '../widgets/emoji_stack.dart' show isTextIcon;
 const kLabelRtlAnchor = false;
 
 /// پاداشِ دیداری: هدفِ رسیده‌شده / شاخه‌ی انجام‌شده‌ی امروز کم‌رنگ می‌شود
-const double _kReachedFade = 0.42;
+const double _kReachedFade = 0.88; // هدفِ رسیده‌شده پررنگ می‌ماند (قبلاً ۰٫۴۲)
 const double _kDoneFade = 0.5;
 
 /// وضعیتِ «انجام شد» برای مُهر و انیمیشنِ پاداش (فقط در حافظه‌ی همین اجرا)
 final Map<String, bool> _doneSeen = {};
 final Map<String, double> _doneBurstAt = {};
+
+/// شکوفه‌ی شاخه‌های تمام‌شده و جشنِ رسیدن به هدف (فقط در حافظه‌ی همین اجرا)
+final Map<String, bool> _bloomSeen = {};
+final Map<String, double> _bloomAt = {};
+final Map<String, bool> _reachSeen = {};
+final Map<String, double> _reachAt = {};
 
 /// شفافیتِ قدم‌زنِ (عکس + پاها) بعد از «انجام شد»
 const double _kDoneWalkerFade = 0.42;
@@ -377,8 +383,7 @@ class MapPainter extends CustomPainter {
       for (final g in state.goals) {
         if (only && dimG(g) != dimPass) continue;
         if (!_isHidden(g)) {
-          _fade(canvas, g.reached ? _kReachedFade : 1.0,
-              () => _drawGoal(canvas, g, tc));
+          _fade(canvas, 1.0, () => _drawGoal(canvas, g, tc));
         }
         _hideBtn(canvas, g, tc);
       }
@@ -1155,6 +1160,208 @@ class MapPainter extends CustomPainter {
     }
 
     _goalShutter(canvas, g, col, tc, r);
+
+    // رسیدن به هدف: میوه‌ی طلاییِ آیکونِ هدف + بارانِ گلبرگ (فقط لحظه‌ی رسیدن)
+    if (g.reached) {
+      if (_reachSeen[g.id] == false) {
+        _reachAt[g.id] = _t;
+        HapticFeedback.mediumImpact();
+      }
+      _reachSeen[g.id] = true;
+      _goalFruit(canvas, g, c, math.max(r, r0));
+      final t0 = _reachAt[g.id];
+      if (t0 != null) {
+        if (_t - t0 > 2.8) {
+          _reachAt.remove(g.id);
+        } else {
+          _petalBurst(canvas, c, math.max(r, r0), _t - t0);
+        }
+      }
+    } else {
+      _reachSeen[g.id] = false;
+      _reachAt.remove(g.id);
+    }
+  }
+
+  /// میوه‌ی طلاییِ هدفِ رسیده‌شده؛ آیکونِ خودِ هدف داخلش است
+  void _goalFruit(Canvas canvas, Goal g, Offset c, double r) {
+    final fr = (r * 0.55).clamp(12.0, 24.0).toDouble();
+    final fc = c + Offset(r + fr * 0.9, fr * 0.2);
+    final pulse = 1 + math.sin(_t * 2.0) * 0.04;
+    canvas.drawCircle(
+        fc,
+        fr * 1.9,
+        Paint()
+          ..color = const Color(0x55FFC83D)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10));
+    // دمگل و برگ
+    canvas.drawLine(fc + Offset(0, -fr * 0.9), fc + Offset(fr * 0.15, -fr * 1.35),
+        Paint()
+          ..color = const Color(0xFF8D6E63)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round);
+    final lf = fc + Offset(fr * 0.15, -fr * 1.3);
+    canvas.drawPath(
+        Path()
+          ..moveTo(lf.dx, lf.dy)
+          ..quadraticBezierTo(lf.dx + fr * 0.8, lf.dy - fr * 0.15,
+              lf.dx + fr * 0.75, lf.dy + fr * 0.45)
+          ..quadraticBezierTo(lf.dx + fr * 0.2, lf.dy + fr * 0.5, lf.dx, lf.dy),
+        Paint()..color = const Color(0xFF43A047));
+    final br = fr * pulse;
+    canvas.drawCircle(
+        fc,
+        br,
+        Paint()
+          ..shader = ui.Gradient.radial(
+              fc + Offset(-br * 0.3, -br * 0.3),
+              br * 1.4,
+              const [Color(0xFFFFF1A8), Color(0xFFFFC83D), Color(0xFFD9971C)],
+              const [0.0, 0.55, 1.0]));
+    canvas.drawCircle(
+        fc,
+        br,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = const Color(0xFFB77B12));
+    if (g.icon.trim().isNotEmpty) {
+      _drawEmoji(canvas, fc, 0, br * 1.05, Colors.black, g.icon);
+    } else {
+      _drawEmoji(canvas, fc, 0, br * 1.05, Colors.white, '★');
+    }
+    canvas.drawOval(
+        Rect.fromCenter(
+            center: fc + Offset(-br * 0.45, -br * 0.5),
+            width: br * 0.38,
+            height: br * 0.22),
+        Paint()..color = const Color(0xAAFFFFFF));
+  }
+
+  /// بارانِ گلبرگ دور هدف در لحظه‌ی رسیدن (۲٫۸ ثانیه)
+  void _petalBurst(Canvas canvas, Offset c, double r, double el) {
+    const cols = [
+      Color(0xFFF48FB1),
+      Color(0xFFFFFFFF),
+      Color(0xFFFFD54F),
+      Color(0xFFCE93D8),
+      Color(0xFFFF8A65),
+    ];
+    final p = (el / 2.8).clamp(0.0, 1.0).toDouble();
+    final e = 1 - (1 - p) * (1 - p);
+    for (var i = 0; i < 28; i++) {
+      final ang = i * 2.399963;
+      final dist = r * (1.3 + (i % 5) * 0.55) * e;
+      final x = c.dx + math.cos(ang) * dist;
+      final y = c.dy + math.sin(ang) * dist * 0.8 + p * p * 80;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(ang + p * 5);
+      canvas.drawOval(
+          Rect.fromCenter(center: Offset.zero, width: 4.2, height: 8),
+          Paint()..color = cols[i % cols.length].withValues(alpha: (1 - p) * 0.9));
+      canvas.restore();
+    }
+  }
+
+  /// گل یا برگِ کوچکِ شاخه‌ی تمام‌شده. نوعش از روی id ثابت است (هر بار همان).
+  /// p: ۰ → ۱ انیمیشنِ شکفتن
+  void _bloom(Canvas canvas, Offset c, double r, String id, double p) {
+    var h = 7;
+    for (final u in id.codeUnits) {
+      h = (h * 31 + u) & 0x7fffffff;
+    }
+    const petals = [
+      Color(0xFFF48FB1),
+      Color(0xFFFFFFFF),
+      Color(0xFFFFD54F),
+      Color(0xFFCE93D8),
+      Color(0xFFFF8A65),
+      Color(0xFF90CAF9),
+    ];
+    const greens = [Color(0xFF66BB6A), Color(0xFF43A047), Color(0xFF9CCC65)];
+    final kind = h % 5; // ۰ برگ، ۱ گلِ پنج‌گلبرگ، ۲ شکوفه، ۳ بابونه، ۴ غنچه
+    final pc = petals[(h ~/ 5) % petals.length];
+    final gc = greens[(h ~/ 7) % greens.length];
+    final rot = ((h ~/ 11) % 628) / 100.0;
+    final k = Curves.easeOutBack.transform(p.clamp(0.0, 1.0).toDouble());
+    final rr = r * k;
+    if (rr <= 0.1) return;
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.7
+      ..color = const Color(0x33000000);
+
+    void petal(double ang, double len, double wid, Color col) {
+      canvas.save();
+      canvas.translate(c.dx, c.dy);
+      canvas.rotate(ang);
+      final rect = Rect.fromCenter(
+          center: Offset(0, -len * 0.55), width: wid, height: len);
+      canvas.drawOval(rect, Paint()..color = col);
+      canvas.drawOval(rect, edge);
+      canvas.restore();
+    }
+
+    switch (kind) {
+      case 0: // برگ (دو برگ)
+        for (final sgn in const [-1.0, 1.0]) {
+          canvas.save();
+          canvas.translate(c.dx, c.dy);
+          canvas.rotate(rot * 0.1 + sgn * 0.7);
+          final leaf = Path()
+            ..moveTo(0, 0)
+            ..quadraticBezierTo(rr * 0.8, -rr * 0.7, 0, -rr * 1.5)
+            ..quadraticBezierTo(-rr * 0.8, -rr * 0.7, 0, 0);
+          canvas.drawPath(leaf, Paint()..color = gc);
+          canvas.drawPath(leaf, edge);
+          canvas.restore();
+        }
+      case 1: // گلِ پنج‌گلبرگ
+        for (var i = 0; i < 5; i++) {
+          petal(rot + i * 2 * math.pi / 5, rr * 1.2, rr * 0.8, pc);
+        }
+        canvas.drawCircle(c, rr * 0.3, Paint()..color = const Color(0xFFFFC107));
+      case 2: // شکوفه‌ی گرد (سفید/صورتی روشن)
+        for (var i = 0; i < 6; i++) {
+          petal(rot + i * math.pi / 3, rr * 1.0, rr * 0.75,
+              Color.lerp(pc, Colors.white, 0.45)!);
+        }
+        canvas.drawCircle(c, rr * 0.22, Paint()..color = const Color(0xFFE8A33D));
+      case 3: // بابونه
+        for (var i = 0; i < 8; i++) {
+          petal(rot + i * math.pi / 4, rr * 1.3, rr * 0.42, Colors.white);
+        }
+        canvas.drawCircle(c, rr * 0.34, Paint()..color = const Color(0xFFFFB300));
+      default: // غنچه
+        canvas.drawLine(c + Offset(0, rr * 0.9), c,
+            Paint()
+              ..color = gc
+              ..strokeWidth = 1.6
+              ..strokeCap = StrokeCap.round);
+        final bud = Rect.fromCenter(
+            center: c + Offset(0, -rr * 0.35), width: rr * 0.85, height: rr * 1.3);
+        canvas.drawOval(bud, Paint()..color = pc);
+        canvas.drawOval(bud, edge);
+        canvas.drawPath(
+            Path()
+              ..moveTo(c.dx - rr * 0.4, c.dy - rr * 0.05)
+              ..lineTo(c.dx, c.dy + rr * 0.35)
+              ..lineTo(c.dx + rr * 0.4, c.dy - rr * 0.05)
+              ..close(),
+            Paint()..color = gc);
+    }
+    // جرقه‌های کوچک هنگامِ شکفتن
+    if (p < 1.0) {
+      for (var i = 0; i < 6; i++) {
+        final a = i * math.pi / 3 + rot;
+        final d = r * (1.2 + p * 1.8);
+        canvas.drawCircle(
+            c + Offset(math.cos(a) * d, math.sin(a) * d),
+            1.6,
+            Paint()..color = const Color(0xFFFFC83D).withValues(alpha: 1 - p));
+      }
+    }
   }
 
   /// حلقه‌ی پیشرفت دور دایره‌ی هدف؛ همان درصدِ نوار «فهرست اهداف»
@@ -2739,6 +2946,21 @@ class MapPainter extends CustomPainter {
       openFade();
     }
 
+    // کارِ تمام‌شده: یک گل یا برگِ کوچک (برای هر شاخه ثابت و تصادفی) سرِ شاخه می‌شکفد
+    if (doneNow) {
+      if (_bloomSeen[a.id] == false) _bloomAt[a.id] = _t;
+      _bloomSeen[a.id] = true;
+      final t0 = _bloomAt[a.id];
+      final bp = t0 == null ? 1.0 : ((_t - t0) / 0.9).clamp(0.0, 1.0).toDouble();
+      if (t0 != null && _t - t0 > 3.0) _bloomAt.remove(a.id);
+      final sc = math.max(0.8, scale);
+      _bloom(canvas, end + Offset((side > 0 ? -7.0 : 7.0) * sc, -10.0 * sc),
+          6.5 * sc, a.id, bp);
+    } else {
+      _bloomSeen[a.id] = false;
+      _bloomAt.remove(a.id);
+    }
+
     // دکمه‌ی جمع/باز: روی گره‌ی جمع‌شده «تمام‌شده از کل» (مثلاً ۲ از ۵)؛
     // روی گره‌ی باز یک «−» خیلی کم‌رنگ. لمس = جمع/باز کردن دستی
     if (visKids.isNotEmpty && !foldAnim) {
@@ -2833,15 +3055,6 @@ class MapPainter extends CustomPainter {
         lr = lr == null ? b : lr.expandToInclude(b);
       }
       if (lr != null) {
-        // کارِ تمام‌شده: ✓ سبز کنار اسم
-        if (doneNow) {
-          final first = Rect.fromLTRB(lr.left, lr.top, lr.right,
-              lr.top + (lr.height / lines.length));
-          final br = math.max(4.0, fs * 0.36);
-          _miniCheck(canvas,
-              Offset(right ? lr.left - br - 4 : lr.right + br + 4, first.center.dy),
-              br);
-        }
         hits.add(HitEntry(
             type: 'action',
             id: a.id,
