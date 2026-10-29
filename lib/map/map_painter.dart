@@ -3030,7 +3030,15 @@ class MapPainter extends CustomPainter {
       }
       if (dy > 0) dy = -dy;
       final dir = math.atan2(dy, dx);
-      _sprig(canvas, end, dir, 7.0 * sc, a.id, bp);
+      final sr = 10.5 * sc; // گل و برگ بزرگ‌تر (قبلاً ۷)
+      _sprig(canvas, end, dir, sr, a.id, bp);
+      hits.add(HitEntry(
+          type: 'bloomToggle',
+          id: a.id,
+          hostId: h.id,
+          kind: HitKind.handle,
+          center: end + Offset(math.cos(dir), math.sin(dir)) * (sr * 1.1),
+          radius: sr * 1.5));
     } else {
       _bloomSeen[a.id] = false;
       _bloomAt.remove(a.id);
@@ -3111,7 +3119,8 @@ class MapPainter extends CustomPainter {
       _routineRing(canvas, end, tipR, color, scale, a);
     }
 
-    if (a.text.isNotEmpty) {
+    // کارِ تمام‌شده: نوشته پنهان است و با لمسِ گل/برگِ سرِ شاخه نشان داده می‌شود
+    if (a.text.isNotEmpty && (!doneNow || a.extra['labelOpen'] == true)) {
       final lines = wrapText(a.text,
           math.max(10, (18 * math.min(1.0, scale + 0.35)).round()));
       final right = kLabelRtlAnchor ? side > 0 : side < 0;

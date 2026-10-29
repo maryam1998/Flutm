@@ -254,6 +254,23 @@ class MapInteraction {
       store.toggleGoalCollapse(hit.id);
       return;
     }
+    // لمسِ گل/برگِ سرِ شاخه‌ی تمام‌شده: نشان دادن/پنهان کردنِ نوشته‌ی همان شاخه
+    if (_ptrs.isEmpty && hit != null && hit.type == 'bloomToggle') {
+      HapticFeedback.selectionClick();
+      final bh = store.state.findHost(hit.hostId);
+      if (bh is MapHost) {
+        final bf = findActionNode(bh.actions, hit.id);
+        if (bf != null) {
+          if (bf.node.extra['labelOpen'] == true) {
+            bf.node.extra.remove('labelOpen');
+          } else {
+            bf.node.extra['labelOpen'] = true;
+          }
+          store.changed();
+        }
+      }
+      return;
+    }
     if (_ptrs.isEmpty && hit != null && hit.type == 'foldToggle') {
       HapticFeedback.selectionClick();
       store.toggleActionFold(hit.id);
