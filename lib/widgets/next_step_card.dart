@@ -53,7 +53,8 @@ class _NextStepCardState extends State<NextStepCard> {
   int _skip = 0;
   String? _focusId;
   bool _more = false;
-  bool _collapsed = false;
+  // کارت «قدم بعدی» موقع ورود خودش باز نمی‌شود؛ با لمسِ دکمه‌ی 👣 باز می‌شود
+  bool _collapsed = true;
   // آخرین قدمی که همین الان تیک خورد؛ برای پیشنهادِ «کاملاً تمام شد»
   Goal? _jg;
   ActionNode? _jn;
@@ -74,28 +75,6 @@ class _NextStepCardState extends State<NextStepCard> {
     if (goals.isEmpty) {
       TodayFocus.clear();
       return const SizedBox.shrink();
-    }
-
-    if (_collapsed) {
-      return Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Material(
-            color: wp.panelBg,
-            shape: CircleBorder(side: BorderSide(color: wp.panelBorder)),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => setState(() => _collapsed = false),
-              child: const SizedBox(
-                width: 38,
-                height: 38,
-                child: Center(child: Text('👣', style: TextStyle(fontSize: 17))),
-              ),
-            ),
-          ),
-        ),
-      );
     }
 
     final doneBy = <String, int>{for (final g in goals) g.id: todayCount(g, jk)};
@@ -129,6 +108,28 @@ class _NextStepCardState extends State<NextStepCard> {
       TodayFocus.update(cur.goal.id, cur.node.id);
     }
     final showDone = totalDone > 0 && !_more && focus == null;
+
+    if (_collapsed) {
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Material(
+            color: wp.panelBg,
+            shape: CircleBorder(side: BorderSide(color: wp.panelBorder)),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => setState(() => _collapsed = false),
+              child: const SizedBox(
+                width: 38,
+                height: 38,
+                child: Center(child: Text('👣', style: TextStyle(fontSize: 17))),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     Widget main;
     if (showDone) {
