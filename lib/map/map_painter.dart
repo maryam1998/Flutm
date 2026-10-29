@@ -1264,9 +1264,11 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  /// گل یا برگِ کوچکِ شاخه‌ی تمام‌شده. نوعش از روی id ثابت است (هر بار همان).
-  /// p: ۰ → ۱ انیمیشنِ شکفتن
-  void _bloom(Canvas canvas, Offset c, double r, String id, double p) {
+  /// شاخه‌ی گل و برگ سرِ شاخه‌ی تمام‌شده (جهتش ادامه‌ی شاخه است).
+  /// ترکیبِ برگ و گل: بعضی فقط برگ، بعضی برگ + گل (پنج‌گلبرگ، خوشه، غنچه، بابونه).
+  /// نوع و رنگ از روی id ثابت است. p: ۰ → ۱ انیمیشنِ شکفتن
+  void _sprig(Canvas canvas, Offset tip, double dir, double r, String id,
+      double p) {
     var h = 7;
     for (final u in id.codeUnits) {
       h = (h * 31 + u) & 0x7fffffff;
@@ -1279,85 +1281,151 @@ class MapPainter extends CustomPainter {
       Color(0xFFFF8A65),
       Color(0xFF90CAF9),
     ];
-    const greens = [Color(0xFF66BB6A), Color(0xFF43A047), Color(0xFF9CCC65)];
-    final kind = h % 5; // ۰ برگ، ۱ گلِ پنج‌گلبرگ، ۲ شکوفه، ۳ بابونه، ۴ غنچه
-    final pc = petals[(h ~/ 5) % petals.length];
-    final gc = greens[(h ~/ 7) % greens.length];
-    final rot = ((h ~/ 11) % 628) / 100.0;
+    const greens = [
+      [Color(0xFF2E7D32), Color(0xFF81C784)],
+      [Color(0xFF388E3C), Color(0xFFA5D66B)],
+      [Color(0xFF1B7F4B), Color(0xFF6FCF97)],
+    ];
+    final kind = h % 6;
+    final pc = petals[(h ~/ 6) % petals.length];
+    final gc = greens[(h ~/ 36) % greens.length];
     final k = Curves.easeOutBack.transform(p.clamp(0.0, 1.0).toDouble());
-    final rr = r * k;
-    if (rr <= 0.1) return;
+    if (k <= 0.02) return;
+
+    canvas.save();
+    canvas.translate(tip.dx, tip.dy);
+    canvas.rotate(dir + math.pi / 2); // «بالا» (-y) = ادامه‌ی شاخه
+    canvas.scale(k);
+    final R = r;
+
     final edge = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.7
+      ..strokeWidth = 0.6
       ..color = const Color(0x33000000);
 
-    void petal(double ang, double len, double wid, Color col) {
+    void leaf(double y, double ang, double len, double wid) {
       canvas.save();
-      canvas.translate(c.dx, c.dy);
+      canvas.translate(0, y);
       canvas.rotate(ang);
-      final rect = Rect.fromCenter(
-          center: Offset(0, -len * 0.55), width: wid, height: len);
-      canvas.drawOval(rect, Paint()..color = col);
-      canvas.drawOval(rect, edge);
+      final lp = Path()
+        ..moveTo(0, 0)
+        ..cubicTo(wid, -len * 0.25, wid * 0.8, -len * 0.8, 0, -len)
+        ..cubicTo(-wid * 0.8, -len * 0.8, -wid, -len * 0.25, 0, 0);
+      canvas.drawPath(
+          lp,
+          Paint()
+            ..shader = ui.Gradient.linear(
+                Offset.zero, Offset(0, -len), [gc[0], gc[1]]));
+      canvas.drawPath(lp, edge);
+      canvas.drawLine(
+          Offset.zero,
+          Offset(0, -len * 0.82),
+          Paint()
+            ..color = const Color(0x55FFFFFF)
+            ..strokeWidth = 0.7);
       canvas.restore();
     }
 
-    switch (kind) {
-      case 0: // برگ (دو برگ)
-        for (final sgn in const [-1.0, 1.0]) {
-          canvas.save();
-          canvas.translate(c.dx, c.dy);
-          canvas.rotate(rot * 0.1 + sgn * 0.7);
-          final leaf = Path()
-            ..moveTo(0, 0)
-            ..quadraticBezierTo(rr * 0.8, -rr * 0.7, 0, -rr * 1.5)
-            ..quadraticBezierTo(-rr * 0.8, -rr * 0.7, 0, 0);
-          canvas.drawPath(leaf, Paint()..color = gc);
-          canvas.drawPath(leaf, edge);
-          canvas.restore();
-        }
-      case 1: // گلِ پنج‌گلبرگ
-        for (var i = 0; i < 5; i++) {
-          petal(rot + i * 2 * math.pi / 5, rr * 1.2, rr * 0.8, pc);
-        }
-        canvas.drawCircle(c, rr * 0.3, Paint()..color = const Color(0xFFFFC107));
-      case 2: // شکوفه‌ی گرد (سفید/صورتی روشن)
-        for (var i = 0; i < 6; i++) {
-          petal(rot + i * math.pi / 3, rr * 1.0, rr * 0.75,
-              Color.lerp(pc, Colors.white, 0.45)!);
-        }
-        canvas.drawCircle(c, rr * 0.22, Paint()..color = const Color(0xFFE8A33D));
-      case 3: // بابونه
-        for (var i = 0; i < 8; i++) {
-          petal(rot + i * math.pi / 4, rr * 1.3, rr * 0.42, Colors.white);
-        }
-        canvas.drawCircle(c, rr * 0.34, Paint()..color = const Color(0xFFFFB300));
-      default: // غنچه
-        canvas.drawLine(c + Offset(0, rr * 0.9), c,
-            Paint()
-              ..color = gc
-              ..strokeWidth = 1.6
-              ..strokeCap = StrokeCap.round);
-        final bud = Rect.fromCenter(
-            center: c + Offset(0, -rr * 0.35), width: rr * 0.85, height: rr * 1.3);
-        canvas.drawOval(bud, Paint()..color = pc);
-        canvas.drawOval(bud, edge);
-        canvas.drawPath(
-            Path()
-              ..moveTo(c.dx - rr * 0.4, c.dy - rr * 0.05)
-              ..lineTo(c.dx, c.dy + rr * 0.35)
-              ..lineTo(c.dx + rr * 0.4, c.dy - rr * 0.05)
-              ..close(),
-            Paint()..color = gc);
+    void petal(double ang, double len, double wid, Color col,
+        [Offset at = Offset.zero]) {
+      canvas.save();
+      canvas.translate(at.dx, at.dy);
+      canvas.rotate(ang);
+      final pp = Path()
+        ..moveTo(0, 0)
+        ..cubicTo(wid * 0.9, -len * 0.15, wid * 0.7, -len * 0.95, 0, -len)
+        ..cubicTo(-wid * 0.7, -len * 0.95, -wid * 0.9, -len * 0.15, 0, 0);
+      canvas.drawPath(
+          pp,
+          Paint()
+            ..shader = ui.Gradient.linear(Offset.zero, Offset(0, -len), [
+              Color.lerp(col, const Color(0xFFFFA000), 0.3)!,
+              col,
+            ]));
+      canvas.drawPath(pp, edge);
+      canvas.restore();
     }
+
+    void blossom(Offset c, double rr, int n, Color col, Color center,
+        {double rot = 0, double wid = 0.8}) {
+      for (var i = 0; i < n; i++) {
+        petal(rot + i * 2 * math.pi / n, rr, rr * wid, col, c);
+      }
+      canvas.drawCircle(c, rr * 0.26, Paint()..color = center);
+      canvas.drawCircle(c + Offset(-rr * 0.07, -rr * 0.07), rr * 0.09,
+          Paint()..color = const Color(0x88FFFFFF));
+    }
+
+    void bud(Offset c, double ang, double rr, Color col) {
+      canvas.save();
+      canvas.translate(c.dx, c.dy);
+      canvas.rotate(ang);
+      final b = Rect.fromCenter(
+          center: Offset(0, -rr * 0.5), width: rr * 0.7, height: rr * 1.1);
+      canvas.drawOval(b, Paint()..color = col);
+      canvas.drawOval(b, edge);
+      canvas.drawPath(
+          Path()
+            ..moveTo(-rr * 0.32, -rr * 0.05)
+            ..lineTo(0, rr * 0.3)
+            ..lineTo(rr * 0.32, -rr * 0.05)
+            ..close(),
+          Paint()..color = gc[0]);
+      canvas.restore();
+    }
+
+    // ساقه
+    canvas.drawLine(
+        Offset.zero,
+        Offset(0, -R * 1.05),
+        Paint()
+          ..color = gc[0]
+          ..strokeWidth = math.max(1.2, R * 0.17)
+          ..strokeCap = StrokeCap.round);
+
+    // برگ‌ها (همه‌ی انواع برگ دارند)
+    final leafOnly = kind <= 1;
+    leaf(-R * 0.25, -0.85, R * 1.15, R * 0.46);
+    leaf(-R * 0.25, 0.85, R * 1.15, R * 0.46);
+    leaf(-R * 0.62, -0.5, R * (leafOnly ? 1.1 : 0.9), R * 0.4);
+    leaf(-R * 0.62, 0.5, R * (leafOnly ? 1.1 : 0.9), R * 0.4);
+    final top = Offset(0, -R * 1.15);
+
+    switch (kind) {
+      case 0: // فقط برگ: برگِ سرِ شاخه
+        leaf(-R * 1.0, 0, R * 1.0, R * 0.42);
+      case 1: // فقط برگ: سه‌برگه
+        leaf(-R * 1.0, 0, R * 1.2, R * 0.46);
+        leaf(-R * 1.0, -0.35, R * 0.9, R * 0.36);
+        leaf(-R * 1.0, 0.35, R * 0.9, R * 0.36);
+      case 2: // گلِ پنج‌گلبرگ
+        blossom(top, R * 0.95, 5, pc, const Color(0xFFFFC107));
+      case 3: // خوشه‌ی شکوفه
+        blossom(top, R * 0.7, 6, Color.lerp(pc, Colors.white, 0.4)!,
+            const Color(0xFFE8A33D));
+        blossom(Offset(-R * 0.85, -R * 0.8), R * 0.5, 6,
+            Color.lerp(pc, Colors.white, 0.55)!, const Color(0xFFE8A33D),
+            rot: 0.5);
+        blossom(Offset(R * 0.85, -R * 0.85), R * 0.5, 6,
+            Color.lerp(pc, Colors.white, 0.55)!, const Color(0xFFE8A33D),
+            rot: 0.2);
+      case 4: // گلِ درشت + دو غنچه
+        bud(Offset(0, -R * 0.55), -0.9, R * 0.8, pc);
+        bud(Offset(0, -R * 0.55), 0.9, R * 0.8, pc);
+        blossom(top, R * 1.0, 5, pc, const Color(0xFFFFC107), rot: 0.3);
+      default: // بابونه
+        blossom(top, R * 1.05, 9, Colors.white, const Color(0xFFFFB300),
+            wid: 0.42);
+    }
+    canvas.restore();
+
     // جرقه‌های کوچک هنگامِ شکفتن
     if (p < 1.0) {
       for (var i = 0; i < 6; i++) {
-        final a = i * math.pi / 3 + rot;
-        final d = r * (1.2 + p * 1.8);
+        final a = i * math.pi / 3 + dir;
+        final d = r * (1.3 + p * 2.0);
         canvas.drawCircle(
-            c + Offset(math.cos(a) * d, math.sin(a) * d),
+            tip + Offset(math.cos(a) * d, math.sin(a) * d),
             1.6,
             Paint()..color = const Color(0xFFFFC83D).withValues(alpha: 1 - p));
       }
@@ -2954,8 +3022,15 @@ class MapPainter extends CustomPainter {
       final bp = t0 == null ? 1.0 : ((_t - t0) / 0.9).clamp(0.0, 1.0).toDouble();
       if (t0 != null && _t - t0 > 3.0) _bloomAt.remove(a.id);
       final sc = math.max(0.8, scale);
-      _bloom(canvas, end + Offset((side > 0 ? -7.0 : 7.0) * sc, -10.0 * sc),
-          6.5 * sc, a.id, bp);
+      // جهتِ رشد = ادامه‌ی شاخه؛ اگر رو به پایین بود، رو به بالا برمی‌گردد
+      var dx = end.dx - geom.c2.dx, dy = end.dy - geom.c2.dy;
+      if (dx * dx + dy * dy < 1) {
+        dx = end.dx - geom.originPt.dx;
+        dy = end.dy - geom.originPt.dy;
+      }
+      if (dy > 0) dy = -dy;
+      final dir = math.atan2(dy, dx);
+      _sprig(canvas, end, dir, 7.0 * sc, a.id, bp);
     } else {
       _bloomSeen[a.id] = false;
       _bloomAt.remove(a.id);
