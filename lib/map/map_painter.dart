@@ -1273,7 +1273,7 @@ class MapPainter extends CustomPainter {
   /// شاخه‌ی گل و برگ سرِ شاخه‌ی تمام‌شده (جهتش ادامه‌ی شاخه است).
   /// ترکیبِ برگ و گل: بعضی فقط برگ، بعضی برگ + گل (پنج‌گلبرگ، خوشه، غنچه، بابونه).
   /// نوع و رنگ از روی id ثابت است. p: ۰ → ۱ انیمیشنِ شکفتن
-  void _sprig(Canvas canvas, Offset tip, double dir, double r, String id,
+  static void _sprig(Canvas canvas, Offset tip, double dir, double r, String id,
       double p,
       {bool budOnly = false, bool flower = false}) {
     var h = 7;
@@ -1842,6 +1842,21 @@ class MapPainter extends CustomPainter {
   /// (تیک/متن در logs، یا زمان ثبت‌شده با تایمر/مدت/ساعت)
   bool _doneOn(ActionNode a, String jk) => footDoneOn(a, jk);
 
+  /// آیا این شاخه/زیرشاخه حداقل یک روزِ انجام‌شده (یا «تمام شد») دارد؟
+  bool _hasDoneDay(ActionNode a) {
+    if (nodeFinished(a) || (a.timerStart ?? 0) > 0) return true;
+    for (final k in a.logs.keys) {
+      if (footDoneOn(a, k)) return true;
+    }
+    for (final k in a.time.keys) {
+      if (footDoneOn(a, k)) return true;
+    }
+    for (final k in a.entries.keys) {
+      if (footDoneOn(a, k)) return true;
+    }
+    return false;
+  }
+
   /// روزهایی (از روزهای قبل) که غنچه‌شان گل می‌شود: در هر دسته‌ی ۳ روزِ
   /// پشت‌سرهم، یکی از غنچه‌ها (تصادفی ولی ثابت) گل می‌شود.
   Set<String> _flowerDays(
@@ -2017,7 +2032,13 @@ class MapPainter extends CustomPainter {
     // کاربر «نمایش انیمیشن» این شاخه/زیرشاخه را خاموش کرده (فقط یادداشت‌ها
     // اگه روشن باشند هنوز کشیده می‌شوند)
     final hiddenW = a.extra['showWalker'] == false;
-    if (hiddenW && a.extra['footNotesShow'] != true) return;
+    // انیمیشن خاموش است: فقط غنچه‌ها (تیکِ تقویم) کشیده می‌شوند؛ اگر هیچ روزِ
+    // انجام‌شده‌ای نبود (یا شاخه جمع‌شده بود) مثل قبل چیزی رسم نمی‌شود
+    if (hiddenW &&
+        a.extra['footNotesShow'] != true &&
+        (ghost || !_hasDoneDay(a))) {
+      return;
+    }
     final fcHex = a.extra['footColor'];
     final color = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, color0)
@@ -2147,6 +2168,13 @@ class MapPainter extends CustomPainter {
       }
     }
 
+    // انیمیشن خاموش: قدم‌ها دیده نمی‌شوند ولی غنچه/گلِ هر روزِ انجام‌شده روی شاخه می‌ماند
+    if (hiddenW && !ghost) {
+      for (var k = 0; k < fixed && k < pastDayKeys.length; k++) {
+        bloomAt(k, pastDayKeys[k]);
+      }
+    }
+
     // شاخه‌ی جمع‌شده: فقط ردپای پیشرفت می‌ماند
     if (ghost) return;
 
@@ -2259,6 +2287,14 @@ class MapPainter extends CustomPainter {
       // انیمیشن پنهان است: یادداشت بالای جای قدمِ جدید روی مسیر
       final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
       noteAbove(curKey, curNote, route.at(u), pastSize * 1.3 + 4);
+      // امروز انجام شده (تیکِ تقویم، زمان، یادداشت…) → غنچه روی نوکِ شاخه
+      if (!ghost && !finBud && footClosedToday(a, todayK)) {
+        var ang = route.tangent(0.0) + math.pi; // ادامه‌ی شاخه، رو به بیرون
+        if (math.sin(ang) > 0) ang = -ang; // رو به پایین نباشد
+        final sr0 = 8.5 * math.max(0.8, baseSize / 15.0);
+        _sprig(canvas, routePts.first, ang, sr0, '${a.id}|bud', 1.0,
+            budOnly: true);
+      }
       return;
     }
 
@@ -3583,4 +3619,34 @@ class MapPainter extends CustomPainter {
           scale, tc, 0);
     }
   }
+}
+
+/// غنچه‌ی کوچکِ یک روزِ انجام‌شده برای خانه‌ی تقویم؛ همان شکل و رنگِ غنچه‌ی نقشه
+/// (seed: امروز '<id>|bud'، روزهای قبل '<id>|<کلید روز>').
+class DayBudIcon extends StatelessWidget {
+  const DayBudIcon({super.key, required this.seed, this.size = 25});
+  final String seed;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _DayBudPainter(seed)),
+      );
+}
+
+class _DayBudPainter extends CustomPainter {
+  _DayBudPainter(this.seed);
+  final String seed;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    MapPainter._sprig(canvas, Offset(size.width / 2, size.height * 0.92),
+        -math.pi / 2, size.width * 0.2, seed, 1.0,
+        budOnly: true);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DayBudPainter old) => old.seed != seed;
 }

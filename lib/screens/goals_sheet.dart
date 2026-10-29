@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../map/map_ops.dart';
+import '../map/map_painter.dart' show DayBudIcon;
 import '../models/constants.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
@@ -1485,7 +1486,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(7),
-                  color: has ? color : emptyBg,
+                  color: has ? Color.lerp(color, Colors.white, 0.62) : emptyBg,
                   border: Border.all(
                       color: has ? Color.lerp(color, Colors.black, 0.35)! : border,
                       width: 1.2),
@@ -1514,15 +1515,19 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   ),
                 ),
               ),
-            Text(
-              has ? '✓' : toFa(j.jd),
-              style: TextStyle(
-                fontSize: 10.5,
-                height: 1,
-                fontWeight: has ? FontWeight.w800 : FontWeight.w400,
-                color: has ? doneInk : dim,
+            // روزِ انجام‌شده: غنچه‌ی همان روز (همان شکل و رنگِ نقشه)
+            if (has)
+              DayBudIcon(seed: isToday ? '${n.id}|bud' : '${n.id}|$jk')
+            else
+              Text(
+                toFa(j.jd),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  height: 1,
+                  fontWeight: FontWeight.w400,
+                  color: dim,
+                ),
               ),
-            ),
             // یادداشتِ تقویمِ قدم (انیمیشن) برای این روز: نقطه‌ی کوچک گوشه‌ی خانه
             if (_dayNote(n, jk).isNotEmpty)
               Positioned(
