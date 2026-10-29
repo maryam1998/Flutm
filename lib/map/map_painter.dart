@@ -37,6 +37,8 @@ final Map<String, double> _doneBurstAt = {};
 /// شکوفه‌ی شاخه‌های تمام‌شده و جشنِ رسیدن به هدف (فقط در حافظه‌ی همین اجرا)
 final Map<String, bool> _bloomSeen = {};
 final Map<String, double> _bloomAt = {};
+final Map<String, String> _flowerSigCache = {};
+final Map<String, Set<String>> _flowerDaysCache = {};
 final Map<String, bool> _reachSeen = {};
 final Map<String, double> _reachAt = {};
 
@@ -324,9 +326,9 @@ class MapPainter extends CustomPainter {
 
     // حالت «فقط امروز»: هدفِ قدم بعدی پررنگ، بقیه کم‌رنگ (هر گروه یک لایه)
     final fid = TodayFocus.goalId;
-    final only = state.extra['todayOnly'] == true &&
-        fid.isNotEmpty &&
-        state.goals.any((g) => g.id == fid && !_isHidden(g));
+    // کم‌رنگ‌کردنِ بقیه‌ی هدف‌ها حذف شد: همه‌چیز همیشه پررنگ است
+    // (به‌جایش غنچه و گل: هر روز غنچه، هر ۳ روزِ پشت‌سرهم یک غنچه → گل)
+    const only = false;
     final dimPaint = Paint()..color = const Color.fromRGBO(0, 0, 0, 0.22);
     final passes = only ? const [true, false] : const [false];
     bool dimG(Goal g) => only && g.id != fid;
@@ -1273,7 +1275,7 @@ class MapPainter extends CustomPainter {
   /// نوع و رنگ از روی id ثابت است. p: ۰ → ۱ انیمیشنِ شکفتن
   void _sprig(Canvas canvas, Offset tip, double dir, double r, String id,
       double p,
-      {bool budOnly = false}) {
+      {bool budOnly = false, bool flower = false}) {
     var h = 7;
     for (final u in id.codeUnits) {
       h = (h * 31 + u) & 0x7fffffff;
@@ -1291,7 +1293,10 @@ class MapPainter extends CustomPainter {
       [Color(0xFF388E3C), Color(0xFFA5D66B)],
       [Color(0xFF1B7F4B), Color(0xFF6FCF97)],
     ];
-    final kind = h % 6;
+    // flower: غنچه‌ای که بعد از ۳ روزِ پشت‌سرهم گل شده؛ شکل/رنگ تصادفی (ثابت)،
+    // و تصادفی با برگ یا بی‌برگ
+    final kind = flower ? 2 + h % 4 : h % 6;
+    final flowerLeaves = !flower || ((h ~/ 216) % 2 == 0);
     final pc = petals[(h ~/ 6) % petals.length];
     final gc = greens[(h ~/ 36) % greens.length];
     final k = Curves.easeOutBack.transform(p.clamp(0.0, 1.0).toDouble());
@@ -1486,10 +1491,12 @@ class MapPainter extends CustomPainter {
 
     // برگ‌ها (همه‌ی انواع برگ دارند)
     final leafOnly = kind <= 1;
-    leaf(-R * 0.25, -0.85, R * 1.15, R * 0.46);
-    leaf(-R * 0.25, 0.85, R * 1.15, R * 0.46);
-    leaf(-R * 0.62, -0.5, R * (leafOnly ? 1.1 : 0.9), R * 0.4);
-    leaf(-R * 0.62, 0.5, R * (leafOnly ? 1.1 : 0.9), R * 0.4);
+    if (flowerLeaves) {
+      leaf(-R * 0.25, -0.85, R * 1.15, R * 0.46);
+      leaf(-R * 0.25, 0.85, R * 1.15, R * 0.46);
+      leaf(-R * 0.62, -0.5, R * (leafOnly ? 1.1 : 0.9), R * 0.4);
+      leaf(-R * 0.62, 0.5, R * (leafOnly ? 1.1 : 0.9), R * 0.4);
+    }
     final top = Offset(0, -R * 1.15);
 
     switch (kind) {
@@ -1835,6 +1842,51 @@ class MapPainter extends CustomPainter {
   /// (تیک/متن در logs، یا زمان ثبت‌شده با تایمر/مدت/ساعت)
   bool _doneOn(ActionNode a, String jk) => footDoneOn(a, jk);
 
+  /// روزهایی (از روزهای قبل) که غنچه‌شان گل می‌شود: در هر دسته‌ی ۳ روزِ
+  /// پشت‌سرهم، یکی از غنچه‌ها (تصادفی ولی ثابت) گل می‌شود.
+  Set<String> _flowerDays(
+      ActionNode a, String todayK, List<String> pastKeys, bool doneTodayToo) {
+    final sig = '$todayK|$doneTodayToo|${pastKeys.length}|${pastKeys.join(',')}';
+    final c = _flowerDaysCache[a.id];
+    if (c != null && _flowerSigCache[a.id] == sig) return c;
+    final done = <String>{...pastKeys, if (doneTodayToo) todayK};
+    final out = <String>{};
+    if (done.length >= 3) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final run = <String>[];
+      void flush() {
+        for (var g = 0; g + 3 <= run.length; g += 3) {
+          final grp = run
+              .sublist(g, g + 3)
+              .where((k) => k != todayK || !doneTodayToo)
+              .toList();
+          if (grp.isEmpty) continue;
+          var hh = 5;
+          for (final u in '${a.id}|fl|${run[g]}'.codeUnits) {
+            hh = (hh * 31 + u) & 0x7fffffff;
+          }
+          out.add(grp[hh % grp.length]);
+        }
+        run.clear();
+      }
+
+      // از قدیمی‌ترین روز تا امروز؛ حداکثر ۷۳۰ روز
+      for (var i = 730; i >= 0; i--) {
+        final k = jKey(DateTime(today.year, today.month, today.day - i));
+        if (done.contains(k)) {
+          run.add(k);
+        } else {
+          flush();
+        }
+      }
+      flush();
+    }
+    _flowerSigCache[a.id] = sig;
+    _flowerDaysCache[a.id] = out;
+    return out;
+  }
+
   /// تعداد روزهای انجام‌شده، بدون احتساب امروز
   int _pastDoneDays(ActionNode a, String todayK) {
     final keys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys};
@@ -2016,6 +2068,9 @@ class MapPainter extends CustomPainter {
       ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
     // گل یا برگِ هر روزِ انجام‌شده، بین قدمِ آن روز و قدمِ بعدی (کنارِ مسیر).
     // لمس: شاخه و زیرشاخه‌های جمع‌شده نمایان می‌شوند؛ دوباره بزنی به همین حالت برمی‌گردد.
+    final flowerDays = ghost
+        ? const <String>{}
+        : _flowerDays(a, todayK, pastDayKeys, _doneOn(a, todayK));
     void bloomAt(int slot, String dk) {
       final u = (0.03 + slot * stride).clamp(0.0, 0.95).toDouble();
       // غنچه روی خودِ قدمِ همان روز می‌نشیند (قدم‌ها دیده می‌مانند)
@@ -2028,9 +2083,12 @@ class MapPainter extends CustomPainter {
       final side = (hh & 1) == 0 ? 1.0 : -1.0;
       final dir = tg + side * math.pi / 2;
       final nv = Offset(math.cos(dir), math.sin(dir));
-      final sr = (pastSize * 0.42).clamp(4.0, 11.0).toDouble();
+      final isFlower = flowerDays.contains(dk);
+      final sr = (pastSize * 0.42).clamp(4.0, 11.0).toDouble() *
+          (isFlower ? 1.3 : 1.0);
       final tip = pt;
-      _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0, budOnly: true);
+      _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0,
+          budOnly: !isFlower, flower: isFlower);
       // لمسِ گل/برگ: متنِ همان روز (یادداشت؛ اگر نداشت نامِ شاخه) دیده می‌شود،
       // دوباره لمس = متن پنهان و فقط گل/برگ
       final nAll = a.extra['footNotes'];
