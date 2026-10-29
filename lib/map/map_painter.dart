@@ -178,6 +178,8 @@ class MapPainter extends CustomPainter {
   final List<Offset> _walkerPts = [];
 
   /// آخرین موقعیت/شعاع سرِ قدم‌زن رسم‌شده (برای دکمه‌ی تایمر)
+  /// لمس‌های گل/غنچه: آخر از همه ثبت می‌شوند تا نوشته‌ی شاخه یا قدم رویشان را نگیرد
+  final List<HitEntry> _lateHits = [];
   Offset _lastBodyPos = Offset.zero;
   double _lastBodyR = 0;
 
@@ -314,6 +316,7 @@ class MapPainter extends CustomPainter {
     _pts.clear();
     _walkerPts.clear();
     hits.clear();
+    _lateHits.clear();
     canvas.save();
     canvas.translate(cam.x, cam.y);
     canvas.scale(cam.scale);
@@ -399,6 +402,7 @@ class MapPainter extends CustomPainter {
       if (dimPass) canvas.restore();
     }
     canvas.restore();
+    hits.entries.addAll(_lateHits);
 
     if (_pts.isNotEmpty) {
       var minX = _pts.first.dx, maxX = minX, minY = _pts.first.dy, maxY = minY;
@@ -1268,7 +1272,8 @@ class MapPainter extends CustomPainter {
   /// ترکیبِ برگ و گل: بعضی فقط برگ، بعضی برگ + گل (پنج‌گلبرگ، خوشه، غنچه، بابونه).
   /// نوع و رنگ از روی id ثابت است. p: ۰ → ۱ انیمیشنِ شکفتن
   void _sprig(Canvas canvas, Offset tip, double dir, double r, String id,
-      double p) {
+      double p,
+      {bool budOnly = false}) {
     var h = 7;
     for (final u in id.codeUnits) {
       h = (h * 31 + u) & 0x7fffffff;
@@ -1372,6 +1377,45 @@ class MapPainter extends CustomPainter {
             ..close(),
           Paint()..color = gc[0]);
       canvas.restore();
+    }
+
+    if (budOnly) {
+      // غنچه‌ی جورواجور: برای هر کارِ انجام‌شده (حتی نیمه‌تمام) یک غنچه‌ی ثابت
+      final bc = (pc.computeLuminance() > 0.85) ? petals[0] : pc;
+      final bk = (h ~/ 216) % 4;
+      canvas.drawLine(
+          Offset.zero,
+          Offset(0, -R * 0.9),
+          Paint()
+            ..color = gc[0]
+            ..strokeWidth = math.max(1.1, R * 0.15)
+            ..strokeCap = StrokeCap.round);
+      leaf(-R * 0.15, -0.9, R * 0.8, R * 0.3);
+      leaf(-R * 0.15, 0.9, R * 0.8, R * 0.3);
+      switch (bk) {
+        case 0: // یک غنچه‌ی بسته
+          bud(Offset(0, -R * 0.75), 0, R * 1.15, bc);
+        case 1: // غنچه‌ی اصلی + دو غنچه‌ی کوچک
+          bud(Offset(0, -R * 0.75), 0, R * 1.0, bc);
+          bud(Offset(0, -R * 0.4), -0.95, R * 0.7, Color.lerp(bc, Colors.white, 0.25)!);
+          bud(Offset(0, -R * 0.4), 0.95, R * 0.7, Color.lerp(bc, Colors.white, 0.25)!);
+        case 2: // غنچه‌ی در حال باز شدن
+          bud(Offset(0, -R * 0.7), 0, R * 1.0, bc);
+          petal(-0.45, R * 0.75, R * 0.3, bc, Offset(0, -R * 1.15));
+          petal(0.45, R * 0.75, R * 0.3, bc, Offset(0, -R * 1.15));
+        default: // غنچه‌ی گرد
+          final c0 = Offset(0, -R * 1.25);
+          canvas.drawCircle(c0, R * 0.55, Paint()..color = bc);
+          canvas.drawCircle(c0, R * 0.55, edge);
+          canvas.drawArc(Rect.fromCircle(center: c0, radius: R * 0.55),
+              0.2, math.pi * 0.6, false,
+              Paint()
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = math.max(1.0, R * 0.16)
+                ..color = gc[0]);
+      }
+      canvas.restore();
+      return;
     }
 
     // ساقه
@@ -1910,9 +1954,9 @@ class MapPainter extends CustomPainter {
     // لمس: شاخه و زیرشاخه‌های جمع‌شده نمایان می‌شوند؛ دوباره بزنی به همین حالت برمی‌گردد.
     void bloomAt(int slot, String dk) {
       final u = (0.03 + slot * stride).clamp(0.0, 0.95).toDouble();
-      final u2 = (u + stride * 0.5).clamp(0.0, 0.97).toDouble();
-      final pt = route.at(u2);
-      final tg = route.tangent(u2);
+      // غنچه روی خودِ قدمِ همان روز می‌نشیند (قدم‌ها دیده می‌مانند)
+      final pt = route.at(u);
+      final tg = route.tangent(u);
       var hh = 11;
       for (final c in '${a.id}|$dk'.codeUnits) {
         hh = (hh * 31 + c) & 0x7fffffff;
@@ -1920,9 +1964,9 @@ class MapPainter extends CustomPainter {
       final side = (hh & 1) == 0 ? 1.0 : -1.0;
       final dir = tg + side * math.pi / 2;
       final nv = Offset(math.cos(dir), math.sin(dir));
-      final sr = (pastSize * 0.5).clamp(4.5, 14.0).toDouble();
-      final tip = pt + nv * (pastSize * 0.5);
-      _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0);
+      final sr = (pastSize * 0.42).clamp(4.0, 11.0).toDouble();
+      final tip = pt;
+      _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0, budOnly: true);
       // لمسِ گل/برگ: متنِ همان روز (یادداشت؛ اگر نداشت نامِ شاخه) دیده می‌شود،
       // دوباره لمس = متن پنهان و فقط گل/برگ
       final nAll = a.extra['footNotes'];
@@ -1948,7 +1992,7 @@ class MapPainter extends CustomPainter {
               size: fs, color: Colors.black, vCenter: true, outline: 2.5);
         }
       }
-      hits.add(HitEntry(
+      _lateHits.add(HitEntry(
         type: 'pastBloom',
         id: a.id,
         hostId: hostId,
@@ -2552,7 +2596,8 @@ class MapPainter extends CustomPainter {
       // به‌جای چهره/عکس: گل یا برگِ همان روز (عکس زیرش پنهان است)
       final fr = bodyR * 0.85;
       _sprig(canvas, bodyPos + Offset(0, fr * 0.9), -math.pi / 2, fr, bloomId,
-          1.0);
+          1.0,
+          budOnly: true);
     } else {
       ui.Image? faceImg;
       if (hasPhoto) {
@@ -3106,7 +3151,7 @@ class MapPainter extends CustomPainter {
       final dir = math.atan2(dy, dx);
       final sr = 10.5 * sc; // گل و برگ بزرگ‌تر (قبلاً ۷)
       _sprig(canvas, end, dir, sr, a.id, bp);
-      hits.add(HitEntry(
+      _lateHits.add(HitEntry(
           type: 'bloomToggle',
           id: a.id,
           hostId: h.id,
