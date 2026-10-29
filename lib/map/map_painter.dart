@@ -3240,16 +3240,15 @@ class MapPainter extends CustomPainter {
     }
 
     // دکمه‌ی جمع/باز: روی گره‌ی جمع‌شده «تمام‌شده از کل» (مثلاً ۲ از ۵)؛
-    // روی گره‌ی باز یک «−» خیلی کم‌رنگ. لمس = جمع/باز کردن دستی
-    if (visKids.isNotEmpty && !foldAnim) {
+    // روی گره‌ی باز یک «−» خیلی کم‌رنگ. لمس = جمع/باز کردن دستی.
+    // جای دکمه: درست زیرِ نوشته‌ی شاخه (نه روی عکس/ایموجی)؛ اگر نوشته‌ای نباشد زیر گره.
+    void foldBtn(double bx, double by, bool vc) {
       final total = _countVisible(visKids);
-      final cy = end.dy + 17 * math.max(0.8, scale);
       Rect rr;
       if (foldKids) {
-        // شاخه‌ی جمع‌شده: «قرص» قابل‌لمس با فلشِ باز کردن (قبلاً فقط یک نوشته‌ی ریز بود)
         final label = '${toFa(_countFinished(visKids))} از ${toFa(total)}';
-        final tr = drawText(canvas, label, end.dx - 4, cy,
-            size: 10.5, color: withOp(atc, 0.95), outline: 2);
+        final tr = drawText(canvas, label, bx - 4, by,
+            size: 10.5, color: withOp(atc, 0.95), outline: 2, vCenter: vc);
         final pill = RRect.fromRectAndRadius(
             Rect.fromLTRB(tr.left - 7, tr.top - 3, tr.right + 17, tr.bottom + 3),
             const Radius.circular(10));
@@ -3274,7 +3273,7 @@ class MapPainter extends CustomPainter {
               ..color = withOp(atc, 0.85));
         rr = pill.outerRect;
       } else {
-        final cc = Offset(end.dx, cy - 3);
+        final cc = Offset(bx, vc ? by : by - 3);
         canvas.drawCircle(cc, 6.5, Paint()..color = withOp(atc, 0.10));
         canvas.drawLine(cc + const Offset(-3, 0), cc + const Offset(3, 0),
             _stroke(atc, 1.4, 0.45));
@@ -3286,6 +3285,13 @@ class MapPainter extends CustomPainter {
           hostId: h.id,
           kind: HitKind.label,
           rect: rr.inflate(8)));
+    }
+
+    final hasFoldBtn = visKids.isNotEmpty && !foldAnim;
+    final labelShown =
+        a.text.isNotEmpty && (!doneNow || a.extra['labelOpen'] == true);
+    if (hasFoldBtn && !labelShown) {
+      foldBtn(end.dx, end.dy + 17 * math.max(0.8, scale), false);
     }
 
     if (state.extra['todayOnly'] == true &&
@@ -3348,12 +3354,20 @@ class MapPainter extends CustomPainter {
           cAt > 0) {
         final stamp = _formatStamp(cAt.toInt(), a.extra);
         if (stamp.isNotEmpty) {
-          drawText(canvas, stamp, lx, ly + lines.length * 16,
+          final sb = drawText(canvas, stamp, lx, ly + lines.length * 16,
               size: math.max(9, fs * 0.62),
               color: withOp(atc, 0.6),
               weight: FontWeight.w400,
               align: right ? LabelAlign.right : LabelAlign.left,
               outline: 2);
+          lr = lr == null ? sb : lr.expandToInclude(sb);
+        }
+      }
+      if (hasFoldBtn) {
+        if (lr != null) {
+          foldBtn(lr.center.dx + 4, lr.bottom + 17, true);
+        } else {
+          foldBtn(end.dx, end.dy + 17 * math.max(0.8, scale), false);
         }
       }
     }

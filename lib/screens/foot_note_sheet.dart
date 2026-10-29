@@ -396,6 +396,243 @@ Future<void> showFootNoteSheet(
   ).whenComplete(ctl.dispose);
 }
 
+/// کنترل‌های سبکِ یادداشتِ روی نقشه (فونت، اندازه، رنگ، برگشت، حذف از نقشه)
+/// به‌صورت ویجتِ جمع‌وجور برای قرار گرفتن داخلِ کادرِ آمار/تقویمِ قدم.
+class FootNoteStyleControls extends StatefulWidget {
+  const FootNoteStyleControls({
+    super.key,
+    required this.store,
+    required this.node,
+    required this.jk,
+    this.onChanged,
+  });
+
+  final MapStore store;
+  final ActionNode node;
+  final String jk;
+  final VoidCallback? onChanged;
+
+  @override
+  State<FootNoteStyleControls> createState() => _FootNoteStyleControlsState();
+}
+
+class _FootNoteStyleControlsState extends State<FootNoteStyleControls> {
+  String? _err;
+
+  void _save() {
+    widget.store.changed();
+    widget.onChanged?.call();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _pickFont(Map<String, dynamic> st, String id) async {
+    if (id == 'default') {
+      st.remove('font');
+      _err = null;
+      _save();
+      return;
+    }
+    setState(() => _err = null);
+    final ok = await NoteFonts.ensure(id);
+    if (!mounted) return;
+    if (ok) {
+      st['font'] = id;
+      _err = null;
+    } else {
+      _err = 'دانلود فونت انجام نشد؛ اینترنت را بررسی کن و دوباره بزن.';
+    }
+    _save();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final wp = WebPalette.of(context);
+    final node = widget.node;
+    final jk = widget.jk;
+    final st = footNoteStyle(node, jk);
+    final curFont = (st['font'] as String?) ?? 'default';
+    final size = ((st['size'] as num?)?.toDouble() ?? 1.0).clamp(0.4, 5.0);
+    final colVal = st['color'] is int ? st['color'] as int : 0xFF000000;
+
+    Widget label(String t) => SizedBox(
+          width: 44,
+          child: Text(t,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: wp.textMain)),
+        );
+
+    Widget fontTile(String id, String text) {
+      final sel = curFont == id;
+      final busy = id != 'default' && NoteFonts.isBusy(id);
+      final ready = id == 'default' || NoteFonts.loaded.contains(id);
+      return InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: busy ? null : () => _pickFont(st, id),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: sel ? _kOk.withValues(alpha: 0.12) : null,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: sel ? _kOk : wp.textDim.withValues(alpha: 0.35),
+                width: sel ? 1.6 : 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: wp.textMain,
+                  fontFamily: id == 'default' ? null : NoteFonts.familyOf(id),
+                  fontFamilyFallback: const ['Vazirmatn'],
+                ),
+              ),
+              const SizedBox(width: 6),
+              if (busy)
+                const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+              else
+                Icon(
+                    sel
+                        ? Icons.check_circle
+                        : (ready ? Icons.check : Icons.download_rounded),
+                    size: 14,
+                    color: sel ? _kOk : wp.textDim),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            label('فونت'),
+            Expanded(
+              child: SizedBox(
+                height: 34,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    fontTile('default', 'وزیرمتن (پیش‌فرض)'),
+                    for (final nf in kNoteFonts) ...[
+                      const SizedBox(width: 6),
+                      fontTile(nf.id, nf.label),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_err != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(_err!,
+                style:
+                    const TextStyle(fontSize: 11, color: Color(0xFFD9534F))),
+          ),
+        Row(
+          children: [
+            label('اندازه'),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: _kOk, thumbColor: _kOk, trackHeight: 3),
+                child: Slider(
+                  min: 0.4,
+                  max: 5.0,
+                  value: size.toDouble(),
+                  onChanged: (v) {
+                    st['size'] = v;
+                    _save();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            label('رنگ'),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  for (final c in _kNoteColors)
+                    GestureDetector(
+                      onTap: () {
+                        st['color'] = c.toARGB32();
+                        _save();
+                      },
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: colVal == c.toARGB32()
+                                ? _kGoldN
+                                : wp.textDim.withValues(alpha: 0.4),
+                            width: colVal == c.toARGB32() ? 3 : 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact),
+                onPressed: () {
+                  st.remove('dx');
+                  st.remove('dy');
+                  _save();
+                },
+                icon: const Icon(Icons.undo_rounded, size: 16),
+                label: const Text('برگشت به جای اول',
+                    style: TextStyle(fontSize: 12)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: const Color(0xFFD9534F)),
+                onPressed: () {
+                  st['hidden'] = true;
+                  _save();
+                },
+                icon: const Icon(Icons.visibility_off_outlined, size: 16),
+                label: const Text('حذف از نقشه',
+                    style: TextStyle(fontSize: 12)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 Map<String, dynamic> _notes(ActionNode n) {
   final v = n.extra['footNotes'];
   return v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};

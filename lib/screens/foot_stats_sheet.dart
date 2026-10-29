@@ -8,6 +8,7 @@ import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import '../theme/web_palette.dart';
+import 'foot_note_sheet.dart' show FootNoteStyleControls;
 
 const _kDone = Color(0xFF1E9E6A);
 const _kMiss = Color(0xFFD9534F);
@@ -200,6 +201,7 @@ Future<void> showFootStatsSheet(
   final wp = WebPalette.of(context);
   var sel = -1; // روزِ انتخاب‌شده (idx)
   String? hint; // پیام کوتاه زیر دکمه‌ها
+  var noteStyleOpen = false; // بخش «تنظیمات یادداشت روی نقشه»
   String? jkPending = initialJk; // روزی که باید باز شدن انتخاب بشه
   final selKey = GlobalKey();
   final detailCtl = ScrollController();
@@ -692,6 +694,48 @@ Future<void> showFootStatsSheet(
                             ),
                           ],
                         ),
+                      if (selDay != null &&
+                          ((_notesOf(f.node)[_jkOf(selDay)] as String?) ?? '')
+                              .trim()
+                              .isNotEmpty)
+                        Builder(builder: (_) {
+                          final jk2 = _jkOf(selDay);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: AlignmentDirectional.centerStart,
+                                child: TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact),
+                                  onPressed: () =>
+                                      setS(() => noteStyleOpen = !noteStyleOpen),
+                                  icon: Icon(
+                                      noteStyleOpen
+                                          ? Icons.expand_less_rounded
+                                          : Icons.expand_more_rounded,
+                                      size: 18),
+                                  label: const Text('تنظیمات یادداشت روی نقشه'),
+                                ),
+                              ),
+                              if (noteStyleOpen)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      maxHeight:
+                                          MediaQuery.sizeOf(ctx).height * 0.28),
+                                  child: SingleChildScrollView(
+                                    child: FootNoteStyleControls(
+                                      key: ValueKey('nstyle-$jk2'),
+                                      store: store,
+                                      node: f.node,
+                                      jk: jk2,
+                                      onChanged: () => setS(() {}),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        }),
                       if (onPhotos != null)
                         Align(
                           alignment: AlignmentDirectional.centerStart,
