@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import '../models/constants.dart';
+import '../models/jalali.dart' show jKey;
 import '../models/map_models.dart';
 import 'geometry.dart';
 
@@ -274,13 +275,17 @@ bool footNoteWaiting(ActionNode n, String jk) =>
     footNoteStyle(n, jk, create: false)['waiting'] == true;
 
 /// خط‌زدن / برداشتنِ خط. برداشتنِ تیک، «منتظر جواب» را هم برمی‌دارد.
+/// خط‌خوردنِ یادداشت = «آن روز انجام شد»: روزِ همان یادداشت در تقویمِ قدم و
+/// تقویمِ اهداف (هر دو از `logs` می‌خوانند) تیک می‌خورد.
 void setFootNoteDone(ActionNode n, String jk, bool v) {
   final st = footNoteStyle(n, jk);
   if (v) {
     st['done'] = true;
+    _syncDayLogFromNote(n, jk, st, true);
   } else {
     st.remove('done');
     st.remove('waiting');
+    _syncDayLogFromNote(n, jk, st, false);
   }
 }
 
@@ -290,9 +295,61 @@ void setFootNoteWaiting(ActionNode n, String jk, bool v) {
   if (v) {
     st['waiting'] = true;
     st['done'] = true;
+    _syncDayLogFromNote(n, jk, st, true);
   } else {
     st.remove('waiting');
   }
+}
+
+int _jkOrdOps(String k) {
+  final p = k.split('-');
+  if (p.length != 3) return 0;
+  return (int.tryParse(p[0]) ?? 0) * 10000 +
+      (int.tryParse(p[1]) ?? 0) * 100 +
+      (int.tryParse(p[2]) ?? 0);
+}
+
+/// تیکِ خودکارِ روز با «انجام شد/منتظر جواب» ی یادداشت (فقط تا امروز).
+/// فقط تیکی که خودِ یادداشت زده برمی‌گردد؛ تیک/زمانِ دستیِ کاربر دست‌نخورده می‌ماند.
+void _syncDayLogFromNote(
+    ActionNode n, String jk, Map<String, dynamic> st, bool done) {
+  if (done) {
+    if (_jkOrdOps(jk) > _jkOrdOps(jKey(DateTime.now()))) return;
+    if (footDoneOn(n, jk)) return;
+    n.logs[jk] = true;
+    st['autoLog'] = true;
+  } else if (st['autoLog'] == true) {
+    st.remove('autoLog');
+    if (n.logs[jk] == true) n.logs.remove(jk);
+  }
+}
+
+/// آخرین یادداشتِ (تا امروز) این شاخه «منتظر جواب» است؟
+/// یعنی سهمِ من تمام شده و نتیجه دستِ دیگران است → انیمیشن زیرِ غنچه می‌ماند.
+bool footWaitingLatest(ActionNode n, String todayJK) {
+  final notes = n.extra['footNotes'];
+  if (notes is! Map) return false;
+  final t = _jkOrdOps(todayJK);
+  String? best;
+  for (final e in notes.entries) {
+    final k = e.key;
+    final v = e.value;
+    if (k is! String || v is! String || v.trim().isEmpty) continue;
+    final o = _jkOrdOps(k);
+    if (o == 0 || o > t) continue;
+    if (best == null || o > _jkOrdOps(best)) best = k;
+  }
+  return best != null && footNoteWaiting(n, best);
+}
+
+/// امروز «بسته» است؟ → روی نقشه کلِ انیمیشن (عکس، ایموجی، قدم‌ها، نوشته‌ها)
+/// زیرِ یک غنچه می‌رود (کاملاً تمام شد: گل/برگ). تایمرِ در حال اجرا = در حال کار.
+bool footClosedToday(ActionNode a, String todayJK) {
+  if ((a.timerStart ?? 0) > 0) return false;
+  if (nodeFinished(a)) return true;
+  if (footDoneOn(a, todayJK)) return true;
+  if (footNoteDone(a, todayJK)) return true;
+  return footWaitingLatest(a, todayJK);
 }
 
 /// با حذفِ متنِ یادداشت، وضعیتش هم پاک می‌شود (یادداشتِ تازه از اول شروع شود)

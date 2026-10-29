@@ -292,6 +292,25 @@ class MapInteraction {
       }
       return;
     }
+    // لمسِ غنچه‌ی انیمیشن (کار انجام شده/منتظر جواب/تمام شده): آنچه زیرش است
+    // (عکس، ایموجی، قدم‌ها، نوشته‌ها) دیده می‌شود؛ دوباره لمس = دوباره زیرِ غنچه
+    if (_ptrs.isEmpty && hit != null && hit.type == 'walkerBud') {
+      HapticFeedback.selectionClick();
+      final bh = store.state.findHost(hit.hostId);
+      if (bh is MapHost) {
+        final bf = findActionNode(bh.actions, hit.id);
+        if (bf != null) {
+          final tk = jKey(DateTime.now());
+          if (bf.node.extra['budOpenDay'] == tk) {
+            bf.node.extra.remove('budOpenDay');
+          } else {
+            bf.node.extra['budOpenDay'] = tk;
+          }
+          store.changed();
+        }
+      }
+      return;
+    }
     if (_ptrs.isEmpty && hit != null && hit.type == 'foldToggle') {
       HapticFeedback.selectionClick();
       store.toggleActionFold(hit.id);

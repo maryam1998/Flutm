@@ -1915,6 +1915,12 @@ class MapPainter extends CustomPainter {
         : color0;
     final todayK = jKey(DateTime.now());
     final doneToday = footDoneToday(a, todayK);
+    // کار انجام شد / منتظر جواب / کاملاً تمام شد → کلِ انیمیشن (عکس، ایموجی،
+    // قدم‌ها، نوشته‌ها) زیرِ یک غنچه (تمام‌شده: گل/برگ) می‌رود. لمسِ غنچه = باز/بسته.
+    final closedToday = !ghost && !hiddenW && footClosedToday(a, todayK);
+    final revealed = a.extra['budOpenDay'] == todayK;
+    final collapsed = closedToday && !revealed;
+    final finBud = nodeFinished(a);
     final fixed = _pastDoneDays(a, todayK) +
         ((ghost && footDoneOn(a, todayK)) ? 1 : 0);
     final route = _RouteCurve(routePts);
@@ -2003,7 +2009,7 @@ class MapPainter extends CustomPainter {
       ));
     }
 
-    for (var k = 0; k < fixed && !hiddenW; k++) {
+    for (var k = 0; k < fixed && !hiddenW && !collapsed; k++) {
       final u = (0.03 + k * stride).clamp(0.0, 0.95).toDouble();
       // هر روز که می‌گذرد قدمِ آن روز کم‌رنگ‌تر می‌شود (جدیدترین ۶۲٪ → قدیمی‌ترها تا ۱۴٪)
       final age = fixed - 1 - k;
@@ -2030,8 +2036,9 @@ class MapPainter extends CustomPainter {
 
     // یادداشتِ روزها: بالای پاها، مشکی، بدون دورخط؛ همراه با انیمیشن
     // (چه متحرک، چه ثابت، چه پنهان)
-    final showNotes =
-        a.extra['footNotesShow'] == true && a.extra['footNotes'] is Map;
+    final showNotes = !collapsed &&
+        a.extra['footNotesShow'] == true &&
+        a.extra['footNotes'] is Map;
     final notes = showNotes ? a.extra['footNotes'] as Map : const {};
     final noteSize = (_fs() *
             0.5 *
@@ -2146,10 +2153,11 @@ class MapPainter extends CustomPainter {
     final pref = (a.id.hashCode & 1) == 0 ? 1.0 : -1.0;
     final posToday = footPosToday(a, todayK);
     final still = walkerIsStill(a.extra);
-    final playingNow = !still && footEffectivePlaying(a, todayK);
+    // غنچه ثابت می‌ماند (هنگامِ بسته بودن انیمیشن راه نمی‌رود)
+    final playingNow = !still && !collapsed && footEffectivePlaying(a, todayK);
 
     void core(bool playing, double? manual) =>
-        _fade(canvas, _doneWalkerOp(a, todayK), () => _walkerCore(
+        _fade(canvas, collapsed ? 1.0 : _doneWalkerOp(a, todayK), () => _walkerCore(
           canvas,
           route,
           color,
@@ -2176,7 +2184,12 @@ class MapPainter extends CustomPainter {
           haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
           voiceExtra: a.extra,
           followManual: true,
-          bloomId: doneToday ? '${a.id}|$todayK' : null,
+          // بسته: فقط غنچه (تمام‌شده: گل/برگ)؛ باز شده: چهره + غنچه‌ی کوچکِ بستن
+          bloomId: collapsed ? (finBud ? '${a.id}|fin' : '${a.id}|$todayK') : null,
+          bloomFull: finBud,
+          closeBudId: (closedToday && revealed)
+              ? (finBud ? '${a.id}|fin' : '${a.id}|$todayK')
+              : null,
         ));
 
     if (!doneToday) {
@@ -2213,6 +2226,13 @@ class MapPainter extends CustomPainter {
       }
       core(playingNow, posToday);
     }
+    // زیرِ غنچه همه‌چیز پنهان است؛ فقط وضعیتِ «تمام شد» ثبت می‌ماند تا با باز کردنِ
+    // غنچه جشنِ تازه تکرار نشود
+    final fin = nodeFinished(a);
+    if (collapsed) {
+      if (fin) _doneSeen[a.id] = true;
+      return;
+    }
     // یادداشت بالای انیمیشن، همراه با حرکتش
     noteAbove(curKey, curNote, _lastBodyPos, _lastBodyR * 1.5 + 8);
     // دکمه‌ی تایمر / ثبت زمان روی خود انیمیشن
@@ -2221,7 +2241,6 @@ class MapPainter extends CustomPainter {
       _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
     }
     // مُهرِ «انجام شد» + پالسِ عصبی تا هدف
-    final fin = nodeFinished(a);
     // «امروز کار کردم» (ثبتِ زمان/تیکِ روز): فقط یک حلقه‌ی نازکِ کهربایی، بدون کم‌رنگ شدن
     if (!fin && footDoneOn(a, todayK)) {
       canvas.drawCircle(
@@ -2413,8 +2432,12 @@ class MapPainter extends CustomPainter {
     double haloScale = 1.0,
     Map<String, dynamic>? voiceExtra,
     bool followManual = false,
-    // روزِ انجام‌شده: عکس/ایموجیِ انیمیشن زیرِ گل/برگ می‌رود و فقط گل/برگ دیده می‌شود
+    // بسته: کلِ انیمیشن (عکس، ایموجی، قدم‌ها) زیرِ غنچه/گل می‌رود و فقط همان دیده می‌شود
     String? bloomId,
+    // true = گل/برگِ کامل (کارِ کاملاً تمام‌شده)؛ false = غنچه
+    bool bloomFull = false,
+    // باز شده: کنارِ چهره یک غنچه‌ی کوچک می‌ماند تا با لمسش دوباره ببندی
+    String? closeBudId,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -2511,7 +2534,7 @@ class MapPainter extends CustomPainter {
         leftSwinging ? 0.0 : math.sin(swingPhase * math.pi) * maxLift;
 
     // ─── دنباله (پشت سر، نسبت به جهت حرکت) ───
-    for (var i = 1; i <= trailCount; i++) {
+    for (var i = 1; i <= trailCount && bloomId == null; i++) {
       final trailT = (bodyT - dir * i * stepLen).clamp(0.02, 0.98);
       if (trailT < tMin - 0.001 || trailT > tMax + 0.001) continue;
       final trailSize = baseSize * math.max(0.2, 0.5 - i * 0.06);
@@ -2527,22 +2550,24 @@ class MapPainter extends CustomPainter {
           pref: pref);
     }
 
-    // ─── دو پا ───
-    _drawWalkerFoot(canvas, cp, leftT, -1.0, baseSize, withOp(col, 0.92),
-        lift: leftLift,
-        returning: returning,
-        laneOff: laneOff,
-        others: _walkerPts,
-        mine: mine,
-        pref: pref);
-    _drawWalkerFoot(canvas, cp, rightT, 1.0, baseSize, withOp(col, 0.92),
-        lift: rightLift,
-        returning: returning,
-        laneOff: laneOff,
-        others: _walkerPts,
-        mine: mine,
-        pref: pref);
-    _walkerPts.addAll(mine);
+    // ─── دو پا (زیرِ غنچه پنهان) ───
+    if (bloomId == null) {
+      _drawWalkerFoot(canvas, cp, leftT, -1.0, baseSize, withOp(col, 0.92),
+          lift: leftLift,
+          returning: returning,
+          laneOff: laneOff,
+          others: _walkerPts,
+          mine: mine,
+          pref: pref);
+      _drawWalkerFoot(canvas, cp, rightT, 1.0, baseSize, withOp(col, 0.92),
+          lift: rightLift,
+          returning: returning,
+          laneOff: laneOff,
+          others: _walkerPts,
+          mine: mine,
+          pref: pref);
+      _walkerPts.addAll(mine);
+    }
 
     // ─── بدنه ───
     final bodyPt = cp.at(bodyT);
@@ -2593,11 +2618,19 @@ class MapPainter extends CustomPainter {
     }
 
     if (bloomId != null) {
-      // به‌جای چهره/عکس: گل یا برگِ همان روز (عکس زیرش پنهان است)
-      final fr = bodyR * 0.85;
+      // به‌جای چهره/عکس/ایموجی/قدم‌ها: غنچه (یا گل/برگِ کامل برای کارِ تمام‌شده)
+      final fr = math.max(bodyR * (bloomFull ? 1.0 : 0.9), 12.0);
       _sprig(canvas, bodyPos + Offset(0, fr * 0.9), -math.pi / 2, fr, bloomId,
           1.0,
-          budOnly: true);
+          budOnly: !bloomFull);
+      _lateHits.add(HitEntry(
+        type: 'walkerBud',
+        id: hitId,
+        hostId: hostId,
+        kind: HitKind.handle,
+        center: bodyPos + Offset(0, -fr * 0.2),
+        radius: math.max(fr * 1.7, 22.0),
+      ));
     } else {
       ui.Image? faceImg;
       if (hasPhoto) {
@@ -2675,6 +2708,22 @@ class MapPainter extends CustomPainter {
 
     }
 
+    // زیرِ غنچه: لمس‌های چهره/قدم/دکمه‌ها غیرفعال (فقط خودِ غنچه لمس می‌شود)
+    if (bloomId != null) return;
+    if (closeBudId != null) {
+      final sr = math.max(7.0, bodyR * 0.3);
+      final tip = bodyPos + Offset(0, bodyR + sr * 2.2);
+      _sprig(canvas, tip, -math.pi / 2, sr, closeBudId, 1.0,
+          budOnly: !bloomFull);
+      _lateHits.add(HitEntry(
+        type: 'walkerBud',
+        id: hitId,
+        hostId: hostId,
+        kind: HitKind.handle,
+        center: tip + Offset(0, -sr * 1.1),
+        radius: math.max(sr * 1.9, 18.0),
+      ));
+    }
     hits.add(HitEntry(
       type: hitType,
       id: hitId,

@@ -1138,7 +1138,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
       ];
     }
     final color = hexColor(n.color, hostColor);
-    final todayDone = truthy(n.logs[pi.todayJK]);
+    final todayDone = footDoneOn(n, pi.todayJK);
     final daysOpen = _daysOpen.contains(n.id);
     final isSub = depth > 0;
 
@@ -1467,7 +1467,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
       final date = DateTime(pi.start.year, pi.start.month, pi.start.day + d);
       final jk = jKey(date);
       final j = toJalaali(date.year, date.month, date.day);
-      final has = truthy(n.logs[jk]);
+      final has = footDoneOn(n, jk);
       final future = date.isAfter(pi.today);
       final isToday = date.isAtSameMomentAs(pi.today);
       final isSel = date.year == selD.year &&
