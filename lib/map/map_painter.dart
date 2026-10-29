@@ -1984,9 +1984,6 @@ class MapPainter extends CustomPainter {
     // شاخه‌ی جمع‌شده: فقط ردپای پیشرفت می‌ماند
     if (ghost) return;
 
-    // امروز انجام شده: گل/برگِ امروز هم (برای انیمیشنِ متحرک، ثابت و عکسی)
-    if (!hiddenW && doneToday) bloomAt(fixed, todayK);
-
     // یادداشتِ روزها: بالای پاها، مشکی، بدون دورخط؛ همراه با انیمیشن
     // (چه متحرک، چه ثابت، چه پنهان)
     final showNotes =
@@ -2135,6 +2132,7 @@ class MapPainter extends CustomPainter {
           haloScale: ((a.extra['walkerHaloScale'] as num?)?.toDouble() ?? 1.0),
           voiceExtra: a.extra,
           followManual: true,
+          bloomId: doneToday ? '${a.id}|$todayK' : null,
         ));
 
     if (!doneToday) {
@@ -2371,6 +2369,8 @@ class MapPainter extends CustomPainter {
     double haloScale = 1.0,
     Map<String, dynamic>? voiceExtra,
     bool followManual = false,
+    // روزِ انجام‌شده: عکس/ایموجیِ انیمیشن زیرِ گل/برگ می‌رود و فقط گل/برگ دیده می‌شود
+    String? bloomId,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -2532,7 +2532,7 @@ class MapPainter extends CustomPainter {
     _lastBodyPos = bodyPos;
     _lastBodyR = bodyR;
 
-    if (halo) {
+    if (halo && bloomId == null) {
       final hs = haloScale.clamp(0.3, 2.5).toDouble();
       canvas.drawCircle(
           bodyPos,
@@ -2548,78 +2548,86 @@ class MapPainter extends CustomPainter {
             ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
     }
 
-    ui.Image? faceImg;
-    if (hasPhoto) {
-      faceImg = images.get(photo!, animate: true, t: _t);
-      // اگر عکس نوبتی هنوز بارگذاری نشده، تا آماده شدن عکس اول نشون داده می‌شه
-      if (faceImg == null && photos.isNotEmpty) faceImg = images.get(photos.first);
-    }
-    if (hasEmoji && faceImg == null) {
-      // ایموجی به‌جای دایره (بدون قاب)، وسط همان جایگاه
-      _walkerGlyphs(canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
-      if (!playing) {
-        final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
-        final br = math.max(7.0, bodyR * 0.34);
-        canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFF000000), 0.62));
-        final tri = Path()
-          ..moveTo(bc.dx - br * 0.28, bc.dy - br * 0.45)
-          ..lineTo(bc.dx + br * 0.5, bc.dy)
-          ..lineTo(bc.dx - br * 0.28, bc.dy + br * 0.45)
-          ..close();
-        canvas.drawPath(tri, Paint()..color = const Color(0xFFFFFFFF));
-      }
-    } else if (faceImg != null) {
-      // عکس کاربر داخل دایره
-      final dst = Rect.fromCircle(center: bodyPos, radius: bodyR);
-      final side = math.min(faceImg.width, faceImg.height).toDouble();
-      final src = Rect.fromCenter(
-          center: Offset(faceImg.width / 2, faceImg.height / 2),
-          width: side,
-          height: side);
-      canvas.save();
-      canvas.clipPath(Path()..addOval(dst));
-      canvas.drawImageRect(faceImg, src, dst, Paint()..isAntiAlias = true);
-      canvas.restore();
-      canvas.drawCircle(
-          bodyPos,
-          bodyR,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.2
-            ..color = withOp(col, 0.95));
-      if (hasEmoji) {
-        _walkerEmojiCluster(
-            canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
-      }
-      if (!playing) {
-        // نشان ▶ : با یک تپ دوباره راه می‌افته
-        final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
-        final br = math.max(7.0, bodyR * 0.34);
-        canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFF000000), 0.62));
-        final tri = Path()
-          ..moveTo(bc.dx - br * 0.28, bc.dy - br * 0.45)
-          ..lineTo(bc.dx + br * 0.5, bc.dy)
-          ..lineTo(bc.dx - br * 0.28, bc.dy + br * 0.45)
-          ..close();
-        canvas.drawPath(tri, Paint()..color = const Color(0xFFFFFFFF));
-      }
+    if (bloomId != null) {
+      // به‌جای چهره/عکس: گل یا برگِ همان روز (عکس زیرش پنهان است)
+      final fr = bodyR * 0.85;
+      _sprig(canvas, bodyPos + Offset(0, fr * 0.9), -math.pi / 2, fr, bloomId,
+          1.0);
     } else {
-      canvas.drawCircle(
-          bodyPos,
-          bodyR,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.0
-            ..color = withOp(col, 0.92));
-      canvas.drawCircle(
-          bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.92));
-      if (!playing) {
-        final r = bodyR * 0.32;
-        canvas.drawRect(
-          Rect.fromCenter(center: bodyPos, width: r, height: r),
-          Paint()..color = withOp(col, 0.92),
-        );
+      ui.Image? faceImg;
+      if (hasPhoto) {
+        faceImg = images.get(photo!, animate: true, t: _t);
+        // اگر عکس نوبتی هنوز بارگذاری نشده، تا آماده شدن عکس اول نشون داده می‌شه
+        if (faceImg == null && photos.isNotEmpty) faceImg = images.get(photos.first);
       }
+      if (hasEmoji && faceImg == null) {
+        // ایموجی به‌جای دایره (بدون قاب)، وسط همان جایگاه
+        _walkerGlyphs(canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
+        if (!playing) {
+          final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
+          final br = math.max(7.0, bodyR * 0.34);
+          canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFF000000), 0.62));
+          final tri = Path()
+            ..moveTo(bc.dx - br * 0.28, bc.dy - br * 0.45)
+            ..lineTo(bc.dx + br * 0.5, bc.dy)
+            ..lineTo(bc.dx - br * 0.28, bc.dy + br * 0.45)
+            ..close();
+          canvas.drawPath(tri, Paint()..color = const Color(0xFFFFFFFF));
+        }
+      } else if (faceImg != null) {
+        // عکس کاربر داخل دایره
+        final dst = Rect.fromCircle(center: bodyPos, radius: bodyR);
+        final side = math.min(faceImg.width, faceImg.height).toDouble();
+        final src = Rect.fromCenter(
+            center: Offset(faceImg.width / 2, faceImg.height / 2),
+            width: side,
+            height: side);
+        canvas.save();
+        canvas.clipPath(Path()..addOval(dst));
+        canvas.drawImageRect(faceImg, src, dst, Paint()..isAntiAlias = true);
+        canvas.restore();
+        canvas.drawCircle(
+            bodyPos,
+            bodyR,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.2
+              ..color = withOp(col, 0.95));
+        if (hasEmoji) {
+          _walkerEmojiCluster(
+              canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
+        }
+        if (!playing) {
+          // نشان ▶ : با یک تپ دوباره راه می‌افته
+          final bc = bodyPos + Offset(bodyR * 0.72, bodyR * 0.72);
+          final br = math.max(7.0, bodyR * 0.34);
+          canvas.drawCircle(bc, br, Paint()..color = withOp(const Color(0xFF000000), 0.62));
+          final tri = Path()
+            ..moveTo(bc.dx - br * 0.28, bc.dy - br * 0.45)
+            ..lineTo(bc.dx + br * 0.5, bc.dy)
+            ..lineTo(bc.dx - br * 0.28, bc.dy + br * 0.45)
+            ..close();
+          canvas.drawPath(tri, Paint()..color = const Color(0xFFFFFFFF));
+        }
+      } else {
+        canvas.drawCircle(
+            bodyPos,
+            bodyR,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.0
+              ..color = withOp(col, 0.92));
+        canvas.drawCircle(
+            bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.92));
+        if (!playing) {
+          final r = bodyR * 0.32;
+          canvas.drawRect(
+            Rect.fromCenter(center: bodyPos, width: r, height: r),
+            Paint()..color = withOp(col, 0.92),
+          );
+        }
+      }
+
     }
 
     hits.add(HitEntry(
