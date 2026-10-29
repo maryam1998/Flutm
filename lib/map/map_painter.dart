@@ -19,6 +19,7 @@ import 'foot_shape.dart';
 import 'geometry.dart' as geo;
 import 'hit_registry.dart';
 import 'map_ops.dart';
+import 'plant_painter.dart';
 import 'today_focus.dart';
 import 'user_state.dart';
 import 'walker_photos.dart';
@@ -39,6 +40,9 @@ final Map<String, bool> _bloomSeen = {};
 final Map<String, double> _bloomAt = {};
 final Map<String, String> _flowerSigCache = {};
 final Map<String, Set<String>> _flowerDaysCache = {};
+/// گیاهِ تمرکز: توقفِ تایمر → شکفتنِ غنچه/گل (فقط در حافظه‌ی همین اجرا)
+final Map<String, bool> _plantRunSeen = {};
+final Map<String, double> _plantStopAt = {};
 final Map<String, bool> _reachSeen = {};
 final Map<String, double> _reachAt = {};
 
@@ -1540,6 +1544,45 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  /// دقیقه‌های کارِ امروزِ یک شاخه (ثبت‌شده + تایمرِ در حال اجرا)
+  double _plantMinutes(ActionNode a, String todayK) {
+    var s = (a.time[todayK] as num?)?.toDouble() ?? 0.0;
+    final ts = a.timerStart ?? 0;
+    if (ts > 0) s += (DateTime.now().millisecondsSinceEpoch - ts) / 1000.0;
+    return s / 60.0;
+  }
+
+  /// گیاهِ تمرکز روی نوکِ شاخه: تایمر روشن = در حال رشد؛ بعد از توقف:
+  /// کارِ تمام‌شده = گل، وگرنه غنچه لابه‌لای برگ و شاخه‌ها.
+  void _plant(Canvas canvas, ActionNode a, Offset tip, double ang, double r,
+      String todayK) {
+    final running = (a.timerStart ?? 0) > 0;
+    if (running) {
+      _plantRunSeen[a.id] = true;
+      _plantStopAt.remove(a.id);
+    } else if (_plantRunSeen[a.id] == true) {
+      _plantRunSeen[a.id] = false;
+      _plantStopAt[a.id] = _t;
+    }
+    final t0 = _plantStopAt[a.id];
+    final bp = t0 == null ? 1.0 : ((_t - t0) / 1.2).clamp(0.0, 1.0).toDouble();
+    if (t0 != null && _t - t0 > 3.0) _plantStopAt.remove(a.id);
+    drawFocusPlant(
+      canvas,
+      tip: tip,
+      dir: ang,
+      r: r,
+      id: a.id,
+      minutes: _plantMinutes(a, todayK),
+      mode: running
+          ? kPlantGrowing
+          : (nodeFinished(a) ? kPlantFlowers : kPlantBuds),
+      bloom: bp,
+      sprig: (c, o, d, rr, i, p, fl) =>
+          _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl),
+    );
+  }
+
   /// حلقه‌ی پیشرفت دور دایره‌ی هدف؛ همان درصدِ نوار «فهرست اهداف»
   /// (مجموع وزن قدم‌ها × ۳، حداکثر ۱۰۰٪). هدفِ بدون قدم یا رسیده‌شده حلقه ندارد.
   void _goalProgressRing(
@@ -2288,12 +2331,18 @@ class MapPainter extends CustomPainter {
       final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
       noteAbove(curKey, curNote, route.at(u), pastSize * 1.3 + 4);
       // امروز انجام شده (تیکِ تقویم، زمان، یادداشت…) → غنچه روی نوکِ شاخه
-      if (!ghost && !finBud && footClosedToday(a, todayK)) {
+      if (!ghost &&
+          !finBud &&
+          (_plantMinutes(a, todayK) > 0 || footClosedToday(a, todayK))) {
         var ang = route.tangent(0.0) + math.pi; // ادامه‌ی شاخه، رو به بیرون
         if (math.sin(ang) > 0) ang = -ang; // رو به پایین نباشد
         final sr0 = 8.5 * math.max(0.8, baseSize / 15.0);
-        _sprig(canvas, routePts.first, ang, sr0, '${a.id}|bud', 1.0,
-            budOnly: true);
+        if (_plantMinutes(a, todayK) > 0) {
+          _plant(canvas, a, routePts.first, ang, sr0 * 0.75, todayK);
+        } else {
+          _sprig(canvas, routePts.first, ang, sr0, '${a.id}|bud', 1.0,
+              budOnly: true);
+        }
       }
       return;
     }
@@ -2376,12 +2425,24 @@ class MapPainter extends CustomPainter {
     }
     // غنچه: همیشه روی نوکِ همین شاخه/زیرشاخه، با اندازه‌ی ثابت (مستقل از عکس/زوم
     // انیمیشن). کارِ کاملاً تمام‌شده خودش گل/برگِ سرِ شاخه را دارد (لمسش = باز/بسته).
-    if (closedToday && !finBud) {
+    final plantMin = ghost ? 0.0 : _plantMinutes(a, todayK);
+    if (!ghost && !hiddenW && !finBud && (plantMin > 0 || closedToday)) {
       var ang = route.tangent(0.0) + math.pi; // ادامه‌ی شاخه، رو به بیرون
       if (math.sin(ang) > 0) ang = -ang; // رو به پایین نباشد
       final tip0 = routePts.first;
       final sr0 = 8.5 * math.max(0.8, baseSize / 15.0);
-      _sprig(canvas, tip0, ang, sr0, '${a.id}|bud', 1.0, budOnly: true);
+      if (plantMin > 0) {
+        // گیاهِ تمرکز: تایمر روشن = رشد؛ بعد از توقف = غنچه‌ها لابه‌لای برگ‌ها
+        _plant(canvas, a, tip0, ang, sr0 * 0.75, todayK);
+      } else {
+        _sprig(canvas, tip0, ang, sr0, '${a.id}|bud', 1.0, budOnly: true);
+      }
+    }
+    if (closedToday && !finBud) {
+      var ang = route.tangent(0.0) + math.pi;
+      if (math.sin(ang) > 0) ang = -ang;
+      final tip0 = routePts.first;
+      final sr0 = 8.5 * math.max(0.8, baseSize / 15.0);
       _lateHits.add(HitEntry(
         type: 'walkerBud',
         id: a.id,
@@ -3335,7 +3396,12 @@ class MapPainter extends CustomPainter {
       if (dy > 0) dy = -dy;
       final dir = math.atan2(dy, dx);
       final sr = 10.5 * sc; // گل و برگ بزرگ‌تر (قبلاً ۷)
-      _sprig(canvas, end, dir, sr, a.id, bp);
+      if (_plantMinutes(a, tk) > 0) {
+        // امروز با تایمر/زمان کار شده: گیاهِ رشدکرده با گل‌ها
+        _plant(canvas, a, end, dir, 6.4 * sc, tk);
+      } else {
+        _sprig(canvas, end, dir, sr, a.id, bp);
+      }
       _lateHits.add(HitEntry(
           type: 'bloomToggle',
           id: a.id,

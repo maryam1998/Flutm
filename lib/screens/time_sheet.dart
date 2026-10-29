@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
+import '../map/map_ops.dart' show nodeFinished;
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/goal_ops.dart';
@@ -110,7 +111,7 @@ class _TimeSheetState extends State<_TimeSheet> {
     if (mounted) setState(() {});
   }
 
-  void _toggle() {
+  Future<void> _toggle() async {
     if (timerRunning(widget.node)) {
       final startJk =
           jKey(DateTime.fromMillisecondsSinceEpoch(widget.node.timerStart!));
@@ -118,9 +119,37 @@ class _TimeSheetState extends State<_TimeSheet> {
       if (secs > 0) {
         widget.store.markDoneByTime(widget.host, widget.node, startJk);
       }
-    } else {
-      startTimer(widget.node);
+      widget.store.changed();
+      if (mounted) setState(() {});
+      // توقف: کار کلاً تمام شد؟ بله = گل‌ها نمایان می‌شوند، نه = غنچه لابه‌لای برگ‌ها
+      if (secs > 0 &&
+          mounted &&
+          !widget.node.isRoutine &&
+          !nodeFinished(widget.node)) {
+        final done = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('کارت کلاً تموم شد؟'),
+            content: const Text(
+                'اگه تموم شده، گل‌ها باز می‌شن 🌸\nاگه نه، غنچه‌ها لابه‌لای برگ‌ها می‌مونن 🌱'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('هنوز نه')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('آره، تموم شد')),
+            ],
+          ),
+        );
+        if (done == true) {
+          widget.store.toggleFinished(widget.host, widget.node);
+          if (mounted) setState(() {});
+        }
+      }
+      return;
     }
+    startTimer(widget.node);
     widget.store.changed();
     setState(() {});
   }
