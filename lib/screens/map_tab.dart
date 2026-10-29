@@ -16,6 +16,7 @@ import '../theme/web_palette.dart';
 import '../widgets/backup_section.dart';
 import '../widgets/map_video_overlay.dart';
 import '../widgets/finish_reward.dart';
+import '../widgets/garden_strip.dart';
 import '../widgets/next_step_card.dart';
 import '../widgets/step_reward.dart';
 import 'add_goal_dialog.dart';
@@ -295,6 +296,20 @@ class _MapTabState extends State<MapTab> {
             ),
           ),
 
+          // باغچه: هدف‌های رسیده‌شده‌ای که به‌صورت درخت کاشته شده‌اند
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(8, 58, 8, 0),
+                child: GardenStrip(),
+              ),
+            ),
+          ),
+
           // کارت «قدم بعدیِ امروز» (یک قدم کوچک از بین همه‌ی هدف‌ها)
           Positioned(
             top: 0,
@@ -302,9 +317,12 @@ class _MapTabState extends State<MapTab> {
             right: 0,
             child: SafeArea(
               bottom: false,
-              child: const Padding(
-                padding: EdgeInsets.only(top: 62),
-                child: NextStepCard(),
+              child: ListenableBuilder(
+                listenable: GardenStrip.collapsed,
+                builder: (_, __) => Padding(
+                  padding: EdgeInsets.only(top: 62 + GardenStrip.inset(store)),
+                  child: const NextStepCard(),
+                ),
               ),
             ),
           ),

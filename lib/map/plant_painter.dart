@@ -123,18 +123,51 @@ void drawFocusPlant(
   const starts = [13.0, 21.0, 31.0, 44.0, 68.0];
   double branchSide(int k) => k % 2 == 0 ? 1.0 : -1.0;
 
-  // برگ‌های ساقه (جفت‌برگ؛ سمتِ شاخه‌ی فرعی خالی می‌ماند)
+  // جوانه‌ی سبزِ کوچک (برای جوانه‌ی برگ و جوانه‌ی شاخه): قبل از باز شدن دیده می‌شود
+  void greenBud(Offset p, double ang, double size) {
+    if (size < 0.3) return;
+    canvas.save();
+    canvas.translate(p.dx, p.dy);
+    canvas.rotate(ang);
+    final bp = Path()
+      ..moveTo(0, 0)
+      ..cubicTo(size * 0.45, -size * 0.2, size * 0.4, -size * 0.8, 0, -size * 1.25)
+      ..cubicTo(-size * 0.4, -size * 0.8, -size * 0.45, -size * 0.2, 0, 0);
+    canvas.drawPath(bp, Paint()..color = gc[1]);
+    canvas.drawPath(
+        bp,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.6
+          ..color = const Color(0x33000000));
+    canvas.restore();
+  }
+
+  // برگ‌های ساقه (جفت‌برگ؛ سمتِ شاخه‌ی فرعی خالی می‌ماند).
+  // هر جفت‌برگ اول یک جوانه‌ی ریز است، بعد کم‌کم باز و بزرگ می‌شود.
   for (var i = 0; i < 6; i++) {
     final hi = nodeH(i);
-    final g = _sm((bigH - hi) / (1.3 * R));
-    if (g <= 0.01) continue;
+    final g = _sm((bigH - hi) / (1.8 * R));
+    final pre = _sm((bigH - hi + 0.7 * R) / (0.7 * R));
+    if (pre <= 0.01) continue;
     final p = stemPt(hi);
-    final len = R * (1.35 - 0.09 * i) * g;
-    final ang = (0.95 + 0.06 * i) * (0.35 + 0.65 * g);
+    final full = R * (1.35 - 0.09 * i);
+    final len = full * g + 0.3 * R * pre * (1 - g);
+    final ang = (0.95 + 0.06 * i) * (0.2 + 0.8 * g);
+    final wid = len * (0.5 - 0.08 * g);
     final hasBranch = i >= 1 && _sm((m - starts[i - 1]) / 24) > 0.02;
     final bs = hasBranch ? branchSide(i - 1) : 0.0;
-    if (bs != 1.0) _leaf(canvas, p.dx, p.dy, ang, len, len * 0.42, gc);
-    if (bs != -1.0) _leaf(canvas, p.dx, p.dy, -ang, len, len * 0.42, gc);
+    if (bs != 1.0) _leaf(canvas, p.dx, p.dy, ang, len, wid, gc);
+    if (bs != -1.0) _leaf(canvas, p.dx, p.dy, -ang, len, wid, gc);
+  }
+
+  // جوانه‌ی شاخه‌ی فرعی: چند دقیقه قبل از رشدش در گرهِ ساقه پدیدار می‌شود
+  for (var k = 0; k < 5; k++) {
+    final pre = _sm((m - (starts[k] - 7)) / 7);
+    if (pre <= 0.02 || _sm((m - starts[k]) / 24) > 0.02) continue;
+    final hn = nodeH(k + 1);
+    if (hn > bigH) continue;
+    greenBud(stemPt(hn), branchSide(k) * 0.8, 0.55 * R * pre);
   }
 
   // شاخه‌های فرعی
@@ -168,13 +201,14 @@ void drawFocusPlant(
     const lt = [0.35, 0.6, 0.85];
     for (var li = 0; li < 3; li++) {
       final tt = lt[li];
-      final k2 = _sm((u - tt) / 0.35);
-      final sz = R * 0.95 * k2;
+      final k2 = _sm((u - tt) / 0.4);
+      final pre = _sm((u - tt + 0.12) / 0.12);
+      final sz = R * 0.95 * k2 + 0.28 * R * pre * (1 - k2);
       if (sz < 0.3) continue;
       final q = bz(tt);
       final sd = (li % 2 == 0 ? 1.0 : -1.0) * s;
-      _leaf(canvas, q.dx, q.dy, tg(tt) + sd * 0.9 * (0.4 + 0.6 * k2), sz,
-          sz * 0.42, gc);
+      _leaf(canvas, q.dx, q.dy, tg(tt) + sd * 0.9 * (0.2 + 0.8 * k2), sz,
+          sz * (0.5 - 0.08 * k2), gc);
     }
     tips.add(_Tip(bz(u), tg(u), k, u));
   }

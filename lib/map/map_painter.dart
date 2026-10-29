@@ -1544,6 +1544,12 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  /// رسمِ گل/غنچه‌ی درخت برای باغچه (همان شکلِ نقشه)
+  static void sprigAt(Canvas canvas, Offset tip, double dir, double r,
+          String id, double p,
+          {bool budOnly = false, bool flower = false}) =>
+      _sprig(canvas, tip, dir, r, id, p, budOnly: budOnly, flower: flower);
+
   /// دقیقه‌های کارِ امروزِ یک شاخه (ثبت‌شده + تایمرِ در حال اجرا)
   double _plantMinutes(ActionNode a, String todayK) {
     var s = (a.time[todayK] as num?)?.toDouble() ?? 0.0;

@@ -16,6 +16,7 @@ import '../state/map_store.dart';
 import 'edit_sheet.dart';
 import '../theme/app_theme.dart';
 import '../widgets/emoji_stack.dart';
+import '../widgets/garden_strip.dart' show goalPlanted, plantGoalInGarden;
 import '../widgets/icon_photo_editor.dart';
 import '../widgets/panel_kit.dart';
 import 'foot_note_sheet.dart' show showFootNoteSheet;
@@ -911,6 +912,12 @@ class _GoalsSheetState extends State<GoalsSheet> {
             onPressed: () => store.unreachGoal(g),
             child: const Text('بازگرداندن'),
           ),
+          if (!goalPlanted(g))
+            _iconBtn(Icons.park_outlined, 'کاشتن در باغچه', () {
+              final pc = widget.parentContext;
+              Navigator.pop(context);
+              plantGoalInGarden(pc, store, g);
+            }),
           _iconBtn(Icons.my_location, 'نمایش روی نقشه', () {
             Navigator.pop(context);
             widget.onShowOnMap(g);
