@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
+import '../map/map_ops.dart' show nodeFinished;
 import '../map/today_focus.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
@@ -31,7 +32,8 @@ List<ActionNode> _leaves(List<ActionNode> l, [List<ActionNode>? out]) {
 
 /// قدم‌های انجام‌نشده‌ی امروزِ یک هدف (فقط کوچک‌ترین قدم‌ها، یعنی گره‌های بدون زیرشاخه)
 List<ActionNode> _todo(Goal g, String jk) => _leaves(g.actions)
-    .where((n) => n.text.trim().isNotEmpty && !truthy(n.logs[jk]))
+    .where((n) =>
+        n.text.trim().isNotEmpty && !truthy(n.logs[jk]) && !nodeFinished(n))
     .toList();
 
 /// کارت «قدم بعدیِ امروز» روی نقشه.
@@ -52,6 +54,9 @@ class _NextStepCardState extends State<NextStepCard> {
   String? _focusId;
   bool _more = false;
   bool _collapsed = false;
+  // آخرین قدمی که همین الان تیک خورد؛ برای پیشنهادِ «کاملاً تمام شد»
+  Goal? _jg;
+  ActionNode? _jn;
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +146,35 @@ class _NextStepCardState extends State<NextStepCard> {
                 const SizedBox(height: 2),
                 Text('همین کافیه؛ اگه حال داری یکی دیگه:',
                     style: TextStyle(fontSize: 11, color: wp.textDim)),
+                // کارِ یک‌باره (نه تکراری) که همین الان تیک خورد: دکمه‌ی «کاملاً تمام شد»
+                if (_jg != null &&
+                    _jn != null &&
+                    !_jn!.isRoutine &&
+                    !nodeFinished(_jn!))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1E9E6A),
+                        side: const BorderSide(color: Color(0xFF1E9E6A)),
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                      onPressed: () {
+                        final g = _jg!, n = _jn!;
+                        setState(() {
+                          _jg = null;
+                          _jn = null;
+                        });
+                        store.toggleFinished(g, n);
+                      },
+                      icon: const Icon(Icons.task_alt_rounded, size: 17),
+                      label: Text('«${_jn!.text}» کاملاً تمام شد',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12)),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -213,6 +247,8 @@ class _NextStepCardState extends State<NextStepCard> {
                 // پاداش (صدا/انیمیشن) از hook موجود در MapStore.toggleLog می‌آید
                 store.toggleLog(cur.goal, cur.node, jk);
                 setState(() {
+                  _jg = cur.goal;
+                  _jn = cur.node;
                   _skip = 0;
                   _more = false;
                 });

@@ -1691,14 +1691,17 @@ class MapPainter extends CustomPainter {
             ..strokeWidth = (fs * 0.09).clamp(1.2, 4.0).toDouble()
             ..strokeCap = StrokeCap.round,
         );
-        // نشانِ کوچک کنار نوشته: ✓ انجام شد / ⏳ منتظر جواب
-        final g = drawText(canvas, noteWait ? '⏳' : '✓',
-            r.right + fs * 0.8, r.center.dy,
-            size: fs * 0.95,
-            color: const Color(0xFF1E9E6A),
-            weight: FontWeight.w800,
-            vCenter: true);
-        hitRect = r.expandToInclude(g);
+        // نشانِ کوچک کنار نوشته: تیکِ ریز (انجام شد) / ⏳ ریز (منتظر جواب)
+        if (noteWait) {
+          final g = drawText(canvas, '⏳', r.right + fs * 0.6, r.center.dy,
+              size: fs * 0.62, color: col, vCenter: true);
+          hitRect = r.expandToInclude(g);
+        } else {
+          final br = math.max(3.5, fs * 0.3);
+          final c = Offset(r.right + br + 3, r.center.dy);
+          _miniCheck(canvas, c, br);
+          hitRect = r.expandToInclude(Rect.fromCircle(center: c, radius: br));
+        }
       }
       hits.add(HitEntry(
         type: 'footNote',
@@ -2454,6 +2457,22 @@ class MapPainter extends CustomPainter {
     canvas.restore();
   }
 
+  /// تیکِ سبزِ ریز (دایره‌ی پر + تیکِ سفید) برای کارهای تمام‌شده؛ به‌جای نوشته‌ی ✓ که شلوغ بود
+  void _miniCheck(Canvas canvas, Offset c, double r) {
+    canvas.drawCircle(c, r, Paint()..color = const Color(0xFF1E9E6A));
+    canvas.drawPath(
+        Path()
+          ..moveTo(c.dx - r * 0.45, c.dy + r * 0.02)
+          ..lineTo(c.dx - r * 0.1, c.dy + r * 0.38)
+          ..lineTo(c.dx + r * 0.5, c.dy - r * 0.34),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(1.1, r * 0.3)
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = Colors.white);
+  }
+
   List<ActionNode> _visibleActs(List<ActionNode> list) {
     final out = <ActionNode>[];
     for (final n in list) {
@@ -2818,13 +2837,10 @@ class MapPainter extends CustomPainter {
         if (doneNow) {
           final first = Rect.fromLTRB(lr.left, lr.top, lr.right,
               lr.top + (lr.height / lines.length));
-          drawText(canvas, '✓',
-              right ? lr.left - 9 : lr.right + 9, first.center.dy,
-              size: fs * 1.05,
-              color: const Color(0xFF1E9E6A),
-              weight: FontWeight.w800,
-              outline: 2.5,
-              vCenter: true);
+          final br = math.max(4.0, fs * 0.36);
+          _miniCheck(canvas,
+              Offset(right ? lr.left - br - 4 : lr.right + br + 4, first.center.dy),
+              br);
         }
         hits.add(HitEntry(
             type: 'action',
