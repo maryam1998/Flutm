@@ -1380,40 +1380,82 @@ class MapPainter extends CustomPainter {
     }
 
     if (budOnly) {
-      // غنچه‌ی جورواجور: برای هر کارِ انجام‌شده (حتی نیمه‌تمام) یک غنچه‌ی ثابت
+      // غنچه‌ی واقعی: کاسبرگ سبز، گلبرگ‌های روی‌هم‌افتاده و نوکِ تیز.
+      // به‌صورت تصادفی (ثابت برای هر id): بی‌برگ، تک‌برگ یا دوبرگ
       final bc = (pc.computeLuminance() > 0.85) ? petals[0] : pc;
-      final bk = (h ~/ 216) % 4;
+      final lc = (h ~/ 216) % 3; // تعداد برگ: ۰، ۱ یا ۲
+      final side = ((h ~/ 648) & 1) == 0 ? 1.0 : -1.0;
+      final lean = (((h ~/ 1296) % 5) - 2) * 0.05; // کمی خمیدگی
+      final dark = Color.lerp(bc, const Color(0xFF000000), 0.28)!;
+      final light = Color.lerp(bc, const Color(0xFFFFFFFF), 0.45)!;
+
+      // ساقه
       canvas.drawLine(
           Offset.zero,
-          Offset(0, -R * 0.9),
+          Offset(0, -R * 0.8),
           Paint()
             ..color = gc[0]
             ..strokeWidth = math.max(1.1, R * 0.15)
             ..strokeCap = StrokeCap.round);
-      leaf(-R * 0.15, -0.9, R * 0.8, R * 0.3);
-      leaf(-R * 0.15, 0.9, R * 0.8, R * 0.3);
-      switch (bk) {
-        case 0: // یک غنچه‌ی بسته
-          bud(Offset(0, -R * 0.75), 0, R * 1.15, bc);
-        case 1: // غنچه‌ی اصلی + دو غنچه‌ی کوچک
-          bud(Offset(0, -R * 0.75), 0, R * 1.0, bc);
-          bud(Offset(0, -R * 0.4), -0.95, R * 0.7, Color.lerp(bc, Colors.white, 0.25)!);
-          bud(Offset(0, -R * 0.4), 0.95, R * 0.7, Color.lerp(bc, Colors.white, 0.25)!);
-        case 2: // غنچه‌ی در حال باز شدن
-          bud(Offset(0, -R * 0.7), 0, R * 1.0, bc);
-          petal(-0.45, R * 0.75, R * 0.3, bc, Offset(0, -R * 1.15));
-          petal(0.45, R * 0.75, R * 0.3, bc, Offset(0, -R * 1.15));
-        default: // غنچه‌ی گرد
-          final c0 = Offset(0, -R * 1.25);
-          canvas.drawCircle(c0, R * 0.55, Paint()..color = bc);
-          canvas.drawCircle(c0, R * 0.55, edge);
-          canvas.drawArc(Rect.fromCircle(center: c0, radius: R * 0.55),
-              0.2, math.pi * 0.6, false,
-              Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = math.max(1.0, R * 0.16)
-                ..color = gc[0]);
+      // برگ‌ها
+      if (lc >= 1) leaf(-R * 0.12, -0.95 * side, R * 0.95, R * 0.34);
+      if (lc == 2) leaf(-R * 0.12, 0.95 * side, R * 0.85, R * 0.30);
+
+      canvas.save();
+      canvas.translate(0, -R * 0.7);
+      canvas.rotate(lean);
+      final w = R * 0.62;
+      final hh = R * 1.55;
+      // بدنه‌ی غنچه: قطره‌ی کشیده با نوکِ تیز
+      final body = Path()
+        ..moveTo(0, 0)
+        ..cubicTo(w * 1.05, -hh * 0.12, w * 0.95, -hh * 0.62, 0, -hh)
+        ..cubicTo(-w * 0.95, -hh * 0.62, -w * 1.05, -hh * 0.12, 0, 0)
+        ..close();
+      canvas.drawPath(
+          body,
+          Paint()
+            ..shader = ui.Gradient.linear(
+                Offset(-w, 0), Offset(w, -hh * 0.5), [light, bc, dark],
+                [0.0, 0.45, 1.0]));
+      canvas.drawPath(body, edge);
+      // درزِ گلبرگ‌های روی‌هم‌افتاده
+      final seam = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.7, R * 0.07)
+        ..strokeCap = StrokeCap.round
+        ..color = withOp(dark, 0.55);
+      canvas.drawPath(
+          Path()
+            ..moveTo(-w * 0.1, -hh * 0.06)
+            ..quadraticBezierTo(w * 0.62, -hh * 0.5, w * 0.04, -hh * 0.96),
+          seam);
+      canvas.drawPath(
+          Path()
+            ..moveTo(w * 0.1, -hh * 0.06)
+            ..quadraticBezierTo(-w * 0.55, -hh * 0.45, -w * 0.12, -hh * 0.8),
+          seam);
+      // برق
+      canvas.drawOval(
+          Rect.fromCenter(
+              center: Offset(-w * 0.42, -hh * 0.5),
+              width: w * 0.22,
+              height: hh * 0.32),
+          Paint()..color = const Color(0x55FFFFFF));
+      // کاسبرگ‌های سبز دورِ پایه‌ی غنچه
+      Path sepal(double dx, double ang, double len, double wid) {
+        return Path()
+          ..moveTo(dx, 0)
+          ..quadraticBezierTo(dx + wid * math.cos(ang), -len * 0.45,
+              dx + len * 0.55 * math.sin(ang), -len)
+          ..quadraticBezierTo(dx - wid * 0.2, -len * 0.5, dx, 0)
+          ..close();
       }
+      final sp = Paint()..color = gc[0];
+      canvas.drawPath(sepal(0, -0.55, hh * 0.52, w * 0.8), sp);
+      canvas.drawPath(sepal(0, 0.55, hh * 0.52, -w * 0.8), sp);
+      canvas.drawPath(sepal(0, 0.0, hh * 0.36, w * 0.5), Paint()..color = gc[1]);
+      canvas.restore();
       canvas.restore();
       return;
     }
@@ -1938,10 +1980,11 @@ class MapPainter extends CustomPainter {
         ((a.extra['pastFootSize'] as num?)?.toDouble() ?? 0.6).clamp(0.2, 6.0);
     var pastSize = size * 0.5 * pastMul;
     // فاصله‌ی هر قدم با قدمِ قبلی (قبلاً ۲٫۲؛ حالا جا برای گل/برگِ بین قدم‌ها)
-    var stride = pastSize * 6.0 / len;
+    var stride = pastSize * 10.0 / len;
     if (fixed * stride > 0.88) {
       // اول فاصله‌ی بین قدم‌ها کمتر می‌شود (تا حدی)، بعد اندازه‌ی قدم‌ها
-      stride = math.max(pastSize * 2.6 / len, 0.88 / fixed);
+      // (حداقل فاصله ۵ برابرِ اندازه تا قدم‌ها توی هم نروند)
+      stride = math.max(pastSize * 5.0 / len, 0.88 / fixed);
     }
     if (fixed * stride > 0.88) {
       final fit = 0.88 / (fixed * stride);
@@ -2185,11 +2228,7 @@ class MapPainter extends CustomPainter {
           voiceExtra: a.extra,
           followManual: true,
           // بسته: فقط غنچه (تمام‌شده: گل/برگ)؛ باز شده: چهره + غنچه‌ی کوچکِ بستن
-          bloomId: collapsed ? (finBud ? '${a.id}|fin' : '${a.id}|$todayK') : null,
-          bloomFull: finBud,
-          closeBudId: (closedToday && revealed)
-              ? (finBud ? '${a.id}|fin' : '${a.id}|$todayK')
-              : null,
+          bloomId: collapsed ? '${a.id}|bud' : null,
         ));
 
     if (!doneToday) {
@@ -2225,6 +2264,23 @@ class MapPainter extends CustomPainter {
         }
       }
       core(playingNow, posToday);
+    }
+    // غنچه: همیشه روی نوکِ همین شاخه/زیرشاخه، با اندازه‌ی ثابت (مستقل از عکس/زوم
+    // انیمیشن). کارِ کاملاً تمام‌شده خودش گل/برگِ سرِ شاخه را دارد (لمسش = باز/بسته).
+    if (closedToday && !finBud) {
+      var ang = route.tangent(0.0) + math.pi; // ادامه‌ی شاخه، رو به بیرون
+      if (math.sin(ang) > 0) ang = -ang; // رو به پایین نباشد
+      final tip0 = routePts.first;
+      final sr0 = 8.5 * math.max(0.8, baseSize / 15.0);
+      _sprig(canvas, tip0, ang, sr0, '${a.id}|bud', 1.0, budOnly: true);
+      _lateHits.add(HitEntry(
+        type: 'walkerBud',
+        id: a.id,
+        hostId: hostId,
+        kind: HitKind.handle,
+        center: tip0 + Offset(math.cos(ang), math.sin(ang)) * (sr0 * 1.2),
+        radius: sr0 * 1.7,
+      ));
     }
     // زیرِ غنچه همه‌چیز پنهان است؛ فقط وضعیتِ «تمام شد» ثبت می‌ماند تا با باز کردنِ
     // غنچه جشنِ تازه تکرار نشود
@@ -2432,12 +2488,9 @@ class MapPainter extends CustomPainter {
     double haloScale = 1.0,
     Map<String, dynamic>? voiceExtra,
     bool followManual = false,
-    // بسته: کلِ انیمیشن (عکس، ایموجی، قدم‌ها) زیرِ غنچه/گل می‌رود و فقط همان دیده می‌شود
+    // بسته (غنچه): عکس، ایموجی، قدم‌ها و لمس‌ها پنهان‌اند؛ خودِ غنچه سرِ شاخه
+    // توسط _branchWalker رسم می‌شود (اندازه‌ی ثابت، مستقل از اندازه‌ی عکس)
     String? bloomId,
-    // true = گل/برگِ کامل (کارِ کاملاً تمام‌شده)؛ false = غنچه
-    bool bloomFull = false,
-    // باز شده: کنارِ چهره یک غنچه‌ی کوچک می‌ماند تا با لمسش دوباره ببندی
-    String? closeBudId,
   }) {
     final range = tMax - tMin;
     final tt = _t + timeOffset;
@@ -2618,19 +2671,7 @@ class MapPainter extends CustomPainter {
     }
 
     if (bloomId != null) {
-      // به‌جای چهره/عکس/ایموجی/قدم‌ها: غنچه (یا گل/برگِ کامل برای کارِ تمام‌شده)
-      final fr = math.max(bodyR * (bloomFull ? 1.0 : 0.9), 12.0);
-      _sprig(canvas, bodyPos + Offset(0, fr * 0.9), -math.pi / 2, fr, bloomId,
-          1.0,
-          budOnly: !bloomFull);
-      _lateHits.add(HitEntry(
-        type: 'walkerBud',
-        id: hitId,
-        hostId: hostId,
-        kind: HitKind.handle,
-        center: bodyPos + Offset(0, -fr * 0.2),
-        radius: math.max(fr * 1.7, 22.0),
-      ));
+      // زیرِ غنچه: چیزی کشیده نمی‌شود
     } else {
       ui.Image? faceImg;
       if (hasPhoto) {
@@ -2710,20 +2751,6 @@ class MapPainter extends CustomPainter {
 
     // زیرِ غنچه: لمس‌های چهره/قدم/دکمه‌ها غیرفعال (فقط خودِ غنچه لمس می‌شود)
     if (bloomId != null) return;
-    if (closeBudId != null) {
-      final sr = math.max(7.0, bodyR * 0.3);
-      final tip = bodyPos + Offset(0, bodyR + sr * 2.2);
-      _sprig(canvas, tip, -math.pi / 2, sr, closeBudId, 1.0,
-          budOnly: !bloomFull);
-      _lateHits.add(HitEntry(
-        type: 'walkerBud',
-        id: hitId,
-        hostId: hostId,
-        kind: HitKind.handle,
-        center: tip + Offset(0, -sr * 1.1),
-        radius: math.max(sr * 1.9, 18.0),
-      ));
-    }
     hits.add(HitEntry(
       type: hitType,
       id: hitId,

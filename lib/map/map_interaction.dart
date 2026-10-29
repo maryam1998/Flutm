@@ -266,6 +266,15 @@ class MapInteraction {
           } else {
             bf.node.extra['labelOpen'] = true;
           }
+          // کارِ کاملاً تمام‌شده: گلِ سرِ شاخه همان غنچه است؛ انیمیشنِ زیرش هم باز/بسته می‌شود
+          if (nodeFinished(bf.node)) {
+            final tk = jKey(DateTime.now());
+            if (bf.node.extra['budOpenDay'] == tk) {
+              bf.node.extra.remove('budOpenDay');
+            } else {
+              bf.node.extra['budOpenDay'] = tk;
+            }
+          }
           store.changed();
         }
       }
