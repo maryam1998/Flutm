@@ -244,56 +244,6 @@ class MapInteraction {
     }
   }
 
-  /// جمع‌بودنِ زیرشاخه‌های یک شاخه (دستی یا خودکارِ «همه تمام»)
-  bool _foldedNow(ActionNode n) {
-    bool sub(ActionNode k) => nodeFinished(k) && k.children.every(sub);
-    final allFin = n.children.isNotEmpty && n.children.every(sub);
-    return n.extra['folded'] == true ||
-        (allFin && n.extra['foldOpen'] != true);
-  }
-
-  /// پدرهای یک شاخه از ریشه تا پدرِ مستقیم (null = پیدا نشد)
-  List<ActionNode>? _ancestorsOf(List<ActionNode> list, String id) {
-    for (final n in list) {
-      if (n.id == id) return <ActionNode>[];
-      final r = _ancestorsOf(n.children, id);
-      if (r != null) return [n, ...r];
-    }
-    return null;
-  }
-
-  void _toggleBloomBranch(String hostId, String nodeId) {
-    final bh = store.state.findHost(hostId);
-    if (bh is! MapHost) return;
-    final f = findActionNode(bh.actions, nodeId);
-    if (f == null) return;
-    final node = f.node;
-    final anc = _ancestorsOf(bh.actions, nodeId) ?? <ActionNode>[];
-    final hiders = anc.where(_foldedNow).toList();
-    if (hiders.isNotEmpty) {
-      // شاخه الان پنهان است (پدرش جمع شده) → همه‌ی پدرهای جمع‌شده باز شوند
-      node.extra['flowerOpenedBy'] = [for (final h in hiders) h.id];
-      for (final h in hiders) {
-        store.toggleActionFold(h.id);
-      }
-      return;
-    }
-    final opened = node.extra['flowerOpenedBy'];
-    if (opened is List && opened.isNotEmpty) {
-      // دوباره لمس: همان‌ها که باز شده بودند دوباره جمع می‌شوند
-      node.extra.remove('flowerOpenedBy');
-      for (final id in opened.whereType<String>()) {
-        final o = findActionNode(bh.actions, id);
-        if (o != null && !_foldedNow(o.node)) store.toggleActionFold(id);
-      }
-      return;
-    }
-    if (node.children.isNotEmpty) {
-      // خودِ شاخه زیرشاخه دارد: زیرشاخه‌هایش را جمع/باز کن
-      store.toggleActionFold(node.id);
-    }
-  }
-
   // ───────────────────────── pointer down ─────────────────────────
 
   void pointerDown(PointerDownEvent e) {
@@ -321,11 +271,25 @@ class MapInteraction {
       }
       return;
     }
-    // لمسِ گل/برگِ بین قدم‌ها: شاخه و زیرشاخه‌ی جمع‌شده نمایان می‌شود؛
-    // دوباره بزنی همان‌ها دوباره جمع می‌شوند و فقط گل/برگ می‌ماند
+    // لمسِ گل/برگِ بین قدم‌ها: متنِ همان روز دیده می‌شود؛ دوباره بزنی پنهان می‌شود
     if (_ptrs.isEmpty && hit != null && hit.type == 'pastBloom') {
       HapticFeedback.selectionClick();
-      _toggleBloomBranch(hit.hostId, hit.id);
+      final bh = store.state.findHost(hit.hostId);
+      if (bh is MapHost) {
+        final bf = findActionNode(bh.actions, hit.id);
+        if (bf != null) {
+          final cur = bf.node.extra['dayNotesOpen'];
+          final list =
+              cur is List ? cur.whereType<String>().toList() : <String>[];
+          if (!list.remove(hit.voiceKey)) list.add(hit.voiceKey);
+          if (list.isEmpty) {
+            bf.node.extra.remove('dayNotesOpen');
+          } else {
+            bf.node.extra['dayNotesOpen'] = list;
+          }
+          store.changed();
+        }
+      }
       return;
     }
     if (_ptrs.isEmpty && hit != null && hit.type == 'foldToggle') {

@@ -1923,6 +1923,31 @@ class MapPainter extends CustomPainter {
       final sr = (pastSize * 0.5).clamp(4.5, 14.0).toDouble();
       final tip = pt + nv * (pastSize * 0.5);
       _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0);
+      // لمسِ گل/برگ: متنِ همان روز (یادداشت؛ اگر نداشت نامِ شاخه) دیده می‌شود،
+      // دوباره لمس = متن پنهان و فقط گل/برگ
+      final nAll = a.extra['footNotes'];
+      final nRaw = nAll is Map ? nAll[dk] : null;
+      final note = nRaw is String ? nRaw.trim() : '';
+      final shown = note.isNotEmpty ? note : a.text.trim();
+      final od = a.extra['dayNotesOpen'];
+      final isOpen = od is List &&
+          od.contains(dk) &&
+          shown.isNotEmpty &&
+          !(a.extra['footNotesShow'] == true && note.isNotEmpty);
+      if (isOpen) {
+        final lines = wrapText(shown.replaceAll('\n', ' '), 22);
+        final shownLines = lines.length > 3 ? lines.sublist(0, 3) : lines;
+        final fs = _fs() * 0.5;
+        final lh = fs * 1.3;
+        final base = tip + nv * (sr * 2.5 + fs * 0.6);
+        for (var i = 0; i < shownLines.length; i++) {
+          var ln = shownLines[i];
+          if (i == 2 && lines.length > 3) ln = '$ln…';
+          drawText(canvas, ln, base.dx,
+              base.dy + (i - (shownLines.length - 1) / 2) * lh,
+              size: fs, color: Colors.black, vCenter: true, outline: 2.5);
+        }
+      }
       hits.add(HitEntry(
         type: 'pastBloom',
         id: a.id,
