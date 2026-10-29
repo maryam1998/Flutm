@@ -3254,59 +3254,111 @@ class MapPainter extends CustomPainter {
       _bloomAt.remove(a.id);
     }
 
-    // دکمه‌ی جمع/باز: روی گره‌ی جمع‌شده «تمام‌شده از کل» (مثلاً ۲ از ۵)؛
-    // روی گره‌ی باز یک «−» خیلی کم‌رنگ. لمس = جمع/باز کردن دستی.
-    // جای دکمه: درست زیرِ نوشته‌ی شاخه (نه روی عکس/ایموجی)؛ اگر نوشته‌ای نباشد زیر گره.
-    void foldBtn(double bx, double by, bool vc) {
+    // دکمه‌ی جمع/باز (قرصِ کوچکِ حرفه‌ای): «تعداد + فلش».
+    // باز: فلشِ بالا (لمس = جمع شدن)؛ جمع‌شده: «تمام‌شده از کل» + فلشِ پایین (لمس = باز شدن).
+    // جای دکمه: بالای نوشته‌ی شاخه، با فاصله از قدم‌زن/عکس و شاخه و زیرشاخه‌ها؛
+    // اگر نوشته‌ای نباشد زیرِ گره (باز هم بیرونِ دایره‌ی عکس/قدم‌زن).
+    void foldBtn(Rect? lr) {
       final total = _countVisible(visKids);
-      Rect rr;
-      if (foldKids) {
-        final label = '${toFa(_countFinished(visKids))} از ${toFa(total)}';
-        final tr = drawText(canvas, label, bx - 4, by,
-            size: 10.5, color: withOp(atc, 0.95), outline: 2, vCenter: vc);
-        final pill = RRect.fromRectAndRadius(
-            Rect.fromLTRB(tr.left - 7, tr.top - 3, tr.right + 17, tr.bottom + 3),
-            const Radius.circular(10));
-        canvas.drawRRect(pill, Paint()..color = withOp(atc, 0.10));
-        canvas.drawRRect(
-            pill,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.1
-              ..color = withOp(atc, 0.55));
-        final ch = Offset(tr.right + 8, tr.center.dy);
-        canvas.drawPath(
-            Path()
-              ..moveTo(ch.dx - 3, ch.dy - 1.5)
-              ..lineTo(ch.dx, ch.dy + 1.8)
-              ..lineTo(ch.dx + 3, ch.dy - 1.5),
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.6
-              ..strokeCap = StrokeCap.round
-              ..strokeJoin = StrokeJoin.round
-              ..color = withOp(atc, 0.85));
-        rr = pill.outerRect;
-      } else {
-        final cc = Offset(bx, vc ? by : by - 3);
-        canvas.drawCircle(cc, 6.5, Paint()..color = withOp(atc, 0.10));
-        canvas.drawLine(cc + const Offset(-3, 0), cc + const Offset(3, 0),
-            _stroke(atc, 1.4, 0.45));
-        rr = Rect.fromCircle(center: cc, radius: 6.5);
+      final open = !foldKids;
+      final label = open
+          ? toFa(total)
+          : '${toFa(_countFinished(visKids))} از ${toFa(total)}';
+      const fs = 10.5;
+      const fw = FontWeight.w600;
+      final tw = textCache.get(label, fs, atc, fw).width;
+      const ph = 19.0, padX = 8.0, icW = 7.0, gapIc = 5.0;
+      final w = padX + tw + gapIc + icW + padX;
+
+      // شعاعِ تقریبیِ قدم‌زن/عکسِ سرِ شاخه؛ دکمه باید بیرونِ آن بماند
+      final walkerOn = a.extra['showWalker'] != false;
+      final walkR = walkerOn
+          ? (21.6 *
+                  scale *
+                  state.footScale.clamp(kFootScaleMin, kFootScaleMax) *
+                  (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax))
+              .clamp(8.0, 140.0)
+              .toDouble()
+          : 8.0 * scale;
+      final clear = walkR + 10.0;
+
+      double gapTo(Offset c) {
+        final r = Rect.fromCenter(center: c, width: w, height: ph);
+        final dx = math.max(math.max(r.left - end.dx, end.dx - r.right), 0.0);
+        final dy = math.max(math.max(r.top - end.dy, end.dy - r.bottom), 0.0);
+        return math.sqrt(dx * dx + dy * dy);
       }
+
+      Offset c;
+      if (lr != null) {
+        // بالای نوشته، وسطِ آن
+        c = Offset(lr.center.dx, lr.top - 10.0 - ph / 2);
+        final dir = (lr.center.dx - end.dx) >= 0 ? 1.0 : -1.0;
+        final limit = dir > 0 ? lr.right - w / 2 : lr.left + w / 2;
+        var guard = 0;
+        // اول در امتدادِ نوشته از قدم‌زن دور می‌شود، بعد در صورتِ نیاز بالاتر می‌رود
+        while (gapTo(c) < clear && guard++ < 80) {
+          final nx = c.dx + dir * 3.0;
+          if ((dir > 0 && nx <= limit) || (dir < 0 && nx >= limit)) {
+            c = Offset(nx, c.dy);
+          } else {
+            c = Offset(c.dx, c.dy - 3.0);
+          }
+        }
+      } else {
+        c = Offset(end.dx, end.dy + clear + ph / 2);
+      }
+
+      final pill = RRect.fromRectAndRadius(
+          Rect.fromCenter(center: c, width: w, height: ph),
+          const Radius.circular(ph / 2));
+      // سایه‌ی نرم تا از زمینه جدا شود
+      canvas.drawRRect(
+          pill.shift(const Offset(0, 1.4)),
+          Paint()
+            ..color = const Color(0x2E000000)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.6));
+      canvas.drawRRect(
+          pill, Paint()..color = withOp(atc, open ? 0.10 : 0.16));
+      canvas.drawRRect(
+          pill,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.1
+            ..color = withOp(atc, open ? 0.45 : 0.65));
+      drawText(canvas, label, pill.left + padX, c.dy,
+          size: fs,
+          color: withOp(atc, 0.95),
+          weight: fw,
+          align: LabelAlign.left,
+          outline: 2,
+          vCenter: true);
+      final ch = Offset(pill.right - padX - icW / 2, c.dy);
+      final up = open ? -1.0 : 1.0; // باز: فلشِ رو به بالا
+      canvas.drawPath(
+          Path()
+            ..moveTo(ch.dx - 3.2, ch.dy - up * 1.6)
+            ..lineTo(ch.dx, ch.dy + up * 1.6)
+            ..lineTo(ch.dx + 3.2, ch.dy - up * 1.6),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.7
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
+            ..color = withOp(atc, 0.9));
       hits.add(HitEntry(
           type: 'foldToggle',
           id: a.id,
           hostId: h.id,
           kind: HitKind.label,
-          rect: rr.inflate(8)));
+          rect: pill.outerRect.inflate(8)));
     }
 
     final hasFoldBtn = visKids.isNotEmpty && !foldAnim;
     final labelShown =
         a.text.isNotEmpty && (!doneNow || a.extra['labelOpen'] == true);
     if (hasFoldBtn && !labelShown) {
-      foldBtn(end.dx, end.dy + 17 * math.max(0.8, scale), false);
+      foldBtn(null);
     }
 
     if (state.extra['todayOnly'] == true &&
@@ -3379,11 +3431,7 @@ class MapPainter extends CustomPainter {
         }
       }
       if (hasFoldBtn) {
-        if (lr != null) {
-          foldBtn(lr.center.dx + 4, lr.bottom + 17, true);
-        } else {
-          foldBtn(end.dx, end.dy + 17 * math.max(0.8, scale), false);
-        }
+        foldBtn(lr);
       }
     }
     closeFade();

@@ -201,7 +201,6 @@ Future<void> showFootStatsSheet(
   final wp = WebPalette.of(context);
   var sel = -1; // روزِ انتخاب‌شده (idx)
   String? hint; // پیام کوتاه زیر دکمه‌ها
-  var noteStyleOpen = false; // بخش «تنظیمات یادداشت روی نقشه»
   String? jkPending = initialJk; // روزی که باید باز شدن انتخاب بشه
   final selKey = GlobalKey();
   final detailCtl = ScrollController();
@@ -703,36 +702,57 @@ Future<void> showFootStatsSheet(
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: TextButton.icon(
-                                  style: TextButton.styleFrom(
-                                      visualDensity: VisualDensity.compact),
-                                  onPressed: () =>
-                                      setS(() => noteStyleOpen = !noteStyleOpen),
-                                  icon: Icon(
-                                      noteStyleOpen
-                                          ? Icons.expand_less_rounded
-                                          : Icons.expand_more_rounded,
-                                      size: 18),
-                                  label: const Text('تنظیمات یادداشت روی نقشه'),
+                              // تنظیماتِ یادداشتِ روی نقشه (فونت، اندازه، رنگ، برگشت، حذف از نقشه)
+                              // همیشه همین‌جا، زیرِ «نمایش یادداشت» و بالای «تنظیمات انیمیشن» است
+                              Container(
+                                margin: const EdgeInsets.only(top: 6, bottom: 4),
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                                decoration: BoxDecoration(
+                                  color: wp.textMain.withValues(alpha: 0.04),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: wp.panelBorder
+                                          .withValues(alpha: 0.7)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.sticky_note_2_outlined,
+                                            size: 16, color: wp.textDim),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                              'تنظیمات یادداشت روی نقشه',
+                                              style: TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: wp.textMain)),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                          maxHeight:
+                                              MediaQuery.sizeOf(ctx).height *
+                                                  0.26),
+                                      child: SingleChildScrollView(
+                                        child: FootNoteStyleControls(
+                                          key: ValueKey('nstyle-$jk2'),
+                                          store: store,
+                                          node: f.node,
+                                          jk: jk2,
+                                          onChanged: () => setS(() {}),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              if (noteStyleOpen)
-                                ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                      maxHeight:
-                                          MediaQuery.sizeOf(ctx).height * 0.28),
-                                  child: SingleChildScrollView(
-                                    child: FootNoteStyleControls(
-                                      key: ValueKey('nstyle-$jk2'),
-                                      store: store,
-                                      node: f.node,
-                                      jk: jk2,
-                                      onChanged: () => setS(() {}),
-                                    ),
-                                  ),
-                                ),
                             ],
                           );
                         }),

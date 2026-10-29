@@ -21,7 +21,6 @@ import '../widgets/step_reward.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
 import 'foot_stats_sheet.dart';
-import 'foot_note_sheet.dart';
 import 'goals_sheet.dart';
 import 'help_dialog.dart';
 import 'settings_sheet.dart';
@@ -162,12 +161,16 @@ class _MapTabState extends State<MapTab> {
               onPhotos: () => showEditSheet(
                   context, WalkerPhotosTarget(hostId, actionId, false)),
             ),
-            onEditFootNote: (hostId, actionId, jk) => showFootNoteSheet(
+            // تپ روی یادداشتِ روی نقشه: کادرِ اضافه باز نمی‌شود؛ همان تقویمِ قدم
+            // (روزِ همان یادداشت) باز می‌شود و تنظیماتِ یادداشت زیرِ «نمایش یادداشت» است.
+            onEditFootNote: (hostId, actionId, jk) => showFootStatsSheet(
               context,
               store: store,
               hostId: hostId,
               actionId: actionId,
-              jk: jk,
+              initialJk: jk,
+              onPhotos: () => showEditSheet(
+                  context, WalkerPhotosTarget(hostId, actionId, false)),
             ),
             onEditGoal: (id) => showEditSheet(context, GoalTarget(id)),
             onEditRing: (id) => showEditSheet(context, RingTarget(id)),
