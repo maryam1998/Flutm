@@ -173,6 +173,9 @@ class _WalkViewPageState extends State<WalkViewPage>
     final maxD = math.max(1.0, data.maxD);
     return Scaffold(
       backgroundColor: Colors.black,
+      // نمای راه‌رفتن تمام‌صفحه است و هیچ ورودیِ متنی ندارد؛ پس با کیبورد/
+      // viewInsets کوچک نشود (روی وبِ موبایل باعثِ نوارِ باریک و صفحه‌ی سیاه می‌شد)
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
