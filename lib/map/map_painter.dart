@@ -1810,11 +1810,13 @@ class MapPainter extends CustomPainter {
     }
 
     // شاخه‌های هدف کنارِ جاده شروع می‌شوند (نه روی آن): نقاطِ دو سمتِ جاده
-    List<Offset>? sideA, sideB;
+    List<Offset>? sideA, sideB, mid;
     if (h is Goal) {
       const roadOff = 26.0;
       sideA = WalkLayer.roadSidePoints(state, h, roadOff);
       sideB = WalkLayer.roadSidePoints(state, h, -roadOff);
+      // خط‌وسطِ جاده: قدم‌های شاخه/زیرشاخه روی همین راه می‌روند (نه کنارِ جاده)
+      mid = WalkLayer.roadSidePoints(state, h, 0.0);
     }
     ({Offset o, double d, List<Offset> route}) originOf(int i, double t) {
       final pts = (i.isEven ? sideA : sideB);
@@ -1829,11 +1831,34 @@ class MapPainter extends CustomPainter {
       final ix = (t * n).round().clamp(1, n - 1).toInt();
       final v = pts[ix + 1] - pts[ix - 1];
       final endIx = (0.94 * n).round().clamp(ix + 1, n).toInt();
-      return (
-        o: pts[ix],
-        d: math.atan2(v.dy, v.dx),
-        route: [for (var k = ix; k <= endIx; k++) pts[k]]
-      );
+      // شاخه کنارِ جاده شروع می‌شود؛ قدم‌ها بعد از چند گام نرم به خط‌وسطِ
+      // جاده می‌آیند و از آنجا تا هدف روی جاده می‌روند
+      final ctr = mid;
+      if (ctr == null || ctr.length != pts.length) {
+        return (
+          o: pts[ix],
+          d: math.atan2(v.dy, v.dx),
+          route: [for (var k = ix; k <= endIx; k++) pts[k]]
+        );
+      }
+      const blend = 3;
+      final r = <Offset>[pts[ix]];
+      for (var k = ix; k < endIx; k++) {
+        if (k - ix < blend) {
+          for (var j = 1; j <= 4; j++) {
+            final f = j / 4.0;
+            final u = (k - ix) + f;
+            var w = (u / blend).clamp(0.0, 1.0).toDouble();
+            w = w * w * (3 - 2 * w);
+            final sp = Offset.lerp(pts[k], pts[k + 1], f)!;
+            final cp2 = Offset.lerp(ctr[k], ctr[k + 1], f)!;
+            r.add(Offset.lerp(sp, cp2, w)!);
+          }
+        } else {
+          r.add(ctr[k + 1]);
+        }
+      }
+      return (o: pts[ix], d: math.atan2(v.dy, v.dx), route: r);
     }
 
     if (trunkOnly) {
