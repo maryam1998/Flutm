@@ -177,6 +177,7 @@ class _WalkViewPageState extends State<WalkViewPage>
       // viewInsets کوچک نشود (روی وبِ موبایل باعثِ نوارِ باریک و صفحه‌ی سیاه می‌شد)
       resizeToAvoidBottomInset: false,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Positioned.fill(
             child: GestureDetector(
@@ -207,7 +208,11 @@ class _WalkViewPageState extends State<WalkViewPage>
               ),
             ),
           ),
-          SafeArea(
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
               child: Row(
@@ -243,6 +248,7 @@ class _WalkViewPageState extends State<WalkViewPage>
                 ],
               ),
             ),
+          ),
           ),
           Positioned(
             left: 0,
