@@ -23,7 +23,11 @@ class WalkMark {
     required this.finished,
     required this.seed,
     required this.color,
+    this.pending = false,
   });
+
+  /// شاخه/زیرشاخه‌ای که هنوز هیچ روزی برایش انجام نشده (نهالِ منتظر)
+  final bool pending;
 
   /// کلیدِ روزِ جلالی (مثل ۱۴۰۵-۷-۲۰)
   final String dayKey;
@@ -51,6 +55,7 @@ class WalkMark {
   double side = 1;
 
   String get dateLabel {
+    if (pending) return 'هنوز انجام نشده';
     final p = dayKey.split('-');
     final jm = p.length == 3 ? int.tryParse(p[1]) : null;
     final jd = p.length == 3 ? int.tryParse(p[2]) : null;
@@ -59,6 +64,7 @@ class WalkMark {
   }
 
   String get fullDateLabel {
+    if (pending) return dateLabel;
     final p = dayKey.split('-');
     final jy = p.length == 3 ? int.tryParse(p[0]) : null;
     return jy == null ? dateLabel : '$dateLabel ${toFa(jy)}';
@@ -167,6 +173,13 @@ Set<String> _flowerDays(ActionNode a, List<String> sortedDone) {
   return out;
 }
 
+/// آیا خودِ این شاخه یا یکی از زیرشاخه‌هایش روزی انجام شده؟
+bool _anyDone(ActionNode a) {
+  final own = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys};
+  if (own.any((k) => footDoneOn(a, k))) return true;
+  return a.children.any(_anyDone);
+}
+
 /// همه‌ی ثبت‌های یک هدف (و حلقه‌های «نزدیک شدن به هدف»ش) به ترتیبِ تاریخ
 List<WalkMark> collectWalkMarks(MapState s, Goal g) {
   final marks = <WalkMark>[];
@@ -196,6 +209,21 @@ List<WalkMark> collectWalkMarks(MapState s, Goal g) {
           finished: fin && last,
           seed: _hash('${a.id}|$dk'),
           color: col,
+        ));
+      }
+      // شاخه‌ای که هنوز انجام نشده هم کنارِ جاده دیده می‌شود (نهالِ منتظر)
+      if (keys.isEmpty && !fin && a.text.trim().isNotEmpty && !_anyDone(a)) {
+        marks.add(WalkMark(
+          dayKey: '',
+          ord: 1 << 30,
+          title: a.text.trim(),
+          note: '',
+          minutes: 0,
+          flower: false,
+          finished: false,
+          seed: _hash('${a.id}|pending'),
+          color: col,
+          pending: true,
         ));
       }
       walk(a.children, col);
@@ -292,19 +320,42 @@ void drawWalkMark(Canvas c, WalkMark m, double x, double y, double sc,
       _f(const Color(0x30000000)));
 
   final sway = math.sin(t * 1.3 + m.seed * 0.01) * 1.6;
-  final h = m.flower ? 30.0 : 25.0;
+  final h = m.pending ? 15.0 : (m.flower ? 30.0 : 25.0);
   final stemC = dark ? const Color(0xFF3F9B5B) : const Color(0xFF2E7D32);
   final leafC = dark ? const Color(0xFF5FBF7A) : const Color(0xFF66BB6A);
+
+  if (m.pending) {
+    // نهالِ کم‌رنگ: هنوز کاری ثبت نشده
+    final pc = Color.lerp(m.color, const Color(0xFF9CA3AF), 0.45)!;
+    final sp = Path()
+      ..moveTo(0, 0)
+      ..quadraticBezierTo(-1.5 + sway * 0.3, -h * 0.5, sway, -h);
+    c.drawPath(sp, _s(stemC.withValues(alpha: 0.6), 1.8));
+    for (final sgn in const [-1.0, 1.0]) {
+      c.save();
+      c.translate(sway * 0.5, -h * 0.7);
+      c.rotate(sgn * 0.9);
+      final lp = Path()
+        ..moveTo(0, 0)
+        ..cubicTo(3, -2, 3.2, -6, 0, -8)
+        ..cubicTo(-3.2, -6, -3, -2, 0, 0);
+      c.drawPath(lp, _f(leafC.withValues(alpha: 0.65)));
+      c.restore();
+    }
+    c.drawCircle(Offset(sway, -h - 2), 3.4, _f(pc.withValues(alpha: 0.75)));
+    c.drawCircle(Offset(sway, -h - 2), 3.4,
+        _s(const Color(0xFF9CA3AF), 0.9));
+  }
 
   // ساقه
   final top = Offset(sway, -h);
   final p = Path()
     ..moveTo(0, 0)
     ..quadraticBezierTo(-3 + sway * 0.4, -h * 0.55, top.dx, top.dy);
-  c.drawPath(p, _s(stemC, 2.2));
+  if (!m.pending) c.drawPath(p, _s(stemC, 2.2));
 
   // دو برگ
-  for (final sgn in const [-1.0, 1.0]) {
+  for (final sgn in m.pending ? const <double>[] : const [-1.0, 1.0]) {
     final ly = -h * (sgn < 0 ? 0.35 : 0.52);
     c.save();
     c.translate(sway * 0.3 * (-ly / h), ly);
@@ -320,7 +371,9 @@ void drawWalkMark(Canvas c, WalkMark m, double x, double y, double sc,
   // سر: گل یا غنچه
   c.save();
   c.translate(top.dx, top.dy);
-  if (m.flower) {
+  if (m.pending) {
+    // سرِ نهال بالاتر کشیده شده است
+  } else if (m.flower) {
     final pc = m.color;
     for (var i = 0; i < 6; i++) {
       c.save();
@@ -371,7 +424,8 @@ void drawWalkMark(Canvas c, WalkMark m, double x, double y, double sc,
     c.drawLine(Offset(sway, by + hh), Offset(sway * 0.5, -h - 14),
         _s(const Color(0xFF6B4423), 1.4));
     c.drawRRect(r, _f(const Color(0xF0FFFDF5)));
-    c.drawRRect(r, _s(const Color(0xFFC9962B), 1.4));
+    c.drawRRect(
+        r, _s(m.pending ? const Color(0xFF9CA3AF) : const Color(0xFFC9962B), 1.4));
     var yy = by + 4.5;
     void put(TextPainter tp) {
       tp.paint(c, Offset(-tp.width / 2 + sway, yy));

@@ -338,7 +338,7 @@ class _WalkViewPageState extends State<WalkViewPage>
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${m.finished ? '🌸' : (m.flower ? '🌼' : '🌱')}  ${parts.join('  ·  ')}',
+            '${m.pending ? '🌰' : (m.finished ? '🌸' : (m.flower ? '🌼' : '🌱'))}  ${parts.join('  ·  ')}',
             textAlign: TextAlign.center,
             style: const TextStyle(
                 color: Colors.white70,
