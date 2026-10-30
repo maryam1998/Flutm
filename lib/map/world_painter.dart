@@ -1416,6 +1416,40 @@ class WalkData {
 }
 
 class WalkLayer {
+  /// نقاطِ موازیِ جاده‌ی یک هدف (۶۴ نقطه از «من» تا هدف) با فاصله‌ی [off]
+  /// از خط‌وسطِ جاده؛ [off] مثبت یک سمت و منفی سمتِ دیگر.
+  /// برای اینکه شاخه‌ها کنارِ جاده شروع شوند، نه روی آن.
+  static List<Offset>? roadSidePoints(MapState s, Goal g, double off) {
+    var seed = 0;
+    final sv = s.extra['worldSeed'];
+    if (sv is num) {
+      seed = sv.toInt();
+    } else {
+      seed = math.Random().nextInt(1 << 30) + 1;
+      s.extra['worldSeed'] = seed;
+    }
+    if (WorldLayer._plan == null || WorldLayer._planSeed != seed) {
+      WorldLayer._plan = _buildPlan(seed);
+      WorldLayer._planSeed = seed;
+      WorldLayer._gPlans.clear();
+    }
+    final gp = WorldLayer._gPlans
+        .putIfAbsent(g.id, () => _genGoalPlan(g.id, seed));
+    final cp = geo.trunkControlPoints(g, s.me);
+    final road = _RoadPoly.build(cp, gp.side * 30.0, gp);
+    if (road == null) return null;
+    final pts = road.pts;
+    final out = <Offset>[];
+    for (var i = 0; i < pts.length; i++) {
+      final a = pts[math.max(0, i - 1)];
+      final b = pts[math.min(pts.length - 1, i + 1)];
+      final v = b - a;
+      final ang = v.distance < 0.001 ? 0.0 : math.atan2(v.dy, v.dx);
+      out.add(pts[i] + Offset(-math.sin(ang), math.cos(ang)) * off);
+    }
+    return out;
+  }
+
   static WalkData? prepare(MapState s, Goal g) {
     WorldLayer._minMs = 0;
     WorldLayer._refresh(s);

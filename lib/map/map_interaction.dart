@@ -45,6 +45,7 @@ class _Pending {
     this.isFace = false,
     this.isNote = false,
     this.isPastFoot = false,
+    this.isBloom = false,
     this.noteKey = '',
   });
   final String hostId;
@@ -57,6 +58,7 @@ class _Pending {
   final bool isFace;
   final bool isNote;
   final bool isPastFoot;
+  final bool isBloom;
   final String noteKey;
   final Offset start;
 }
@@ -248,6 +250,32 @@ class MapInteraction {
     }
   }
 
+  /// لمسِ گل/برگِ سرِ شاخه‌ی تمام‌شده: نشان دادن/پنهان کردنِ نوشته‌ی همان شاخه
+  void _toggleBloom(String hostId, String actionId) {
+    HapticFeedback.selectionClick();
+    final bh = store.state.findHost(hostId);
+    if (bh is MapHost) {
+      final bf = findActionNode(bh.actions, actionId);
+      if (bf != null) {
+        if (bf.node.extra['labelOpen'] == true) {
+          bf.node.extra.remove('labelOpen');
+        } else {
+          bf.node.extra['labelOpen'] = true;
+        }
+        // کارِ کاملاً تمام‌شده: گلِ سرِ شاخه همان غنچه است؛ انیمیشنِ زیرش هم باز/بسته می‌شود
+        if (nodeFinished(bf.node)) {
+          final tk = jKey(DateTime.now());
+          if (bf.node.extra['budOpenDay'] == tk) {
+            bf.node.extra.remove('budOpenDay');
+          } else {
+            bf.node.extra['budOpenDay'] = tk;
+          }
+        }
+        store.changed();
+      }
+    }
+  }
+
   // ───────────────────────── pointer down ─────────────────────────
 
   void pointerDown(PointerDownEvent e) {
@@ -256,32 +284,6 @@ class MapInteraction {
 
     if (_ptrs.isEmpty && hit != null && hit.type == 'goalToggle') {
       store.toggleGoalCollapse(hit.id);
-      return;
-    }
-    // لمسِ گل/برگِ سرِ شاخه‌ی تمام‌شده: نشان دادن/پنهان کردنِ نوشته‌ی همان شاخه
-    if (_ptrs.isEmpty && hit != null && hit.type == 'bloomToggle') {
-      HapticFeedback.selectionClick();
-      final bh = store.state.findHost(hit.hostId);
-      if (bh is MapHost) {
-        final bf = findActionNode(bh.actions, hit.id);
-        if (bf != null) {
-          if (bf.node.extra['labelOpen'] == true) {
-            bf.node.extra.remove('labelOpen');
-          } else {
-            bf.node.extra['labelOpen'] = true;
-          }
-          // کارِ کاملاً تمام‌شده: گلِ سرِ شاخه همان غنچه است؛ انیمیشنِ زیرش هم باز/بسته می‌شود
-          if (nodeFinished(bf.node)) {
-            final tk = jKey(DateTime.now());
-            if (bf.node.extra['budOpenDay'] == tk) {
-              bf.node.extra.remove('budOpenDay');
-            } else {
-              bf.node.extra['budOpenDay'] = tk;
-            }
-          }
-          store.changed();
-        }
-      }
       return;
     }
     // لمسِ گل/غنچه‌ی بین قدم‌ها: تقویمِ همان روز (اگر تقویم نبود: نمایش/پنهانِ متن)
@@ -432,6 +434,13 @@ class MapInteraction {
         HapticFeedback.mediumImpact();
         _toggleWalk(pp); // لمس طولانی = توقف / ادامه‌ی حرکت
       });
+      return;
+    }
+
+    // ─── گل/برگِ سرِ شاخه: تپ = نوشته، کشیدن = تغییرِ اندازه/جهتِ همان شاخه ───
+    if (hit.type == 'bloomToggle') {
+      _pending = _Pending(hit.hostId, hit.id, null, false, pos, isBloom: true);
+      _slopPassed = false;
       return;
     }
 
@@ -1032,6 +1041,12 @@ class MapInteraction {
       final held = _faceHeld;
       _faceHeld = false;
       _finish();
+
+      // ─── گل/برگِ سرِ شاخه: تپِ ساده = نوشته؛ اگر کشیده شد کارش قبلاً انجام شده ───
+      if (p.isBloom) {
+        if (!wasDrag) _toggleBloom(p.hostId, p.actionId);
+        return;
+      }
 
       // ─── قدمِ کم‌رنگِ یک روزِ گذشته: تپ = تقویم و تاریخِ همان قدم ───
       if (p.isPastFoot) {

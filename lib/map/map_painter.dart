@@ -1792,7 +1792,8 @@ class MapPainter extends CustomPainter {
         hexColor(h.color, hexColor(h.isRing ? kRingColor : kPalette[0]));
     if (h.isRing) {
       _taperedBezier(canvas, cp, col, 3.2, 1.6, 0.6);
-    } else {
+    } else if (!(h is Goal && h.extra['showTrunk'] != true)) {
+      // خطِ تنه‌ی هدف دیگر کشیده نمی‌شود (جاده جایش را گرفته)؛ فقط با showTrunk=true
       final ts = (h is Goal && h.trunkStyle.isNotEmpty)
           ? h.trunkStyle
           : state.trunkStyle;
@@ -1808,17 +1809,43 @@ class MapPainter extends CustomPainter {
       _goalTrophy(canvas, h, col);
     }
 
+    // شاخه‌های هدف کنارِ جاده شروع می‌شوند (نه روی آن): نقاطِ دو سمتِ جاده
+    List<Offset>? sideA, sideB;
+    if (h is Goal) {
+      const roadOff = 26.0;
+      sideA = WalkLayer.roadSidePoints(state, h, roadOff);
+      sideB = WalkLayer.roadSidePoints(state, h, -roadOff);
+    }
+    ({Offset o, double d, List<Offset> route}) originOf(int i, double t) {
+      final pts = (i.isEven ? sideA : sideB);
+      if (pts == null || pts.length < 4) {
+        return (
+          o: cp.at(t),
+          d: cp.tangent(t),
+          route: [for (var k = 0; k <= 16; k++) cp.at(t + (0.94 - t) * k / 16)]
+        );
+      }
+      final n = pts.length - 1;
+      final ix = (t * n).round().clamp(1, n - 1).toInt();
+      final v = pts[ix + 1] - pts[ix - 1];
+      final endIx = (0.94 * n).round().clamp(ix + 1, n).toInt();
+      return (
+        o: pts[ix],
+        d: math.atan2(v.dy, v.dx),
+        route: [for (var k = ix; k <= endIx; k++) pts[k]]
+      );
+    }
+
     if (trunkOnly) {
       // جمع‌شده: مسیر شاخه‌ها (خطِ بسیار کم‌رنگ) و ردپای قدم‌ها می‌ماند
       if (state.extra['doneFeetCollapse'] != true) {
         final ga = _visibleActs(h.actions);
         for (var i = 0; i < ga.length; i++) {
           final t = math.min(0.9, 0.15 + i * 0.09);
-          _twigGhost(canvas, h, col, cp.at(t), cp.tangent(t), ga[i],
+          final og = originOf(i, t);
+          _twigGhost(canvas, h, col, og.o, og.d, ga[i],
               i.isEven ? 1 : -1, 1.0, tc,
-              route: [
-                for (var k = 0; k <= 16; k++) cp.at(t + (0.94 - t) * k / 16)
-              ],
+              route: og.route,
               trunkLane: (i % 3) - 1);
         }
       }
@@ -1827,11 +1854,10 @@ class MapPainter extends CustomPainter {
     final acts = _visibleActs(h.actions);
     for (var i = 0; i < acts.length; i++) {
       final t = math.min(0.9, 0.15 + i * 0.09);
-      _twig(canvas, h, col, cp.at(t), cp.tangent(t), acts[i],
+      final og = originOf(i, t);
+      _twig(canvas, h, col, og.o, og.d, acts[i],
           i.isEven ? 1 : -1, 1.0, tc,
-          route: [
-            for (var k = 0; k <= 16; k++) cp.at(t + (0.94 - t) * k / 16)
-          ],
+          route: og.route,
           trunkLane: (i % 3) - 1);
     }
   }
@@ -3337,7 +3363,7 @@ class MapPainter extends CustomPainter {
     }
 
     // برگ، غنچه و گل روی خودِ تنه‌ی شاخه/زیرشاخه
-    if (scale >= 0.28 && a.extra['trunkFlora'] != false) {
+    if (scale >= 0.28 && a.extra['trunkFlora'] == true) {
       _trunkFlora(canvas, a, geom, cub, scale, depth);
     }
 
