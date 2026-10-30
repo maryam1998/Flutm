@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import '../models/constants.dart' show hexColor;
 import '../models/map_models.dart';
 import 'camera.dart';
+import '../theme/vazir_font.dart';
 import 'geometry.dart' as geo;
+import 'hit_registry.dart';
 import 'seeded.dart';
 import 'walk_marks.dart';
 
@@ -1512,10 +1514,35 @@ class WalkData {
 
   double get length => (camRoad ?? road).length;
 
+  /// جای شروعِ دوربین (در نمای شاخه: کمی قبل از محلِ پیچیدن به شاخه)
+  double startD = 0;
+
+  /// آیکونِ هدفِ اصلی (برای تابلوی انتهای جاده‌ی اصلی در نمای شاخه)
+  String goalIcon = '🎯';
+  TextPainter? _goalTp;
+
+  /// شاخه‌ها و زیرشاخه‌های هدف، همان‌طور که روی نقشه کنارِ جاده‌اند
+  final List<_WalkSide> sides = <_WalkSide>[];
+
+  /// کمترین جایی که می‌شود رفت: قدم‌زنِ نقشه روی جاده‌ی اصلی بین ۶٪ تا ۹۴٪ می‌رود
+  double get minD => (!isBranch && loop) ? road.length * 0.06 : 0.0;
+
   /// دورترین جایی که می‌شود رفت (کمی مانده به تابلوی هدف / سرِ شاخه)
   double get maxD => isBranch
       ? math.max(0.0, camRoad!.length - 45.0)
-      : math.max(0.0, road.length - 110.0);
+      : (loop
+          ? math.max(minD, road.length * 0.94)
+          : math.max(0.0, road.length - 110.0));
+}
+
+/// یک شاخه/زیرشاخه‌ی کنارِ جاده در نمای اول‌شخص
+class _WalkSide {
+  _WalkSide(this.id, this.poly, this.color, this.name);
+  final String id;
+  final _RoadPoly poly;
+  final Color color;
+  final String name;
+  TextPainter? tp;
 }
 
 class WalkLayer {
@@ -1612,8 +1639,33 @@ class WalkLayer {
     final reach = road.length;
     final paved = road.length;
     final marks = layoutWalkMarks(collectWalkMarks(s, g), road.length);
-    return WalkData(gp, road, WorldLayer._plan!, gm, reach, paved, g.name,
+    final data = WalkData(gp, road, WorldLayer._plan!, gm, reach, paved, g.name,
         g.icon.isEmpty ? '🎯' : g.icon, marks);
+    // مثلِ قدم‌زنِ نقشه: روی جاده‌ی اصلی رفت و برگشتِ بی‌پایان
+    data.loop = true;
+    data.goalIcon = data.icon;
+    data.sides.addAll(_sideBranches(g));
+    return data;
+  }
+
+  /// همه‌ی شاخه/زیرشاخه‌های هدف (به شکلِ جاده‌ی کوچک) از روی آخرین رسمِ نقشه
+  static List<_WalkSide> _sideBranches(Goal g, {String? skipId}) {
+    final reg = HitRegistry.current;
+    final out = <_WalkSide>[];
+    if (reg == null) return out;
+    void walk(List<ActionNode> list) {
+      for (final a in list) {
+        final tw = reg.twigs[a.id];
+        if (tw != null && a.id != skipId && tw.pts.length >= 2) {
+          final poly = _RoadPoly.fromPath(tw.pts.reversed.toList());
+          if (poly != null) out.add(_WalkSide(a.id, poly, tw.color, tw.name));
+        }
+        walk(a.children);
+      }
+    }
+
+    walk(g.actions);
+    return out;
   }
 
   /// نمای اول‌شخص از چشمِ پاهای یک شاخه: دوربین از جاده‌ی اصلی (کمی قبل از
@@ -1628,25 +1680,19 @@ class WalkLayer {
       if (rv.isEmpty || (q - rv.last).distance > 0.5) rv.add(q);
     }
     if (rv.length < 2) return null;
-    // اولین نقطه‌ای که مسیر از خط‌وسطِ جاده‌ی اصلی جدا می‌شود
-    var jb = -1;
-    for (var i = 0; i < rv.length; i++) {
-      if (base.road.project(rv[i]).dist > 2.5) {
-        jb = i;
+    // کلِ مسیری که پا روی نقشه می‌رود (هدف ← جاده‌ی اصلی ← سرِ شاخه) برای دوربین
+    // ساخته می‌شود، نه فقط چند قدمِ قبل از شاخه
+    final cr = _RoadPoly.fromPath(rv);
+    if (cr == null) return null;
+    // جایی که مسیر از خط‌وسطِ جاده‌ی اصلی جدا می‌شود (دوربین کمی قبل‌ترش شروع می‌کند)
+    var jd = -1.0;
+    for (var d = 0.0; d <= cr.length; d += 3.0) {
+      if (base.road.project(cr.pos(d)).dist > 2.5) {
+        jd = d;
         break;
       }
     }
-    if (jb < 0) return null;
-    // کمی راه‌رفتن روی جاده‌ی اصلی قبل از پیچیدن به شاخه
-    var i0 = math.max(0, jb - 1);
-    var acc = 0.0;
-    for (var i = i0; i > 0; i--) {
-      acc += (rv[i] - rv[i - 1]).distance;
-      i0 = i - 1;
-      if (acc >= 150.0) break;
-    }
-    final cr = _RoadPoly.fromPath(rv.sublist(i0));
-    if (cr == null) return null;
+    if (jd < 0) return null;
 
     // جایی که جاده‌ی شاخه (جدا از جاده‌ی اصلی) شروع می‌شود
     var from = cr.length;
@@ -1692,6 +1738,9 @@ class WalkLayer {
         keep);
     data.camRoad = cr;
     data.branchFrom = from;
+    data.startD = math.max(0.0, jd - 150.0);
+    data.goalIcon = base.icon;
+    data.sides.addAll(_sideBranches(g, skipId: a.id));
     data.loop = true;
     final c0 = (a.color != null && a.color!.isNotEmpty)
         ? a.color
@@ -1703,10 +1752,11 @@ class WalkLayer {
 
 class _WItem {
   _WItem(this.type, this.f, this.sx, this.sy, this.sc);
-  final int type; // ۰ المان ۱ ماشین ۲ تابلوی هدف ۳ ثبتِ نقشه (غنچه/گل)
+  final int type; // ۰ المان ۱ ماشین ۲ تابلوی هدف ۳ ثبتِ نقشه ۴ تابلوی شاخه‌ی کناری ۵ تابلوی هدفِ اصلی
   final double f, sx, sy, sc;
   _El? e;
   WalkMark? m;
+  _WalkSide? sb;
   double p = 1.0;
   Color col = const Color(0xFFE5484D);
   bool onc = false;
@@ -2024,6 +2074,12 @@ class WalkPainter extends CustomPainter {
 
     // جاده‌ی شاخه (فقط در نمای شاخه): از لبه‌ی جاده‌ی اصلی تا سرِ شاخه
     if (bm) _branchStrip(canvas, cr, dc);
+    // بقیه‌ی شاخه/زیرشاخه‌ها هم مثلِ نقشه کنارِ جاده دیده می‌شوند
+    for (final sb in data.sides) {
+      final pr = sb.poly.project(cp);
+      if (pr.dist > 1100) continue;
+      _strip(canvas, sb.poly, 0.0, pr.d, sb.color);
+    }
 
     // مه‌ی افق
     final hazeCol = dark ? const Color(0xFF2B3558) : const Color(0xFFF4EBD8);
@@ -2106,6 +2162,24 @@ class WalkPainter extends CustomPainter {
       it.m = m;
       items.add(it);
     }
+    // تابلوی نامِ شاخه‌های کناری (سرِ هر شاخه)
+    for (final sb in data.sides) {
+      final pos = sb.poly.pos(sb.poly.length);
+      _pr(pos);
+      if (_f < 12 || _f > 650) continue;
+      if (_x < -140 || _x > w + 140) continue;
+      if (_y < hor - 2) continue;
+      final it = _WItem(4, _f, _x, _y, focal / _f);
+      it.sb = sb;
+      items.add(it);
+    }
+    // در نمای شاخه: تابلوی هدفِ اصلی هم سرِ جاده‌ی اصلی دیده می‌شود
+    if (bm) {
+      _pr(road.pos(L));
+      if (_f > 10 && _f < 1400) {
+        items.add(_WItem(5, _f, _x, _y, focal / _f));
+      }
+    }
     // تابلوی هدف (در نمای شاخه: تابلوی سرِ شاخه)
     {
       final a = cr.ang(Lc);
@@ -2141,16 +2215,73 @@ class WalkPainter extends CustomPainter {
                     it.sx + 16 * it.sc, it.sy + 4 * it.sc)
                 .inflate(10),
             it.sc));
+      } else if (it.type == 4) {
+        _branchSign(canvas, it.sx, it.sy, it.sc, it.sb!);
+      } else if (it.type == 5) {
+        var gtp = data._goalTp;
+        if (gtp == null) {
+          gtp = _emojiTp(data.goalIcon);
+          data._goalTp = gtp;
+        }
+        _goalSign(canvas, it.sx, it.sy, it.sc, gtp);
       } else {
-        _goalSign(canvas, it.sx, it.sy, it.sc);
+        var tp = data._iconTp;
+        if (tp == null) {
+          tp = _emojiTp(data.icon);
+          data._iconTp = tp;
+        }
+        _goalSign(canvas, it.sx, it.sy, it.sc, tp);
       }
     }
   }
 
+  /// ایموجی با فونتِ ایموجیِ برنامه (بدونش روی وب مربعِ خالی کشیده می‌شد)
+  TextPainter _emojiTp(String t) => TextPainter(
+      text: TextSpan(text: t, style: GoogleFonts.vazirmatn(fontSize: 40)),
+      textDirection: TextDirection.rtl)
+    ..layout();
+
+  /// تابلوی کوچکِ نامِ شاخه سرِ هر شاخه‌ی کناری
+  void _branchSign(Canvas c, double x, double y, double sc, _WalkSide sb) {
+    var tp = sb.tp;
+    if (tp == null) {
+      tp = TextPainter(
+          text: TextSpan(
+              text: sb.name.isEmpty ? 'شاخه' : sb.name,
+              style: GoogleFonts.vazirmatn(
+                  color: const Color(0xFF1F2937),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+          textDirection: TextDirection.rtl,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          ellipsis: '…')
+        ..layout(maxWidth: 110);
+      sb.tp = tp;
+    }
+    const pad = 6.0;
+    final bw = tp.width + pad * 2, bh = tp.height + pad * 2;
+    c.save();
+    c.translate(x, y);
+    c.scale(sc, sc);
+    c.drawOval(Rect.fromCenter(center: const Offset(0, 1), width: 22, height: 5),
+        _fill(const Color(0x33000000)));
+    c.drawLine(const Offset(0, 0), const Offset(0, -34),
+        _stroke(const Color(0xFF6B4423), 2.2));
+    final panel = RRect.fromRectAndRadius(
+        Rect.fromLTWH(-bw / 2, -34 - bh, bw, bh), const Radius.circular(8));
+    c.drawRRect(panel, _fill(const Color(0xF2FFFFFF)));
+    c.drawRRect(panel, _stroke(sb.color, 2.5));
+    tp.paint(c, Offset(-tp.width / 2, -34 - bh + pad));
+    c.restore();
+  }
+
   /// جاده‌ی خاکی/رنگیِ شاخه (باریک‌تر از جاده‌ی اصلی) از جایی که از جاده‌ی اصلی جدا
   /// می‌شود تا سرِ شاخه؛ فقط نزدیکِ دوربین نمونه‌برداری می‌شود.
-  void _branchStrip(Canvas canvas, _RoadPoly cr, double dc) {
-    final from = data.branchFrom;
+  void _branchStrip(Canvas canvas, _RoadPoly cr, double dc) =>
+      _strip(canvas, cr, data.branchFrom, dc, data.branchColor);
+
+  void _strip(Canvas canvas, _RoadPoly cr, double from, double dc, Color bc) {
     final lc = cr.length;
     if (from >= lc) return;
     final ss = <double>[];
@@ -2184,7 +2315,6 @@ class WalkPainter extends CustomPainter {
         sr[i * w + j] = _r;
       }
     }
-    final bc = data.branchColor;
     final dirt = dark ? const Color(0xFF6B5A3E) : const Color(0xFFD9B77E);
     final body = Color.lerp(bc, dirt, 0.4)!;
     final bodyC = dark ? Color.lerp(body, Colors.black, 0.35)! : body;
@@ -2282,15 +2412,7 @@ class WalkPainter extends CustomPainter {
     c.restore();
   }
 
-  void _goalSign(Canvas c, double x, double y, double sc) {
-    var tp = data._iconTp;
-    if (tp == null) {
-      tp = TextPainter(
-          text: TextSpan(text: data.icon, style: const TextStyle(fontSize: 40)),
-          textDirection: TextDirection.rtl)
-        ..layout();
-      data._iconTp = tp;
-    }
+  void _goalSign(Canvas c, double x, double y, double sc, TextPainter tp) {
     c.save();
     c.translate(x, y);
     c.scale(sc, sc);

@@ -154,7 +154,9 @@ Future<void> openWalkViewAt(
     return best;
   }
 
-  final routes = HitRegistry.current?.routes ?? const <String, List<Offset>>{};
+  final reg = HitRegistry.current;
+  final routes = reg?.routes ?? const <String, List<Offset>>{};
+  final twigs = reg?.twigs ?? const <String, TwigGeom>{};
   Goal? bestGoal;
   var bestGoalD = double.infinity;
   Goal? brGoal;
@@ -173,8 +175,11 @@ Future<void> openWalkViewAt(
     void collect(List<ActionNode> list) {
       for (final a in list) {
         final r = routes[a.id];
-        if (r != null && r.length >= 2) {
-          final d = distTo(r);
+        final tw = twigs[a.id];
+        // فاصله تا «خودِ شاخه»؛ مسیرِ کاملِ پا (r) تنه‌ی جاده را هم دربر دارد و
+        // اگر با آن سنجیده شود همیشه یک شاخه به‌جای جاده‌ی اصلی انتخاب می‌شد
+        if (r != null && r.length >= 2 && tw != null && tw.pts.isNotEmpty) {
+          final d = distTo(tw.pts);
           if (d < brD) {
             brD = d;
             brGoal = g;
@@ -189,7 +194,12 @@ Future<void> openWalkViewAt(
     collect(g.actions);
   }
   WalkData? data;
-  if (brGoal != null && brNode != null && brRoute != null && brD <= reach) {
+  // شاخه فقط وقتی انتخاب می‌شود که از جاده‌ی اصلی به وسطِ صفحه نزدیک‌تر باشد
+  if (brGoal != null &&
+      brNode != null &&
+      brRoute != null &&
+      brD <= reach &&
+      brD < bestGoalD) {
     data = WalkLayer.prepareBranch(state, brGoal!, brNode!, brRoute!);
   }
   if (data == null) {
@@ -245,7 +255,11 @@ class _WalkViewPageState extends State<WalkViewPage>
     final f = widget.startFrac;
     if (f != null) {
       cam.d = (f.clamp(0.0, 1.0) * widget.data.length)
-          .clamp(0.0, widget.data.maxD)
+          .clamp(widget.data.minD, widget.data.maxD)
+          .toDouble();
+    } else if (widget.data.startD > 0) {
+      cam.d = widget.data.startD
+          .clamp(widget.data.minD, widget.data.maxD)
           .toDouble();
     }
     _ticker = createTicker(_onTick)..start();
@@ -283,8 +297,8 @@ class _WalkViewPageState extends State<WalkViewPage>
           cam.walking = false;
           if (!_arrived && mounted) setState(() => _arrived = true);
         }
-      } else if (cam.dir < 0 && cam.d <= 0) {
-        cam.d = 0;
+      } else if (cam.dir < 0 && cam.d <= widget.data.minD) {
+        cam.d = widget.data.minD;
         if (loop) {
           cam.dir = 1.0;
           _hold = 0.8;
@@ -325,7 +339,7 @@ class _WalkViewPageState extends State<WalkViewPage>
       if (!cam.walking) {
         final maxD = widget.data.maxD;
         if (cam.dir > 0 && cam.d >= maxD - 0.5) cam.dir = -1.0;
-        if (cam.dir < 0 && cam.d <= 0.5) cam.dir = 1.0;
+        if (cam.dir < 0 && cam.d <= widget.data.minD + 0.5) cam.dir = 1.0;
         _arrived = false;
       }
       cam.walking = !cam.walking;
@@ -364,7 +378,8 @@ class _WalkViewPageState extends State<WalkViewPage>
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final data = widget.data;
-    final maxD = math.max(1.0, data.maxD);
+    final minD = data.minD;
+    final span = math.max(1.0, data.maxD - minD);
     return Scaffold(
       backgroundColor: Colors.black,
       // نمای راه‌رفتن تمام‌صفحه است و هیچ ورودیِ متنی ندارد؛ پس با کیبورد/
@@ -427,7 +442,7 @@ class _WalkViewPageState extends State<WalkViewPage>
                         valueListenable: _tick,
                         builder: (_, __, ___) {
                           final pct =
-                              (cam.d / maxD * 100).clamp(0, 100).round();
+                              ((cam.d - minD) / span * 100).clamp(0, 100).round();
                           return Text(
                             '${data.icon} ${data.name}  ·  ${toFa(pct)}٪ مسیر',
                             maxLines: 1,
@@ -466,9 +481,11 @@ class _WalkViewPageState extends State<WalkViewPage>
                           return _markCard(mk);
                         }
                         if (_arrived) {
-                          msg = data.loop
+                          msg = data.isBranch
                               ? '🌱 به سرِ شاخه رسیدی؛ برمی‌گردی…'
-                              : '🎯 به آخرِ جاده‌ی هدفت رسیدی';
+                              : (data.loop
+                                  ? '🎯 نزدیکِ هدف رسیدی؛ برمی‌گردی…'
+                                  : '🎯 به آخرِ جاده‌ی هدفت رسیدی');
                         } else if (cam.t < 8) {
                           msg =
                               'انگشتت را به هر سو بکش و ۳۶۰ درجه دورِ خودت را ببین · لمس = ایست/حرکت';

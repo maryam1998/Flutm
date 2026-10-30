@@ -49,6 +49,15 @@ class ActionGeomEntry {
   final double scale;
 }
 
+/// هندسه‌ی خودِ یک شاخه/زیرشاخه (از نوک تا محلِ شروعش؛ بدونِ مسیرِ جاده‌ی اصلی)
+/// برای اینکه نمای راه‌رفتن همه‌ی شاخه‌ها را هم مثلِ نقشه کنارِ جاده بکشد.
+class TwigGeom {
+  const TwigGeom(this.pts, this.color, this.name);
+  final List<Offset> pts;
+  final Color color;
+  final String name;
+}
+
 /// painter در هر فریم این لیست رو پر می‌کنه (به ترتیب رسم). آخری = روترین.
 class HitRegistry {
   HitRegistry() {
@@ -65,10 +74,14 @@ class HitRegistry {
   /// مسیرِ کاملِ قدم‌زنِ هر شاخه (نوک شاخه → پدرها → تنه → هدف)
   final Map<String, List<Offset>> routes = {};
 
+  /// هندسه‌ی خودِ هر شاخه/زیرشاخه (نوک ← ابتدای شاخه)
+  final Map<String, TwigGeom> twigs = {};
+
   void clear() {
     entries.clear();
     geom.clear();
     routes.clear();
+    twigs.clear();
   }
 
   void add(HitEntry e) => entries.add(e);

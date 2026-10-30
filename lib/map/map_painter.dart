@@ -3417,6 +3417,7 @@ class MapPainter extends CustomPainter {
           own.add(cub.at(1.0 - k / 16));
         }
       }
+      hits.twigs[a.id] = TwigGeom(List<Offset>.of(own), color, a.text.trim());
       own.addAll(route);
       closeFade();
       _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id);
@@ -3810,6 +3811,7 @@ class MapPainter extends CustomPainter {
           own.add(cub.at(1.0 - k / 16));
         }
       }
+      hits.twigs[a.id] = TwigGeom(List<Offset>.of(own), color, a.text.trim());
       own.addAll(route);
       _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id,
           ghost: true);
