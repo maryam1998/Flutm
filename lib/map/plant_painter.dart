@@ -223,48 +223,63 @@ void drawFocusPlant(
     sprig(canvas, p, a - math.pi / 2, rr, '$id|$id2', pp, flower);
   }
 
-  if (mode == kPlantGrowing) {
-    final open = _sm((m - 1) / 6);
-    final bs = 0.3 * R * (1 - open) + 0.05 * R;
-    if (open < 0.98) {
-      canvas.save();
-      canvas.translate(apex.dx, apex.dy);
-      canvas.rotate(apexAng);
-      final bp = Path()
-        ..moveTo(0, 0)
-        ..cubicTo(bs * 0.8, -bs * 0.5, bs * 0.6, -bs * 2.0, 0, -bs * 2.8)
-        ..cubicTo(-bs * 0.6, -bs * 2.0, -bs * 0.8, -bs * 0.5, 0, 0);
-      canvas.drawPath(bp, Paint()..color = gc[1]);
-      canvas.drawPath(
-          bp,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 0.6
-            ..color = const Color(0x33000000));
-      canvas.restore();
-    }
-    if (open > 0.02) {
-      final l2 = R * open * (1 + 0.3 * _sm(m / 60));
-      _leaf(canvas, apex.dx, apex.dy, apexAng + (0.15 + 0.7 * open), l2,
-          l2 * 0.42, gc);
-      _leaf(canvas, apex.dx, apex.dy, apexAng - (0.15 + 0.7 * open), l2,
-          l2 * 0.42, gc);
-    }
-    for (final t in tips) {
-      final l2 = R * 0.8 * t.u;
-      _leaf(canvas, t.p.dx, t.p.dy, t.a + 0.5, l2, l2 * 0.42, gc);
-      _leaf(canvas, t.p.dx, t.p.dy, t.a - 0.5, l2, l2 * 0.42, gc);
-    }
-  } else {
+  // برگ‌ها در همه‌ی حالت‌ها یکسان‌اند (توقف هیچ برگ و شاخه‌ای را حذف نمی‌کند)؛
+  // فقط جوانه‌ی بسته‌ی نوک تا وقتی باز نشده دیده می‌شود.
+  final open = _sm((m - 1) / 6);
+  final bs = 0.3 * R * (1 - open) + 0.05 * R;
+  if (open < 0.98) {
+    canvas.save();
+    canvas.translate(apex.dx, apex.dy);
+    canvas.rotate(apexAng);
+    final bp = Path()
+      ..moveTo(0, 0)
+      ..cubicTo(bs * 0.8, -bs * 0.5, bs * 0.6, -bs * 2.0, 0, -bs * 2.8)
+      ..cubicTo(-bs * 0.6, -bs * 2.0, -bs * 0.8, -bs * 0.5, 0, 0);
+    canvas.drawPath(bp, Paint()..color = gc[1]);
+    canvas.drawPath(
+        bp,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.6
+          ..color = const Color(0x33000000));
+    canvas.restore();
+  }
+  if (open > 0.02) {
+    final l2 = R * open * (1 + 0.3 * _sm(m / 60));
+    _leaf(canvas, apex.dx, apex.dy, apexAng + (0.15 + 0.7 * open), l2,
+        l2 * 0.42, gc);
+    _leaf(canvas, apex.dx, apex.dy, apexAng - (0.15 + 0.7 * open), l2,
+        l2 * 0.42, gc);
+  }
+  for (final t in tips) {
+    final l2 = R * 0.8 * t.u;
+    _leaf(canvas, t.p.dx, t.p.dy, t.a + 0.5, l2, l2 * 0.42, gc);
+    _leaf(canvas, t.p.dx, t.p.dy, t.a - 0.5, l2, l2 * 0.42, gc);
+  }
+
+  // بعد از توقف: غنچه (کار ناتمام) یا گل (کار تمام) لابه‌لای همان برگ‌ها و شاخه‌ها.
+  // هرچه گیاه بزرگ‌تر باشد، تعدادشان بیشتر است. همه کم‌کم می‌شکفند.
+  if (mode != kPlantGrowing) {
     final fl = mode == kPlantFlowers;
-    place(apex, apexAng, R * (fl ? 1.0 : 0.85), 'top', fl);
+    // نوک ساقه (بینِ دو برگِ نوک)
+    place(apex, apexAng, R * (fl ? 0.8 : 0.62), 'top', fl);
+    // نوکِ شاخه‌های فرعی
     for (final t in tips) {
-      place(t.p, t.a, R * (fl ? 0.8 : 0.7), 'b${t.k}', fl);
+      place(t.p, t.a, R * (fl ? 0.66 : 0.52), 'b${t.k}', fl);
     }
-    for (final i in const [2, 4]) {
+    // کنارِ برگ‌های ساقه (جای جوانه‌ی جانبی)
+    for (var i = 1; i < 6; i++) {
       final hi = nodeH(i);
-      if (_sm((bigH - hi) / (1.3 * R)) < 0.9) continue;
-      place(stemPt(hi), i == 2 ? 0.9 : -0.9, R * (fl ? 0.55 : 0.5), 'a$i', fl);
+      if (_sm((bigH - hi) / (1.8 * R)) < 0.9) continue;
+      final side = i.isOdd ? 1.0 : -1.0;
+      place(stemPt(hi + 0.25 * R), side * 0.75, R * (fl ? 0.5 : 0.42), 'a$i', fl);
+    }
+    // روی شاخه‌های فرعی، میانه‌ی شاخه
+    for (final t in tips) {
+      if (t.u < 0.7) continue;
+      final side = t.k.isEven ? -1.0 : 1.0;
+      place(t.p - Offset(side * R * 0.9, -R * 0.2), t.a + side * 0.7,
+          R * (fl ? 0.45 : 0.38), 'm${t.k}', fl);
     }
   }
   canvas.restore();

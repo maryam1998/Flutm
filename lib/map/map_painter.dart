@@ -2164,7 +2164,8 @@ class MapPainter extends CustomPainter {
       final nAll = a.extra['footNotes'];
       final nRaw = nAll is Map ? nAll[dk] : null;
       final note = nRaw is String ? nRaw.trim() : '';
-      final shown = note.isNotEmpty ? note : a.text.trim();
+      // فقط یادداشتِ همان روز؛ نامِ شاخه دوباره نوشته نمی‌شود (خودش روی نقشه هست)
+      final shown = note;
       final od = a.extra['dayNotesOpen'];
       final isOpen = od is List &&
           od.contains(dk) &&
