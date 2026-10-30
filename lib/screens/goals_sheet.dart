@@ -458,6 +458,20 @@ class _GoalsSheetState extends State<GoalsSheet> {
           ),
       ],
     )),
+      // دکمه‌ی ضربدر: بالای «هدف جدید»؛ فهرست اهداف را می‌بندد
+      Positioned(
+        right: 16,
+        bottom: 86,
+        child: FloatingActionButton.small(
+          heroTag: 'goals_close_fab',
+          tooltip: 'بستن',
+          backgroundColor: Colors.white,
+          foregroundColor: kGoalsInk,
+          elevation: 4,
+          onPressed: () => Navigator.pop(context),
+          child: const Icon(Icons.close_rounded, size: 22),
+        ),
+      ),
       // دکمه‌ی «هدف جدید»: پایین-راست؛ بعد از ساخت مستقیم کادر ویرایش باز می‌شود
       Positioned(
         right: 16,
