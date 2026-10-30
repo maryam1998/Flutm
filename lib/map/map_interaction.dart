@@ -12,6 +12,7 @@ import 'geometry.dart';
 import 'hit_registry.dart';
 import 'map_ops.dart';
 import 'walker_photos.dart';
+import 'world_painter.dart' show WalkLayer;
 import '../services/image_service.dart';
 import '../services/map_video_player.dart';
 import '../services/map_voice_player.dart';
@@ -915,6 +916,39 @@ class MapInteraction {
     final s = store.state;
     final g = s.findHost(_dHost);
     if (g is! Goal) return;
+
+    // قدم‌زن روی جاده است: نزدیک‌ترین نقطه‌ی خط‌وسطِ جاده (بر پایه‌ی طولِ مسیر)
+    final road = WalkLayer.roadRoute(s, g);
+    if (road != null && road.length >= 2) {
+      var total = 0.0;
+      for (var i = 1; i < road.length; i++) {
+        total += (road[i] - road[i - 1]).distance;
+      }
+      var bestD = double.infinity, bestAt = 0.0, run = 0.0;
+      for (var i = 1; i < road.length; i++) {
+        final a = road[i - 1], b = road[i];
+        final ab = b - a;
+        final l2 = ab.dx * ab.dx + ab.dy * ab.dy;
+        final f = l2 == 0
+            ? 0.0
+            : (((w.dx - a.dx) * ab.dx + (w.dy - a.dy) * ab.dy) / l2)
+                .clamp(0.0, 1.0)
+                .toDouble();
+        final q = a + ab * f;
+        final dist = (q - w).distance;
+        final segL = math.sqrt(l2);
+        if (dist < bestD) {
+          bestD = dist;
+          bestAt = run + segL * f;
+        }
+        run += segL;
+      }
+      g.extra['walkerPos'] =
+          (total <= 0 ? 0.5 : bestAt / total).clamp(0.06, 0.94);
+      g.extra['walkerPlaying'] = false;
+      _mark();
+      return;
+    }
 
     final cp = trunkControlPoints(g, s.me);
 

@@ -2111,12 +2111,21 @@ class MapPainter extends CustomPainter {
         state.footScale.clamp(kFootScaleMin, kFootScaleMax) *
         ((g.extra['walkerSize'] as num?)?.toDouble() ?? 1.0)
             .clamp(kWalkerSizeMin, kWalkerSizeMax);
+    // قدم‌زن روی خودِ جاده‌ی کشیده‌شده راه می‌رود (نه روی منحنیِ صافِ تنه)
+    final roadPts = WalkLayer.roadRoute(state, g);
+    final _Curve walkCurve = (roadPts != null && roadPts.length >= 2)
+        ? _RouteCurve(roadPts)
+        : _CubicCurve(cp);
     var trunkLen = 0.0;
-    var prevPt = cp.at(0);
-    for (var i = 1; i <= 24; i++) {
-      final q = cp.at(i / 24);
-      trunkLen += (q - prevPt).distance;
-      prevPt = q;
+    if (walkCurve is _RouteCurve) {
+      trunkLen = walkCurve.length;
+    } else {
+      var prevPt = cp.at(0);
+      for (var i = 1; i <= 24; i++) {
+        final q = cp.at(i / 24);
+        trunkLen += (q - prevPt).distance;
+        prevPt = q;
+      }
     }
     final wStepLen =
         (walkerBase * 1.5 / math.max(trunkLen, 1.0)).clamp(0.004, 1.0 / 32);
@@ -2124,7 +2133,7 @@ class MapPainter extends CustomPainter {
     final wSpeed = speed * math.min(2.5, wSteps / 32.0);
     _walkerCore(
       canvas,
-      _CubicCurve(cp),
+      walkCurve,
       col,
       tMin: 0.06,
       tMax: 0.94,

@@ -134,7 +134,7 @@ class _RoadPoly {
       prev = q;
     }
     final amp = math.min(gp.wobA, rawL * 0.16);
-    final f1 = math.max(1.0, rawL / 420.0);
+    final f1 = math.max(0.8, rawL / 900.0);
     final f2 = f1 * 1.7 + 0.35;
     final pts = <Offset>[];
     final cum = <double>[0.0];
@@ -408,7 +408,7 @@ _GPlan _genGoalPlan(String gid, int seed) {
   final pl = _GPlan();
   pl.theme = (R() * 4).floor().clamp(0, 3).toInt();
   pl.side = R() < 0.5 ? -1.0 : 1.0;
-  pl.wobA = 45 + R() * 50;
+  pl.wobA = 12 + R() * 12;
   pl.wobP1 = R() * 6.28;
   pl.wobP2 = R() * 6.28;
 
@@ -1419,6 +1419,39 @@ class WalkData {
 }
 
 class WalkLayer {
+  /// خط‌وسطِ دقیقِ جاده‌ی کشیده‌شده‌ی یک هدف (از ابتدا تا انتهای آسفالت)؛
+  /// قدم‌زنِ هدف روی همین مسیر راه می‌رود تا بیرونِ جاده نیفتد.
+  static List<Offset>? roadRoute(MapState s, Goal g) {
+    if (s.extra['worldOff'] == true) return null; // جاده کشیده نمی‌شود
+    var seed = 0;
+    final sv = s.extra['worldSeed'];
+    if (sv is num) {
+      seed = sv.toInt();
+    } else {
+      seed = math.Random().nextInt(1 << 30) + 1;
+      s.extra['worldSeed'] = seed;
+    }
+    if (WorldLayer._plan == null || WorldLayer._planSeed != seed) {
+      WorldLayer._plan = _buildPlan(seed);
+      WorldLayer._planSeed = seed;
+      WorldLayer._gPlans.clear();
+    }
+    final gp = WorldLayer._gPlans
+        .putIfAbsent(g.id, () => _genGoalPlan(g.id, seed));
+    final cp = geo.trunkControlPoints(g, s.me);
+    final road = _RoadPoly.build(cp, gp.side * 30.0, gp);
+    if (road == null) return null;
+    final out = <Offset>[road.pos(0)];
+    for (var i = 1; i < road.pts.length; i++) {
+      final d = road.cum[i] - _RoadPoly.start;
+      if (d <= 0) continue;
+      if (d >= road.length) break;
+      out.add(road.pts[i]);
+    }
+    out.add(road.pos(road.length));
+    return out;
+  }
+
   /// نقاطِ موازیِ جاده‌ی یک هدف (۶۴ نقطه از «من» تا هدف) با فاصله‌ی [off]
   /// از خط‌وسطِ جاده؛ [off] مثبت یک سمت و منفی سمتِ دیگر.
   /// برای اینکه شاخه‌ها کنارِ جاده شروع شوند، نه روی آن.
