@@ -131,6 +131,91 @@ Future<void> openWalkView(BuildContext context, MapState state) async {
   ));
 }
 
+/// بدونِ هیچ پرسشی: نزدیک‌ترین شاخه به نقطه‌ی [focus] (مختصات نقشه) را پیدا می‌کند و
+/// از چشمِ پاهایش می‌رود؛ اگر شاخه‌ای در [reach] نبود، جاده‌ی اصلیِ نزدیک‌ترین هدف.
+Future<void> openWalkViewAt(
+    BuildContext context, MapState state, Offset focus, double reach) async {
+  void say(String m) {
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  if (state.goals.isEmpty) {
+    say('اول یک هدف بساز تا جاده‌اش را قدم بزنی 🚶');
+    return;
+  }
+  double distTo(List<Offset> pts) {
+    var best = double.infinity;
+    for (final q in pts) {
+      final d = (q - focus).distance;
+      if (d < best) best = d;
+    }
+    return best;
+  }
+
+  final routes = HitRegistry.current?.routes ?? const <String, List<Offset>>{};
+  Goal? bestGoal;
+  var bestGoalD = double.infinity;
+  Goal? brGoal;
+  ActionNode? brNode;
+  List<Offset>? brRoute;
+  var brD = double.infinity;
+  for (final g in state.goals) {
+    final road = WalkLayer.roadRoute(state, g);
+    if (road != null && road.length >= 2) {
+      final d = distTo(road);
+      if (d < bestGoalD) {
+        bestGoalD = d;
+        bestGoal = g;
+      }
+    }
+    void collect(List<ActionNode> list) {
+      for (final a in list) {
+        final r = routes[a.id];
+        if (r != null && r.length >= 2) {
+          final d = distTo(r);
+          if (d < brD) {
+            brD = d;
+            brGoal = g;
+            brNode = a;
+            brRoute = List<Offset>.of(r);
+          }
+        }
+        collect(a.children);
+      }
+    }
+
+    collect(g.actions);
+  }
+  WalkData? data;
+  if (brGoal != null && brNode != null && brRoute != null && brD <= reach) {
+    data = WalkLayer.prepareBranch(state, brGoal!, brNode!, brRoute!);
+  }
+  if (data == null) {
+    final g = bestGoal ?? state.goals.first;
+    data = WalkLayer.prepare(state, g);
+    if (data == null) {
+      say('مسیر این هدف خیلی کوتاه است؛ هدف را کمی از «من» دورتر بگذار.');
+      return;
+    }
+    final sf = (g.extra['walkerPos'] as num?)?.toDouble();
+    if (!context.mounted) return;
+    final d0 = data;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => WalkViewPage(data: d0, startFrac: sf),
+    ));
+    return;
+  }
+  if (!context.mounted) return;
+  final d1 = data;
+  await Navigator.of(context).push(MaterialPageRoute<void>(
+    fullscreenDialog: true,
+    builder: (_) => WalkViewPage(data: d1),
+  ));
+}
+
 class WalkViewPage extends StatefulWidget {
   const WalkViewPage({super.key, required this.data, this.startFrac});
   final WalkData data;

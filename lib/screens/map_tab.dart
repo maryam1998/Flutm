@@ -128,6 +128,51 @@ class _MapTabState extends State<MapTab> {
     );
   }
 
+  // ───── کج‌کردنِ نقشه با دو انگشت → نمای راه‌رفتن ─────
+  final Map<int, Offset> _tStart = {};
+  final Map<int, Offset> _tNow = {};
+  bool _tiltDone = false;
+
+  void _tiltDown(PointerDownEvent e) {
+    if (_tStart.isEmpty) _tiltDone = false;
+    _tStart[e.pointer] = e.position;
+    _tNow[e.pointer] = e.position;
+  }
+
+  void _tiltMove(PointerMoveEvent e) {
+    if (!_tNow.containsKey(e.pointer)) return;
+    _tNow[e.pointer] = e.position;
+    if (_tiltDone || _tNow.length != 2) return;
+    final ids = _tNow.keys.toList();
+    final a0 = _tStart[ids[0]]!, b0 = _tStart[ids[1]]!;
+    final a1 = _tNow[ids[0]]!, b1 = _tNow[ids[1]]!;
+    final da = a1 - a0, db = b1 - b0;
+    const need = 110.0;
+    final up = da.dy < -need && db.dy < -need;
+    final straight =
+        da.dx.abs() < da.dy.abs() * 0.8 && db.dx.abs() < db.dy.abs() * 0.8;
+    final pinch = ((a1 - b1).distance - (a0 - b0).distance).abs() < 70;
+    if (up && straight && pinch) {
+      _tiltDone = true;
+      _openWalkHere();
+    }
+  }
+
+  void _tiltEnd(PointerEvent e) {
+    _tStart.remove(e.pointer);
+    _tNow.remove(e.pointer);
+    if (_tStart.isEmpty) _tiltDone = false;
+  }
+
+  /// نمای راه‌رفتن از چشمِ نزدیک‌ترین شاخه به وسطِ صفحه (بدونِ پرسش)
+  void _openWalkHere() {
+    final v = cam.view;
+    if (v.isEmpty) return;
+    final focus = cam.screenToWorld(Offset(v.width / 2, v.height / 2));
+    final reach = v.shortestSide * 0.7 / cam.scale;
+    openWalkViewAt(context, context.read<MapStore>().state, focus, reach);
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<MapStore>();
@@ -208,6 +253,17 @@ class _MapTabState extends State<MapTab> {
                 store.onStepDone?.call(h, f.node);
               }
             },
+          ),
+          // کشیدنِ دو انگشت از پایین به بالا (مثل کج‌کردنِ نقشه): نما از چشمِ پاها می‌شود.
+          // فقط گوش می‌دهد؛ لمس‌های نقشه را نمی‌گیرد.
+          Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: _tiltDown,
+              onPointerMove: _tiltMove,
+              onPointerUp: _tiltEnd,
+              onPointerCancel: _tiltEnd,
+            ),
           ),
 
           if (empty)
@@ -433,7 +489,7 @@ class _MapTabState extends State<MapTab> {
                         _openGoals),
                     _toolBtn(Icons.fit_screen, 'نمایش همه', ink, _fit),
                     _toolBtn(Icons.directions_walk, 'قدم‌زدن', ink,
-                        () => openWalkView(context, store.state)),
+                        _openWalkHere),
                     _toolBtn(
                       Icons.today,
                       'فقط امروز',
