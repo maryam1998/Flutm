@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../models/constants.dart' show hexColor;
 import '../models/map_models.dart';
 import 'camera.dart';
 import 'geometry.dart' as geo;
@@ -210,6 +211,90 @@ class _RoadPoly {
       add(d);
     }
     add(len);
+  }
+
+  /// نزدیک‌ترین نقطه‌ی جاده به [p]: فاصله‌ی پیموده‌شده (مثل [pos]) و فاصله‌ی عمودی
+  ({double d, double dist}) project(Offset p) {
+    var best = double.infinity;
+    var bd = 0.0;
+    for (var i = 1; i < pts.length; i++) {
+      final a = pts[i - 1], b = pts[i];
+      final v = b - a;
+      final l2 = v.dx * v.dx + v.dy * v.dy;
+      if (l2 < 1e-9) continue;
+      final f = (((p.dx - a.dx) * v.dx + (p.dy - a.dy) * v.dy) / l2)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final q = Offset(a.dx + v.dx * f, a.dy + v.dy * f);
+      final dd = (p - q).distanceSquared;
+      if (dd < best) {
+        best = dd;
+        bd = cum[i - 1] + f * (cum[i] - cum[i - 1]);
+      }
+    }
+    return (d: bd - start, dist: math.sqrt(best));
+  }
+
+  /// مسیرِ دلخواه (مثلاً مسیرِ قدم‌زنِ یک شاخه) را به شکلِ «جاده» برای دوربین
+  /// می‌سازد: کمی نرم می‌شود و با فاصله‌ی ثابت نمونه‌برداری می‌شود.
+  static _RoadPoly? fromPath(List<Offset> raw) {
+    var p = <Offset>[];
+    for (final q in raw) {
+      if (p.isEmpty || (q - p.last).distance > 0.5) p.add(q);
+    }
+    if (p.length < 2) return null;
+    for (var it = 0; it < 2; it++) {
+      if (p.length < 3) break;
+      final n = <Offset>[p.first];
+      for (var i = 0; i < p.length - 1; i++) {
+        final a = p[i], b = p[i + 1];
+        n.add(a * 0.75 + b * 0.25);
+        n.add(a * 0.25 + b * 0.75);
+      }
+      n.add(p.last);
+      p = n;
+    }
+    final c = <double>[0.0];
+    for (var i = 1; i < p.length; i++) {
+      c.add(c.last + (p[i] - p[i - 1]).distance);
+    }
+    final total = c.last;
+    if (total < 40) return null;
+    final cnt = math.max(2, (total / 6.0).ceil());
+    final res = <Offset>[];
+    var j = 1;
+    for (var k = 0; k <= cnt; k++) {
+      final dd = total * k / cnt;
+      while (j < p.length - 1 && c[j] < dd) {
+        j++;
+      }
+      final seg = c[j] - c[j - 1];
+      final f = seg <= 0
+          ? 0.0
+          : ((dd - c[j - 1]) / seg).clamp(0.0, 1.0).toDouble();
+      res.add(Offset.lerp(p[j - 1], p[j], f)!);
+    }
+    Offset unit(Offset v) {
+      final l = v.distance;
+      return l < 1e-6 ? const Offset(1, 0) : v / l;
+    }
+
+    final d0 = unit(res[1] - res[0]);
+    final d1 = unit(res.last - res[res.length - 2]);
+    final pts = <Offset>[res.first - d0 * start, ...res, res.last + d1 * 44.0];
+    final cum = <double>[0.0];
+    var minX = 1e12, minY = 1e12, maxX = -1e12, maxY = -1e12;
+    for (var i = 0; i < pts.length; i++) {
+      final q = pts[i];
+      if (q.dx < minX) minX = q.dx;
+      if (q.dx > maxX) maxX = q.dx;
+      if (q.dy < minY) minY = q.dy;
+      if (q.dy > maxY) maxY = q.dy;
+      if (i > 0) cum.add(cum.last + (pts[i] - pts[i - 1]).distance);
+    }
+    final len = cum.last - start - 44.0;
+    if (len < 40) return null;
+    return _RoadPoly._(pts, cum, len, Rect.fromLTRB(minX, minY, maxX, maxY));
   }
 
   /// مسیرِ جاده را تا طولِ [len] در [p] می‌ریزد
@@ -1412,10 +1497,25 @@ class WalkData {
   final String name, icon;
   TextPainter? _iconTp;
 
-  double get length => road.length;
+  /// نمای «دنبالِ پاهای یک شاخه»: مسیرِ دوربین (از جاده‌ی اصلی تا سرِ شاخه).
+  /// اگر null باشد دوربین روی خودِ جاده‌ی هدف راه می‌رود (رفتارِ قبلی).
+  _RoadPoly? camRoad;
 
-  /// دورترین جایی که می‌شود رفت (کمی مانده به تابلوی هدف)
-  double get maxD => math.max(0.0, road.length - 110.0);
+  /// فاصله‌ی روی [camRoad] که از آن‌جا جاده‌ی شاخه (نه جاده‌ی اصلی) شروع می‌شود
+  double branchFrom = 0;
+  Color branchColor = const Color(0xFFF2B33D);
+
+  /// رفت و برگشتِ بی‌پایان (مثلِ انیمیشنِ پا)
+  bool loop = false;
+
+  bool get isBranch => camRoad != null;
+
+  double get length => (camRoad ?? road).length;
+
+  /// دورترین جایی که می‌شود رفت (کمی مانده به تابلوی هدف / سرِ شاخه)
+  double get maxD => isBranch
+      ? math.max(0.0, camRoad!.length - 45.0)
+      : math.max(0.0, road.length - 110.0);
 }
 
 class WalkLayer {
@@ -1514,6 +1614,90 @@ class WalkLayer {
     final marks = layoutWalkMarks(collectWalkMarks(s, g), road.length);
     return WalkData(gp, road, WorldLayer._plan!, gm, reach, paved, g.name,
         g.icon.isEmpty ? '🎯' : g.icon, marks);
+  }
+
+  /// نمای اول‌شخص از چشمِ پاهای یک شاخه: دوربین از جاده‌ی اصلی (کمی قبل از
+  /// محلِ اتصال) وارد شاخه می‌شود، تا سرِ شاخه می‌رود و برمی‌گردد.
+  /// [route] همان مسیرِ قدم‌زنِ شاخه روی نقشه است (نوکِ شاخه ← … ← جاده‌ی اصلی).
+  static WalkData? prepareBranch(
+      MapState s, Goal g, ActionNode a, List<Offset> route) {
+    final base = prepare(s, g);
+    if (base == null) return null;
+    final rv = <Offset>[];
+    for (final q in route.reversed) {
+      if (rv.isEmpty || (q - rv.last).distance > 0.5) rv.add(q);
+    }
+    if (rv.length < 2) return null;
+    // اولین نقطه‌ای که مسیر از خط‌وسطِ جاده‌ی اصلی جدا می‌شود
+    var jb = -1;
+    for (var i = 0; i < rv.length; i++) {
+      if (base.road.project(rv[i]).dist > 2.5) {
+        jb = i;
+        break;
+      }
+    }
+    if (jb < 0) return null;
+    // کمی راه‌رفتن روی جاده‌ی اصلی قبل از پیچیدن به شاخه
+    var i0 = math.max(0, jb - 1);
+    var acc = 0.0;
+    for (var i = i0; i > 0; i--) {
+      acc += (rv[i] - rv[i - 1]).distance;
+      i0 = i - 1;
+      if (acc >= 150.0) break;
+    }
+    final cr = _RoadPoly.fromPath(rv.sublist(i0));
+    if (cr == null) return null;
+
+    // جایی که جاده‌ی شاخه (جدا از جاده‌ی اصلی) شروع می‌شود
+    var from = cr.length;
+    for (var d = 0.0; d <= cr.length; d += 3.0) {
+      if (base.road.project(cr.pos(d)).dist >= 19.0) {
+        from = d;
+        break;
+      }
+    }
+
+    // ثبت‌های همین شاخه کنارِ مسیرش (قدیمی‌ترین نزدیکِ جاده‌ی اصلی)
+    final mine = collectWalkMarks(s, g)
+        .where((m) => m.actionId == a.id)
+        .toList();
+    final lb = cr.length - from;
+    var keep = mine;
+    final cap = math.max(1, ((lb - 70) / 26).floor() + 1);
+    if (keep.length > cap) keep = keep.sublist(keep.length - cap);
+    final lo = from + 28.0;
+    final hi = math.max(lo, cr.length - 60.0);
+    final gap = keep.length <= 1
+        ? 0.0
+        : ((hi - lo) / (keep.length - 1)).clamp(26.0, 90.0).toDouble();
+    for (var i = 0; i < keep.length; i++) {
+      final m = keep[i];
+      m.sd = math.min(lo + gap * i, cr.length - 40.0);
+      m.side = ((m.seed >> 3) & 1) == 0 ? 1.0 : -1.0;
+      if (i > 0 && keep[i - 1].side == m.side && (m.seed & 3) != 0) {
+        m.side = -m.side;
+      }
+    }
+
+    final gName = g.name.isEmpty ? 'هدف' : g.name;
+    final data = WalkData(
+        base.gp,
+        base.road,
+        base.pal,
+        base.gm,
+        base.reach,
+        base.paved,
+        a.text.trim().isEmpty ? gName : '$gName › ${a.text.trim()}',
+        '🌱',
+        keep);
+    data.camRoad = cr;
+    data.branchFrom = from;
+    data.loop = true;
+    final c0 = (a.color != null && a.color!.isNotEmpty)
+        ? a.color
+        : (g.color ?? '');
+    data.branchColor = hexColor(c0, const Color(0xFFF2B33D));
+    return data;
   }
 }
 
@@ -1648,16 +1832,23 @@ class WalkPainter extends CustomPainter {
     final w = size.width, h = size.height;
     final road = data.road;
     final L = road.length;
+    // نمای شاخه: دوربین روی مسیرِ شاخه می‌رود؛ وگرنه روی خودِ جاده‌ی هدف
+    final bm = data.isBranch;
+    final cr = data.camRoad ?? road;
+    final Lc = cr.length;
     _focal = w * 0.95;
     _cx = w / 2;
     final pitch = cam.pitch.clamp(-0.6, 0.6).toDouble();
     _hor = (h * 0.40 + pitch * _focal).clamp(40.0, h * 0.95).toDouble();
-    final d = cam.d.clamp(0.0, L).toDouble();
+    final dc = cam.d.clamp(0.0, Lc).toDouble();
+    // فاصله‌ی معادل روی جاده‌ی اصلی (برای سبزی و نمونه‌برداریِ جاده)؛
+    // در نمای معمولی همان dc است
+    final d = bm ? road.project(cr.pos(dc)).d.clamp(0.0, L).toDouble() : dc;
 
     // ── دوربین: روی جاده، کمی سمتِ راست؛ نگاه به جهتِ حرکت ──
-    final c0 = road.pos(d);
-    final pA = road.pos(math.max(0.0, d - 4));
-    final pB = road.pos(math.min(L, d + 24));
+    final c0 = cr.pos(dc);
+    final pA = cr.pos(math.max(0.0, dc - 4));
+    final pB = cr.pos(math.min(Lc, dc + 24));
     final rv = pB - pA;
     final roadYaw = rv.distance < 0.01 ? 0.0 : math.atan2(rv.dy, rv.dx);
     final fwd = cam.dir >= 0 ? 1.0 : -1.0;
@@ -1665,7 +1856,7 @@ class WalkPainter extends CustomPainter {
     final bob = cam.walking ? math.sin(cam.phase) * 0.55 : 0.0;
     final sway = cam.walking ? math.cos(cam.phase * 0.5) * 0.8 : 0.0;
     final nr = Offset(-math.sin(roadYaw), math.cos(roadYaw));
-    final cp = c0 + nr * ((5.0 + sway) * fwd);
+    final cp = c0 + nr * (((bm ? 2.5 : 5.0) + sway) * fwd);
     final yaw = face + cam.yaw;
     _cpx = cp.dx;
     _cpy = cp.dy;
@@ -1831,6 +2022,9 @@ class WalkPainter extends CustomPainter {
       }
     }
 
+    // جاده‌ی شاخه (فقط در نمای شاخه): از لبه‌ی جاده‌ی اصلی تا سرِ شاخه
+    if (bm) _branchStrip(canvas, cr, dc);
+
     // مه‌ی افق
     final hazeCol = dark ? const Color(0xFF2B3558) : const Color(0xFFF4EBD8);
     canvas.drawRect(
@@ -1899,9 +2093,10 @@ class WalkPainter extends CustomPainter {
     // ثبت‌های نقشه: غنچه/گلِ هر روزِ انجام‌شده، کنارِ جاده به ترتیبِ تاریخ
     final hwAll = 15.0 + 7.0;
     for (final m in data.marks) {
-      final a = road.ang(m.sd);
-      final pos = road.pos(m.sd) +
-          Offset(-math.sin(a), math.cos(a)) * ((hwAll + 14.0) * m.side);
+      final a = cr.ang(m.sd);
+      final pos = cr.pos(m.sd) +
+          Offset(-math.sin(a), math.cos(a)) *
+              ((bm ? 20.0 : (hwAll + 14.0)) * m.side);
       _pr(pos);
       if (_f < 6 || _f > 700) continue;
       final sc = focal / _f;
@@ -1911,10 +2106,10 @@ class WalkPainter extends CustomPainter {
       it.m = m;
       items.add(it);
     }
-    // تابلوی هدف
+    // تابلوی هدف (در نمای شاخه: تابلوی سرِ شاخه)
     {
-      final a = road.ang(L);
-      final pos = road.pos(L) + Offset(-math.sin(a), math.cos(a)) * 0.0;
+      final a = cr.ang(Lc);
+      final pos = cr.pos(Lc) + Offset(-math.sin(a), math.cos(a)) * 0.0;
       _pr(pos);
       if (_f > 10 && _f < 1400) {
         items.add(_WItem(2, _f, _x, _y, focal / _f));
@@ -1948,6 +2143,64 @@ class WalkPainter extends CustomPainter {
             it.sc));
       } else {
         _goalSign(canvas, it.sx, it.sy, it.sc);
+      }
+    }
+  }
+
+  /// جاده‌ی خاکی/رنگیِ شاخه (باریک‌تر از جاده‌ی اصلی) از جایی که از جاده‌ی اصلی جدا
+  /// می‌شود تا سرِ شاخه؛ فقط نزدیکِ دوربین نمونه‌برداری می‌شود.
+  void _branchStrip(Canvas canvas, _RoadPoly cr, double dc) {
+    final from = data.branchFrom;
+    final lc = cr.length;
+    if (from >= lc) return;
+    final ss = <double>[];
+    var s = math.max(from, dc - 800);
+    final sEnd = math.min(lc, dc + 900);
+    if (s >= sEnd) return;
+    while (s < sEnd) {
+      ss.add(s);
+      s += 5.0 + (s - dc).abs() * 0.05;
+    }
+    ss.add(sEnd);
+    final n = ss.length;
+    if (n < 2) return;
+    const w = 10;
+    const hw = 9.0;
+    final sf = List<double>.filled(n * w, 0.0);
+    final sr = List<double>.filled(n * w, 0.0);
+    const offs = [-60.0, -(hw + 3), -hw, -(hw - 1.2), -0.8, 0.8, hw - 1.2, hw, hw + 3, 60.0];
+    for (var i = 0; i < n; i++) {
+      final si = ss[i];
+      final a = cr.pos(math.max(0.0, si - 2));
+      final b = cr.pos(math.min(lc, si + 2));
+      var tv = b - a;
+      final tl = tv.distance;
+      tv = tl < 1e-6 ? const Offset(1, 0) : tv / tl;
+      final nrm = Offset(-tv.dy, tv.dx);
+      final cpos = cr.pos(si);
+      for (var j = 0; j < w; j++) {
+        _cam(cpos + nrm * offs[j]);
+        sf[i * w + j] = _f;
+        sr[i * w + j] = _r;
+      }
+    }
+    final bc = data.branchColor;
+    final dirt = dark ? const Color(0xFF6B5A3E) : const Color(0xFFD9B77E);
+    final body = Color.lerp(bc, dirt, 0.4)!;
+    final bodyC = dark ? Color.lerp(body, Colors.black, 0.35)! : body;
+    final verge = dark
+        ? Color.lerp(bc, Colors.black, 0.5)!
+        : Color.lerp(bc, Colors.white, 0.6)!;
+    final edge = dark ? const Color(0x55FFFFFF) : const Color(0xAAFFFFFF);
+    for (var i = 0; i < n - 1; i++) {
+      final si = ss[i];
+      _quad(canvas, sf, sr, i, 1, 2, verge);
+      _quad(canvas, sf, sr, i, 7, 8, verge);
+      _quad(canvas, sf, sr, i, 3, 6, bodyC);
+      _quad(canvas, sf, sr, i, 2, 3, edge);
+      _quad(canvas, sf, sr, i, 6, 7, edge);
+      if ((si / 16).floor() % 2 == 0) {
+        _quad(canvas, sf, sr, i, 4, 5, edge);
       }
     }
   }

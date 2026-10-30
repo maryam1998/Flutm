@@ -51,6 +51,14 @@ class ActionGeomEntry {
 
 /// painter در هر فریم این لیست رو پر می‌کنه (به ترتیب رسم). آخری = روترین.
 class HitRegistry {
+  HitRegistry() {
+    current = this;
+  }
+
+  /// آخرین ثبتِ ساخته‌شده (همان که نقشه‌ی روی صفحه پرش می‌کند)؛ نمای راه‌رفتن
+  /// مسیرِ قدم‌زنِ شاخه‌ها را از اینجا می‌خواند.
+  static HitRegistry? current;
+
   final List<HitEntry> entries = [];
   final Map<String, ActionGeomEntry> geom = {};
 

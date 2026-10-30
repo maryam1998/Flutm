@@ -7,6 +7,7 @@ import '../models/map_models.dart';
 import '../screens/add_goal_dialog.dart';
 import '../screens/goals_sheet.dart';
 import 'draw_utils.dart' show toFa;
+import 'hit_registry.dart';
 import 'walk_marks.dart';
 import 'world_painter.dart';
 
@@ -51,12 +52,79 @@ Future<void> openWalkView(BuildContext context, MapState state) async {
     );
   }
   if (g == null || !context.mounted) return;
-  final data = WalkLayer.prepare(state, g);
-  if (data == null) {
-    say('مسیر این هدف خیلی کوتاه است؛ هدف را کمی از «من» دورتر بگذار.');
+
+  // جاده‌ی اصلی یا از چشمِ پاهای یکی از شاخه‌ها (تا سرِ شاخه و برگشت)
+  final routes = HitRegistry.current?.routes ?? const <String, List<Offset>>{};
+  final opts = <({ActionNode node, int depth, List<Offset> route})>[];
+  void collect(List<ActionNode> list, int depth) {
+    for (final a in list) {
+      final r = routes[a.id];
+      if (r != null && r.length >= 2) {
+        opts.add((node: a, depth: depth, route: List<Offset>.of(r)));
+      }
+      collect(a.children, depth + 1);
+    }
+  }
+
+  collect(g.actions, 0);
+  ActionNode? branch;
+  List<Offset>? branchRoute;
+  if (opts.isNotEmpty) {
+    final goal = g;
+    final picked = await showModalBottomSheet<Object>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('از چشمِ کدام پا ببینی؟',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              ListTile(
+                leading: const Text('🛣️', style: TextStyle(fontSize: 22)),
+                title: Text('جاده‌ی اصلیِ ${goal.name.isEmpty ? 'هدف' : goal.name}'),
+                subtitle: const Text('از «من» تا هدف'),
+                onTap: () => Navigator.of(ctx).pop('trunk'),
+              ),
+              for (final o in opts)
+                ListTile(
+                  contentPadding:
+                      EdgeInsetsDirectional.only(start: 16.0 + o.depth * 18, end: 16),
+                  leading: const Text('👣', style: TextStyle(fontSize: 20)),
+                  title: Text(o.node.text.trim().isEmpty ? 'شاخه' : o.node.text.trim()),
+                  subtitle: const Text('تا سرِ شاخه می‌روند و برمی‌گردند'),
+                  onTap: () => Navigator.of(ctx).pop(o),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    if (picked is ({ActionNode node, int depth, List<Offset> route})) {
+      branch = picked.node;
+      branchRoute = picked.route;
+    }
+  }
+
+  final WalkData? data0 = (branch != null && branchRoute != null)
+      ? WalkLayer.prepareBranch(state, g, branch, branchRoute)
+      : WalkLayer.prepare(state, g);
+  if (data0 == null) {
+    say(branch != null
+        ? 'مسیرِ این شاخه خیلی کوتاه است.'
+        : 'مسیر این هدف خیلی کوتاه است؛ هدف را کمی از «من» دورتر بگذار.');
     return;
   }
-  final startFrac = (g.extra['walkerPos'] as num?)?.toDouble();
+  final WalkData data = data0;
+  final startFrac =
+      branch != null ? null : (g.extra['walkerPos'] as num?)?.toDouble();
   await Navigator.of(context).push(MaterialPageRoute<void>(
     fullscreenDialog: true,
     builder: (_) => WalkViewPage(data: data, startFrac: startFrac),
@@ -82,6 +150,7 @@ class _WalkViewPageState extends State<WalkViewPage>
   bool _dragging = false;
   double _yawVel = 0; // سرعتِ چرخشِ سر بعد از رها کردنِ انگشت (رادیان/ثانیه)
   bool _arrived = false;
+  double _hold = 0; // مکثِ رفت‌وبرگشت (ثانیه)
   int _speedIdx = 0;
   static const _speeds = [1.0, 3.0, 8.0];
 
@@ -109,18 +178,35 @@ class _WalkViewPageState extends State<WalkViewPage>
     _last = e;
     cam.t += dt;
     final sp = _speeds[_speedIdx];
-    if (cam.walking) {
+    final loop = widget.data.loop;
+    if (loop && _hold > 0) {
+      // مکثِ کوتاه سرِ شاخه / ابتدای مسیر؛ بعد برگشت
+      _hold -= dt;
+      if (_hold <= 0 && _arrived && mounted) setState(() => _arrived = false);
+    } else if (cam.walking) {
       cam.d += cam.dir * 26.0 * sp * dt;
       cam.phase += dt * 7.0 * math.sqrt(sp);
       final maxD = widget.data.maxD;
       if (cam.dir > 0 && cam.d >= maxD) {
         cam.d = maxD;
-        cam.walking = false;
-        if (!_arrived && mounted) setState(() => _arrived = true);
+        if (loop) {
+          // مثلِ انیمیشنِ پا: سرِ شاخه می‌رسد، می‌ایستد و برمی‌گردد
+          cam.dir = -1.0;
+          _hold = 1.6;
+          if (mounted) setState(() => _arrived = true);
+        } else {
+          cam.walking = false;
+          if (!_arrived && mounted) setState(() => _arrived = true);
+        }
       } else if (cam.dir < 0 && cam.d <= 0) {
         cam.d = 0;
-        cam.walking = false;
-        if (mounted) setState(() {});
+        if (loop) {
+          cam.dir = 1.0;
+          _hold = 0.8;
+        } else {
+          cam.walking = false;
+          if (mounted) setState(() {});
+        }
       }
     }
     // چرخشِ آزادِ ۳۶۰ درجه: سر همان‌جا که رها کردی می‌ماند (با کمی لغزش)
@@ -295,7 +381,9 @@ class _WalkViewPageState extends State<WalkViewPage>
                           return _markCard(mk);
                         }
                         if (_arrived) {
-                          msg = '🎯 به آخرِ جاده‌ی هدفت رسیدی';
+                          msg = data.loop
+                              ? '🌱 به سرِ شاخه رسیدی؛ برمی‌گردی…'
+                              : '🎯 به آخرِ جاده‌ی هدفت رسیدی';
                         } else if (cam.t < 8) {
                           msg =
                               'انگشتت را به هر سو بکش و ۳۶۰ درجه دورِ خودت را ببین · لمس = ایست/حرکت';
