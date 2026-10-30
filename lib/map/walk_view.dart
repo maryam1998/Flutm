@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../models/map_models.dart';
+import '../screens/add_goal_dialog.dart';
+import '../screens/goals_sheet.dart';
 import 'draw_utils.dart' show toFa;
 import 'walk_marks.dart';
 import 'world_painter.dart';
@@ -159,6 +161,26 @@ class _WalkViewPageState extends State<WalkViewPage>
     });
   }
 
+  void _openMarkCalendar(Offset p) {
+    WalkHit? best;
+    for (final h in widget.data.hits) {
+      if (!h.rect.contains(p)) continue;
+      if (best == null || h.sc > best.sc) best = h;
+    }
+    final m = best?.mark;
+    if (m == null || m.hostId.isEmpty || m.actionId.isEmpty) return;
+    showGoalsSheet(
+      context,
+      onShowOnMap: (_) {
+        if (mounted) Navigator.of(context).pop();
+      },
+      onAddGoal: () => showAddGoalDialog(context),
+      focusHostId: m.hostId,
+      focusActionId: m.actionId,
+      focusJk: m.pending ? null : m.dayKey,
+    );
+  }
+
   void _turnAround() {
     setState(() {
       cam.dir = -cam.dir;
@@ -184,6 +206,8 @@ class _WalkViewPageState extends State<WalkViewPage>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _toggle,
+              // لمسِ طولانیِ گل/برگ/غنچه: تقویمِ فهرستِ اهدافِ همان کار
+              onLongPressStart: (d) => _openMarkCalendar(d.localPosition),
               onPanStart: (_) {
                 _dragging = true;
                 _yawVel = 0;

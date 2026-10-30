@@ -1402,6 +1402,9 @@ class WalkData {
 
   /// ثبت‌های نقشه (غنچه/گل روزها) که کنارِ جاده دیده می‌شوند
   final List<WalkMark> marks;
+
+  /// جای نشانه‌ها روی صفحه در آخرین فریم (برای لمسِ طولانی)
+  final List<WalkHit> hits = <WalkHit>[];
   final _GPlan gp;
   final _RoadPoly road;
   final _Plan pal;
@@ -1813,6 +1816,7 @@ class WalkPainter extends CustomPainter {
 
     // ── چیزهای کنارِ جاده (از دور به نزدیک) ──
     final items = <_WItem>[];
+    data.hits.clear();
     final pal = data.pal;
     for (final e in data.gp.els) {
       if (e.k == 5 || e.k == 12) continue;
@@ -1903,6 +1907,12 @@ class WalkPainter extends CustomPainter {
         // نوشته‌ها فقط وقتی نزدیک‌ایم دیده می‌شوند (۳۴۰ → ۱۸۰ واحد: کم‌کم پدیدار)
         final near = _c01((340 - it.f) / 160);
         drawWalkMark(canvas, it.m!, it.sx, it.sy, it.sc, cam.t, dark, near);
+        data.hits.add(WalkHit(
+            it.m!,
+            Rect.fromLTRB(it.sx - 16 * it.sc, it.sy - 46 * it.sc,
+                    it.sx + 16 * it.sc, it.sy + 4 * it.sc)
+                .inflate(10),
+            it.sc));
       } else {
         _goalSign(canvas, it.sx, it.sy, it.sc);
       }

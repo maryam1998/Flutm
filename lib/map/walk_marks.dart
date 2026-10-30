@@ -24,7 +24,12 @@ class WalkMark {
     required this.seed,
     required this.color,
     this.pending = false,
+    this.hostId = '',
+    this.actionId = '',
   });
+
+  /// شناسه‌ی هدف/حلقه‌ی صاحبِ شاخه و شناسه‌ی خودِ شاخه (برای بازکردنِ تقویمِ آن)
+  final String hostId, actionId;
 
   /// شاخه/زیرشاخه‌ای که هنوز هیچ روزی برایش انجام نشده (نهالِ منتظر)
   final bool pending;
@@ -173,6 +178,14 @@ Set<String> _flowerDays(ActionNode a, List<String> sortedDone) {
   return out;
 }
 
+/// جای یک نشانه روی صفحه (برای لمسِ طولانی)؛ painter در هر فریم پرش می‌کند
+class WalkHit {
+  WalkHit(this.mark, this.rect, this.sc);
+  final WalkMark mark;
+  final Rect rect;
+  final double sc;
+}
+
 /// آیا خودِ این شاخه یا یکی از زیرشاخه‌هایش روزی انجام شده؟
 bool _anyDone(ActionNode a) {
   final own = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys};
@@ -184,7 +197,7 @@ bool _anyDone(ActionNode a) {
 List<WalkMark> collectWalkMarks(MapState s, Goal g) {
   final marks = <WalkMark>[];
 
-  void walk(List<ActionNode> list, Color base) {
+  void walk(List<ActionNode> list, Color base, String hostId) {
     for (final a in list) {
       final col = (a.color != null && a.color!.isNotEmpty)
           ? _hex(a.color!, base)
@@ -209,6 +222,8 @@ List<WalkMark> collectWalkMarks(MapState s, Goal g) {
           finished: fin && last,
           seed: _hash('${a.id}|$dk'),
           color: col,
+          hostId: hostId,
+          actionId: a.id,
         ));
       }
       // شاخه‌ای که هنوز انجام نشده هم کنارِ جاده دیده می‌شود (نهالِ منتظر)
@@ -224,16 +239,18 @@ List<WalkMark> collectWalkMarks(MapState s, Goal g) {
           seed: _hash('${a.id}|pending'),
           color: col,
           pending: true,
+          hostId: hostId,
+          actionId: a.id,
         ));
       }
-      walk(a.children, col);
+      walk(a.children, col, hostId);
     }
   }
 
   final base = _hex(g.color ?? '', const Color(0xFFE5484D));
-  walk(g.actions, base);
+  walk(g.actions, base, g.id);
   for (final r in s.ringsOfGoal(g)) {
-    walk(r.actions, _hex(r.color, base));
+    walk(r.actions, _hex(r.color, base), r.id);
   }
   marks.sort((x, y) {
     final c = x.ord.compareTo(y.ord);

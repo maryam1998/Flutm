@@ -46,6 +46,7 @@ class _Pending {
     this.isNote = false,
     this.isPastFoot = false,
     this.isBloom = false,
+    this.isBud = false,
     this.noteKey = '',
   });
   final String hostId;
@@ -59,6 +60,7 @@ class _Pending {
   final bool isNote;
   final bool isPastFoot;
   final bool isBloom;
+  final bool isBud;
   final String noteKey;
   final Offset start;
 }
@@ -276,6 +278,38 @@ class MapInteraction {
     }
   }
 
+  /// لمسِ غنچه‌ی انیمیشن (کار انجام شده/منتظر جواب/تمام شده): آنچه زیرش است
+  /// (عکس، ایموجی، قدم‌ها، نوشته‌ها) دیده می‌شود؛ دوباره لمس = دوباره زیرِ غنچه
+  void _toggleBud(String hostId, String actionId) {
+    HapticFeedback.selectionClick();
+    final bh = store.state.findHost(hostId);
+    if (bh is MapHost) {
+      final bf = findActionNode(bh.actions, actionId);
+      if (bf != null) {
+        final tk = jKey(DateTime.now());
+        if (bf.node.extra['budOpenDay'] == tk) {
+          bf.node.extra.remove('budOpenDay');
+        } else {
+          bf.node.extra['budOpenDay'] = tk;
+        }
+        store.changed();
+      }
+    }
+  }
+
+  /// لمسِ طولانیِ گل/برگ/غنچه: تقویمِ فهرستِ اهدافِ همان کار
+  void _armCalendarHold(_Pending pp, String? jk) {
+    _lp = Timer(const Duration(milliseconds: 450), () {
+      if (onBloomDay == null) return;
+      HapticFeedback.mediumImpact();
+      // انگشت هنوز روی صفحه است ولی فهرست روی آن باز می‌شود؛ پس وضعیتِ لمس
+      // همین‌جا پاک می‌شود تا لمسِ بعدی گیر نکند
+      _ptrs.clear();
+      _finish();
+      onBloomDay!(pp.hostId, pp.actionId, jk);
+    });
+  }
+
   // ───────────────────────── pointer down ─────────────────────────
 
   void pointerDown(PointerDownEvent e) {
@@ -310,25 +344,6 @@ class MapInteraction {
             bf.node.extra.remove('dayNotesOpen');
           } else {
             bf.node.extra['dayNotesOpen'] = list;
-          }
-          store.changed();
-        }
-      }
-      return;
-    }
-    // لمسِ غنچه‌ی انیمیشن (کار انجام شده/منتظر جواب/تمام شده): آنچه زیرش است
-    // (عکس، ایموجی، قدم‌ها، نوشته‌ها) دیده می‌شود؛ دوباره لمس = دوباره زیرِ غنچه
-    if (_ptrs.isEmpty && hit != null && hit.type == 'walkerBud') {
-      HapticFeedback.selectionClick();
-      final bh = store.state.findHost(hit.hostId);
-      if (bh is MapHost) {
-        final bf = findActionNode(bh.actions, hit.id);
-        if (bf != null) {
-          final tk = jKey(DateTime.now());
-          if (bf.node.extra['budOpenDay'] == tk) {
-            bf.node.extra.remove('budOpenDay');
-          } else {
-            bf.node.extra['budOpenDay'] = tk;
           }
           store.changed();
         }
@@ -441,6 +456,15 @@ class MapInteraction {
     if (hit.type == 'bloomToggle') {
       _pending = _Pending(hit.hostId, hit.id, null, false, pos, isBloom: true);
       _slopPassed = false;
+      _armCalendarHold(_pending!, null);
+      return;
+    }
+
+    // ─── غنچه‌ی انیمیشن: تپ = باز/بسته ، نگه‌داشتن = تقویمِ همان کار ، کشیدن = جابه‌جایی نقشه ───
+    if (hit.type == 'walkerBud') {
+      _pending = _Pending(hit.hostId, hit.id, null, false, pos, isBud: true);
+      _slopPassed = false;
+      _armCalendarHold(_pending!, jKey(DateTime.now()));
       return;
     }
 
@@ -666,7 +690,7 @@ class MapInteraction {
       return;
     }
 
-    if (p.isPastFoot) {
+    if (p.isPastFoot || p.isBud) {
       _startPan(p.start);
       _tap = null;
       return;
@@ -1044,7 +1068,11 @@ class MapInteraction {
 
       // ─── گل/برگِ سرِ شاخه: تپِ ساده = نوشته؛ اگر کشیده شد کارش قبلاً انجام شده ───
       if (p.isBloom) {
-        if (!wasDrag) _toggleBloom(p.hostId, p.actionId);
+        if (!wasDrag && !held) _toggleBloom(p.hostId, p.actionId);
+        return;
+      }
+      if (p.isBud) {
+        if (!wasDrag && !held) _toggleBud(p.hostId, p.actionId);
         return;
       }
 
