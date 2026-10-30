@@ -2237,7 +2237,9 @@ class WalkPainter extends CustomPainter {
 
   /// ایموجی با فونتِ ایموجیِ برنامه (بدونش روی وب مربعِ خالی کشیده می‌شد)
   TextPainter _emojiTp(String t) => TextPainter(
-      text: TextSpan(text: t, style: GoogleFonts.vazirmatn(fontSize: 40)),
+      text: TextSpan(
+          text: t,
+          style: walkTextStyle(size: 40, color: const Color(0xFF000000))),
       textDirection: TextDirection.rtl)
     ..layout();
 
@@ -2248,10 +2250,10 @@ class WalkPainter extends CustomPainter {
       tp = TextPainter(
           text: TextSpan(
               text: sb.name.isEmpty ? 'شاخه' : sb.name,
-              style: GoogleFonts.vazirmatn(
+              style: walkTextStyle(
+                  size: 13,
                   color: const Color(0xFF1F2937),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700)),
+                  w: FontWeight.w700)),
           textDirection: TextDirection.rtl,
           textAlign: TextAlign.center,
           maxLines: 2,

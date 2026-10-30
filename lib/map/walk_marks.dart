@@ -4,8 +4,33 @@ import 'package:flutter/material.dart';
 
 import '../models/jalali.dart' show kJalaliMonths;
 import '../models/map_models.dart';
+import '../theme/vazir_font.dart';
 import 'draw_utils.dart' show toFa;
 import 'map_ops.dart' show footDoneOn, nodeFinished;
+
+/// سبکِ نوشته‌ی تابلوهای نمای راه‌رفتن: همان فونت و فونت‌های پشتیبانِ نوشته‌های
+/// نقشه، تا فارسی، لاتین و ایموجی (و پرچم) همه‌جا دیده شوند و مربعِ خالی نیفتد.
+TextStyle walkTextStyle(
+    {required double size,
+    required Color color,
+    FontWeight w = FontWeight.w600,
+    double? height}) {
+  return GoogleFonts.vazirmatn().copyWith(
+    fontFamilyFallback: [
+      ...GoogleFonts.emojiFallback,
+      'Segoe UI',
+      'Tahoma',
+      'Noto Sans',
+      'Noto Color Emoji',
+      'Segoe UI Emoji',
+      'Apple Color Emoji',
+    ],
+    fontSize: size,
+    fontWeight: w,
+    color: color,
+    height: height,
+  );
+}
 
 /// ثبت‌های نقشه برای «نمای راه‌رفتن» 🌸
 ///
@@ -90,8 +115,7 @@ class WalkMark {
     return TextPainter(
       text: TextSpan(
           text: text,
-          style: TextStyle(
-              color: c, fontSize: size, fontWeight: w, height: 1.25)),
+          style: walkTextStyle(size: size, color: c, w: w, height: 1.25)),
       textDirection: TextDirection.rtl,
       textAlign: TextAlign.center,
       maxLines: maxLines,

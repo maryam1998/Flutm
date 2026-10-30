@@ -8,6 +8,7 @@ import '../screens/add_goal_dialog.dart';
 import '../screens/goals_sheet.dart';
 import 'draw_utils.dart' show toFa;
 import 'hit_registry.dart';
+import 'map_ops.dart' show findActionNode;
 import 'walk_marks.dart';
 import 'world_painter.dart';
 
@@ -223,6 +224,52 @@ Future<void> openWalkViewAt(
   await Navigator.of(context).push(MaterialPageRoute<void>(
     fullscreenDialog: true,
     builder: (_) => WalkViewPage(data: d1),
+  ));
+}
+
+/// نمای راه‌رفتن از چشمِ همان پای انیمیشنی که کاربر رویش کشیده است:
+/// [type] = 'walker' (پای آبیِ جاده‌ی هدف) یا 'foot' (پای یک شاخه/زیرشاخه).
+Future<void> openWalkViewForFoot(BuildContext context, MapState state,
+    String type, String hostId, String id) async {
+  void say(String m) {
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  final host = state.findHost(hostId);
+  if (host is! Goal) {
+    say('نمای راه‌رفتن فقط برای جاده‌ی هدف‌ها و شاخه‌هایشان است.');
+    return;
+  }
+  if (type == 'walker') {
+    final data = WalkLayer.prepare(state, host);
+    if (data == null) {
+      say('مسیر این هدف خیلی کوتاه است؛ هدف را کمی از «من» دورتر بگذار.');
+      return;
+    }
+    final sf = (host.extra['walkerPos'] as num?)?.toDouble();
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => WalkViewPage(data: data, startFrac: sf),
+    ));
+    return;
+  }
+  final found = findActionNode(host.actions, id);
+  final route = HitRegistry.current?.routes[id];
+  if (found == null || route == null || route.length < 2) {
+    say('مسیرِ این شاخه الان روی نقشه نیست.');
+    return;
+  }
+  final data =
+      WalkLayer.prepareBranch(state, host, found.node, List<Offset>.of(route));
+  if (data == null) {
+    say('مسیرِ این شاخه خیلی کوتاه است.');
+    return;
+  }
+  await Navigator.of(context).push(MaterialPageRoute<void>(
+    fullscreenDialog: true,
+    builder: (_) => WalkViewPage(data: data),
   ));
 }
 

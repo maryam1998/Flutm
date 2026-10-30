@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../map/camera.dart';
 import '../map/draw_utils.dart' show toFa;
+import '../map/hit_registry.dart';
 import '../map/map_canvas.dart';
 import '../map/map_ops.dart';
 import '../map/today_focus.dart';
@@ -133,16 +134,106 @@ class _MapTabState extends State<MapTab> {
   final Map<int, Offset> _tNow = {};
   bool _tiltDone = false;
 
+  // پای انیمیشنی (قدم‌زنِ هدف یا پای شاخه) که هر انگشت رویش شروع به لمس کرده
+  final Map<int, HitEntry> _tFoot = {};
+  // وضعیتِ پا پیش از لمس؛ چون کشیدنِ انگشت روی پا آن را جابه‌جا می‌کند و با
+  // رفتن به نمای راه‌رفتن باید به حالت قبل برگردد
+  Map<String, Object?>? _tSnap;
+
   void _tiltDown(PointerDownEvent e) {
-    if (_tStart.isEmpty) _tiltDone = false;
+    if (_tStart.isEmpty) {
+      _tiltDone = false;
+      _tFoot.clear();
+      _tSnap = null;
+    }
     _tStart[e.pointer] = e.position;
     _tNow[e.pointer] = e.position;
+    final h = HitRegistry.current
+        ?.hitTest(cam.screenToWorld(e.localPosition), cam.scale);
+    if (h != null && (h.type == 'walker' || h.type == 'foot')) {
+      _tFoot[e.pointer] = h;
+      _tSnap ??= _snapFoot(h);
+    }
+  }
+
+  Map<String, Object?>? _snapFoot(HitEntry h) {
+    final st = context.read<MapStore>().state;
+    final host = st.findHost(h.hostId);
+    if (host is! MapHost) return null;
+    if (h.type == 'walker' && host is Goal) {
+      return {
+        'type': 'walker',
+        'host': h.hostId,
+        'pos': host.extra['walkerPos'],
+        'playing': host.extra['walkerPlaying'],
+      };
+    }
+    final f = findActionNode(host.actions, h.id);
+    if (f == null) return null;
+    return {
+      'type': 'foot',
+      'host': h.hostId,
+      'id': h.id,
+      'pos': f.node.footPos,
+      'day': f.node.extra['footPosDay'],
+    };
+  }
+
+  void _restoreFoot() {
+    final sn = _tSnap;
+    if (sn == null) return;
+    final store = context.read<MapStore>();
+    final host = store.state.findHost(sn['host'] as String);
+    if (host is! MapHost) return;
+    if (sn['type'] == 'walker') {
+      if (host is! Goal) return;
+      void put(String k, Object? v) {
+        if (v == null) {
+          host.extra.remove(k);
+        } else {
+          host.extra[k] = v;
+        }
+      }
+
+      put('walkerPos', sn['pos']);
+      put('walkerPlaying', sn['playing']);
+    } else {
+      final f = findActionNode(host.actions, sn['id'] as String);
+      if (f == null) return;
+      f.node.footPos = sn['pos'] as double?;
+      if (sn['day'] == null) {
+        f.node.extra.remove('footPosDay');
+      } else {
+        f.node.extra['footPosDay'] = sn['day'];
+      }
+    }
+    store.touch();
+  }
+
+  /// کشیدنِ انگشت (یک یا دو) از پایین به بالا روی یک پای انیمیشنی → نمای راه‌رفتنِ همان پا
+  bool _footSwipeUp() {
+    for (final en in _tFoot.entries) {
+      final s0 = _tStart[en.key], n = _tNow[en.key];
+      if (s0 == null || n == null) continue;
+      final d = n - s0;
+      if (d.dy < -90 && d.dx.abs() < d.dy.abs() * 0.8) {
+        _tiltDone = true;
+        _restoreFoot();
+        final h = en.value;
+        openWalkViewForFoot(
+            context, context.read<MapStore>().state, h.type, h.hostId, h.id);
+        return true;
+      }
+    }
+    return false;
   }
 
   void _tiltMove(PointerMoveEvent e) {
     if (!_tNow.containsKey(e.pointer)) return;
     _tNow[e.pointer] = e.position;
-    if (_tiltDone || _tNow.length != 2) return;
+    if (_tiltDone) return;
+    if (_tFoot.isNotEmpty && _footSwipeUp()) return;
+    if (_tNow.length != 2) return;
     final ids = _tNow.keys.toList();
     final a0 = _tStart[ids[0]]!, b0 = _tStart[ids[1]]!;
     final a1 = _tNow[ids[0]]!, b1 = _tNow[ids[1]]!;
@@ -161,7 +252,12 @@ class _MapTabState extends State<MapTab> {
   void _tiltEnd(PointerEvent e) {
     _tStart.remove(e.pointer);
     _tNow.remove(e.pointer);
-    if (_tStart.isEmpty) _tiltDone = false;
+    _tFoot.remove(e.pointer);
+    if (_tStart.isEmpty) {
+      _tiltDone = false;
+      _tFoot.clear();
+      _tSnap = null;
+    }
   }
 
   /// نمای راه‌رفتن از چشمِ نزدیک‌ترین شاخه به وسطِ صفحه (بدونِ پرسش)
