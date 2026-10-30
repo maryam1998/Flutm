@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../models/map_models.dart';
 import 'draw_utils.dart' show toFa;
+import 'walk_marks.dart';
 import 'world_painter.dart';
 
 /// نمای اول‌شخص: کاربر روی جاده‌ی یکی از هدف‌هایش راه می‌رود و دورتادورِ خودش
@@ -265,6 +266,10 @@ class _WalkViewPageState extends State<WalkViewPage>
                       valueListenable: _tick,
                       builder: (_, __, ___) {
                         String? msg;
+                        final mk = nearestMark(data.marks, cam.d);
+                        if (mk != null) {
+                          return _markCard(mk);
+                        }
                         if (_arrived) {
                           msg = '🎯 به آخرِ جاده‌ی هدفت رسیدی';
                         } else if (cam.t < 8) {
@@ -310,6 +315,58 @@ class _WalkViewPageState extends State<WalkViewPage>
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// کارتِ توضیحِ ثبتِ نقشه (وقتی کنارش رد می‌شوی): تاریخ، نام، مدت و یادداشتِ کامل
+  Widget _markCard(WalkMark m) {
+    final parts = <String>[
+      m.fullDateLabel,
+      if (m.minutesLabel.isNotEmpty) m.minutesLabel,
+    ];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      constraints: const BoxConstraints(maxWidth: 360),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${m.finished ? '🌸' : (m.flower ? '🌼' : '🌱')}  ${parts.join('  ·  ')}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600),
+          ),
+          if (m.title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(m.title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+            ),
+          if (m.note.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(m.note,
+                  textAlign: TextAlign.center,
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 12.5, height: 1.4)),
+            ),
         ],
       ),
     );

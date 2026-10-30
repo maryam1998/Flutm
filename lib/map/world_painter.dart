@@ -8,6 +8,7 @@ import '../models/map_models.dart';
 import 'camera.dart';
 import 'geometry.dart' as geo;
 import 'seeded.dart';
+import 'walk_marks.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  دنیای در حال رشد 🌱🏡🚗
@@ -1372,7 +1373,11 @@ class WalkCam {
 
 class WalkData {
   WalkData(this.gp, this.road, this.pal, this.gm, this.reach, this.paved,
-      this.name, this.icon);
+      this.name, this.icon,
+      [this.marks = const <WalkMark>[]]);
+
+  /// ثبت‌های نقشه (غنچه/گل روزها) که کنارِ جاده دیده می‌شوند
+  final List<WalkMark> marks;
   final _GPlan gp;
   final _RoadPoly road;
   final _Plan pal;
@@ -1414,16 +1419,18 @@ class WalkLayer {
         14.0 +
             road.length * math.pow(_c01(gm / _kRoadFull), 0.7).toDouble());
     final paved = road.length * _ease((gm - _hr(20)) / _hr(380));
+    final marks = layoutWalkMarks(collectWalkMarks(s, g), road.length);
     return WalkData(gp, road, WorldLayer._plan!, gm, reach, paved, g.name,
-        g.icon.isEmpty ? '🎯' : g.icon);
+        g.icon.isEmpty ? '🎯' : g.icon, marks);
   }
 }
 
 class _WItem {
   _WItem(this.type, this.f, this.sx, this.sy, this.sc);
-  final int type; // ۰ المان ۱ ماشین ۲ تابلوی هدف
+  final int type; // ۰ المان ۱ ماشین ۲ تابلوی هدف ۳ ثبتِ نقشه (غنچه/گل)
   final double f, sx, sy, sc;
   _El? e;
+  WalkMark? m;
   double p = 1.0;
   Color col = const Color(0xFFE5484D);
   bool onc = false;
@@ -1787,6 +1794,21 @@ class WalkPainter extends CustomPainter {
         items.add(it);
       }
     }
+    // ثبت‌های نقشه: غنچه/گلِ هر روزِ انجام‌شده، کنارِ جاده به ترتیبِ تاریخ
+    final hwAll = 15.0 + 7.0;
+    for (final m in data.marks) {
+      final a = road.ang(m.sd);
+      final pos = road.pos(m.sd) +
+          Offset(-math.sin(a), math.cos(a)) * ((hwAll + 14.0) * m.side);
+      _pr(pos);
+      if (_f < 6 || _f > 700) continue;
+      final sc = focal / _f;
+      if (_x < -90 * sc || _x > w + 90 * sc) continue;
+      if (_y < hor - 2) continue;
+      final it = _WItem(3, _f, _x, _y, sc);
+      it.m = m;
+      items.add(it);
+    }
     // تابلوی هدف
     {
       final a = road.ang(L);
@@ -1812,6 +1834,10 @@ class WalkPainter extends CustomPainter {
         _drawSprite(canvas, it.e!, it.p, cam.t, pal);
       } else if (it.type == 1) {
         _carBB(canvas, it.sx, it.sy, it.sc, it.col, it.onc);
+      } else if (it.type == 3) {
+        // نوشته‌ها فقط وقتی نزدیک‌ایم دیده می‌شوند (۳۴۰ → ۱۸۰ واحد: کم‌کم پدیدار)
+        final near = _c01((340 - it.f) / 160);
+        drawWalkMark(canvas, it.m!, it.sx, it.sy, it.sc, cam.t, dark, near);
       } else {
         _goalSign(canvas, it.sx, it.sy, it.sc);
       }
