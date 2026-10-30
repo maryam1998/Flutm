@@ -6,6 +6,7 @@ import '../map/draw_utils.dart' show toFa;
 import '../map/map_canvas.dart';
 import '../map/map_ops.dart';
 import '../map/today_focus.dart';
+import '../map/walk_view.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/background_store.dart';
@@ -431,6 +432,8 @@ class _MapTabState extends State<MapTab> {
                     _toolBtn(Icons.format_list_bulleted, 'اهداف', ink,
                         _openGoals),
                     _toolBtn(Icons.fit_screen, 'نمایش همه', ink, _fit),
+                    _toolBtn(Icons.directions_walk, 'قدم‌زدن', ink,
+                        () => openWalkView(context, store.state)),
                     _toolBtn(
                       Icons.today,
                       'فقط امروز',

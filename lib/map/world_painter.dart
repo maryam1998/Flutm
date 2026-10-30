@@ -1351,3 +1351,528 @@ void drawTrunkGrowth(
     c.drawPath(_path, _fill(i.isEven ? gr[0] : gr[1]));
   }
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  نمای اول‌شخص 🚶  (انگار خودِ کاربر روی جاده‌ی هدف راه می‌رود)
+//  همان جاده، همان گیاه و خانه و ماشین‌های نقشه، ولی از چشمِ آدمی که روی جاده
+//  ایستاده: افق، آسمان، تپه‌ها، چپ و راستِ جاده. ورودی: WalkLayer.prepare
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// حالتِ دوربینِ نمای اول‌شخص (UI آن را تغییر می‌دهد و painter می‌خواند)
+class WalkCam {
+  double d = 0; // فاصله‌ی پیموده‌شده از ابتدای جاده
+  double yaw = 0; // چرخشِ سر نسبت به جهتِ جاده (رادیان)
+  double t = 0; // زمان بر حسبِ ثانیه
+  double phase = 0; // فازِ قدم‌ها (برای تکانِ دوربین)
+  bool walking = true;
+  double dir = 1.0; // ۱ = به سمتِ هدف، ‎-۱ = برگشت به «من»
+}
+
+class WalkData {
+  WalkData(this.gp, this.road, this.pal, this.gm, this.reach, this.paved,
+      this.name, this.icon);
+  final _GPlan gp;
+  final _RoadPoly road;
+  final _Plan pal;
+  final double gm, reach, paved;
+  final String name, icon;
+  TextPainter? _iconTp;
+
+  double get length => road.length;
+
+  /// دورترین جایی که می‌شود رفت (کمی مانده به تابلوی هدف)
+  double get maxD => math.max(0.0, road.length - 110.0);
+}
+
+class WalkLayer {
+  static WalkData? prepare(MapState s, Goal g) {
+    WorldLayer._minMs = 0;
+    WorldLayer._refresh(s);
+    var seed = 0;
+    final sv = s.extra['worldSeed'];
+    if (sv is num) {
+      seed = sv.toInt();
+    } else {
+      seed = math.Random().nextInt(1 << 30) + 1;
+      s.extra['worldSeed'] = seed;
+    }
+    if (WorldLayer._plan == null || WorldLayer._planSeed != seed) {
+      WorldLayer._plan = _buildPlan(seed);
+      WorldLayer._planSeed = seed;
+      WorldLayer._gPlans.clear();
+    }
+    final gp = WorldLayer._gPlans
+        .putIfAbsent(g.id, () => _genGoalPlan(g.id, seed));
+    final cp = geo.trunkControlPoints(g, s.me);
+    final road = _RoadPoly.build(cp, gp.side * 30.0, gp);
+    if (road == null) return null;
+    final gm = WorldLayer._goalMin[g.id] ?? 0.0;
+    final reach = math.min(
+        road.length,
+        14.0 +
+            road.length * math.pow(_c01(gm / _kRoadFull), 0.7).toDouble());
+    final paved = road.length * _ease((gm - _hr(20)) / _hr(380));
+    return WalkData(gp, road, WorldLayer._plan!, gm, reach, paved, g.name,
+        g.icon.isEmpty ? '🎯' : g.icon);
+  }
+}
+
+class _WItem {
+  _WItem(this.type, this.f, this.sx, this.sy, this.sc);
+  final int type; // ۰ المان ۱ ماشین ۲ تابلوی هدف
+  final double f, sx, sy, sc;
+  _El? e;
+  double p = 1.0;
+  Color col = const Color(0xFFE5484D);
+  bool onc = false;
+}
+
+class WalkPainter extends CustomPainter {
+  WalkPainter(this.data, this.cam, this.dark, Listenable repaint)
+      : super(repaint: repaint);
+  final WalkData data;
+  final WalkCam cam;
+  final bool dark;
+
+  // دوربین
+  double _cpx = 0, _cpy = 0, _dx = 1, _dy = 0, _rx = 0, _ry = 1;
+  double _focal = 1, _cx = 0, _hor = 0, _camH = 17;
+  // خروجیِ _pr
+  double _f = 0, _x = 0, _y = 0;
+
+  static final Paint _flat = Paint()..isAntiAlias = false;
+
+  void _pr(Offset p) {
+    final rx = p.dx - _cpx, ry = p.dy - _cpy;
+    _f = rx * _dx + ry * _dy;
+    if (_f < 0.01) {
+      _x = 0;
+      _y = 0;
+      return;
+    }
+    final r = rx * _rx + ry * _ry;
+    _x = _cx + r / _f * _focal;
+    _y = _hor + _camH * _focal / _f;
+  }
+
+  double _gk(double sd) {
+    if (sd > data.reach) return 0.0;
+    final k = _ease((data.gm - _hr(3 + 0.02 * sd)) / _hr(70));
+    return 0.9 * k * (0.75 + 0.25 * math.sin(sd * 0.013 + data.gp.wobP1));
+  }
+
+  void _quad(Canvas c, List<double> sx, List<double> sy, List<double> sf,
+      int i, int a, int b, Color col) {
+    const w = 8;
+    final i0 = i * w, i1 = (i + 1) * w;
+    if (sf[i0 + a] < 3 || sf[i0 + b] < 3 || sf[i1 + a] < 3 || sf[i1 + b] < 3) {
+      return;
+    }
+    _path
+      ..reset()
+      ..moveTo(sx[i0 + a], sy[i0 + a])
+      ..lineTo(sx[i0 + b], sy[i0 + b])
+      ..lineTo(sx[i1 + b], sy[i1 + b])
+      ..lineTo(sx[i1 + a], sy[i1 + a])
+      ..close();
+    c.drawPath(_path, _flat..color = col);
+  }
+
+  void _haze(Canvas c, double w, double hor, double yLim, double alpha,
+      Color col) {
+    final top = hor - 220;
+    final stop = (hor - top) / (yLim - top);
+    final r = Rect.fromLTRB(0, top, w, yLim);
+    c.drawRect(
+        r,
+        Paint()
+          ..shader = ui.Gradient.linear(Offset(0, top), Offset(0, yLim), [
+            col.withValues(alpha: 0.0),
+            col.withValues(alpha: alpha),
+            col.withValues(alpha: 0.0),
+          ], [
+            0.0,
+            stop.clamp(0.05, 0.95).toDouble(),
+            1.0
+          ]));
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final road = data.road;
+    final L = road.length;
+    _focal = w * 0.95;
+    _cx = w / 2;
+    _hor = h * 0.40;
+    final d = cam.d.clamp(0.0, L).toDouble();
+
+    // ── دوربین: روی جاده، کمی سمتِ راست؛ نگاه به جهتِ حرکت ──
+    final c0 = road.pos(d);
+    final pA = road.pos(math.max(0.0, d - 4));
+    final pB = road.pos(math.min(L, d + 24));
+    final rv = pB - pA;
+    final roadYaw = rv.distance < 0.01 ? 0.0 : math.atan2(rv.dy, rv.dx);
+    final fwd = cam.dir >= 0 ? 1.0 : -1.0;
+    final face = cam.dir >= 0 ? roadYaw : roadYaw + math.pi;
+    final bob = cam.walking ? math.sin(cam.phase) * 0.55 : 0.0;
+    final sway = cam.walking ? math.cos(cam.phase * 0.5) * 0.8 : 0.0;
+    final nr = Offset(-math.sin(roadYaw), math.cos(roadYaw));
+    final cp = c0 + nr * ((5.0 + sway) * fwd);
+    final yaw = face + cam.yaw;
+    _cpx = cp.dx;
+    _cpy = cp.dy;
+    _dx = math.cos(yaw);
+    _dy = math.sin(yaw);
+    _rx = -math.sin(yaw);
+    _ry = math.cos(yaw);
+    _camH = 17.0 + bob;
+    final hor = _hor, focal = _focal, cx = _cx;
+
+    final G = _ease(data.gm / _hr(200)); // سبزیِ کلیِ هدف
+
+    // ── آسمان ──
+    final skyTop = dark ? const Color(0xFF0B1226) : const Color(0xFF86C1EE);
+    final skyLow = dark ? const Color(0xFF2B3558) : const Color(0xFFEAF4FB);
+    canvas.drawRect(
+        Rect.fromLTRB(0, 0, w, hor + 2),
+        Paint()
+          ..shader = ui.Gradient.linear(
+              Offset.zero, Offset(0, hor), [skyTop, skyLow]));
+    if (dark) {
+      for (var i = 0; i < 40; i++) {
+        final a = i * 2.399;
+        final x = cx + (((a * 1.7 - yaw + math.pi) % (2 * math.pi)) - math.pi) *
+            focal;
+        final y = (math.sin(i * 12.9898) * 0.5 + 0.5) * hor * 0.85;
+        if (x < 0 || x > w) continue;
+        canvas.drawCircle(Offset(x, y), 0.9,
+            _fill(const Color(0xAAFFFFFF)));
+      }
+    } else {
+      final sunX = cx + (((-0.55 - yaw + math.pi) % (2 * math.pi)) - math.pi) *
+          focal;
+      if (sunX > -60 && sunX < w + 60) {
+        canvas.drawCircle(Offset(sunX, hor * 0.42), 44,
+            _fill(const Color(0x33FFE9A8)));
+        canvas.drawCircle(Offset(sunX, hor * 0.42), 24,
+            _fill(const Color(0xFFFFF1B8)));
+      }
+    }
+    // ابرها
+    final cloud = dark
+        ? const Color.fromRGBO(255, 255, 255, 0.07)
+        : const Color.fromRGBO(255, 255, 255, 0.75);
+    for (var i = 0; i < 6; i++) {
+      final a = i * 1.07 + cam.t * 0.004;
+      final x = cx + (((a - yaw + math.pi) % (2 * math.pi)) - math.pi) * focal;
+      if (x < -160 || x > w + 160) continue;
+      final y = hor * (0.16 + 0.11 * (i % 3));
+      final k = 0.8 + 0.2 * (i % 2);
+      canvas.drawOval(
+          Rect.fromCenter(center: Offset(x, y), width: 150 * k, height: 26 * k),
+          _fill(cloud));
+      canvas.drawOval(
+          Rect.fromCenter(
+              center: Offset(x + 26 * k, y - 10 * k),
+              width: 70 * k,
+              height: 24 * k),
+          _fill(cloud));
+    }
+
+    // ── تپه‌ها / تپه‌ماهورِ دور ──
+    void hills(double amp, double k, double ph, double par, Color col) {
+      _path.reset();
+      _path.moveTo(0, hor + 3);
+      for (var x = 0.0; x <= w + 16; x += 16) {
+        final a = yaw * par + (x - cx) / focal;
+        final y = hor -
+            amp *
+                (0.5 +
+                    0.5 * math.sin(a * k + ph) +
+                    0.3 * math.sin(a * k * 2.3 + ph * 1.7));
+        _path.lineTo(x, y);
+      }
+      _path.lineTo(w + 16, hor + 3);
+      _path.close();
+      canvas.drawPath(_path, _fill(col));
+    }
+
+    final h1 = Color.lerp(
+        dark ? const Color(0xFF3A3A4D) : const Color(0xFFD9C3A5),
+        dark ? const Color(0xFF284A47) : const Color(0xFFA9CFA0),
+        G)!;
+    final h2 = Color.lerp(
+        dark ? const Color(0xFF45402F) : const Color(0xFFCDB48F),
+        dark ? const Color(0xFF2B5A3C) : const Color(0xFF86B97A),
+        G)!;
+    hills(34, 3.1, data.gp.wobP1, 1.0, h1);
+    hills(20, 5.3, data.gp.wobP2, 1.0, h2);
+
+    // ── زمینِ پایه ──
+    final sand = dark ? const Color(0xFF6B5E43) : const Color(0xFFE6D3A8);
+    final grass = dark ? const Color(0xFF2F6B3F) : const Color(0xFF7FBF6A);
+    canvas.drawRect(Rect.fromLTRB(0, hor, w, h),
+        _fill(Color.lerp(sand, grass, _gk(d))!));
+
+    // ── نمونه‌های جاده ──
+    final ss = <double>[];
+    var s = math.max(0.0, d - 300);
+    final sEnd = math.min(L, d + 1100);
+    while (s < sEnd) {
+      ss.add(s);
+      s += s < d ? 7.0 : 6.0 + (s - d) * 0.05;
+    }
+    ss.add(sEnd);
+    final n = ss.length;
+    const W = 8;
+    final sx = List<double>.filled(n * W, 0.0);
+    final sy = List<double>.filled(n * W, 0.0);
+    final sf = List<double>.filled(n * W, 0.0);
+    for (var i = 0; i < n; i++) {
+      final si = ss[i];
+      final a = road.pos(math.max(0.0, si - 2));
+      final b = road.pos(math.min(L, si + 2));
+      var tv = b - a;
+      final tl = tv.distance;
+      tv = tl < 1e-6 ? const Offset(1, 0) : tv / tl;
+      final nrm = Offset(-tv.dy, tv.dx);
+      final cpos = road.pos(si);
+      final hw = si <= data.paved ? 15.0 : 13.0;
+      final offs = [-450.0, -(hw + 7), -hw, -0.9, 0.9, hw, hw + 7, 450.0];
+      for (var j = 0; j < W; j++) {
+        _pr(cpos + nrm * offs[j]);
+        sx[i * W + j] = _x;
+        sy[i * W + j] = _y;
+        sf[i * W + j] = _f;
+      }
+    }
+
+    // کنارِ جاده: بیابان ← سبزی (آهسته و تکه‌تکه)
+    for (var i = 0; i < n - 1; i++) {
+      final si = ss[i];
+      final stripe = ((si / 45).floor() % 2 == 0) ? 0.035 : -0.035;
+      var g = Color.lerp(sand, grass, _gk(si))!;
+      g = stripe > 0
+          ? Color.lerp(g, Colors.white, stripe)!
+          : Color.lerp(g, Colors.black, -stripe)!;
+      _quad(canvas, sx, sy, sf, i, 0, 1, g);
+      _quad(canvas, sx, sy, sf, i, 6, 7, g);
+    }
+    // لبه‌ی جاده، خودِ جاده و خطِ وسط
+    for (var i = 0; i < n - 1; i++) {
+      final si = ss[i];
+      final paved = si <= data.paved;
+      final verge = paved
+          ? (dark ? const Color(0xFF8A8F98) : const Color(0xFFC9CDD3))
+          : (dark ? const Color(0xFF6F6246) : const Color(0xFFD9C7A0));
+      final body = paved
+          ? (dark ? const Color(0xFF4B5160) : const Color(0xFF6B7280))
+          : (dark ? const Color(0xFF5E5239) : const Color(0xFFC4A874));
+      _quad(canvas, sx, sy, sf, i, 1, 2, verge);
+      _quad(canvas, sx, sy, sf, i, 5, 6, verge);
+      _quad(canvas, sx, sy, sf, i, 2, 5, body);
+      if (paved && ((si / 24).floor() % 2 == 0)) {
+        _quad(canvas, sx, sy, sf, i, 3, 4, const Color(0xCCFFFFFF));
+      }
+    }
+
+    // مه‌ی افق
+    final hazeCol = dark ? const Color(0xFF2B3558) : const Color(0xFFF4EBD8);
+    canvas.drawRect(
+        Rect.fromLTRB(0, hor - 30, w, hor + 120),
+        Paint()
+          ..shader = ui.Gradient.linear(
+              Offset(0, hor - 30), Offset(0, hor + 120), [
+            hazeCol.withValues(alpha: 0.0),
+            hazeCol.withValues(alpha: 0.55),
+            hazeCol.withValues(alpha: 0.0)
+          ], const [
+            0.0,
+            0.25,
+            1.0
+          ]));
+
+    // ── چیزهای کنارِ جاده (از دور به نزدیک) ──
+    final items = <_WItem>[];
+    final pal = data.pal;
+    for (final e in data.gp.els) {
+      if (e.k == 5 || e.k == 12) continue;
+      if (data.gm < e.at) continue;
+      if (e.k == 10) {
+        if (e.sd > data.paved - 6) continue;
+      } else if (e.sd > data.reach - 6) {
+        continue;
+      }
+      final a = road.ang(e.sd);
+      final pos = road.pos(e.sd) + Offset(-math.sin(a), math.cos(a)) * e.off;
+      _pr(pos);
+      if (_f < 12 || _f > 1000) continue;
+      final sc = focal / _f;
+      final half = 30 * e.s * sc;
+      if (_x < -half || _x > w + half) continue;
+      if (_y < hor - 2) continue;
+      final p = _ease((data.gm - e.at) / _rampMin(e.k));
+      if (p < 0.02) continue;
+      final it = _WItem(0, _f, _x, _y, sc);
+      it.e = _El(e.k, _x, _y, e.s * sc, e.at, e.v, e.a);
+      it.p = p;
+      items.add(it);
+    }
+    // ماشین‌ها
+    if (data.paved > 140 && data.gm > _hr(200)) {
+      final nCar = math.min(4, (data.paved / 280).floor());
+      for (var c = 0; c < nCar; c++) {
+        final hsh =
+            ((math.sin(c * 12.9898 + data.gp.wobP1) * 43758.5453) % 1.0).abs();
+        final speed = 38 + hsh * 40;
+        final dr = c.isEven ? 1.0 : -1.0;
+        var dd = (hsh * 1000 + cam.t * speed * dr) % data.paved;
+        if (dd < 0) dd += data.paved;
+        final a = road.ang(dd);
+        final pos = road.pos(dd) +
+            Offset(-math.sin(a), math.cos(a)) * (dr > 0 ? 7.0 : -7.0);
+        _pr(pos);
+        if (_f < 8 || _f > 900) continue;
+        final it = _WItem(1, _f, _x, _y, focal / _f);
+        it.col = pal.carColors[c % pal.carColors.length];
+        it.onc = (dr > 0) != (cam.dir >= 0);
+        items.add(it);
+      }
+    }
+    // تابلوی هدف
+    {
+      final a = road.ang(L);
+      final pos = road.pos(L) + Offset(-math.sin(a), math.cos(a)) * 0.0;
+      _pr(pos);
+      if (_f > 10 && _f < 1400) {
+        items.add(_WItem(2, _f, _x, _y, focal / _f));
+      }
+    }
+    items.sort((a, b) => b.f.compareTo(a.f));
+
+    var hz1 = false, hz2 = false;
+    for (final it in items) {
+      if (!hz1 && it.f < 520) {
+        hz1 = true;
+        _haze(canvas, w, hor, hor + _camH * focal / 520, 0.40, hazeCol);
+      }
+      if (!hz2 && it.f < 260) {
+        hz2 = true;
+        _haze(canvas, w, hor, hor + _camH * focal / 260, 0.28, hazeCol);
+      }
+      if (it.type == 0) {
+        _drawSprite(canvas, it.e!, it.p, cam.t, pal);
+      } else if (it.type == 1) {
+        _carBB(canvas, it.sx, it.sy, it.sc, it.col, it.onc);
+      } else {
+        _goalSign(canvas, it.sx, it.sy, it.sc);
+      }
+    }
+  }
+
+  void _drawSprite(Canvas canvas, _El e, double p, double t, _Plan pl) {
+    switch (e.k) {
+      case 0:
+        WorldLayer._grass(canvas, e, p, t);
+        break;
+      case 1:
+        WorldLayer._flower(canvas, e, p, t);
+        break;
+      case 2:
+        WorldLayer._bush(canvas, e, p);
+        break;
+      case 3:
+        WorldLayer._tree(canvas, e, p, t);
+        break;
+      case 4:
+        WorldLayer._pine(canvas, e, p);
+        break;
+      case 6:
+        WorldLayer._rock(canvas, e, p);
+        break;
+      case 7:
+        WorldLayer._mushroom(canvas, e, p);
+        break;
+      case 8:
+        WorldLayer._hay(canvas, e, p);
+        break;
+      case 9:
+        WorldLayer._fence(canvas, e, p);
+        break;
+      case 10:
+        WorldLayer._lamp(canvas, e, p, t);
+        break;
+      case 11:
+        WorldLayer._windmill(canvas, e, p, t);
+        break;
+      case 20:
+      case 21:
+        WorldLayer._house(canvas, e, p, t, pl);
+        break;
+      case 22:
+        WorldLayer._tower(canvas, e, p, t);
+        break;
+      case 23:
+        WorldLayer._barn(canvas, e, p);
+        break;
+    }
+  }
+
+  /// ماشین از پشت (دور می‌شود) یا از روبه‌رو (می‌آید)
+  void _carBB(Canvas c, double x, double y, double sc, Color col, bool onc) {
+    c.save();
+    c.translate(x, y);
+    c.scale(sc, sc);
+    c.drawOval(Rect.fromCenter(center: const Offset(0, 0.5), width: 22, height: 4),
+        _fill(const Color(0x33000000)));
+    c.drawRRect(
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-9, -9, 18, 7), const Radius.circular(1.8)),
+        _fill(col));
+    c.drawRRect(
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-6.5, -14, 13, 6), const Radius.circular(2)),
+        _fill(Color.lerp(col, Colors.black, 0.12)!));
+    c.drawRRect(
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-5, -13, 10, 4), const Radius.circular(1.2)),
+        _fill(const Color(0xCCDFF3FF)));
+    c.drawRect(const Rect.fromLTWH(-8.5, -3, 3, 3.2),
+        _fill(const Color(0xFF1F2937)));
+    c.drawRect(const Rect.fromLTWH(5.5, -3, 3, 3.2),
+        _fill(const Color(0xFF1F2937)));
+    final lamp = onc ? const Color(0xFFFFF3B0) : const Color(0xFFFF4444);
+    c.drawCircle(const Offset(-6.5, -6), 1.3, _fill(lamp));
+    c.drawCircle(const Offset(6.5, -6), 1.3, _fill(lamp));
+    c.restore();
+  }
+
+  void _goalSign(Canvas c, double x, double y, double sc) {
+    var tp = data._iconTp;
+    if (tp == null) {
+      tp = TextPainter(
+          text: TextSpan(text: data.icon, style: const TextStyle(fontSize: 40)),
+          textDirection: TextDirection.rtl)
+        ..layout();
+      data._iconTp = tp;
+    }
+    c.save();
+    c.translate(x, y);
+    c.scale(sc, sc);
+    c.drawOval(Rect.fromCenter(center: const Offset(0, 1), width: 40, height: 7),
+        _fill(const Color(0x33000000)));
+    c.drawLine(const Offset(0, 0), const Offset(0, -64),
+        _stroke(const Color(0xFF6B4423), 3));
+    final panel = RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-34, -122, 68, 60), const Radius.circular(10));
+    c.drawRRect(panel, _fill(const Color(0xF2FFFFFF)));
+    c.drawRRect(panel, _stroke(const Color(0xFFC9962B), 3));
+    tp.paint(c, Offset(-tp.width / 2, -122 + (60 - tp.height) / 2));
+    c.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant WalkPainter old) => true;
+}
