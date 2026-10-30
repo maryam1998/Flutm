@@ -186,13 +186,6 @@ class WalkHit {
   final double sc;
 }
 
-/// آیا خودِ این شاخه یا یکی از زیرشاخه‌هایش روزی انجام شده؟
-bool _anyDone(ActionNode a) {
-  final own = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys};
-  if (own.any((k) => footDoneOn(a, k))) return true;
-  return a.children.any(_anyDone);
-}
-
 /// همه‌ی ثبت‌های یک هدف (و حلقه‌های «نزدیک شدن به هدف»ش) به ترتیبِ تاریخ
 List<WalkMark> collectWalkMarks(MapState s, Goal g) {
   final marks = <WalkMark>[];
@@ -227,7 +220,7 @@ List<WalkMark> collectWalkMarks(MapState s, Goal g) {
         ));
       }
       // شاخه‌ای که هنوز انجام نشده هم کنارِ جاده دیده می‌شود (نهالِ منتظر)
-      if (keys.isEmpty && !fin && a.text.trim().isNotEmpty && !_anyDone(a)) {
+      if (keys.isEmpty && !fin) {
         marks.add(WalkMark(
           dayKey: '',
           ord: 1 << 30,
