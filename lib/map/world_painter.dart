@@ -23,6 +23,18 @@ double _ease(double x) {
   return t * t * (3 - 2 * t);
 }
 
+/// سرعتِ رشدِ دنیا: دقیقه‌های واقعیِ کار → «دقیقه‌ی دنیا».
+/// دنیا ۱۰۲۰ واحد دارد و با ۱۵۰ ساعتِ کار (۹۰۰۰ دقیقه) به شکلِ کامل می‌رسد؛
+/// بعد از آن هم آهسته ادامه می‌دهد و چیزهای دیرتر (بشقاب‌پرنده، خانه‌های بلند…)
+/// پس از صدها ساعت پیدا می‌شوند. ابتدا سریع است تا کاربر زود پاداش ببیند.
+/// برای کندتر/تندتر کردن فقط [_kFullMinutes] را عوض کن.
+const double _kFullMinutes = 9000.0;
+const double _kFullWorld = 1020.0;
+double _pace(double m) {
+  if (m <= 0) return 0.0;
+  return _kFullWorld * math.pow(m / _kFullMinutes, 0.62).toDouble();
+}
+
 /// شعاعِ زمینِ سرسبز بر حسبِ دقیقه‌های کارِ کل
 double _landR(double m) => 150 + 95 * math.sqrt(math.max(0.0, m));
 
@@ -278,7 +290,7 @@ _Plan _buildPlan(int seed) {
   var houses = 0;
   for (final r in pl.roads) {
     var sd = 130 + R() * 40;
-    while (sd < r.length - 80 && houses < 140) {
+    while (sd < r.length - 80 && houses < 180) {
       if (R() < houseP) {
         for (final side in const [-1, 1]) {
           if (R() > 0.6) continue;
@@ -311,7 +323,7 @@ _Plan _buildPlan(int seed) {
   }
 
   // پراکنده‌ها: چمن، گل، درخت، برکه…
-  const nScatter = 280;
+  const nScatter = 380;
   for (var i = 1; i <= nScatter; i++) {
     final at = 0.3 * math.pow(i, 1.45) * (0.75 + 0.5 * R());
     final k = _pickKind(at, pl.theme, R);
@@ -364,7 +376,7 @@ _Plan _buildPlan(int seed) {
     pl.flat.add(_El(31, p.dx, p.dy, 0.9 + R() * 0.5, at, 0, R() * 6));
   }
   if (R() < 0.18) {
-    final at = 600 + R() * 800;
+    final at = 700 + R() * 1000;
     final p = anyPos(at);
     pl.tall.add(_El(32, p.dx, p.dy, 1.0, at, 0, R() * 6));
   }
@@ -428,8 +440,9 @@ class WorldLayer {
     view = Rect.fromLTWH(
         -cam.x / sc, -cam.y / sc, size.width / sc, size.height / sc);
     if (s.extra['worldOff'] == true) return;
-    final m = totalMinutes(s);
-    if (m < 0.02) return; // شروع: صفحه‌ی سفید
+    final realMin = totalMinutes(s);
+    if (realMin < 0.02) return; // شروع: صفحه‌ی سفید
+    final m = _pace(realMin); // دقیقه‌ی دنیا
 
     var seed = 0;
     final sv = s.extra['worldSeed'];
@@ -608,8 +621,8 @@ class WorldLayer {
     }
 
     // ── پرنده و ابر ──
-    if (m > 25) _birds(canvas, m, t, vv);
-    if (m > 40) _clouds(canvas, m, t, isDark, vv);
+    if (m > 60) _birds(canvas, m, t, vv);
+    if (m > 120) _clouds(canvas, m, t, isDark, vv);
   }
 
   // ───────────── اجزا ─────────────
