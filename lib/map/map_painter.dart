@@ -3598,21 +3598,7 @@ class MapPainter extends CustomPainter {
             rect: lr));
       }
 
-      final cAt = a.extra['createdAt'];
-      if ((_showDateOf(a.extra) || _showTimeOf(a.extra)) &&
-          cAt is num &&
-          cAt > 0) {
-        final stamp = _formatStamp(cAt.toInt(), a.extra);
-        if (stamp.isNotEmpty) {
-          final sb = drawText(canvas, stamp, lx, ly + lines.length * 16,
-              size: math.max(9, fs * 0.62),
-              color: withOp(atc, 0.6),
-              weight: FontWeight.w400,
-              align: right ? LabelAlign.right : LabelAlign.left,
-              outline: 2);
-          lr = lr == null ? sb : lr.expandToInclude(sb);
-        }
-      }
+      // تاریخ/ساعتِ شاخه و زیرشاخه روی نقشه نمایش داده نمی‌شود
       if (hasFoldBtn) {
         foldBtn(lr);
       }
