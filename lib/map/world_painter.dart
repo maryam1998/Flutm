@@ -6,12 +6,13 @@ import 'package:flutter/material.dart';
 
 import '../models/map_models.dart';
 import 'camera.dart';
+import 'geometry.dart' as geo;
 import 'seeded.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  دنیای در حال رشد 🌱🏡🚗
-//  صفحه‌ی سفید با هر دقیقه کاری که کاربر روی همه‌ی شاخه‌ها می‌گذارد کم‌کم به یک
-//  سرزمین سرسبز تبدیل می‌شود: چمن، گل، درخت، برکه، جاده، خانه، ماشین، آسیاب…
+//  بیابانِ خشک و خالی؛ با ساعت‌های کاری که کاربر روی هر هدف می‌گذارد (ماه‌ها و
+//  سال‌ها) کنارِ جاده‌ی همان هدف آهسته سبزی، گیاه، خانه و ماشین پیدا می‌شود.
 //  شکلِ نهایی از روی یک «دانه‌ی تصادفیِ» ثابتِ هر کاربر ساخته می‌شود
 //  (state.extra['worldSeed']) و قابل پیش‌بینی نیست؛ هر کاربر دنیای خودش را دارد.
 //  برای خاموش‌کردن: state.extra['worldOff'] = true
@@ -22,21 +23,6 @@ double _ease(double x) {
   final t = _c01(x);
   return t * t * (3 - 2 * t);
 }
-
-/// سرعتِ رشدِ دنیا: دقیقه‌های واقعیِ کار → «دقیقه‌ی دنیا».
-/// دنیا ۱۰۲۰ واحد دارد و با ۱۵۰ ساعتِ کار (۹۰۰۰ دقیقه) به شکلِ کامل می‌رسد؛
-/// بعد از آن هم آهسته ادامه می‌دهد و چیزهای دیرتر (بشقاب‌پرنده، خانه‌های بلند…)
-/// پس از صدها ساعت پیدا می‌شوند. ابتدا سریع است تا کاربر زود پاداش ببیند.
-/// برای کندتر/تندتر کردن فقط [_kFullMinutes] را عوض کن.
-const double _kFullMinutes = 9000.0;
-const double _kFullWorld = 1020.0;
-double _pace(double m) {
-  if (m <= 0) return 0.0;
-  return _kFullWorld * math.pow(m / _kFullMinutes, 0.62).toDouble();
-}
-
-/// شعاعِ زمینِ سرسبز بر حسبِ دقیقه‌های کارِ کل
-double _landR(double m) => 150 + 95 * math.sqrt(math.max(0.0, m));
 
 /// دقیقه‌های کارِ یک شاخه (ثبت‌شده + تایمرِ روشن) به‌همراهِ همه‌ی زیرشاخه‌هایش
 double actionTotalMinutes(ActionNode a) {
@@ -81,6 +67,17 @@ const List<List<Color>> _kGreens = [
 // انواع: ۰ چمن ۱ گل ۲ بوته ۳ درخت ۴ کاج ۵ برکه ۶ سنگ ۷ قارچ ۸ کاه ۹ نرده
 // ۱۰ چراغ ۱۱ آسیاب ۱۲ مزرعه ۲۰ خانه ۲۱ خانه‌ی دوطبقه ۲۲ برج ۲۳ انبار
 // ۳۰ بالن ۳۱ رنگین‌کمان ۳۲ بشقاب‌پرنده
+//
+// اصلِ کار: دنیا از یک بیابانِ خشک شروع می‌شود. برای هر هدف، کنارِ تنه‌ی «من ← هدف»
+// (همان مسیری که کاربر با انگشت می‌سازد) یک جاده ساخته می‌شود؛ طولِ جاده با
+// وقتی که روی همان هدف گذاشته شده کم‌کم زیاد می‌شود. سبزی، گیاه، خانه و ماشین
+// فقط دورِ جاده‌ی همان هدف و خیلی آهسته (ماه‌ها و سال‌ها) پیدا می‌شوند.
+// اگر هدفی پاک شود جاده و سبزیِ آن هم برمی‌گردد به بیابان.
+
+/// دقیقه‌ی کارِ روی یک هدف تا جاده‌اش به طولِ کامل برسد (۴۰۰ ساعت)
+const double _kRoadFull = 24000.0;
+double _hr(double h) => h * 60.0;
+
 class _El {
   _El(this.k, this.x, this.y, this.s, this.at, this.v, this.a);
   final int k;
@@ -88,43 +85,78 @@ class _El {
   final int v;
 }
 
-class _Lobe {
-  _Lobe(this.ang, this.dist, this.size, this.at);
-  final double ang, dist, size, at;
+/// المانِ وابسته به جاده: [sd] فاصله از ابتدای جاده، [off] فاصله‌ی عمودی از جاده
+class _GEl {
+  _GEl(this.k, this.sd, this.off, this.s, this.at, this.v, this.a);
+  final int k;
+  final double sd, off, s, at, a;
+  final int v;
 }
 
-class _Road {
-  _Road(this.pts, this.m0) {
-    cum.add(0);
-    for (var i = 1; i < pts.length; i++) {
-      cum.add(cum.last + (pts[i] - pts[i - 1]).distance);
+class _Blob {
+  _Blob(this.sd, this.off, this.r, this.at, this.deep);
+  final double sd, off, r, at;
+  final bool deep;
+}
+
+class _GPlan {
+  final List<_GEl> els = [];
+  final List<_Blob> blobs = [];
+  int theme = 0; // ۰ روستا ۱ جنگل ۲ مزرعه ۳ دریاچه
+  double side = 1.0;
+}
+
+class _Plan {
+  final List<_El> skyFlat = []; // رنگین‌کمان
+  final List<_El> skyTall = []; // بالن، بشقاب‌پرنده (مختصات نسبت به «من»)
+  List<Color> houseColors = [], roofColors = [], carColors = [];
+}
+
+class _RoadPoly {
+  _RoadPoly._(this.pts, this.cum, this.length, this.bounds);
+  final List<Offset> pts;
+  final List<double> cum;
+  final double length;
+  final Rect bounds;
+  static const double start = 62.0;
+
+  static _RoadPoly? build(geo.Cubic cp, double off) {
+    const n = 40;
+    final pts = <Offset>[];
+    final cum = <double>[0.0];
+    var minX = 1e12, minY = 1e12, maxX = -1e12, maxY = -1e12;
+    for (var i = 0; i < n; i++) {
+      final t = i / (n - 1);
+      final p = cp.at(t);
+      final a = cp.tangent(t);
+      final q = p + Offset(-math.sin(a), math.cos(a)) * off;
+      pts.add(q);
+      if (q.dx < minX) minX = q.dx;
+      if (q.dx > maxX) maxX = q.dx;
+      if (q.dy < minY) minY = q.dy;
+      if (q.dy > maxY) maxY = q.dy;
+      if (i > 0) cum.add(cum.last + (pts[i] - pts[i - 1]).distance);
     }
-    length = cum.last;
-    final d = <double>[];
-    for (var s = 10.0; s + 12 < length; s += 26) {
-      final a = pos(s), b = pos(s + 12);
-      d.addAll([a.dx, a.dy, b.dx, b.dy]);
-    }
-    dashes = Float32List.fromList(d);
+    final len = cum.last - start - 44.0;
+    if (len < 40) return null;
+    return _RoadPoly._(pts, cum, len, Rect.fromLTRB(minX, minY, maxX, maxY));
   }
 
-  final List<Offset> pts;
-  final double m0;
-  final List<double> cum = [];
-  late final double length;
-  late final Float32List dashes;
-
-  int get dashCount => dashes.length ~/ 4;
-
   int _seg(double d) {
-    for (var i = 1; i < pts.length; i++) {
-      if (d <= cum[i]) return i;
+    var lo = 1, hi = pts.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (cum[mid] >= d) {
+        hi = mid;
+      } else {
+        lo = mid + 1;
+      }
     }
-    return pts.length - 1;
+    return lo;
   }
 
   Offset pos(double d) {
-    final dd = d.clamp(0.0, cum.last).toDouble();
+    final dd = (start + d).clamp(0.0, cum.last).toDouble();
     final i = _seg(dd);
     final seg = cum[i] - cum[i - 1];
     final f = seg == 0 ? 0.0 : (dd - cum[i - 1]) / seg;
@@ -132,60 +164,40 @@ class _Road {
   }
 
   double ang(double d) {
-    final i = _seg(d.clamp(0.0, cum.last).toDouble());
+    final dd = (start + d).clamp(0.0, cum.last).toDouble();
+    final i = _seg(dd);
     final v = pts[i] - pts[i - 1];
     return math.atan2(v.dy, v.dx);
   }
 
-  /// چه مقدار از جاده تا دقیقه‌ی [m] ساخته شده است
-  double revealed(double m) {
-    if (m <= m0) return 0.0;
-    final d = 55.0 * math.pow(m - m0, 0.8);
-    return math.min(math.min(d, length), _landR(m));
-  }
-
-  /// کمترین دقیقه‌ای که جاده به فاصله‌ی [sd] می‌رسد
-  double minuteFor(double sd) {
-    for (var m = m0; m < 6000; m += 0.5) {
-      if (revealed(m) >= sd) return m;
+  /// مسیرِ جاده را تا طولِ [len] در [p] می‌ریزد
+  void trace(Path p, double len) {
+    final a = pos(0);
+    p.moveTo(a.dx, a.dy);
+    for (var i = 1; i < pts.length; i++) {
+      final d = cum[i] - start;
+      if (d <= 0) continue;
+      if (d >= len) break;
+      p.lineTo(pts[i].dx, pts[i].dy);
     }
-    return 6000.0;
+    final e = pos(len);
+    p.lineTo(e.dx, e.dy);
   }
 }
 
-class _Plan {
-  final List<_El> flat = []; // برکه، مزرعه، رنگین‌کمان (زیرِ همه)
-  final List<_El> tall = []; // بقیه، مرتب بر اساس y
-  final List<_Road> roads = [];
-  final List<_Lobe> lobes = [];
-  int theme = 0; // ۰ روستا ۱ جنگل ۲ مزرعه ۳ دریاچه
-  List<Color> houseColors = [], roofColors = [], carColors = [];
+class _Fr {
+  _Fr(this.pl, this.road, this.gm, this.rl, this.paved, this.gi, this.end);
+  final _GPlan pl;
+  final _RoadPoly road;
+  final double gm, rl, paved;
+  final int gi;
+  final Offset end;
 }
 
-double _segDist(Offset p, Offset a, Offset b) {
-  final ab = b - a;
-  final l2 = ab.dx * ab.dx + ab.dy * ab.dy;
-  if (l2 == 0) return (p - a).distance;
-  final t = (((p.dx - a.dx) * ab.dx + (p.dy - a.dy) * ab.dy) / l2)
-      .clamp(0.0, 1.0)
-      .toDouble();
-  return (p - (a + ab * t)).distance;
-}
-
-double _roadDist(_Plan pl, Offset p) {
-  var best = 1e9;
-  for (final r in pl.roads) {
-    for (var i = 1; i < r.pts.length; i++) {
-      final d = _segDist(p, r.pts[i - 1], r.pts[i]);
-      if (d < best) best = d;
-    }
-  }
-  return best;
-}
-
-class _Placed {
-  _Placed(this.x, this.y, this.r);
-  final double x, y, r;
+class _Dr {
+  _Dr(this.e, this.p);
+  final _El e;
+  final double p;
 }
 
 double _kindRadius(int k) {
@@ -217,37 +229,217 @@ double _kindRadius(int k) {
   }
 }
 
-int _pickKind(double at, int theme, double Function() R) {
-  final w = List<double>.filled(13, 0.0);
-  w[0] = at < 15 ? 5 : 2;
-  w[1] = at < 30 ? 4 : 2.2;
-  w[2] = at > 3 ? 1.5 : 0;
-  w[6] = at > 20 ? 0.8 : 0;
-  w[7] = at > 20 ? 0.8 : 0;
-  w[3] = at > 8 ? (theme == 1 ? 4.0 : 1.6) : 0;
-  w[4] = at > 25 ? (theme == 1 ? 3.0 : 1.0) : 0;
-  w[5] = at > 40 ? (theme == 3 ? 2.2 : 0.5) : 0;
-  w[8] = (at > 60 && theme == 2) ? 1.4 : 0;
-  w[9] = at > 50 ? 0.5 : 0;
-  w[11] = at > 200 ? (theme == 2 ? 0.5 : 0.12) : 0;
-  w[12] = (at > 90 && theme == 2) ? 1.6 : 0;
+bool _isHeavy(int k) =>
+    k == 3 || k == 4 || k == 8 || k == 11 || k == 20 || k == 21 || k == 22 || k == 23;
+
+/// ساعتِ کارِ لازم روی هدف تا هر نوع پیدا شود (با کمی تصادفی)
+double _baseHours(int k) {
+  switch (k) {
+    case 0:
+      return 1.5;
+    case 1:
+      return 8;
+    case 2:
+      return 22;
+    case 6:
+      return 12;
+    case 7:
+      return 30;
+    case 3:
+      return 45;
+    case 4:
+      return 65;
+    case 5:
+      return 110;
+    case 8:
+      return 130;
+    case 9:
+      return 120;
+    case 12:
+      return 170;
+    case 20:
+      return 120;
+    case 21:
+      return 270;
+    case 23:
+      return 230;
+    case 11:
+      return 420;
+    case 22:
+      return 650;
+    case 10:
+      return 210;
+    default:
+      return 100;
+  }
+}
+
+/// مدتی که هر نوع طول می‌کشد تا کاملاً بزرگ شود
+double _rampMin(int k) {
+  switch (k) {
+    case 0:
+    case 1:
+    case 2:
+    case 6:
+    case 7:
+      return _hr(4);
+    case 3:
+    case 4:
+      return _hr(25);
+    case 10:
+      return _hr(3);
+    default:
+      return _hr(15);
+  }
+}
+
+double _offFor(int k, double s, double Function() R) {
+  switch (k) {
+    case 0:
+    case 1:
+      return 24 + R() * 120;
+    case 2:
+      return 34 + R() * 90;
+    case 6:
+    case 7:
+      return 30 + R() * 110;
+    case 3:
+    case 4:
+      return 50 + R() * 110;
+    case 8:
+      return 50 + R() * 60;
+    case 9:
+      return 56 + R() * 8;
+    case 11:
+      return 85 + R() * 60;
+    case 20:
+    case 21:
+    case 22:
+      return 58 + R() * 22;
+    case 23:
+      return 72 + R() * 25;
+    case 5:
+    case 12:
+      return 30 + _kindRadius(k) * s * 0.95 + R() * 25;
+    default:
+      return 50 + R() * 50;
+  }
+}
+
+const List<int> _wKinds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 20, 23];
+const List<List<double>> _wTheme = [
+  // روستا، جنگل، مزرعه، دریاچه
+  [5, 5, 5, 5], // چمن
+  [3, 2, 2, 3], // گل
+  [1.5, 2, 1, 1.5], // بوته
+  [1.5, 4, 1, 1.5], // درخت
+  [0.5, 3, 0.3, 1], // کاج
+  [0.2, 0.2, 0.2, 1.6], // برکه
+  [1, 1, 1, 1], // سنگ
+  [0.3, 1, 0.2, 0.3], // قارچ
+  [0, 0, 1.3, 0], // کاه
+  [0.3, 0, 1, 0.2], // نرده
+  [0.06, 0, 0.3, 0.05], // آسیاب
+  [0, 0, 1.2, 0], // مزرعه
+  [1.6, 0.5, 0.8, 0.8], // خانه
+  [0, 0, 0.7, 0], // انبار
+];
+
+int _pickKind(int theme, double Function() R) {
   var sum = 0.0;
-  for (final x in w) {
-    sum += x;
+  for (var i = 0; i < _wKinds.length; i++) {
+    sum += _wTheme[i][theme];
   }
   var r = R() * sum;
-  for (var i = 0; i < w.length; i++) {
-    r -= w[i];
-    if (r <= 0 && w[i] > 0) return i;
+  for (var i = 0; i < _wKinds.length; i++) {
+    final w = _wTheme[i][theme];
+    r -= w;
+    if (r <= 0 && w > 0) return _wKinds[i];
   }
   return 0;
 }
 
+/// طرحِ ثابتِ دنیای یک هدف (فقط به شناسه‌ی هدف و دانه‌ی کاربر بستگی دارد)
+_GPlan _genGoalPlan(String gid, int seed) {
+  final rnd = seeded('w2-$seed-$gid');
+  double R() => rnd();
+  final pl = _GPlan();
+  pl.theme = (R() * 4).floor().clamp(0, 3).toInt();
+  pl.side = R() < 0.5 ? -1.0 : 1.0;
+
+  // لکه‌های سبزی کنارِ جاده: لایه‌ی روشن زودتر، لایه‌ی پررنگ خیلی دیرتر
+  var sd = 30.0;
+  while (sd < 4200) {
+    final side = R() < 0.5 ? -1.0 : 1.0;
+    pl.blobs.add(_Blob(
+        sd, side * (10 + R() * 70), 55 + R() * 55, _hr(3 + R() * 30), false));
+    if (R() < 0.55) {
+      pl.blobs.add(_Blob(sd + R() * 30, -side * (10 + R() * 60),
+          34 + R() * 36, _hr(70 + R() * 230), true));
+    }
+    sd += 48 + R() * 34;
+  }
+
+  // گیاه، خانه، برکه…
+  var lastL = -999.0, lastR = -999.0, lastBig = -999.0;
+  sd = 80 + R() * 20;
+  while (sd < 4200) {
+    final side = R() < 0.5 ? -1.0 : 1.0;
+    var k = _pickKind(pl.theme, R);
+    if (_isHeavy(k)) {
+      final last = side < 0 ? lastL : lastR;
+      if (sd - last < 70) {
+        k = R() < 0.5 ? 0 : 1;
+      } else if (side < 0) {
+        lastL = sd;
+      } else {
+        lastR = sd;
+      }
+    }
+    if ((k == 5 || k == 12)) {
+      if (sd - lastBig < 260) {
+        k = 2;
+      } else {
+        lastBig = sd;
+      }
+    }
+    if (k == 20) {
+      final q = R();
+      if (q < 0.4) {
+        k = 21;
+      } else if (q > 0.93) {
+        k = 22;
+      }
+    }
+    final sz = (k == 5 || k == 12) ? 0.8 + R() * 0.8 : 0.8 + R() * 0.55;
+    final at = _hr(_baseHours(k) * (0.7 + R() * 0.9));
+    final off = side * _offFor(k, sz, R);
+    pl.els.add(_GEl(k, sd, off, sz, at, (R() * 1000).floor(), R() * 6.28));
+    if (R() < 0.45) {
+      final k2 = R() < 0.6 ? 0 : 1;
+      pl.els.add(_GEl(k2, sd + R() * 24, -side * (20 + R() * 70),
+          0.8 + R() * 0.55, _hr(_baseHours(k2) * (0.7 + R() * 0.9)),
+          (R() * 1000).floor(), R() * 6.28));
+    }
+    sd += 22 + R() * 30;
+  }
+
+  // چراغ‌های کنارِ جاده (فقط روی بخشِ آسفالت‌شده دیده می‌شوند)
+  var ld = 150 + R() * 40;
+  var ls = 1.0;
+  while (ld < 4200) {
+    pl.els.add(_GEl(10, ld, ls * 26.0, 1.0, _hr(210 + R() * 120), 0, R() * 6));
+    ls = -ls;
+    ld += 170 + R() * 60;
+  }
+  return pl;
+}
+
+/// رنگ‌ها و سورپرایزهای هر کاربر (نسبت به «من»؛ زمانشان بر حسبِ کلِ دقیقه‌ی کار)
 _Plan _buildPlan(int seed) {
-  final rnd = seeded('world-v1-$seed');
+  final rnd = seeded('world-v2-$seed');
   double R() => rnd();
   final pl = _Plan();
-  pl.theme = (R() * 4).floor().clamp(0, 3).toInt();
   pl.houseColors = (List<Color>.from(_kHouse)..shuffle(math.Random(seed)))
       .take(4)
       .toList();
@@ -258,130 +450,27 @@ _Plan _buildPlan(int seed) {
       .take(5)
       .toList();
 
-  // لکه‌های زمین
-  for (var j = 0; j < 7; j++) {
-    pl.lobes.add(_Lobe(R() * math.pi * 2, 0.45 + R() * 0.3, 0.5 + R() * 0.25,
-        j == 0 ? 0.0 : 4.0 + j * (6 + R() * 14)));
-  }
-
-  // جاده‌ها: از اطراف «من» به بیرون می‌روند و کم‌کم ساخته می‌شوند
-  final nRoad = 3 + (R() * 3).floor();
-  final base = R() * math.pi * 2;
-  for (var k = 0; k < nRoad; k++) {
-    var ang = base + k * math.pi * 2 / nRoad + (R() - 0.5) * 0.6;
-    var p = Offset(math.cos(ang), math.sin(ang)) * 70;
-    final pts = <Offset>[p];
-    final total = 1500 + R() * 1800;
-    var len = 0.0;
-    while (len < total) {
-      ang += (R() - 0.5) * 0.55;
-      p = p + Offset(math.cos(ang), math.sin(ang)) * 60;
-      pts.add(p);
-      len += 60;
-    }
-    final m0 = k == 0 ? 4 + R() * 4 : 8 + k * (15 + R() * 25);
-    pl.roads.add(_Road(pts, m0));
-  }
-
-  final placed = <_Placed>[];
-
-  // خانه‌ها کنار جاده‌ها
-  final houseP = const [0.85, 0.35, 0.55, 0.5][pl.theme];
-  var houses = 0;
-  for (final r in pl.roads) {
-    var sd = 130 + R() * 40;
-    while (sd < r.length - 80 && houses < 180) {
-      if (R() < houseP) {
-        for (final side in const [-1, 1]) {
-          if (R() > 0.6) continue;
-          final a = r.ang(sd);
-          final nrm = Offset(-math.sin(a), math.cos(a));
-          final pos = r.pos(sd) + nrm * (side * (50 + R() * 16));
-          final at = r.minuteFor(sd) + 1.5 + R() * 9;
-          int k = 20;
-          if (at > 60 && R() < 0.45) k = 21;
-          if (at > 400 && R() < 0.4) k = 22;
-          if (pl.theme == 2 && R() < 0.3) k = 23;
-          pl.tall.add(_El(k, pos.dx, pos.dy, 0.9 + R() * 0.3, at,
-              (R() * 1000).floor(), R() * 6.28));
-          placed.add(_Placed(pos.dx, pos.dy, 30));
-          houses++;
-        }
-      }
-      sd += 70 + R() * 90;
-    }
-    // چراغ‌های کنار جاده
-    var ld = 150 + R() * 40;
-    while (ld < r.length - 40) {
-      final a = r.ang(ld);
-      final nrm = Offset(-math.sin(a), math.cos(a));
-      final side = R() < 0.5 ? -1 : 1;
-      final pos = r.pos(ld) + nrm * (side * 24.0);
-      pl.tall.add(_El(10, pos.dx, pos.dy, 1.0, r.minuteFor(ld) + 4, 0, R() * 6));
-      ld += 170 + R() * 60;
-    }
-  }
-
-  // پراکنده‌ها: چمن، گل، درخت، برکه…
-  const nScatter = 380;
-  for (var i = 1; i <= nScatter; i++) {
-    final at = 0.3 * math.pow(i, 1.45) * (0.75 + 0.5 * R());
-    final k = _pickKind(at, pl.theme, R);
-    final rad = _kindRadius(k);
-    final rmax = _landR(at) * 0.95;
-    final loose = k == 0 || k == 1 || k == 6 || k == 7;
-    for (var tr = 0; tr < 25; tr++) {
-      final ang = R() * math.pi * 2;
-      final rr = math.sqrt(R()) * rmax;
-      final p = Offset(math.cos(ang) * rr, math.sin(ang) * rr);
-      if (p.distance < 38) continue; // دورِ «من» خالی بماند
-      if (_roadDist(pl, p) < (loose ? 22.0 : 26.0 + rad)) continue;
-      var ok = true;
-      for (final q in placed) {
-        final dx = q.x - p.dx, dy = q.y - p.dy;
-        final lim = (q.r + rad) * (loose ? 0.45 : 0.8);
-        if (dx * dx + dy * dy < lim * lim) {
-          ok = false;
-          break;
-        }
-      }
-      if (!ok) continue;
-      final s = (k == 5 || k == 12) ? 0.8 + R() * 0.8 : 0.8 + R() * 0.55;
-      final el = _El(k, p.dx, p.dy, s, at, (R() * 1000).floor(), R() * 6.28);
-      if (k == 5 || k == 12) {
-        pl.flat.add(el);
-      } else {
-        pl.tall.add(el);
-      }
-      placed.add(_Placed(p.dx, p.dy, rad * (k == 5 || k == 12 ? s : 1.0)));
-      break;
-    }
-  }
-
-  // سورپرایزها: هر کاربر مجموعه‌ی متفاوتی می‌گیرد
-  Offset anyPos(double at) {
+  Offset anyPos() {
     final ang = R() * math.pi * 2;
-    final rr = math.sqrt(R()) * _landR(at) * 0.6;
+    final rr = 160 + R() * 420;
     return Offset(math.cos(ang) * rr, math.sin(ang) * rr);
   }
 
   if (R() < 0.75) {
-    final at = 110 + R() * 320;
-    final p = anyPos(at);
-    pl.tall.add(_El(30, p.dx, p.dy, 1.0, at, 0, R() * 6));
+    final at = _hr(300 + R() * 1200);
+    final p = anyPos();
+    pl.skyTall.add(_El(30, p.dx, p.dy, 1.0, at, 0, R() * 6));
   }
   if (R() < 0.6) {
-    final at = 50 + R() * 220;
-    final p = anyPos(at);
-    pl.flat.add(_El(31, p.dx, p.dy, 0.9 + R() * 0.5, at, 0, R() * 6));
+    final at = _hr(150 + R() * 550);
+    final p = anyPos();
+    pl.skyFlat.add(_El(31, p.dx, p.dy, 0.9 + R() * 0.5, at, 0, R() * 6));
   }
   if (R() < 0.18) {
-    final at = 700 + R() * 1000;
-    final p = anyPos(at);
-    pl.tall.add(_El(32, p.dx, p.dy, 1.0, at, 0, R() * 6));
+    final at = _hr(800 + R() * 1700);
+    final p = anyPos();
+    pl.skyTall.add(_El(32, p.dx, p.dy, 1.0, at, 0, R() * 6));
   }
-
-  pl.tall.sort((a, b) => a.y.compareTo(b.y));
   return pl;
 }
 
@@ -410,28 +499,127 @@ class WorldLayer {
 
   static _Plan? _plan;
   static int _planSeed = 0;
+  static final Map<String, _GPlan> _gPlans = {};
   static double _minutes = 0;
+  static Map<String, double> _goalMin = {};
   static int _minMs = 0;
 
-  /// کلِ دقیقه‌های کارِ کاربر روی همه‌ی هدف‌ها و حلقه‌ها
+  /// کلِ دقیقه‌های کارِ کاربر روی همه‌ی هدف‌ها و حلقه‌ها (هر ۳۰۰ میلی‌ثانیه تازه می‌شود)
   static double totalMinutes(MapState s) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _minMs > 300) {
-      var m = 0.0;
-      for (final g in s.goals) {
-        for (final a in g.actions) {
-          m += actionTotalMinutes(a);
-        }
-      }
-      for (final r in s.rings) {
-        for (final a in r.actions) {
-          m += actionTotalMinutes(a);
-        }
-      }
-      _minutes = m;
-      _minMs = now;
-    }
+    _refresh(s);
     return _minutes;
+  }
+
+  static void _refresh(MapState s) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _minMs <= 300) return;
+    final gm = <String, double>{};
+    var tot = 0.0;
+    for (final g in s.goals) {
+      var m = 0.0;
+      for (final a in g.actions) {
+        m += actionTotalMinutes(a);
+      }
+      gm[g.id] = m;
+      tot += m;
+    }
+    for (final r in s.rings) {
+      for (final a in r.actions) {
+        tot += actionTotalMinutes(a);
+      }
+    }
+    _goalMin = gm;
+    _minutes = tot;
+    _minMs = now;
+  }
+
+  // لکه‌ی سبز: گرادیانِ واحد (کش‌شده) که با scale بزرگ می‌شود؛ ۸ سطحِ شفافیت
+  static final Map<int, Paint> _blobPaints = {};
+  static Paint _blobPaint(int level, bool deep, bool dark) {
+    final key = level + (deep ? 10 : 0) + (dark ? 100 : 0);
+    return _blobPaints.putIfAbsent(key, () {
+      final a = level / 8.0 * (deep ? 0.34 : 0.38);
+      final c0 = deep
+          ? (dark
+              ? Color.fromRGBO(40, 120, 60, a)
+              : Color.fromRGBO(63, 150, 76, a))
+          : (dark
+              ? Color.fromRGBO(70, 150, 80, a)
+              : Color.fromRGBO(120, 196, 106, a));
+      final c1 = c0.withOpacity(0.0);
+      return Paint()
+        ..shader = ui.Gradient.radial(
+            Offset.zero, 1.0, [c0, c1], const [0.0, 1.0]);
+    });
+  }
+
+  static void _blob(Canvas c, Rect vv, Offset ce, double r, double k,
+      bool deep, bool dark) {
+    if (r < 4 || k <= 0.02) return;
+    if (!vv.overlaps(Rect.fromCircle(center: ce, radius: r))) return;
+    final level = (k * 8).ceil().clamp(1, 8).toInt();
+    c.save();
+    c.translate(ce.dx, ce.dy);
+    c.scale(r, r);
+    c.drawCircle(Offset.zero, 1.0, _blobPaint(level, deep, dark));
+    c.restore();
+  }
+
+  static double _hf(int x, int y, int s, double k) {
+    final v =
+        math.sin(x * 12.9898 + y * 78.233 + s * 0.001237 + k * 37.719) *
+            43758.5453;
+    return v - v.floorToDouble();
+  }
+
+  /// جزئیاتِ بیابان: سنگ‌ریزه، بوته‌ی خشک، ترک؛ دورِ سبزی‌ها محو می‌شوند
+  static void _desert(
+      Canvas c, Rect vv, int seed, bool dark, List<double> gc) {
+    const cell = 120.0;
+    final x0 = (vv.left / cell).floor(), x1 = (vv.right / cell).floor();
+    final y0 = (vv.top / cell).floor(), y1 = (vv.bottom / cell).floor();
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 1400) return;
+    final dry = dark ? const Color(0x88A58E62) : const Color(0xAA9C8458);
+    final peb = dark ? const Color(0x77746A58) : const Color(0x88B9AC93);
+    final crk = dark ? const Color(0x55766A50) : const Color(0x66A89572);
+    for (var ix = x0; ix <= x1; ix++) {
+      for (var iy = y0; iy <= y1; iy++) {
+        if (_hf(ix, iy, seed, 1.0) > 0.42) continue;
+        final px = (ix + _hf(ix, iy, seed, 2.0)) * cell;
+        final py = (iy + _hf(ix, iy, seed, 3.0)) * cell;
+        var green = false;
+        for (var i = 0; i < gc.length; i += 3) {
+          final dx = gc[i] - px, dy = gc[i + 1] - py, rr = gc[i + 2];
+          if (dx * dx + dy * dy < rr * rr) {
+            green = true;
+            break;
+          }
+        }
+        if (green) continue;
+        final ty = _hf(ix, iy, seed, 4.0);
+        final sz = 0.7 + _hf(ix, iy, seed, 5.0) * 0.8;
+        if (ty < 0.4) {
+          c.drawOval(
+              Rect.fromCenter(
+                  center: Offset(px, py), width: 9 * sz, height: 5 * sz),
+              _fill(peb));
+        } else if (ty < 0.75) {
+          final pa = _stroke(dry, 1.3);
+          for (var j = -1; j <= 1; j++) {
+            c.drawLine(Offset(px + j * 2.5 * sz, py),
+                Offset(px + j * 5 * sz, py - (7 + (j == 0 ? 3 : 0)) * sz), pa);
+          }
+        } else {
+          _path
+            ..reset()
+            ..moveTo(px - 14 * sz, py)
+            ..lineTo(px - 5 * sz, py + 3 * sz)
+            ..lineTo(px + 2 * sz, py - 2 * sz)
+            ..lineTo(px + 12 * sz, py + 2 * sz);
+          c.drawPath(_path, _stroke(crk, 1.1));
+        }
+      }
+    }
   }
 
   static void paint(Canvas canvas, MapState s, CameraController cam,
@@ -440,9 +628,6 @@ class WorldLayer {
     view = Rect.fromLTWH(
         -cam.x / sc, -cam.y / sc, size.width / sc, size.height / sc);
     if (s.extra['worldOff'] == true) return;
-    final realMin = totalMinutes(s);
-    if (realMin < 0.02) return; // شروع: صفحه‌ی سفید
-    final m = _pace(realMin); // دقیقه‌ی دنیا
 
     var seed = 0;
     final sv = s.extra['worldSeed'];
@@ -455,118 +640,189 @@ class WorldLayer {
     if (_plan == null || _planSeed != seed) {
       _plan = _buildPlan(seed);
       _planSeed = seed;
+      _gPlans.clear();
     }
+    if (_gPlans.length > 80) _gPlans.clear();
     final pl = _plan!;
+    _refresh(s);
+    final tot = _minutes;
     final lod = sc < 0.22;
     final vv = view.inflate(100);
+    final me = Offset(s.me.x, s.me.y);
 
-    // ── زمین ──
-    final R = _landR(m);
-    final g0 = isDark
-        ? const Color.fromRGBO(70, 150, 80, 0.34)
-        : const Color.fromRGBO(120, 196, 106, 0.50);
-    final g1 = isDark
-        ? const Color.fromRGBO(70, 150, 80, 0.0)
-        : const Color.fromRGBO(120, 196, 106, 0.0);
-    final deep = isDark
-        ? const Color.fromRGBO(40, 120, 60, 0.30)
-        : const Color.fromRGBO(63, 150, 76, 0.34);
-    final deep1 = const Color.fromRGBO(63, 150, 76, 0.0);
-    void blob(Offset c, double r, Color a, Color b) {
-      if (r < 4) return;
-      if (!vv.overlaps(Rect.fromCircle(center: c, radius: r))) return;
-      canvas.drawCircle(
-          c,
-          r,
-          Paint()
-            ..shader = ui.Gradient.radial(c, r, [a, b], const [0.0, 1.0]));
+    // ── جاده‌ی هر هدف ──
+    final frs = <_Fr>[];
+    for (var gi = 0; gi < s.goals.length; gi++) {
+      final g = s.goals[gi];
+      final gm = _goalMin[g.id] ?? 0.0;
+      if (gm < 3.0) continue;
+      final gp = _gPlans.putIfAbsent(g.id, () => _genGoalPlan(g.id, seed));
+      final cp = geo.trunkControlPoints(g, s.me);
+      final road = _RoadPoly.build(cp, gp.side * 30.0);
+      if (road == null) continue;
+      if (!vv.overlaps(road.bounds.inflate(260))) continue;
+      final rl = math.min(
+          road.length,
+          14.0 +
+              road.length *
+                  math.pow(_c01(gm / _kRoadFull), 0.7).toDouble());
+      final paved = rl * _ease((gm - _hr(150)) / _hr(350));
+      frs.add(_Fr(gp, road, gm, rl, paved, gi, Offset(g.x, g.y)));
     }
 
-    blob(Offset.zero, R, g0, g1);
-    for (final lb in pl.lobes) {
-      final k = _ease((m - lb.at) / 25.0);
-      if (k <= 0) continue;
-      final c = Offset(math.cos(lb.ang), math.sin(lb.ang)) * (R * lb.dist);
-      blob(c, R * lb.size * k, g0, g1);
-    }
-    blob(Offset.zero, R * 0.6 * _c01(m / 30.0), deep, deep1);
+    // ── زمینِ خشک ──
+    canvas.drawRect(
+        vv,
+        _fill(isDark
+            ? const Color.fromRGBO(150, 125, 80, 0.10)
+            : const Color.fromRGBO(214, 190, 140, 0.16)));
 
-    // ── برکه‌ها، مزرعه‌ها، رنگین‌کمان ──
-    for (final e in pl.flat) {
-      if (m < e.at) continue;
-      if (!vv.contains(Offset(e.x, e.y))) continue;
-      final p = _ease((m - e.at) / 0.6);
-      switch (e.k) {
-        case 5:
-          _pond(canvas, e, p, t);
-          break;
-        case 12:
-          _field(canvas, e, p);
-          break;
-        case 31:
-          _rainbow(canvas, e, p);
-          break;
+    // مرکزهای سبزی (برای محوِ جزئیاتِ بیابان)
+    final gc = <double>[];
+    final meK = _ease((tot - _hr(5)) / _hr(100));
+    final meR = 70 + 170 * _ease(tot / _hr(500));
+    if (meK > 0.02) gc.addAll([me.dx, me.dy, meR * 0.8]);
+    for (final f in frs) {
+      final rg = 50 + 130 * _ease(f.gm / _hr(120));
+      for (var d = 0.0; d < f.rl; d += 80) {
+        final q = f.road.pos(d);
+        gc.addAll([q.dx, q.dy, rg]);
       }
     }
+    if (!lod) _desert(canvas, vv, seed, isDark, gc);
 
-    // ── جاده‌ها و ماشین‌ها ──
-    for (final r in pl.roads) {
-      final len = r.revealed(m);
-      if (len < 8) continue;
+    // ── سبزیِ آهسته: دورِ «من» و دورِ جاده‌ها ──
+    _blob(canvas, vv, me, meR * (0.45 + 0.55 * meK), meK, false, isDark);
+    for (final f in frs) {
+      for (final b in f.pl.blobs) {
+        if (b.sd > f.rl + 20) continue;
+        final k = _ease((f.gm - b.at) / _hr(b.deep ? 100 : 60));
+        if (k <= 0.02) continue;
+        final base = f.road.pos(b.sd);
+        final a = f.road.ang(b.sd);
+        final ce = base + Offset(-math.sin(a), math.cos(a)) * b.off;
+        _blob(canvas, vv, ce, b.r * (0.45 + 0.55 * k), k, b.deep, isDark);
+      }
+      // دورِ خودِ هدف
+      final ke = _ease((f.gm - _hr(20)) / _hr(120));
+      _blob(canvas, vv, f.end, 60 + 90 * _ease(f.gm / _hr(300)), ke, false,
+          isDark);
+    }
+
+    // ── برکه‌ها، مزرعه‌ها، رنگین‌کمان (زیرِ همه) ──
+    for (final f in frs) {
+      for (final e in f.pl.els) {
+        if (e.k != 5 && e.k != 12) continue;
+        if (e.sd > f.rl - 6 || f.gm < e.at) continue;
+        final a = f.road.ang(e.sd);
+        final pos = f.road.pos(e.sd) +
+            Offset(-math.sin(a), math.cos(a)) * e.off;
+        if (!vv.contains(pos)) continue;
+        final p = _ease((f.gm - e.at) / _rampMin(e.k));
+        final el = _El(e.k, pos.dx, pos.dy, e.s, e.at, e.v, e.a);
+        if (e.k == 5) {
+          _pond(canvas, el, p, t);
+        } else {
+          _field(canvas, el, p);
+        }
+      }
+    }
+    for (final e in pl.skyFlat) {
+      if (tot < e.at) continue;
+      final p = _ease((tot - e.at) / _hr(8));
+      _rainbow(canvas,
+          _El(e.k, me.dx + e.x, me.dy + e.y, e.s, e.at, e.v, e.a), p);
+    }
+
+    // ── جاده‌ها (خاکی ← آسفالت) و ماشین‌ها ──
+    for (final f in frs) {
+      final road = f.road;
+      if (f.rl < 6) continue;
       _path.reset();
-      _path.moveTo(r.pts[0].dx, r.pts[0].dy);
-      var i = 1;
-      while (i < r.pts.length && r.cum[i] <= len) {
-        _path.lineTo(r.pts[i].dx, r.pts[i].dy);
-        i++;
-      }
-      final end = r.pos(len);
-      _path.lineTo(end.dx, end.dy);
-      if (!_path.getBounds().overlaps(vv)) continue;
+      road.trace(_path, f.rl);
       canvas.drawPath(
           _path,
-          _stroke(isDark ? const Color(0xFF9CA3AF) : const Color(0xFFD5D9DF),
-              30));
-      canvas.drawPath(_path, _stroke(const Color(0xFF6B7280), 24));
-      final cnt = math.min(r.dashCount, math.max(0, ((len - 22) / 26).floor() + 1));
-      if (cnt > 0) {
-        canvas.drawRawPoints(
-            ui.PointMode.lines,
-            Float32List.sublistView(r.dashes, 0, cnt * 4),
-            _stroke(const Color(0xCCFFFFFF), 2, cap: StrokeCap.butt));
-      }
-      // نوکِ جاده‌ی در حال ساخت
-      if (len < r.length - 1) {
+          _stroke(
+              isDark ? const Color(0xFF6F6246) : const Color(0xFFD9C7A0), 26));
+      canvas.drawPath(
+          _path,
+          _stroke(
+              isDark ? const Color(0xFF5E5239) : const Color(0xFFC4A874), 20));
+      if (f.rl < road.length - 1) {
         final pulse = 0.5 + 0.5 * math.sin(t * 5);
-        canvas.drawCircle(end, 5 + pulse * 2,
-            _fill(Color.fromRGBO(255, 160, 40, 0.55 + 0.35 * pulse)));
+        canvas.drawCircle(road.pos(f.rl), 4 + pulse * 2,
+            _fill(Color.fromRGBO(255, 160, 40, 0.5 + 0.35 * pulse)));
       }
-      // ماشین‌ها
-      final nCar = math.min(7, (len / 300).floor() + (len > 160 ? 1 : 0));
-      final idBase = r.m0 * 13.7;
-      for (var c = 0; c < nCar; c++) {
-        final hsh = ((math.sin(idBase + c * 12.9898) * 43758.5453) % 1.0).abs();
-        final speed = 38 + hsh * 40;
-        final dir = c.isEven ? 1.0 : -1.0;
-        var d = (hsh * 1000 + t * speed * dir) % len;
-        if (d < 0) d += len;
-        final a = r.ang(d);
-        final nrm = Offset(-math.sin(a), math.cos(a));
-        final pos = r.pos(d) + nrm * (dir > 0 ? 7.0 : -7.0);
-        if (!vv.contains(pos)) continue;
-        _car(canvas, pos, dir > 0 ? a : a + math.pi,
-            pl.carColors[(c + r.m0.floor()) % pl.carColors.length]);
+      if (f.paved >= 10) {
+        _path.reset();
+        road.trace(_path, f.paved);
+        canvas.drawPath(
+            _path,
+            _stroke(
+                isDark ? const Color(0xFF9CA3AF) : const Color(0xFFD5D9DF),
+                30));
+        canvas.drawPath(_path, _stroke(const Color(0xFF6B7280), 24));
+        final dl = <double>[];
+        for (var d = 12.0; d + 12 < f.paved; d += 26) {
+          final a = road.pos(d), b = road.pos(d + 12);
+          dl.addAll([a.dx, a.dy, b.dx, b.dy]);
+        }
+        if (dl.isNotEmpty) {
+          canvas.drawRawPoints(ui.PointMode.lines, Float32List.fromList(dl),
+              _stroke(const Color(0xCCFFFFFF), 2, cap: StrokeCap.butt));
+        }
+        // ماشین‌ها: فقط وقتی جاده آسفالت شده؛ با طولِ آسفالت بیشتر می‌شوند
+        final nCar = math.min(4, (f.paved / 280).floor());
+        if (f.paved > 140 && f.gm > _hr(200)) {
+          for (var c = 0; c < nCar; c++) {
+            final hsh =
+                ((math.sin(f.gi * 7.31 + c * 12.9898) * 43758.5453) % 1.0)
+                    .abs();
+            final speed = 38 + hsh * 40;
+            final dir = c.isEven ? 1.0 : -1.0;
+            var d = (hsh * 1000 + t * speed * dir) % f.paved;
+            if (d < 0) d += f.paved;
+            final a = road.ang(d);
+            final nrm = Offset(-math.sin(a), math.cos(a));
+            final ps = road.pos(d) + nrm * (dir > 0 ? 7.0 : -7.0);
+            if (!vv.contains(ps)) continue;
+            _car(canvas, ps, dir > 0 ? a : a + math.pi,
+                pl.carColors[(c + f.gi) % pl.carColors.length]);
+          }
+        }
       }
     }
 
     // ── بقیه‌ی چیزها (از بالا به پایین) ──
-    for (final e in pl.tall) {
-      if (m < e.at) continue;
-      if (e.x < vv.left || e.x > vv.right || e.y < vv.top - 120 || e.y > vv.bottom + 40) {
-        continue;
+    final tall = <_Dr>[];
+    for (final f in frs) {
+      for (final e in f.pl.els) {
+        if (e.k == 5 || e.k == 12) continue;
+        if (f.gm < e.at) continue;
+        if (e.k == 10) {
+          if (e.sd > f.paved - 6) continue;
+        } else if (e.sd > f.rl - 6) {
+          continue;
+        }
+        if (lod && (e.k == 0 || e.k == 1 || e.k == 6 || e.k == 7)) continue;
+        final p = _ease((f.gm - e.at) / _rampMin(e.k));
+        if (p < 0.02) continue;
+        final a = f.road.ang(e.sd);
+        final pos = f.road.pos(e.sd) +
+            Offset(-math.sin(a), math.cos(a)) * e.off;
+        if (pos.dx < vv.left ||
+            pos.dx > vv.right ||
+            pos.dy < vv.top - 120 ||
+            pos.dy > vv.bottom + 40) {
+          continue;
+        }
+        tall.add(_Dr(_El(e.k, pos.dx, pos.dy, e.s, e.at, e.v, e.a), p));
       }
-      if (lod && (e.k == 0 || e.k == 1 || e.k == 6 || e.k == 7)) continue;
-      final p = _ease((m - e.at) / 0.6);
+    }
+    tall.sort((a, b) => a.e.y.compareTo(b.e.y));
+    for (final d in tall) {
+      final e = d.e;
+      final p = d.p;
       switch (e.k) {
         case 0:
           _grass(canvas, e, p, t);
@@ -611,18 +867,24 @@ class WorldLayer {
         case 23:
           _barn(canvas, e, p);
           break;
-        case 30:
-          _balloon(canvas, e, p, t);
-          break;
-        case 32:
-          _ufo(canvas, e, p, t);
-          break;
       }
     }
 
-    // ── پرنده و ابر ──
-    if (m > 60) _birds(canvas, m, t, vv);
-    if (m > 120) _clouds(canvas, m, t, isDark, vv);
+    // ── سورپرایزها: بالن و بشقاب‌پرنده ──
+    for (final e in pl.skyTall) {
+      if (tot < e.at) continue;
+      final p = _ease((tot - e.at) / _hr(8));
+      final el = _El(e.k, me.dx + e.x, me.dy + e.y, e.s, e.at, e.v, e.a);
+      if (e.k == 30) {
+        _balloon(canvas, el, p, t);
+      } else {
+        _ufo(canvas, el, p, t);
+      }
+    }
+
+    // ── پرنده و ابر: خیلی دیر ──
+    if (tot > _hr(200)) _birds(canvas, tot / 20.0, t, vv);
+    if (tot > _hr(400)) _clouds(canvas, tot / 20.0, t, isDark, vv);
   }
 
   // ───────────── اجزا ─────────────
@@ -1043,7 +1305,7 @@ void drawTrunkGrowth(
   double t, {
   double scale = 1.0,
 }) {
-  final nf = math.min(26.0, 1.2 * math.pow(minutes, 0.7));
+  final nf = math.min(26.0, 0.35 * math.pow(minutes, 0.6));
   if (nf < 0.05) return;
   final n = nf.floor();
   final frac = nf - n;
