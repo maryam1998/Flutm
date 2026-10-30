@@ -292,3 +292,89 @@ class _Tip {
   final int k;
   final double u;
 }
+
+/// برگ، غنچه و گل روی «تنه»ی خودِ شاخه/زیرشاخه 🌿
+///
+/// همان منطقِ زمانیِ گیاهِ تمرکز، ولی به‌جای نوکِ شاخه روی خودِ تنه می‌نشیند:
+///  • همین که شاخه ثبت شد، دو جوانه‌ی ریزِ برگ روی تنه‌اش پدیدار می‌شود
+///  • با جمع‌شدنِ دقیقه‌های کار، جوانه‌ها باز می‌شوند و جفت‌برگ‌های بعدی می‌آیند
+///  • کارِ شروع‌شده (زمان/روزِ ثبت‌شده) = غنچه لابه‌لای برگ‌ها
+///  • هر ۳ روزِ ثبت‌شده یک غنچه گل می‌شود؛ کارِ «کاملاً تمام شد» = همه گل
+///
+/// [pointAt]/[angleAt] نقطه و جهتِ تنه را در t=۰..۱ می‌دهند. [minutes] مجموعِ
+/// همه‌ی دقیقه‌های ثبت‌شده‌ی همین شاخه است (نه فقط امروز).
+void drawTrunkFlora(
+  Canvas canvas, {
+  required Offset Function(double t) pointAt,
+  required double Function(double t) angleAt,
+  required double r,
+  required String id,
+  required double minutes,
+  required int doneDays,
+  required bool finished,
+  required bool running,
+  required double bloom,
+  required PlantSprig sprig,
+  int slots = 6,
+}) {
+  if (r < 1.2 || slots < 2) return;
+  final m = math.max(0.0, minutes * kPlantTimeScale);
+  var h = 11;
+  for (final u in id.codeUnits) {
+    h = (h * 33 + u) & 0x7fffffff;
+  }
+  final gc = _greens[h % 3];
+  final dayBoost = doneDays * 12.0; // هر روزِ ثبت‌شده مثلِ چند دقیقه کار رشد می‌دهد
+  final mm = m + dayBoost;
+
+  // آستانه‌ی بازشدنِ هر جفت‌برگ (دقیقه)
+  const th = [0.0, 3.0, 10.0, 25.0, 50.0, 90.0, 150.0, 240.0];
+  double t0(int i) => 0.14 + i * (0.74 / (slots - 1));
+
+  for (var i = 0; i < slots; i++) {
+    final base = th[math.min(i, th.length - 1)];
+    // دو جوانه‌ی اول از لحظه‌ی ثبت هستند؛ بقیه کمی قبل از باز شدن پدیدار می‌شوند
+    final pre = i < 2 ? 1.0 : _sm((mm - base + 6) / 6);
+    if (pre <= 0.02) continue;
+    final k = i == 0
+        ? math.max(0.3, _sm(mm / 4))
+        : _sm((mm - base) / (8.0 + 4.0 * i));
+    final full = r * (1.25 - 0.07 * i);
+    final len = full * k + 0.28 * r * pre * (1 - k);
+    if (len < 0.4) continue;
+    final t = t0(i);
+    final p = pointAt(t);
+    final a = angleAt(t);
+    final jit = (((h >> (i + 2)) & 3) - 1.5) * 0.06;
+    final spread = 0.95 * (0.35 + 0.65 * k) + jit;
+    final side = i.isEven ? 1.0 : -1.0;
+    _leaf(canvas, p.dx, p.dy, a + side * spread + math.pi / 2, len,
+        len * (0.5 - 0.08 * k), gc);
+    // از جفت‌برگِ سوم به بعد، برگِ سمتِ دیگر هم می‌آید (برگ‌های رویِ تنه پرتر می‌شوند)
+    if (i >= 2 && k > 0.15) {
+      final l2 = len * 0.82;
+      _leaf(canvas, p.dx, p.dy, a - side * spread + math.pi / 2, l2,
+          l2 * (0.5 - 0.08 * k), gc);
+    }
+  }
+
+  // غنچه و گل
+  if (running) return; // وقتی تایمر روشن است فقط رشدِ برگ دیده می‌شود
+  final started = m > 0 || doneDays > 0 || finished;
+  if (!started) return;
+  final maxN = slots - 1;
+  final nFlower = finished ? maxN : math.min(maxN, doneDays ~/ 3);
+  final nBud = math.min(maxN, 1 + (mm / 18).floor());
+  final n = math.max(nFlower, nBud);
+  for (var j = 0; j < n; j++) {
+    final fl = j < nFlower;
+    final t = 0.2 + j * (0.68 / math.max(1, maxN - 1));
+    final p = pointAt(math.min(t, 0.92));
+    final a = angleAt(math.min(t, 0.92));
+    final side = j.isEven ? -1.0 : 1.0; // سمتِ مخالفِ برگِ همان گره
+    final dirA = a + side * 1.05;
+    final out = Offset(math.cos(dirA), math.sin(dirA)) * (r * 0.3);
+    final pp = (bloom * 1.4 - j * 0.12).clamp(0.0, 1.0).toDouble();
+    sprig(canvas, p + out, dirA, r * (fl ? 0.62 : 0.5), '$id|t$j', pp, fl);
+  }
+}

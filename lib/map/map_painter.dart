@@ -1561,6 +1561,56 @@ class MapPainter extends CustomPainter {
     return s / 60.0;
   }
 
+  /// مجموعِ همه‌ی دقیقه‌های ثبت‌شده‌ی یک شاخه (همه‌ی روزها + تایمرِ در حال اجرا)
+  double _totalMinutes(ActionNode a) {
+    var s = 0.0;
+    for (final v in a.time.values) {
+      if (v is num && v > 0) s += v.toDouble();
+    }
+    final ts = a.timerStart ?? 0;
+    if (ts > 0) s += (DateTime.now().millisecondsSinceEpoch - ts) / 1000.0;
+    return s / 60.0;
+  }
+
+  /// تعدادِ روزهایی که این شاخه ثبت/انجام شده
+  int _doneDayCount(ActionNode a) {
+    final keys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys};
+    var n = 0;
+    for (final k in keys) {
+      if (footDoneOn(a, k)) n++;
+    }
+    return n;
+  }
+
+  /// برگ، غنچه و گل روی تنه‌ی شاخه/زیرشاخه (با همان منطقِ زمانیِ گیاهِ تمرکز)
+  void _trunkFlora(Canvas canvas, ActionNode a, geo.TwigGeom geom,
+      geo.Cubic cub, double scale, int depth) {
+    final r = 5.0 * math.max(0.55, scale);
+    final poly = geom.poly;
+    final running = (a.timerStart ?? 0) > 0;
+    final t0 = _bloomAt[a.id];
+    final bp = t0 == null ? 1.0 : ((_t - t0) / 1.2).clamp(0.0, 1.0).toDouble();
+    drawTrunkFlora(
+      canvas,
+      pointAt: (t) => poly != null && poly.length > 1
+          ? geo.polyPointAt(poly, t).pt
+          : cub.at(t),
+      angleAt: (t) => poly != null && poly.length > 1
+          ? geo.polyPointAt(poly, t).angle
+          : cub.tangent(t),
+      r: r,
+      id: a.id,
+      minutes: _totalMinutes(a),
+      doneDays: _doneDayCount(a),
+      finished: nodeFinished(a),
+      running: running,
+      bloom: bp,
+      slots: depth == 0 ? 6 : 4,
+      sprig: (c, o, d, rr, i, p, fl) =>
+          _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl),
+    );
+  }
+
   /// گیاهِ تمرکز روی نوکِ شاخه: تایمر روشن = در حال رشد؛ بعد از توقف:
   /// کارِ تمام‌شده = گل، وگرنه غنچه لابه‌لای برگ و شاخه‌ها.
   void _plant(Canvas canvas, ActionNode a, Offset tip, double ang, double r,
@@ -3284,6 +3334,11 @@ class MapPainter extends CustomPainter {
       _taperedPoly(canvas, geom.poly!, color, baseW, tipW, 0.92);
     } else {
       _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
+    }
+
+    // برگ، غنچه و گل روی خودِ تنه‌ی شاخه/زیرشاخه
+    if (scale >= 0.28 && a.extra['trunkFlora'] != false) {
+      _trunkFlora(canvas, a, geom, cub, scale, depth);
     }
 
     if (_haloOn(a.extra, false)) {

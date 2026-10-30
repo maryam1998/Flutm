@@ -188,6 +188,30 @@ class _RoadPoly {
     return math.atan2(v.dy, v.dx);
   }
 
+  /// مثلِ [trace] ولی موازیِ جاده با فاصله‌ی [off] (برای خطِ کنارِ آسفالت)
+  void traceOff(Path p, double len, double off) {
+    var first = true;
+    void add(double d) {
+      final a = ang(d);
+      final q = pos(d) + Offset(-math.sin(a), math.cos(a)) * off;
+      if (first) {
+        p.moveTo(q.dx, q.dy);
+        first = false;
+      } else {
+        p.lineTo(q.dx, q.dy);
+      }
+    }
+
+    add(0);
+    for (var i = 1; i < pts.length; i++) {
+      final d = cum[i] - start;
+      if (d <= 0) continue;
+      if (d >= len) break;
+      add(d);
+    }
+    add(len);
+  }
+
   /// مسیرِ جاده را تا طولِ [len] در [p] می‌ریزد
   void trace(Path p, double len) {
     final a = pos(0);
@@ -681,12 +705,9 @@ class WorldLayer {
       final road = _RoadPoly.build(cp, gp.side * 30.0, gp);
       if (road == null) continue;
       if (!vv.overlaps(road.bounds.inflate(260))) continue;
-      final rl = math.min(
-          road.length,
-          14.0 +
-              road.length *
-                  math.pow(_c01(gm / _kRoadFull), 0.7).toDouble());
-      final paved = road.length * _ease((gm - _hr(20)) / _hr(380));
+      // جاده همان لحظه‌ی ثبتِ هدف کامل و آسفالت‌شده است
+      final rl = road.length;
+      final paved = road.length;
       frs.add(_Fr(gp, road, gm, rl, paved, gi, Offset(g.x, g.y)));
     }
 
@@ -758,32 +779,35 @@ class WorldLayer {
     for (final f in frs) {
       final road = f.road;
       _path.reset();
-      road.trace(_path, road.length);
+      road.trace(_path, f.paved);
+      // شانه‌ی جاده و بدنه‌ی آسفالت
       canvas.drawPath(
           _path,
           _stroke(
-              isDark ? const Color(0xFF6F6246) : const Color(0xFFD9C7A0), 26));
+              isDark ? const Color(0xFF8A8F98) : const Color(0xFFC9CDD3),
+              31));
       canvas.drawPath(
           _path,
           _stroke(
-              isDark ? const Color(0xFF5E5239) : const Color(0xFFC4A874), 20));
-      if (f.paved >= 10) {
+              isDark ? const Color(0xFF3F4452) : const Color(0xFF5B6270),
+              25));
+      {
+        // خطِ ممتدِ سفید دو کنارِ جاده
         _path.reset();
-        road.trace(_path, f.paved);
-        canvas.drawPath(
-            _path,
-            _stroke(
-                isDark ? const Color(0xFF9CA3AF) : const Color(0xFFD5D9DF),
-                30));
-        canvas.drawPath(_path, _stroke(const Color(0xFF6B7280), 24));
+        road.traceOff(_path, f.paved, -10.6);
+        canvas.drawPath(_path, _stroke(const Color(0xE6FFFFFF), 1.5));
+        _path.reset();
+        road.traceOff(_path, f.paved, 10.6);
+        canvas.drawPath(_path, _stroke(const Color(0xE6FFFFFF), 1.5));
+        // خط‌چینِ زردِ وسطِ جاده
         final dl = <double>[];
-        for (var d = 12.0; d + 12 < f.paved; d += 26) {
-          final a = road.pos(d), b = road.pos(d + 12);
+        for (var d = 10.0; d + 12 < f.paved; d += 28) {
+          final a = road.pos(d), b = road.pos(d + 14);
           dl.addAll([a.dx, a.dy, b.dx, b.dy]);
         }
         if (dl.isNotEmpty) {
           canvas.drawRawPoints(ui.PointMode.lines, Float32List.fromList(dl),
-              _stroke(const Color(0xCCFFFFFF), 2, cap: StrokeCap.butt));
+              _stroke(const Color(0xFFFFD54F), 2.2, cap: StrokeCap.butt));
         }
         // ماشین‌ها: فقط وقتی جاده آسفالت شده؛ با طولِ آسفالت بیشتر می‌شوند
         final nCar = math.min(4, (f.paved / 280).floor());
@@ -1414,11 +1438,9 @@ class WalkLayer {
     final road = _RoadPoly.build(cp, gp.side * 30.0, gp);
     if (road == null) return null;
     final gm = WorldLayer._goalMin[g.id] ?? 0.0;
-    final reach = math.min(
-        road.length,
-        14.0 +
-            road.length * math.pow(_c01(gm / _kRoadFull), 0.7).toDouble());
-    final paved = road.length * _ease((gm - _hr(20)) / _hr(380));
+    // جاده همان لحظه‌ی ثبتِ هدف کامل و آسفالت‌شده است
+    final reach = road.length;
+    final paved = road.length;
     final marks = layoutWalkMarks(collectWalkMarks(s, g), road.length);
     return WalkData(gp, road, WorldLayer._plan!, gm, reach, paved, g.name,
         g.icon.isEmpty ? '🎯' : g.icon, marks);
@@ -1485,7 +1507,7 @@ class WalkPainter extends CustomPainter {
 
   void _quad(Canvas c, List<double> sf, List<double> sr, int i, int a, int b,
       Color col) {
-    const w = 8;
+    const w = 10;
     final i0 = i * w, i1 = (i + 1) * w;
     _qf[0] = sf[i0 + a];
     _qf[1] = sf[i0 + b];
@@ -1680,7 +1702,7 @@ class WalkPainter extends CustomPainter {
     }
     ss.add(sEnd);
     final n = ss.length;
-    const W = 8;
+    const W = 10;
     final sf = List<double>.filled(n * W, 0.0);
     final sr = List<double>.filled(n * W, 0.0);
     for (var i = 0; i < n; i++) {
@@ -1693,7 +1715,18 @@ class WalkPainter extends CustomPainter {
       final nrm = Offset(-tv.dy, tv.dx);
       final cpos = road.pos(si);
       final hw = si <= data.paved ? 15.0 : 13.0;
-      final offs = [-450.0, -(hw + 7), -hw, -0.9, 0.9, hw, hw + 7, 450.0];
+      final offs = [
+        -450.0,
+        -(hw + 7),
+        -hw,
+        -(hw - 1.7),
+        -1.1,
+        1.1,
+        hw - 1.7,
+        hw,
+        hw + 7,
+        450.0
+      ];
       for (var j = 0; j < W; j++) {
         _cam(cpos + nrm * offs[j]);
         sf[i * W + j] = _f;
@@ -1710,23 +1743,21 @@ class WalkPainter extends CustomPainter {
           ? Color.lerp(g, Colors.white, stripe)!
           : Color.lerp(g, Colors.black, -stripe)!;
       _quad(canvas, sf, sr, i, 0, 1, g);
-      _quad(canvas, sf, sr, i, 6, 7, g);
+      _quad(canvas, sf, sr, i, 8, 9, g);
     }
     // لبه‌ی جاده، خودِ جاده و خطِ وسط
     for (var i = 0; i < n - 1; i++) {
       final si = ss[i];
-      final paved = si <= data.paved;
-      final verge = paved
-          ? (dark ? const Color(0xFF8A8F98) : const Color(0xFFC9CDD3))
-          : (dark ? const Color(0xFF6F6246) : const Color(0xFFD9C7A0));
-      final body = paved
-          ? (dark ? const Color(0xFF4B5160) : const Color(0xFF6B7280))
-          : (dark ? const Color(0xFF5E5239) : const Color(0xFFC4A874));
+      // جاده همیشه آسفالت است: شانه، بدنه، خطِ سفیدِ کنار و خط‌چینِ زردِ وسط
+      final verge = dark ? const Color(0xFF8A8F98) : const Color(0xFFC9CDD3);
+      final body = dark ? const Color(0xFF3F4452) : const Color(0xFF5B6270);
       _quad(canvas, sf, sr, i, 1, 2, verge);
-      _quad(canvas, sf, sr, i, 5, 6, verge);
-      _quad(canvas, sf, sr, i, 2, 5, body);
-      if (paved && ((si / 24).floor() % 2 == 0)) {
-        _quad(canvas, sf, sr, i, 3, 4, const Color(0xCCFFFFFF));
+      _quad(canvas, sf, sr, i, 7, 8, verge);
+      _quad(canvas, sf, sr, i, 3, 6, body);
+      _quad(canvas, sf, sr, i, 2, 3, const Color(0xEEFFFFFF));
+      _quad(canvas, sf, sr, i, 6, 7, const Color(0xEEFFFFFF));
+      if ((si / 26).floor() % 2 == 0) {
+        _quad(canvas, sf, sr, i, 4, 5, const Color(0xFFFFD54F));
       }
     }
 
