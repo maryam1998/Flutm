@@ -104,6 +104,8 @@ class _GPlan {
   final List<_Blob> blobs = [];
   int theme = 0; // ۰ روستا ۱ جنگل ۲ مزرعه ۳ دریاچه
   double side = 1.0;
+  // پیچ‌وتابِ جاده (ثابت برای هر هدف)
+  double wobA = 50, wobP1 = 0, wobP2 = 0;
 }
 
 class _Plan {
@@ -120,8 +122,19 @@ class _RoadPoly {
   final Rect bounds;
   static const double start = 62.0;
 
-  static _RoadPoly? build(geo.Cubic cp, double off) {
-    const n = 40;
+  static _RoadPoly? build(geo.Cubic cp, double off, _GPlan gp) {
+    const n = 64;
+    // طولِ تقریبیِ تنه برای تعیین تعدادِ پیچ‌ها
+    var rawL = 0.0;
+    var prev = cp.at(0);
+    for (var i = 1; i < n; i++) {
+      final q = cp.at(i / (n - 1));
+      rawL += (q - prev).distance;
+      prev = q;
+    }
+    final amp = math.min(gp.wobA, rawL * 0.16);
+    final f1 = math.max(1.0, rawL / 420.0);
+    final f2 = f1 * 1.7 + 0.35;
     final pts = <Offset>[];
     final cum = <double>[0.0];
     var minX = 1e12, minY = 1e12, maxX = -1e12, maxY = -1e12;
@@ -129,7 +142,11 @@ class _RoadPoly {
       final t = i / (n - 1);
       final p = cp.at(t);
       final a = cp.tangent(t);
-      final q = p + Offset(-math.sin(a), math.cos(a)) * off;
+      final w = amp *
+          math.sin(math.pi * t) *
+          (0.65 * math.sin(2 * math.pi * f1 * t + gp.wobP1) +
+              0.35 * math.sin(2 * math.pi * f2 * t + gp.wobP2));
+      final q = p + Offset(-math.sin(a), math.cos(a)) * (off + w);
       pts.add(q);
       if (q.dx < minX) minX = q.dx;
       if (q.dx > maxX) maxX = q.dx;
@@ -366,6 +383,9 @@ _GPlan _genGoalPlan(String gid, int seed) {
   final pl = _GPlan();
   pl.theme = (R() * 4).floor().clamp(0, 3).toInt();
   pl.side = R() < 0.5 ? -1.0 : 1.0;
+  pl.wobA = 45 + R() * 50;
+  pl.wobP1 = R() * 6.28;
+  pl.wobP2 = R() * 6.28;
 
   // لکه‌های سبزی کنارِ جاده: لایه‌ی روشن زودتر، لایه‌ی پررنگ خیلی دیرتر
   var sd = 30.0;
@@ -655,10 +675,9 @@ class WorldLayer {
     for (var gi = 0; gi < s.goals.length; gi++) {
       final g = s.goals[gi];
       final gm = _goalMin[g.id] ?? 0.0;
-      if (gm < 3.0) continue;
       final gp = _gPlans.putIfAbsent(g.id, () => _genGoalPlan(g.id, seed));
       final cp = geo.trunkControlPoints(g, s.me);
-      final road = _RoadPoly.build(cp, gp.side * 30.0);
+      final road = _RoadPoly.build(cp, gp.side * 30.0, gp);
       if (road == null) continue;
       if (!vv.overlaps(road.bounds.inflate(260))) continue;
       final rl = math.min(
@@ -666,7 +685,7 @@ class WorldLayer {
           14.0 +
               road.length *
                   math.pow(_c01(gm / _kRoadFull), 0.7).toDouble());
-      final paved = rl * _ease((gm - _hr(150)) / _hr(350));
+      final paved = road.length * _ease((gm - _hr(20)) / _hr(380));
       frs.add(_Fr(gp, road, gm, rl, paved, gi, Offset(g.x, g.y)));
     }
 
@@ -737,9 +756,8 @@ class WorldLayer {
     // ── جاده‌ها (خاکی ← آسفالت) و ماشین‌ها ──
     for (final f in frs) {
       final road = f.road;
-      if (f.rl < 6) continue;
       _path.reset();
-      road.trace(_path, f.rl);
+      road.trace(_path, road.length);
       canvas.drawPath(
           _path,
           _stroke(
@@ -748,11 +766,6 @@ class WorldLayer {
           _path,
           _stroke(
               isDark ? const Color(0xFF5E5239) : const Color(0xFFC4A874), 20));
-      if (f.rl < road.length - 1) {
-        final pulse = 0.5 + 0.5 * math.sin(t * 5);
-        canvas.drawCircle(road.pos(f.rl), 4 + pulse * 2,
-            _fill(Color.fromRGBO(255, 160, 40, 0.5 + 0.35 * pulse)));
-      }
       if (f.paved >= 10) {
         _path.reset();
         road.trace(_path, f.paved);
