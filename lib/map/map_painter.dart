@@ -2185,6 +2185,22 @@ class MapPainter extends CustomPainter {
               size: fs, color: Colors.black, vCenter: true, outline: 2.5);
         }
       }
+      // تاریخِ همان روز (کوچک، زیرِ غنچه/گل)؛ لمس = تقویمِ همان روز
+      if (!isOpen) {
+        final dp = dk.split('-');
+        final jm = dp.length == 3 ? int.tryParse(dp[1]) : null;
+        final jd = dp.length == 3 ? int.tryParse(dp[2]) : null;
+        if (jm != null && jd != null && jm >= 1 && jm <= 12) {
+          final fs2 = _fs() * 0.42;
+          drawText(canvas, '${toFa(jd)} ${kJalaliMonths[jm - 1]}',
+              tip.dx + nv.dx * (sr * 2.3 + fs2 * 0.6),
+              tip.dy + nv.dy * (sr * 2.3 + fs2 * 0.6),
+              size: fs2,
+              color: const Color(0xFF5B5F77),
+              vCenter: true,
+              outline: 2.2);
+        }
+      }
       _lateHits.add(HitEntry(
         type: 'pastBloom',
         id: a.id,

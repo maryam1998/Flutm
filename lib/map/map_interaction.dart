@@ -280,9 +280,14 @@ class MapInteraction {
       }
       return;
     }
-    // لمسِ گل/برگِ بین قدم‌ها: متنِ همان روز دیده می‌شود؛ دوباره بزنی پنهان می‌شود
+    // لمسِ گل/غنچه‌ی بین قدم‌ها: تقویمِ همان روز (اگر تقویم نبود: نمایش/پنهانِ متن)
     if (_ptrs.isEmpty && hit != null && hit.type == 'pastBloom') {
       HapticFeedback.selectionClick();
+      // تقویمِ قدم با تاریخِ همان غنچه/گل باز می‌شود: چه روزی بوده و چه کاری شده
+      if (onFootStats != null) {
+        onFootStats!(hit.hostId, hit.id, hit.voiceKey);
+        return;
+      }
       final bh = store.state.findHost(hit.hostId);
       if (bh is MapHost) {
         final bf = findActionNode(bh.actions, hit.id);
