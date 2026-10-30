@@ -23,6 +23,7 @@ import 'plant_painter.dart';
 import 'today_focus.dart';
 import 'user_state.dart';
 import 'walker_photos.dart';
+import 'world_painter.dart';
 import '../widgets/emoji_stack.dart' show isTextIcon;
 
 const kLabelRtlAnchor = false;
@@ -326,6 +327,8 @@ class MapPainter extends CustomPainter {
     canvas.save();
     canvas.translate(cam.x, cam.y);
     canvas.scale(cam.scale);
+    // دنیای در حال رشد (زمین سرسبز، جاده، خانه، ماشین…) زیرِ همه‌ی نقشه
+    WorldLayer.paint(canvas, state, cam, size, _t, isDark);
     final tc = _textColor;
 
     // حالت «فقط امروز»: هدفِ قدم بعدی پررنگ، بقیه کم‌رنگ (هر گروه یک لایه)
@@ -2104,6 +2107,14 @@ class MapPainter extends CustomPainter {
         ((ghost && footDoneOn(a, todayK)) ? 1 : 0);
     final route = _RouteCurve(routePts);
     hits.routes[a.id] = routePts;
+    // رشدِ برگ روی تنه/شاخه/زیرشاخه با وقتی که کاربر می‌گذارد
+    if (!ghost) {
+      final gm = actionTotalMinutes(a);
+      if (gm > 0) {
+        drawTrunkGrowth(canvas, route.at, route.tangent, a.id, gm, _t,
+            scale: (baseSize / 15.0).clamp(0.7, 2.0).toDouble());
+      }
+    }
     final sizeMul = state.footScale.clamp(kFootScaleMin, kFootScaleMax);
     final footMul = (a.footSize ?? 1.0).clamp(kWalkerSizeMin, kFootSizeMax);
     // ضریبِ بزرگ‌نمایی قدمِ شاخه/زیرشاخه: قبلاً حتی روی ۲۰۰٪ از دایره‌ی متصل و
