@@ -1362,7 +1362,8 @@ void drawTrunkGrowth(
 /// حالتِ دوربینِ نمای اول‌شخص (UI آن را تغییر می‌دهد و painter می‌خواند)
 class WalkCam {
   double d = 0; // فاصله‌ی پیموده‌شده از ابتدای جاده
-  double yaw = 0; // چرخشِ سر نسبت به جهتِ جاده (رادیان)
+  double yaw = 0; // چرخشِ سر نسبت به جهتِ جاده (رادیان؛ آزاد، ۳۶۰ درجه)
+  double pitch = 0; // نگاه به بالا (+) / پایین (-) (رادیان)
   double t = 0; // زمان بر حسبِ ثانیه
   double phase = 0; // فازِ قدم‌ها (برای تکانِ دوربین)
   bool walking = true;
@@ -1439,9 +1440,22 @@ class WalkPainter extends CustomPainter {
   double _cpx = 0, _cpy = 0, _dx = 1, _dy = 0, _rx = 0, _ry = 1;
   double _focal = 1, _cx = 0, _hor = 0, _camH = 17;
   // خروجیِ _pr
-  double _f = 0, _x = 0, _y = 0;
+  double _f = 0, _x = 0, _y = 0, _r = 0;
 
   static final Paint _flat = Paint()..isAntiAlias = false;
+
+  // نزدیک‌ترین عمقی که رسم می‌شود (چندضلعی‌های جاده روی این صفحه بریده می‌شوند)
+  static const double _near = 3.0;
+  final List<double> _qf = List<double>.filled(4, 0.0);
+  final List<double> _qr = List<double>.filled(4, 0.0);
+
+  /// فقط عمق (_f) و فاصله‌ی چپ/راست (_r) را نسبت به دوربین حساب می‌کند
+  /// (بدونِ حذفِ نقطه‌های پشتِ دوربین؛ برای دیدِ ۳۶۰ درجه)
+  void _cam(Offset p) {
+    final rx = p.dx - _cpx, ry = p.dy - _cpy;
+    _f = rx * _dx + ry * _dy;
+    _r = rx * _rx + ry * _ry;
+  }
 
   void _pr(Offset p) {
     final rx = p.dx - _cpx, ry = p.dy - _cpy;
@@ -1462,20 +1476,52 @@ class WalkPainter extends CustomPainter {
     return 0.9 * k * (0.75 + 0.25 * math.sin(sd * 0.013 + data.gp.wobP1));
   }
 
-  void _quad(Canvas c, List<double> sx, List<double> sy, List<double> sf,
-      int i, int a, int b, Color col) {
+  void _quad(Canvas c, List<double> sf, List<double> sr, int i, int a, int b,
+      Color col) {
     const w = 8;
     final i0 = i * w, i1 = (i + 1) * w;
-    if (sf[i0 + a] < 3 || sf[i0 + b] < 3 || sf[i1 + a] < 3 || sf[i1 + b] < 3) {
-      return;
+    _qf[0] = sf[i0 + a];
+    _qf[1] = sf[i0 + b];
+    _qf[2] = sf[i1 + b];
+    _qf[3] = sf[i1 + a];
+    if (_qf[0] < _near && _qf[1] < _near && _qf[2] < _near && _qf[3] < _near) {
+      return; // کاملاً پشتِ دوربین
     }
-    _path
-      ..reset()
-      ..moveTo(sx[i0 + a], sy[i0 + a])
-      ..lineTo(sx[i0 + b], sy[i0 + b])
-      ..lineTo(sx[i1 + b], sy[i1 + b])
-      ..lineTo(sx[i1 + a], sy[i1 + a])
-      ..close();
+    _qr[0] = sr[i0 + a];
+    _qr[1] = sr[i0 + b];
+    _qr[2] = sr[i1 + b];
+    _qr[3] = sr[i1 + a];
+    _path.reset();
+    var started = false;
+    for (var k = 0; k < 4; k++) {
+      final k2 = (k + 1) % 4;
+      final fa = _qf[k], fb = _qf[k2];
+      final ina = fa >= _near, inb = fb >= _near;
+      if (ina) {
+        final x = _cx + _qr[k] / fa * _focal;
+        final y = _hor + _camH * _focal / fa;
+        if (started) {
+          _path.lineTo(x, y);
+        } else {
+          _path.moveTo(x, y);
+          started = true;
+        }
+      }
+      if (ina != inb) {
+        final t = (_near - fa) / (fb - fa);
+        final rr = _qr[k] + (_qr[k2] - _qr[k]) * t;
+        final x = _cx + rr / _near * _focal;
+        final y = _hor + _camH * _focal / _near;
+        if (started) {
+          _path.lineTo(x, y);
+        } else {
+          _path.moveTo(x, y);
+          started = true;
+        }
+      }
+    }
+    if (!started) return;
+    _path.close();
     c.drawPath(_path, _flat..color = col);
   }
 
@@ -1505,7 +1551,8 @@ class WalkPainter extends CustomPainter {
     final L = road.length;
     _focal = w * 0.95;
     _cx = w / 2;
-    _hor = h * 0.40;
+    final pitch = cam.pitch.clamp(-0.6, 0.6).toDouble();
+    _hor = (h * 0.40 + pitch * _focal).clamp(40.0, h * 0.95).toDouble();
     final d = cam.d.clamp(0.0, L).toDouble();
 
     // ── دوربین: روی جاده، کمی سمتِ راست؛ نگاه به جهتِ حرکت ──
@@ -1616,20 +1663,19 @@ class WalkPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTRB(0, hor, w, h),
         _fill(Color.lerp(sand, grass, _gk(d))!));
 
-    // ── نمونه‌های جاده ──
+    // ── نمونه‌های جاده (هم جلو و هم پشتِ سر؛ برای چرخشِ ۳۶۰ درجه) ──
     final ss = <double>[];
-    var s = math.max(0.0, d - 300);
+    var s = math.max(0.0, d - 1100);
     final sEnd = math.min(L, d + 1100);
     while (s < sEnd) {
       ss.add(s);
-      s += s < d ? 7.0 : 6.0 + (s - d) * 0.05;
+      s += 6.0 + (s - d).abs() * 0.05;
     }
     ss.add(sEnd);
     final n = ss.length;
     const W = 8;
-    final sx = List<double>.filled(n * W, 0.0);
-    final sy = List<double>.filled(n * W, 0.0);
     final sf = List<double>.filled(n * W, 0.0);
+    final sr = List<double>.filled(n * W, 0.0);
     for (var i = 0; i < n; i++) {
       final si = ss[i];
       final a = road.pos(math.max(0.0, si - 2));
@@ -1642,10 +1688,9 @@ class WalkPainter extends CustomPainter {
       final hw = si <= data.paved ? 15.0 : 13.0;
       final offs = [-450.0, -(hw + 7), -hw, -0.9, 0.9, hw, hw + 7, 450.0];
       for (var j = 0; j < W; j++) {
-        _pr(cpos + nrm * offs[j]);
-        sx[i * W + j] = _x;
-        sy[i * W + j] = _y;
+        _cam(cpos + nrm * offs[j]);
         sf[i * W + j] = _f;
+        sr[i * W + j] = _r;
       }
     }
 
@@ -1657,8 +1702,8 @@ class WalkPainter extends CustomPainter {
       g = stripe > 0
           ? Color.lerp(g, Colors.white, stripe)!
           : Color.lerp(g, Colors.black, -stripe)!;
-      _quad(canvas, sx, sy, sf, i, 0, 1, g);
-      _quad(canvas, sx, sy, sf, i, 6, 7, g);
+      _quad(canvas, sf, sr, i, 0, 1, g);
+      _quad(canvas, sf, sr, i, 6, 7, g);
     }
     // لبه‌ی جاده، خودِ جاده و خطِ وسط
     for (var i = 0; i < n - 1; i++) {
@@ -1670,11 +1715,11 @@ class WalkPainter extends CustomPainter {
       final body = paved
           ? (dark ? const Color(0xFF4B5160) : const Color(0xFF6B7280))
           : (dark ? const Color(0xFF5E5239) : const Color(0xFFC4A874));
-      _quad(canvas, sx, sy, sf, i, 1, 2, verge);
-      _quad(canvas, sx, sy, sf, i, 5, 6, verge);
-      _quad(canvas, sx, sy, sf, i, 2, 5, body);
+      _quad(canvas, sf, sr, i, 1, 2, verge);
+      _quad(canvas, sf, sr, i, 5, 6, verge);
+      _quad(canvas, sf, sr, i, 2, 5, body);
       if (paved && ((si / 24).floor() % 2 == 0)) {
-        _quad(canvas, sx, sy, sf, i, 3, 4, const Color(0xCCFFFFFF));
+        _quad(canvas, sf, sr, i, 3, 4, const Color(0xCCFFFFFF));
       }
     }
 
@@ -1737,7 +1782,8 @@ class WalkPainter extends CustomPainter {
         if (_f < 8 || _f > 900) continue;
         final it = _WItem(1, _f, _x, _y, focal / _f);
         it.col = pal.carColors[c % pal.carColors.length];
-        it.onc = (dr > 0) != (cam.dir >= 0);
+        final hd = dr > 0 ? a : a + math.pi;
+        it.onc = math.cos(hd) * _dx + math.sin(hd) * _dy < 0;
         items.add(it);
       }
     }

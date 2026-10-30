@@ -7,7 +7,8 @@ import '../models/map_models.dart';
 import 'draw_utils.dart' show toFa;
 import 'world_painter.dart';
 
-/// نمای اول‌شخص: کاربر روی جاده‌ی یکی از هدف‌هایش راه می‌رود و چپ و راست را می‌بیند.
+/// نمای اول‌شخص: کاربر روی جاده‌ی یکی از هدف‌هایش راه می‌رود و دورتادورِ خودش
+/// را (۳۶۰ درجه، با انگشت) می‌بیند؛ انگار خودِ انیمیشنِ پا روی مسیر است.
 Future<void> openWalkView(BuildContext context, MapState state) async {
   void say(String m) {
     ScaffoldMessenger.maybeOf(context)
@@ -52,15 +53,19 @@ Future<void> openWalkView(BuildContext context, MapState state) async {
     say('مسیر این هدف خیلی کوتاه است؛ هدف را کمی از «من» دورتر بگذار.');
     return;
   }
+  final startFrac = (g.extra['walkerPos'] as num?)?.toDouble();
   await Navigator.of(context).push(MaterialPageRoute<void>(
     fullscreenDialog: true,
-    builder: (_) => WalkViewPage(data: data),
+    builder: (_) => WalkViewPage(data: data, startFrac: startFrac),
   ));
 }
 
 class WalkViewPage extends StatefulWidget {
-  const WalkViewPage({super.key, required this.data});
+  const WalkViewPage({super.key, required this.data, this.startFrac});
   final WalkData data;
+
+  /// جای فعلیِ انیمیشنِ پا روی مسیر (۰ تا ۱)؛ اگر نباشد از ابتدای جاده شروع می‌شود
+  final double? startFrac;
   @override
   State<WalkViewPage> createState() => _WalkViewPageState();
 }
@@ -72,6 +77,7 @@ class _WalkViewPageState extends State<WalkViewPage>
   late final Ticker _ticker;
   Duration _last = Duration.zero;
   bool _dragging = false;
+  double _yawVel = 0; // سرعتِ چرخشِ سر بعد از رها کردنِ انگشت (رادیان/ثانیه)
   bool _arrived = false;
   int _speedIdx = 0;
   static const _speeds = [1.0, 3.0, 8.0];
@@ -79,6 +85,12 @@ class _WalkViewPageState extends State<WalkViewPage>
   @override
   void initState() {
     super.initState();
+    final f = widget.startFrac;
+    if (f != null) {
+      cam.d = (f.clamp(0.0, 1.0) * widget.data.length)
+          .clamp(0.0, widget.data.maxD)
+          .toDouble();
+    }
     _ticker = createTicker(_onTick)..start();
   }
 
@@ -108,11 +120,30 @@ class _WalkViewPageState extends State<WalkViewPage>
         if (mounted) setState(() {});
       }
     }
-    if (!_dragging && cam.yaw != 0) {
-      cam.yaw *= math.pow(0.05, dt).toDouble();
-      if (cam.yaw.abs() < 0.002) cam.yaw = 0;
+    // چرخشِ آزادِ ۳۶۰ درجه: سر همان‌جا که رها کردی می‌ماند (با کمی لغزش)
+    if (!_dragging && _yawVel != 0) {
+      cam.yaw = _wrap(cam.yaw + _yawVel * dt);
+      _yawVel *= math.pow(0.02, dt).toDouble();
+      if (_yawVel.abs() < 0.01) _yawVel = 0;
     }
     _tick.value++;
+  }
+
+  /// زاویه را در بازه‌ی (-π, π] نگه می‌دارد تا چرخشِ پیوسته‌ی ۳۶۰ درجه ممکن باشد
+  double _wrap(double a) {
+    const tau = 2 * math.pi;
+    var r = (a + math.pi) % tau;
+    if (r < 0) r += tau;
+    return r - math.pi;
+  }
+
+  /// نگاه دوباره رو به جهتِ حرکت
+  void _lookForward() {
+    setState(() {
+      cam.yaw = 0;
+      cam.pitch = 0;
+      _yawVel = 0;
+    });
   }
 
   void _toggle() {
@@ -148,14 +179,25 @@ class _WalkViewPageState extends State<WalkViewPage>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _toggle,
-              onHorizontalDragStart: (_) => _dragging = true,
-              onHorizontalDragUpdate: (d) {
-                cam.yaw = (cam.yaw - d.delta.dx * 0.005)
-                    .clamp(-math.pi, math.pi)
+              onPanStart: (_) {
+                _dragging = true;
+                _yawVel = 0;
+              },
+              onPanUpdate: (d) {
+                // کشیدن به راست/چپ = چرخش دورِ خود (آزاد، ۳۶۰ درجه)؛
+                // کشیدن بالا/پایین = نگاه به آسمان/زمین
+                cam.yaw = _wrap(cam.yaw - d.delta.dx * 0.005);
+                cam.pitch = (cam.pitch + d.delta.dy * 0.004)
+                    .clamp(-0.6, 0.6)
                     .toDouble();
               },
-              onHorizontalDragEnd: (_) => _dragging = false,
-              onHorizontalDragCancel: () => _dragging = false,
+              onPanEnd: (d) {
+                _dragging = false;
+                _yawVel = (-d.velocity.pixelsPerSecond.dx * 0.005)
+                    .clamp(-4.0, 4.0)
+                    .toDouble();
+              },
+              onPanCancel: () => _dragging = false,
               child: CustomPaint(
                 painter: WalkPainter(data, cam, dark, _tick),
                 size: Size.infinite,
@@ -218,7 +260,7 @@ class _WalkViewPageState extends State<WalkViewPage>
                           msg = '🎯 به آخرِ جاده‌ی هدفت رسیدی';
                         } else if (cam.t < 8) {
                           msg =
-                              'انگشتت را چپ و راست بکش تا اطرافت را ببینی · لمس = ایست/حرکت';
+                              'انگشتت را به هر سو بکش و ۳۶۰ درجه دورِ خودت را ببین · لمس = ایست/حرکت';
                         }
                         if (msg == null) return const SizedBox(height: 0);
                         return Container(
@@ -250,6 +292,8 @@ class _WalkViewPageState extends State<WalkViewPage>
                           setState(() =>
                               _speedIdx = (_speedIdx + 1) % _speeds.length);
                         }, label: '×${toFa(_speeds[_speedIdx].round())}'),
+                        const SizedBox(width: 14),
+                        _roundBtn(Icons.explore_outlined, _lookForward),
                       ],
                     ),
                   ],
