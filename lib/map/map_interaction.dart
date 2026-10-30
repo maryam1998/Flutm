@@ -75,6 +75,7 @@ class MapInteraction {
     this.onShowBranchMenu,
     this.onWalkerPhotos,
     this.onFootStats,
+    this.onBloomDay,
     this.onEditFootNote,
   });
 
@@ -94,6 +95,9 @@ class MapInteraction {
 
   /// تپ روی قدمِ شاخه: آمار روزهای دوره
   final void Function(String hostId, String actionId, String? jk)? onFootStats;
+
+  /// لمسِ غنچه/گلِ یک روز: تقویمِ اهداف روی همان شاخه و همان روز
+  final void Function(String hostId, String actionId, String? jk)? onBloomDay;
 
   /// تپ روی یادداشتِ کنار قدم: ویرایش متن/فونت/اندازه/رنگ یا حذف از نقشه
   final void Function(String hostId, String actionId, String jk)?
@@ -284,6 +288,10 @@ class MapInteraction {
     if (_ptrs.isEmpty && hit != null && hit.type == 'pastBloom') {
       HapticFeedback.selectionClick();
       // تقویمِ قدم با تاریخِ همان غنچه/گل باز می‌شود: چه روزی بوده و چه کاری شده
+      if (onBloomDay != null) {
+        onBloomDay!(hit.hostId, hit.id, hit.voiceKey);
+        return;
+      }
       if (onFootStats != null) {
         onFootStats!(hit.hostId, hit.id, hit.voiceKey);
         return;

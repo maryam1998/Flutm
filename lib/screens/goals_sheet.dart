@@ -34,7 +34,12 @@ Future<void> showGoalsSheet(
   BuildContext context, {
   required void Function(MapHost host) onShowOnMap,
   required VoidCallback onAddGoal,
+  // باز کردنِ تقویمِ یک شاخه روی یک روز (لمسِ غنچه/گل روی نقشه)
+  String? focusHostId,
+  String? focusActionId,
+  String? focusJk,
 }) {
+  final focused = focusHostId != null && focusActionId != null;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -49,7 +54,7 @@ Future<void> showGoalsSheet(
     barrierColor: Colors.transparent, // نقشه پشتش دیده می‌شود
     builder: (ctx) => goalsLightSheet(DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.46,
+      initialChildSize: focused ? 0.92 : 0.46,
       minChildSize: 0.26,
       maxChildSize: 0.92,
       snap: true,
@@ -59,6 +64,9 @@ Future<void> showGoalsSheet(
         parentContext: context,
         onShowOnMap: onShowOnMap,
         onAddGoal: onAddGoal,
+        focusHostId: focusHostId,
+        focusActionId: focusActionId,
+        focusJk: focusJk,
       ),
     )),
   );
@@ -182,7 +190,11 @@ class GoalsSheet extends StatefulWidget {
     required this.parentContext,
     required this.onShowOnMap,
     required this.onAddGoal,
+    this.focusHostId,
+    this.focusActionId,
+    this.focusJk,
   });
+  final String? focusHostId, focusActionId, focusJk;
   final ScrollController controller;
   final BuildContext parentContext;
   final void Function(MapHost host) onShowOnMap;
@@ -208,6 +220,33 @@ class _GoalsSheetState extends State<GoalsSheet> {
   final _addCtl = TextEditingController();
   final _open = <String>{};
   final _daysOpen = <String>{};
+  final Map<String, GlobalKey> _tileKeys = {};
+  final Map<String, String> _focusJk = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final hid = widget.focusHostId, aid = widget.focusActionId;
+    if (hid != null && aid != null) {
+      _open.add(hid);
+      _daysOpen.add(aid);
+      final jk = widget.focusJk;
+      if (jk != null) _focusJk[aid] = jk;
+      // بعد از ساخته‌شدن لیست، تا همان شاخه اسکرول می‌شود
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 350), () {
+          final c = _tileKeys[aid]?.currentContext;
+          if (c != null && c.mounted) {
+            Scrollable.ensureVisible(c,
+                duration: const Duration(milliseconds: 400),
+                alignment: 0.1,
+                curve: Curves.easeOut);
+          }
+        });
+      });
+    }
+  }
+
   final _statsOpen = <String>{};
   String? _addingFor;
 
@@ -1430,6 +1469,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
 
     return [
       Column(
+        key: _tileKeys.putIfAbsent(n.id, GlobalKey.new),
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           tile,
@@ -1469,6 +1509,16 @@ class _GoalsSheetState extends State<GoalsSheet> {
     const accent = Color(0xFFC9962B); // --accent
     const mainInk = Color(0xFF000000); // --text-main
     const doneInk = Color(0xFF12142A); // رنگ ✓ روی رنگ شاخه
+    final fj = _focusJk.remove(n.id);
+    if (fj != null) {
+      for (var d = 0; d < pi.total; d++) {
+        final date = DateTime(pi.start.year, pi.start.month, pi.start.day + d);
+        if (jKey(date) == fj) {
+          _selDay[n.id] = date;
+          break;
+        }
+      }
+    }
     final selD = _selDay[n.id] ?? pi.today;
     final cells = <Widget>[];
     for (var d = 0; d < pi.total; d++) {

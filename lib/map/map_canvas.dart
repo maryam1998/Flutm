@@ -24,6 +24,7 @@ class MapCanvas extends StatefulWidget {
     this.onShowBranchMenu,
     this.onWalkerPhotos,
     this.onFootStats,
+    this.onBloomDay,
     this.onEditFootNote,
   });
 
@@ -42,6 +43,7 @@ class MapCanvas extends StatefulWidget {
 
   /// تپ روی قدمِ شاخه: آمار دوره
   final void Function(String hostId, String actionId, String? jk)? onFootStats;
+  final void Function(String hostId, String actionId, String? jk)? onBloomDay;
   final void Function(String hostId, String actionId, String jk)?
       onEditFootNote;
 
@@ -74,6 +76,7 @@ class _MapCanvasState extends State<MapCanvas>
       onShowBranchMenu: widget.onShowBranchMenu,
       onWalkerPhotos: widget.onWalkerPhotos,
       onFootStats: widget.onFootStats,
+      onBloomDay: widget.onBloomDay,
       onEditFootNote: widget.onEditFootNote,
     );
     WidgetsBinding.instance.addObserver(this);

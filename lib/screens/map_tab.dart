@@ -116,11 +116,14 @@ class _MapTabState extends State<MapTab> {
     store.changed();
   }
 
-  void _openGoals() {
+  void _openGoals({String? hostId, String? actionId, String? jk}) {
     showGoalsSheet(
       context,
       onShowOnMap: (h) => cam.centerOn(Offset(h.x, h.y)),
       onAddGoal: () => showAddGoalDialog(context),
+      focusHostId: hostId,
+      focusActionId: actionId,
+      focusJk: jk,
     );
   }
 
@@ -153,6 +156,9 @@ class _MapTabState extends State<MapTab> {
             onEditMe: () => showEditSheet(context, const MeTarget()),
             onWalkerPhotos: (hostId, actionId, isWalker) => showEditSheet(
                 context, WalkerPhotosTarget(hostId, actionId, isWalker)),
+            // لمسِ غنچه/گلِ یک روز: تقویمِ اهداف روی همان شاخه و همان روز
+            onBloomDay: (hostId, actionId, jk) =>
+                _openGoals(hostId: hostId, actionId: actionId, jk: jk),
             onFootStats: (hostId, actionId, jk) => showFootStatsSheet(
               context,
               store: store,

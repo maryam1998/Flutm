@@ -204,6 +204,8 @@ Future<void> showFootStatsSheet(
   String? jkPending = initialJk; // روزی که باید باز شدن انتخاب بشه
   final selKey = GlobalKey();
   final detailCtl = ScrollController();
+  // «تنظیمات یادداشت روی نقشه» پیش‌فرض جمع است (شلوغ نشود)
+  var noteStyleOpen = false;
 
   return showModalBottomSheet<void>(
     context: context,
@@ -688,21 +690,32 @@ Future<void> showFootStatsSheet(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.sticky_note_2_outlined,
-                                            size: 16, color: wp.textDim),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                              'تنظیمات یادداشت روی نقشه',
-                                              style: TextStyle(
-                                                  fontSize: 12.5,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: wp.textMain)),
-                                        ),
-                                      ],
+                                    InkWell(
+                                      onTap: () =>
+                                          setS(() => noteStyleOpen = !noteStyleOpen),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.sticky_note_2_outlined,
+                                              size: 16, color: wp.textDim),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                                'تنظیمات یادداشت روی نقشه',
+                                                style: TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: wp.textMain)),
+                                          ),
+                                          Icon(
+                                              noteStyleOpen
+                                                  ? Icons.expand_less
+                                                  : Icons.expand_more,
+                                              size: 20,
+                                              color: wp.textDim),
+                                        ],
+                                      ),
                                     ),
+                                    if (noteStyleOpen) ...[
                                     const SizedBox(height: 8),
                                     ConstrainedBox(
                                       constraints: BoxConstraints(
@@ -719,6 +732,7 @@ Future<void> showFootStatsSheet(
                                         ),
                                       ),
                                     ),
+                                    ],
                                   ],
                                 ),
                               ),
