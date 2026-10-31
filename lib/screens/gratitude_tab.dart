@@ -143,7 +143,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
             ),
             const SizedBox(height: 18),
             if (store.entries.any(
-                (e) => e.source != 'purchase' && e.images.isNotEmpty))
+                (e) => e.images.isNotEmpty))
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 child: GratitudeSlideshow(
@@ -252,14 +252,13 @@ class _GratitudeTabState extends State<GratitudeTab> {
   void _openAlbumAll(GratitudeStore store, String? currentKey) {
     List<GratitudeImage> all() => [
           for (final e in store.entries)
-            if (e.source != 'purchase') ...e.images,
+            ...e.images,
         ];
     var start = 0;
     if (currentKey != null) {
       var i = 0;
       outer:
       for (final e in store.entries) {
-        if (e.source == 'purchase') continue;
         for (final im in e.images) {
           if ('g${e.id}_${im.id}' == currentKey) {
             start = i;

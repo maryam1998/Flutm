@@ -19,7 +19,6 @@ class GratitudeSlideshow extends StatelessWidget {
   List<MediaSlide> _collect() {
     final out = <MediaSlide>[];
     for (final e in store.entries) {
-      if (e.source == 'purchase') continue;
       for (final im in e.images) {
         out.add(MediaSlide(
           key: 'g${e.id}_${im.id}',
