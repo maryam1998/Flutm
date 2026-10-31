@@ -309,6 +309,7 @@ class _WalkViewPageState extends State<WalkViewPage>
   bool _dragging = false;
   double _yawVel = 0; // سرعتِ چرخشِ سر بعد از رها کردنِ انگشت (رادیان/ثانیه)
   bool _arrived = false;
+  bool _autoTurn = false; // چرخشِ نرمِ ۱۸۰ درجه‌ی سر هنگامِ برگشت
   double _hold = 0; // مکثِ رفت‌وبرگشت (ثانیه)
   int _speedIdx = 0;
   static const _speeds = [1.0, 3.0, 8.0];
@@ -334,7 +335,9 @@ class _WalkViewPageState extends State<WalkViewPage>
   /// جاده (کمی قبلش)، تا رفت‌وبرگشت فقط روی خودِ شاخه‌ی ثبت‌شده باشد نه روی
   /// جاده‌ی مستقیمِ اصلی
   double get _lo => widget.data.isBranch
-      ? math.min(widget.data.startD, widget.data.maxD)
+      ? math.min(
+          math.max(widget.data.startD, widget.data.branchFrom - 24.0),
+          widget.data.maxD)
       : widget.data.minD;
 
   @override
@@ -370,6 +373,14 @@ class _WalkViewPageState extends State<WalkViewPage>
     super.dispose();
   }
 
+  /// جهتِ حرکت عوض شد: دید یک‌دفعه ۱۸۰ درجه نمی‌پرد؛ سر نرم به جهتِ تازه می‌چرخد
+  void _flipDir() {
+    cam.dir = -cam.dir;
+    cam.yaw = _wrap(cam.yaw + math.pi);
+    _yawVel = 0;
+    _autoTurn = true;
+  }
+
   void _onTick(Duration e) {
     final dt = ((e - _last).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble();
     _last = e;
@@ -390,7 +401,7 @@ class _WalkViewPageState extends State<WalkViewPage>
         cam.d = maxD;
         if (loop) {
           // مثلِ انیمیشنِ پا: سرِ شاخه می‌رسد، می‌ایستد و برمی‌گردد
-          cam.dir = -1.0;
+          _flipDir();
           _hold = 1.6;
           if (mounted) setState(() => _arrived = true);
         } else {
@@ -401,11 +412,22 @@ class _WalkViewPageState extends State<WalkViewPage>
         cam.d = lo;
         if (loop) {
           // برگشت تمام شد؛ مکثِ کوتاه و دوباره رفت
-          cam.dir = 1.0;
+          _flipDir();
           _hold = 0.8;
         } else {
           cam.walking = false;
           if (mounted) setState(() {});
+        }
+      }
+    }
+    if (_autoTurn) {
+      if (_dragging) {
+        _autoTurn = false;
+      } else {
+        cam.yaw = _wrap(cam.yaw) * math.pow(0.06, dt).toDouble();
+        if (cam.yaw.abs() < 0.01) {
+          cam.yaw = 0;
+          _autoTurn = false;
         }
       }
     }
@@ -426,8 +448,8 @@ class _WalkViewPageState extends State<WalkViewPage>
     final lc = cr.length;
     final dc = cam.d.clamp(0.0, lc).toDouble();
     final p = cr.pos(dc);
-    final pa = cr.pos(math.max(0.0, dc - 4));
-    final pb = cr.pos(math.min(lc, dc + 24));
+    final pa = cr.pos(math.max(0.0, dc - 16));
+    final pb = cr.pos(math.min(lc, dc + 16));
     final rv = pb - pa;
     if (rv.distance >= 0.01) _mRoadYaw = math.atan2(rv.dy, rv.dx);
     final target =
@@ -466,8 +488,8 @@ class _WalkViewPageState extends State<WalkViewPage>
     setState(() {
       if (!cam.walking) {
         final maxD = widget.data.maxD;
-        if (cam.dir > 0 && cam.d >= maxD - 0.5) cam.dir = -1.0;
-        if (cam.dir < 0 && cam.d <= _lo + 0.5) cam.dir = 1.0;
+        if (cam.dir > 0 && cam.d >= maxD - 0.5) _flipDir();
+        if (cam.dir < 0 && cam.d <= _lo + 0.5) _flipDir();
         _arrived = false;
       }
       cam.walking = !cam.walking;
@@ -496,7 +518,7 @@ class _WalkViewPageState extends State<WalkViewPage>
 
   void _turnAround() {
     setState(() {
-      cam.dir = -cam.dir;
+      _flipDir();
       cam.walking = true;
       _arrived = false;
     });
@@ -524,6 +546,7 @@ class _WalkViewPageState extends State<WalkViewPage>
               onLongPressStart: (d) => _openMarkCalendar(d.localPosition),
               onPanStart: (_) {
                 _dragging = true;
+                _autoTurn = false;
                 _yawVel = 0;
               },
               onPanUpdate: (d) {

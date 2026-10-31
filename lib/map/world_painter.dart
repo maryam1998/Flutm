@@ -1954,8 +1954,8 @@ class WalkPainter extends CustomPainter {
 
     // ── دوربین: روی جاده، کمی سمتِ راست؛ نگاه به جهتِ حرکت ──
     final c0 = cr.pos(dc);
-    final pA = cr.pos(math.max(0.0, dc - 4));
-    final pB = cr.pos(math.min(Lc, dc + 24));
+    final pA = cr.pos(math.max(0.0, dc - 16));
+    final pB = cr.pos(math.min(Lc, dc + 16));
     final rv = pB - pA;
     final roadYaw = rv.distance < 0.01 ? 0.0 : math.atan2(rv.dy, rv.dx);
     final fwd = cam.dir >= 0 ? 1.0 : -1.0;
