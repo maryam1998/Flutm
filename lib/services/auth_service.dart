@@ -58,6 +58,25 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
         return;
       }
+      // برگشت از Google روی وب: یا خطا در آدرس است، یا کد در حال تبدیل به نشست
+      final params = <String, String>{
+        ...Uri.base.queryParameters,
+        if (Uri.base.fragment.contains('='))
+          ...Uri.splitQueryString(Uri.base.fragment),
+      };
+      final urlError = params['error_description'] ?? params['error'];
+      if (urlError != null && urlError.isNotEmpty) {
+        error = 'ورود با Google انجام نشد: $urlError';
+      } else if (params.containsKey('code')) {
+        try {
+          await c.auth.onAuthStateChange
+              .firstWhere((d) => d.session != null && !d.session!.user.isAnonymous)
+              .timeout(const Duration(seconds: 10));
+          return; // listener بالا state را signedIn کرده است
+        } catch (_) {
+          error = 'ورود با Google کامل نشد. دوباره تلاش کن.';
+        }
+      }
     }
     final p = await AppPrefs.getInstance();
     state = (p.getBool(_kGuest) ?? false) ? AuthStatus.guest : AuthStatus.signedOut;
