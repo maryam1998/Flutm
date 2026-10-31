@@ -41,6 +41,15 @@ final Map<String, bool> _bloomSeen = {};
 final Map<String, double> _bloomAt = {};
 final Map<String, String> _flowerSigCache = {};
 final Map<String, Set<String>> _flowerDaysCache = {};
+
+/// روزهایی از یک شاخه که روی نقشه گل شده‌اند (برای نمای راه‌رفتن؛ null = هنوز رسم نشده)
+Set<String>? mapFlowerDays(String actionId) => _flowerDaysCache[actionId];
+
+/// همان شاخه‌ی گل/غنچه‌ی نقشه (برای نمای راه‌رفتن)؛ ریشه در (۰،۰)، جهتِ [dir]
+void paintMapSprig(Canvas canvas, Offset tip, double dir, double r, String id,
+        {bool budOnly = false, bool flower = false}) =>
+    MapPainter._sprig(canvas, tip, dir, r, id, 1.0,
+        budOnly: budOnly, flower: flower);
 /// گیاهِ تمرکز: توقفِ تایمر → شکفتنِ غنچه/گل (فقط در حافظه‌ی همین اجرا)
 final Map<String, bool> _plantRunSeen = {};
 final Map<String, double> _plantStopAt = {};
@@ -2278,6 +2287,7 @@ class MapPainter extends CustomPainter {
       final sr = (pastSize * 0.42).clamp(4.0, 11.0).toDouble() *
           (isFlower ? 1.3 : 1.0);
       final tip = pt;
+      hits.markPts['${a.id}|$dk'] = tip;
       _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0,
           budOnly: !isFlower, flower: isFlower);
       // لمسِ گل/برگ: متنِ همان روز (یادداشت؛ اگر نداشت نامِ شاخه) دیده می‌شود،

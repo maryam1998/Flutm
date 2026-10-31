@@ -6,6 +6,8 @@ import '../models/jalali.dart' show kJalaliMonths;
 import '../models/map_models.dart';
 import '../theme/vazir_font.dart';
 import 'draw_utils.dart' show toFa;
+import 'hit_registry.dart';
+import 'map_painter.dart' show mapFlowerDays, paintMapSprig;
 import 'map_ops.dart' show footDoneOn, nodeFinished;
 
 /// سبکِ نوشته‌ی تابلوهای نمای راه‌رفتن: همان فونت و فونت‌های پشتیبانِ نوشته‌های
@@ -83,6 +85,12 @@ class WalkMark {
   /// جای نشانه روی جاده (فاصله از ابتدای جاده) و سمتِ آن (+۱ / -۱)
   double sd = 0;
   double side = 1;
+
+  /// جای دقیقِ این غنچه/گل روی نقشه (اگر نقشه رسمش کرده باشد)
+  Offset? wpos;
+
+  /// همان شناسه‌ای که نقشه برای شکل/رنگِ این غنچه/گل به کار برده
+  String get sprigId => '$actionId|$dayKey';
 
   String get dateLabel {
     if (pending) return 'هنوز انجام نشده';
@@ -223,7 +231,8 @@ List<WalkMark> collectWalkMarks(MapState s, Goal g) {
           .where((k) => footDoneOn(a, k))
           .toList()
         ..sort((x, y) => _ordOf(x).compareTo(_ordOf(y)));
-      final fl = _flowerDays(a, keys);
+      final mf = mapFlowerDays(a.id);
+      final fl = mf ?? _flowerDays(a, keys);
       final fin = nodeFinished(a);
       for (var i = 0; i < keys.length; i++) {
         final dk = keys[i];
@@ -269,6 +278,10 @@ List<WalkMark> collectWalkMarks(MapState s, Goal g) {
   for (final r in s.ringsOfGoal(g)) {
     walk(r.actions, _hex(r.color, base), r.id);
   }
+  final reg = HitRegistry.current;
+  for (final m in marks) {
+    if (!m.pending) m.wpos = reg?.markPts['${m.actionId}|${m.dayKey}'];
+  }
   marks.sort((x, y) {
     final c = x.ord.compareTo(y.ord);
     return c != 0 ? c : x.seed.compareTo(y.seed);
@@ -289,11 +302,15 @@ Color _hex(String h, Color def) {
 /// اگر خیلی زیاد بودند، تازه‌ترین‌ها نگه داشته می‌شوند.
 List<WalkMark> layoutWalkMarks(List<WalkMark> all, double roadLength) {
   if (all.isEmpty) return const [];
+  // آن‌هایی که جای دقیقشان روی نقشه معلوم است سرِ جای خودشان می‌مانند
+  final placed = all.where((m) => m.wpos != null).toList();
+  final rest = all.where((m) => m.wpos == null).toList();
+  if (rest.isEmpty) return placed;
   const first = 70.0;
   final last = math.max(first + 40, roadLength - 150.0);
   const minGap = 34.0, maxGap = 110.0;
   final span = last - first;
-  var keep = all;
+  var keep = rest;
   final cap = (span / minGap).floor() + 1;
   if (keep.length > cap) keep = keep.sublist(keep.length - cap);
   final gap = keep.length <= 1
@@ -308,7 +325,7 @@ List<WalkMark> layoutWalkMarks(List<WalkMark> all, double roadLength) {
       m.side = -m.side; // کم‌وبیش یکی‌درمیان؛ نه خیلی منظم
     }
   }
-  return keep;
+  return [...placed, ...keep];
 }
 
 /// نزدیک‌ترین نشانه به جای فعلیِ دوربین (برای کارتِ توضیح)
@@ -354,7 +371,7 @@ void drawWalkMark(Canvas c, WalkMark m, double x, double y, double sc,
       _f(const Color(0x30000000)));
 
   final sway = math.sin(t * 1.3 + m.seed * 0.01) * 1.6;
-  final h = m.pending ? 15.0 : (m.flower ? 30.0 : 25.0);
+  final h = m.pending ? 15.0 : (m.flower ? 34.0 : 30.0);
   final stemC = dark ? const Color(0xFF3F9B5B) : const Color(0xFF2E7D32);
   final leafC = dark ? const Color(0xFF5FBF7A) : const Color(0xFF66BB6A);
 
@@ -381,66 +398,15 @@ void drawWalkMark(Canvas c, WalkMark m, double x, double y, double sc,
         _s(const Color(0xFF9CA3AF), 0.9));
   }
 
-  // ساقه
-  final top = Offset(sway, -h);
-  final p = Path()
-    ..moveTo(0, 0)
-    ..quadraticBezierTo(-3 + sway * 0.4, -h * 0.55, top.dx, top.dy);
-  if (!m.pending) c.drawPath(p, _s(stemC, 2.2));
-
-  // دو برگ
-  for (final sgn in m.pending ? const <double>[] : const [-1.0, 1.0]) {
-    final ly = -h * (sgn < 0 ? 0.35 : 0.52);
-    c.save();
-    c.translate(sway * 0.3 * (-ly / h), ly);
-    c.rotate(sgn * 0.95);
-    final lp = Path()
-      ..moveTo(0, 0)
-      ..cubicTo(4, -3, 4.5, -8, 0, -11)
-      ..cubicTo(-4.5, -8, -4, -3, 0, 0);
-    c.drawPath(lp, _f(leafC));
-    c.restore();
-  }
-
-  // سر: گل یا غنچه
-  c.save();
-  c.translate(top.dx, top.dy);
-  if (m.pending) {
-    // سرِ نهال بالاتر کشیده شده است
-  } else if (m.flower) {
-    final pc = m.color;
-    for (var i = 0; i < 6; i++) {
-      c.save();
-      c.rotate(i * math.pi / 3 + sway * 0.02);
-      c.drawOval(Rect.fromCenter(center: const Offset(0, -5), width: 6.4, height: 9.5),
-          _f(Color.lerp(pc, Colors.white, 0.18)!));
-      c.restore();
-    }
-    c.drawCircle(Offset.zero, 3.1, _f(const Color(0xFFFFC83D)));
-    c.drawCircle(const Offset(-0.8, -0.8), 1.1, _f(const Color(0xAAFFFFFF)));
+  // خودِ غنچه/گل: همان شکل و رنگی که روی نقشه دارد
+  if (!m.pending) {
+    paintMapSprig(c, Offset(sway * 0.3, 0), -math.pi / 2, m.flower ? 11.5 : 9.0,
+        m.sprigId,
+        budOnly: !m.flower, flower: m.flower);
     if (m.finished) {
-      // تاجِ کوچکِ «کاملاً تمام شد»
-      c.drawCircle(const Offset(0, -15), 1.6, _f(const Color(0xFFFFD54F)));
+      c.drawCircle(Offset(sway, -h - 4), 1.8, _f(const Color(0xFFFFD54F)));
     }
-  } else {
-    final bud = Path()
-      ..moveTo(0, 2)
-      ..cubicTo(5.2, -1, 5, -8, 0, -12.5)
-      ..cubicTo(-5, -8, -5.2, -1, 0, 2);
-    c.drawPath(bud, _f(Color.lerp(m.color, Colors.white, 0.1)!));
-    final inner = Path()
-      ..moveTo(0, 1)
-      ..cubicTo(2.4, -2, 2.3, -7, 0, -10.5)
-      ..cubicTo(-0.3, -7, -1, -2, 0, 1);
-    c.drawPath(inner, _f(Color.lerp(m.color, Colors.white, 0.4)!));
-    // کاسبرگ
-    final cal = Path()
-      ..moveTo(-4, 1)
-      ..quadraticBezierTo(0, -4, 4, 1)
-      ..quadraticBezierTo(0, 2.6, -4, 1);
-    c.drawPath(cal, _f(stemC));
   }
-  c.restore();
 
   // تابلوی تاریخ/نام/یادداشت (فقط وقتی نزدیک است تا شلوغ نشود)
   if (near > 0.02) {

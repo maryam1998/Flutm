@@ -77,11 +77,16 @@ class HitRegistry {
   /// هندسه‌ی خودِ هر شاخه/زیرشاخه (نوک ← ابتدای شاخه)
   final Map<String, TwigGeom> twigs = {};
 
+  /// جای دقیقِ غنچه/گلِ هر روز روی نقشه ('شاخه|روز' ← نقطه‌ی نقشه)؛ نمای راه‌رفتن
+  /// همان‌جا می‌کارد
+  final Map<String, Offset> markPts = {};
+
   void clear() {
     entries.clear();
     geom.clear();
     routes.clear();
     twigs.clear();
+    markPts.clear();
   }
 
   void add(HitEntry e) => entries.add(e);

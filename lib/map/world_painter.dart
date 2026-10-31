@@ -1638,7 +1638,16 @@ class WalkLayer {
     // جاده همان لحظه‌ی ثبتِ هدف کامل و آسفالت‌شده است
     final reach = road.length;
     final paved = road.length;
-    final marks = layoutWalkMarks(collectWalkMarks(s, g), road.length);
+    final marks = List<WalkMark>.of(
+        layoutWalkMarks(collectWalkMarks(s, g), road.length));
+    marks.addAll(_otherMarks(s, g));
+    // جای هر غنچه/گل همان جای نقشه است؛ کارتِ توضیح فقط وقتی کنارش رد می‌شوی
+    for (final m in marks) {
+      final wp = m.wpos;
+      if (wp == null) continue;
+      final pr = road.project(wp);
+      m.sd = pr.dist < 40 ? pr.d : -1e6;
+    }
     final data = WalkData(gp, road, WorldLayer._plan!, gm, reach, paved, g.name,
         g.icon.isEmpty ? '🎯' : g.icon, marks);
     // مثلِ قدم‌زنِ نقشه: روی جاده‌ی اصلی رفت و برگشتِ بی‌پایان
@@ -1665,6 +1674,20 @@ class WalkLayer {
         }
       }
       out.addAll(_sideBranches(o));
+    }
+    return out;
+  }
+
+  /// غنچه/گل‌های بقیه‌ی هدف‌ها، سرِ جای خودشان روی نقشه
+  static List<WalkMark> _otherMarks(MapState s, Goal g) {
+    final out = <WalkMark>[];
+    for (final o in s.goals) {
+      if (o.id == g.id) continue;
+      for (final m in collectWalkMarks(s, o)) {
+        if (m.wpos == null) continue;
+        m.sd = -1e6;
+        out.add(m);
+      }
     }
     return out;
   }
@@ -1726,10 +1749,18 @@ class WalkLayer {
 
     // ثبت‌های همین شاخه کنارِ مسیرش (قدیمی‌ترین نزدیکِ جاده‌ی اصلی)
     final mine = collectWalkMarks(s, g)
-        .where((m) => m.actionId == a.id)
+        .where((m) => m.actionId == a.id || m.wpos != null)
         .toList();
+    // آن‌هایی که جایشان روی نقشه معلوم است دقیقاً همان‌جا؛ بقیه مثلِ قبل کنارِ مسیر
+    final placed = mine.where((m) => m.wpos != null).toList();
+    for (final m in placed) {
+      final pr = cr.project(m.wpos!);
+      m.sd = pr.dist < 60 ? pr.d : -1e6;
+    }
     final lb = cr.length - from;
-    var keep = mine;
+    var keep = mine
+        .where((m) => m.wpos == null && m.actionId == a.id)
+        .toList();
     final cap = math.max(1, ((lb - 70) / 26).floor() + 1);
     if (keep.length > cap) keep = keep.sublist(keep.length - cap);
     final lo = from + 28.0;
@@ -1745,6 +1776,7 @@ class WalkLayer {
         m.side = -m.side;
       }
     }
+    keep = [...placed, ...keep, ..._otherMarks(s, g)];
 
     final gName = g.name.isEmpty ? 'هدف' : g.name;
     final data = WalkData(
@@ -2171,10 +2203,15 @@ class WalkPainter extends CustomPainter {
     // ثبت‌های نقشه: غنچه/گلِ هر روزِ انجام‌شده، کنارِ جاده به ترتیبِ تاریخ
     final hwAll = 15.0 + 7.0;
     for (final m in data.marks) {
-      final a = cr.ang(m.sd);
-      final pos = cr.pos(m.sd) +
-          Offset(-math.sin(a), math.cos(a)) *
-              ((bm ? 20.0 : (hwAll + 14.0)) * m.side);
+      final Offset pos;
+      if (m.wpos != null) {
+        pos = m.wpos!; // همان جایی که روی نقشه است
+      } else {
+        final a = cr.ang(m.sd);
+        pos = cr.pos(m.sd) +
+            Offset(-math.sin(a), math.cos(a)) *
+                ((bm ? 20.0 : (hwAll + 14.0)) * m.side);
+      }
       _pr(pos);
       if (_f < 6 || _f > 700) continue;
       final sc = focal / _f;
