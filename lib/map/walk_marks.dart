@@ -286,7 +286,48 @@ List<WalkMark> collectWalkMarks(MapState s, Goal g) {
     final c = x.ord.compareTo(y.ord);
     return c != 0 ? c : x.seed.compareTo(y.seed);
   });
+  _placeOnTwigs(marks, reg);
   return marks;
+}
+
+/// قدم‌هایی که جای دقیقشان روی نقشه معلوم نیست (مثلاً نهالِ «هنوز انجام نشده») به‌جای
+/// جاده‌ی اصلی، روی خودِ شاخه‌ی خودشان می‌نشینند: قدیمی‌ترین نزدیکِ نوکِ شاخه و
+/// تازه‌ترین به سمتِ ابتدای شاخه. اگر هندسه‌ی شاخه روی نقشه نبود، مثلِ قبل می‌مانند.
+void _placeOnTwigs(List<WalkMark> marks, HitRegistry? reg) {
+  if (reg == null || reg.twigs.isEmpty) return;
+  final byAction = <String, List<WalkMark>>{};
+  for (final m in marks) {
+    if (m.wpos != null || m.actionId.isEmpty) continue;
+    (byAction[m.actionId] ??= <WalkMark>[]).add(m);
+  }
+  byAction.forEach((id, list) {
+    final tw = reg.twigs[id];
+    if (tw == null || tw.pts.length < 2) return;
+    final pts = tw.pts; // نوکِ شاخه ← ابتدای شاخه
+    final cum = <double>[0.0];
+    for (var i = 1; i < pts.length; i++) {
+      cum.add(cum.last + (pts[i] - pts[i - 1]).distance);
+    }
+    final total = cum.last;
+    if (total < 8) return;
+    for (var i = 0; i < list.length; i++) {
+      final m = list[i];
+      final f = list.length == 1 ? 0.4 : 0.2 + 0.65 * i / (list.length - 1);
+      final d = total * f;
+      var k = 1;
+      while (k < cum.length - 1 && cum[k] < d) {
+        k++;
+      }
+      final seg = cum[k] - cum[k - 1];
+      final t = seg <= 0 ? 0.0 : ((d - cum[k - 1]) / seg).clamp(0.0, 1.0);
+      final p = Offset.lerp(pts[k - 1], pts[k], t)!;
+      final dir = pts[k] - pts[k - 1];
+      final len = dir.distance;
+      final nrm = len > 0 ? Offset(-dir.dy / len, dir.dx / len) : Offset.zero;
+      final side = ((m.seed >> 3) & 1) == 0 ? 1.0 : -1.0;
+      m.wpos = p + nrm * (6.0 * side);
+    }
+  });
 }
 
 Color _hex(String h, Color def) {

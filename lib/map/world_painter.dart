@@ -1752,9 +1752,18 @@ class WalkLayer {
       }
     }
 
-    // ثبت‌های همین شاخه کنارِ مسیرش (قدیمی‌ترین نزدیکِ جاده‌ی اصلی)
+    // ثبت‌های همین شاخه و همه‌ی زیرشاخه‌هایش کنارِ مسیرش (قدیمی‌ترین نزدیکِ جاده‌ی اصلی)
+    final ids = <String>{a.id};
+    void addIds(ActionNode n) {
+      for (final c in n.children) {
+        ids.add(c.id);
+        addIds(c);
+      }
+    }
+
+    addIds(a);
     final mine = collectWalkMarks(s, g)
-        .where((m) => m.actionId == a.id || m.wpos != null)
+        .where((m) => ids.contains(m.actionId) || m.wpos != null)
         .toList();
     // آن‌هایی که جایشان روی نقشه معلوم است دقیقاً همان‌جا؛ بقیه مثلِ قبل کنارِ مسیر
     final placed = mine.where((m) => m.wpos != null).toList();
@@ -1764,7 +1773,7 @@ class WalkLayer {
     }
     final lb = cr.length - from;
     var keep = mine
-        .where((m) => m.wpos == null && m.actionId == a.id)
+        .where((m) => m.wpos == null && ids.contains(m.actionId))
         .toList();
     final cap = math.max(1, ((lb - 70) / 26).floor() + 1);
     if (keep.length > cap) keep = keep.sublist(keep.length - cap);
