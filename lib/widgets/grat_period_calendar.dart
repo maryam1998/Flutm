@@ -88,6 +88,20 @@ class GratCal {
     return DateTime(p[0], p[1], p[2]);
   }
 
+  /// تعداد روزهای ثبت‌نشده: روزهای دوره تا امروز (با امروز) که انجام نشده‌اند
+  static int missed(DateTime start, int total, Set<String> doneSet,
+      [String Function(DateTime)? keyOf]) {
+    final kf = keyOf ?? key;
+    final t = today();
+    var n = 0;
+    for (var d = 0; d < total; d++) {
+      final date = DateTime(start.year, start.month, start.day + d);
+      if (date.isAfter(t)) break;
+      if (!doneSet.contains(kf(date))) n++;
+    }
+    return n;
+  }
+
   static DateTime today() {
     final n = DateTime.now();
     return DateTime(n.year, n.month, n.day);
@@ -505,7 +519,11 @@ class _GratMiniCalendarState extends State<GratMiniCalendar> {
                   withEmotions: true,
                 ),
                 const SizedBox(height: 12),
-                _CalLegend(pal: pal),
+                _CalLegend(
+                  pal: pal,
+                  done: math.min(doneCount, total),
+                  missed: GratCal.missed(start, total, doneSet),
+                ),
               ],
             ),
           ),
@@ -791,55 +809,118 @@ class _CalHeader extends StatelessWidget {
 
 class _CalLegend extends StatelessWidget {
   final GratPalette pal;
-  const _CalLegend({required this.pal});
+  final int done, missed;
+  final String doneLabel, missedLabel;
+  const _CalLegend({
+    required this.pal,
+    required this.done,
+    required this.missed,
+    this.doneLabel = 'ثبت شده',
+    this.missedLabel = 'ثبت نشده',
+  });
 
-  Widget _item(Widget swatch, String label) => Row(
-        mainAxisSize: MainAxisSize.min,
-        textDirection: TextDirection.rtl,
-        children: [
-          swatch,
-          const SizedBox(width: 5),
-          Text(label, style: TextStyle(fontSize: 10.5, color: pal.textDim)),
-        ],
+  Widget _stat({
+    required Widget swatch,
+    required String label,
+    required int count,
+    required Color bg,
+    required Color border,
+    required Color valueColor,
+  }) =>
+      Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              swatch,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: pal.textDim)),
+                    const SizedBox(height: 2),
+                    Text('${GratCal.faNum(count)} روز',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                            color: valueColor)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       );
 
   @override
   Widget build(BuildContext context) {
     final e = _DayPainter.emptyColors(pal);
-    Widget box(Color fill, Color border, {double bw = 1.2, Widget? child}) =>
-        Container(
-          width: 14,
-          height: 14,
-          alignment: Alignment.center,
+    Widget box(Color fill, Color border, {double bw = 1.2}) => Container(
+          width: 16,
+          height: 16,
           decoration: BoxDecoration(
             color: fill,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(5),
             border: Border.all(color: border, width: bw),
           ),
-          child: child,
         );
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 14,
-      runSpacing: 6,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _item(
-          Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              gradient:
-                  LinearGradient(colors: [pal.emerald700, pal.emerald500]),
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            _stat(
+              swatch: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5),
+                  gradient:
+                      LinearGradient(colors: [pal.emerald700, pal.emerald500]),
+                ),
+              ),
+              label: doneLabel,
+              count: done,
+              bg: pal.emerald500.withAlpha(pal.isDark ? 34 : 24),
+              border: pal.emerald500.withAlpha(70),
+              valueColor: pal.isDark ? pal.emerald300 : pal.emerald700,
             ),
-          ),
-          'انجام شده',
+            const SizedBox(width: 8),
+            _stat(
+              swatch: box(e.$1, e.$2),
+              label: missedLabel,
+              count: missed,
+              bg: e.$1,
+              border: e.$2,
+              valueColor: pal.ink,
+            ),
+          ],
         ),
-        _item(box(e.$1, e.$2), 'ثبت نشده'),
-        _item(box(e.$1, pal.accent, bw: 2), 'امروز'),
-        _item(
-            Opacity(opacity: 0.55, child: box(Colors.transparent, e.$2)),
-            'پیش‌رو'),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          textDirection: TextDirection.rtl,
+          children: [
+            box(e.$1, pal.accent, bw: 2),
+            const SizedBox(width: 6),
+            Text('امروز',
+                style: TextStyle(fontSize: 10.5, color: pal.textDim)),
+          ],
+        ),
       ],
     );
   }
@@ -1503,7 +1584,14 @@ class _BeliefsPeriodCalendarState extends State<BeliefsPeriodCalendar> {
                   statusOf: _statusFn(widget.readTimes),
                 ),
                 const SizedBox(height: 12),
-                _CalLegend(pal: pal),
+                _CalLegend(
+                  pal: pal,
+                  doneLabel: 'خوانده شده',
+                  missedLabel: 'خوانده نشده',
+                  done: math.min(doneCount, total),
+                  missed:
+                      GratCal.missed(start, total, widget.readDays, _bKey),
+                ),
               ],
             ),
           ),
@@ -1792,7 +1880,11 @@ class _AbundancePeriodCalendarState extends State<AbundancePeriodCalendar> {
                   statusOf: _status,
                 ),
                 const SizedBox(height: 12),
-                _CalLegend(pal: pal),
+                _CalLegend(
+                  pal: pal,
+                  done: math.min(doneCount, total),
+                  missed: GratCal.missed(start, total, doneSet),
+                ),
               ],
             ),
           ),
