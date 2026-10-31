@@ -335,10 +335,9 @@ class _WalkViewPageState extends State<WalkViewPage>
   /// پایین‌ترین جایی که دوربین برمی‌گردد: در نمای شاخه همان محلِ اتصالِ شاخه به
   /// جاده (کمی قبلش)، تا رفت‌وبرگشت فقط روی خودِ شاخه‌ی ثبت‌شده باشد نه روی
   /// جاده‌ی مستقیمِ اصلی
+  /// (در نمای شاخه: از نوکِ شاخه تا چند قدم داخلِ جاده‌ی هدف، بعد برگشت به شاخه)
   double get _lo => widget.data.isBranch
-      ? math.min(
-          math.max(widget.data.startD, widget.data.branchFrom - 24.0),
-          widget.data.maxD)
+      ? math.min(math.max(0.0, widget.data.startD - 210.0), widget.data.maxD)
       : widget.data.minD;
 
   @override
@@ -641,65 +640,6 @@ class _WalkViewPageState extends State<WalkViewPage>
             ),
           ),
           ),
-          if (data.isBranch)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 56, 8, 0),
-                  child: Center(
-                    child: ValueListenableBuilder<int>(
-                      valueListenable: _tick,
-                      builder: (_, __, ___) {
-                        final nm = data.name.contains('›')
-                            ? data.name.split('›').last.trim()
-                            : data.name;
-                        final going = cam.dir > 0;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                                color: data.branchColor, width: 1.5),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: data.branchColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  going
-                                      ? 'شاخه‌ی «$nm» ← به سمتِ سرِ شاخه'
-                                      : 'شاخه‌ی «$nm» ← برگشت به جاده',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
           Positioned(
             left: 0,
             right: 0,
