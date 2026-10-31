@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 
 import 'app.dart';
 import 'models/neural_container.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'services/auth_service.dart';
 import 'services/boot_status.dart';
 import 'services/page_exit.dart';
 import 'services/storage.dart';
+import 'services/supabase_config.dart';
 import 'state/abundance_store.dart';
 import 'state/angels_store.dart';
 import 'state/background_store.dart';
@@ -87,6 +90,15 @@ Future<void> main() async {
     shenakht.load(),
   ]);
 
+  // ورود (Google / مهمان): اگر Supabase تنظیم شده باشد وصل می‌شود
+  if (supabaseConfigured) {
+    try {
+      await Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnonKey);
+    } catch (e) {
+      debugPrint('supabase init failed: $e');
+    }
+  }
+  await AuthService.instance.load();
 
   // «ثبت حس» با بستن ادمک (echw:commit در وب): همه‌ی تمرین‌های امروز که
   // انجام شده‌ن رنگ حس می‌گیرن؛ اگه هیچ تمرینی نبود انتخاب نگه داشته می‌شه.

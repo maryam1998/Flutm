@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme/vazir_font.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/login_screen.dart';
 import 'screens/map_tab.dart';
 import 'screens/practice_tab.dart';
 import 'screens/shenakht/shenakht_tab.dart';
@@ -59,7 +60,7 @@ class MaghzApp extends StatelessWidget {
           ],
         ),
       ),
-      home: const Shell(),
+      home: const AuthGate(),
     );
   }
 }
