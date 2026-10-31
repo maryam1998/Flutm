@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
 import '../models/map_models.dart';
+import '../services/auth_service.dart';
 import '../services/fast_image.dart';
 import '../state/angels_store.dart';
 import '../state/background_store.dart';
@@ -497,41 +498,74 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
   /// نوار حساب بالای پنل: نام کاربر + دکمه‌ی خروج از حساب
   Widget _accountBar() {
-    final name = _userName.trim();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
-      child: Row(
-        children: [
-          const Icon(Icons.person_outline_rounded, size: 18, color: _kMuted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              name.isEmpty ? 'حساب: وارد نشده' : 'حساب: $name',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12.5, color: _kMuted),
-            ),
-          ),
-          TextButton.icon(
-            style: TextButton.styleFrom(
-              foregroundColor: _kDanger,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              minimumSize: const Size(0, 32),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).quietSnack(
-                const SnackBar(
-                  content: Text('خروج از حساب هنوز فعال نشده (نیاز به Supabase)'),
+    final auth = AuthService.instance;
+    return ListenableBuilder(
+      listenable: auth,
+      builder: (context, _) {
+        final guest = auth.state == AuthStatus.guest;
+        final n = auth.displayName.trim();
+        final name = guest ? 'مهمان' : (n.isNotEmpty ? n : _userName.trim());
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
+          child: Row(
+            children: [
+              const Icon(Icons.person_outline_rounded,
+                  size: 18, color: _kMuted),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name.isEmpty ? 'حساب: وارد نشده' : 'حساب: $name',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12.5, color: _kMuted),
                 ),
-              );
-            },
-            icon: const Icon(Icons.logout_rounded, size: 16),
-            label: const Text('خروج از حساب', style: TextStyle(fontSize: 12)),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: guest ? _kGold : _kDanger,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () => _logout(guest),
+                icon: Icon(guest ? Icons.login_rounded : Icons.logout_rounded,
+                    size: 16),
+                label: Text(guest ? 'ورود با Google' : 'خروج از حساب',
+                    style: const TextStyle(fontSize: 12)),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  Future<void> _logout(bool guest) async {
+    if (!guest) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('خروج از حساب؟'),
+            content: const Text('بعد از خروج، دوباره صفحه‌ی ورود نشان داده می‌شود.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('انصراف')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('خروج',
+                      style: TextStyle(color: _kDanger))),
+            ],
+          ),
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    // اول پنجره‌ی تنظیمات بسته شود، بعد صفحه‌ی ورود جایگزین برنامه می‌شود
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    await AuthService.instance.signOut();
   }
 
   /// نوشته‌های نقشه: رنگ و اندازه
