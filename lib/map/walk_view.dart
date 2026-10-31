@@ -343,6 +343,10 @@ class _WalkViewPageState extends State<WalkViewPage>
   @override
   void initState() {
     super.initState();
+    // وقتی از روی قدمِ یک شاخه (مثلاً A2) وارد می‌شوی، اول همان نقشه‌ی واقعی
+    // با همه‌چیزش (غنچه، گل، برگ، تابلو، شاخه‌ها…) کج و پشتِ پاها دیده می‌شود
+    // و مسیرِ همان شاخه جلوی توست؛ با دکمه‌ی نقشه می‌شود به نمای اول‌شخص رفت
+    _map3d = widget.data.isBranch;
     final f = widget.startFrac;
     if (f != null) {
       cam.d = (f.clamp(0.0, 1.0) * widget.data.length)
@@ -425,7 +429,7 @@ class _WalkViewPageState extends State<WalkViewPage>
       if (_dragging) {
         _autoTurn = false;
       } else {
-        cam.yaw = _wrap(cam.yaw) * math.pow(0.06, dt).toDouble();
+        cam.yaw = _wrap(cam.yaw) * math.pow(0.18, dt).toDouble();
         if (cam.yaw.abs() < 0.01) {
           cam.yaw = 0;
           _autoTurn = false;
@@ -631,6 +635,65 @@ class _WalkViewPageState extends State<WalkViewPage>
             ),
           ),
           ),
+          if (data.isBranch)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 56, 8, 0),
+                  child: Center(
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: _tick,
+                      builder: (_, __, ___) {
+                        final nm = data.name.contains('›')
+                            ? data.name.split('›').last.trim()
+                            : data.name;
+                        final going = cam.dir > 0;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: data.branchColor, width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: data.branchColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  going
+                                      ? 'شاخه‌ی «$nm» ← به سمتِ سرِ شاخه'
+                                      : 'شاخه‌ی «$nm» ← برگشت به جاده',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             left: 0,
             right: 0,

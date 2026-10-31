@@ -56,11 +56,17 @@ Future<void> showSettingsSheet(BuildContext context) {
             .copyWith(textScaler: TextScaler.linear(base * 0.86)),
         child: Align(
           alignment: Alignment.centerLeft,
-          child: SizedBox(
-            width: w,
-            height: sz.height,
-            child: const _SettingsSheet(),
-          ),
+          child: Builder(builder: (bctx) {
+            // کیبورد که باز می‌شود پنل بالای آن بماند تا کادرِ جمله‌ی انگیزشی
+            // و فهرستِ زیرش پشتِ کیبورد نروند
+            final kb = MediaQuery.viewInsetsOf(bctx).bottom;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: w,
+              height: (sz.height - kb).clamp(200.0, sz.height).toDouble(),
+              child: const _SettingsSheet(),
+            );
+          }),
         ),
       );
     },
@@ -319,7 +325,14 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             const Divider(height: 1, color: _kBorder),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+                padding: EdgeInsets.fromLTRB(
+                    12,
+                    14,
+                    12,
+                    8 +
+                        (MediaQuery.viewInsetsOf(context).bottom > 0
+                            ? 220.0
+                            : 0.0)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1053,6 +1066,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             Expanded(
               child: TextField(
                 controller: _motInput,
+                scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 200),
                 maxLines: 3,
                 minLines: 1,
                 onSubmitted: (_) => add(),
@@ -1147,6 +1161,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 Expanded(
                   child: TextField(
                     controller: _motEditCtl,
+                    scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 200),
                     autofocus: true,
                     minLines: 1,
                     maxLines: 4,
