@@ -302,7 +302,7 @@ class _WalkViewPageState extends State<WalkViewPage>
 
   // ── نمای «نقشه‌ی ۳بعدی»: همان نقشه‌ی واقعی (همه‌چیز همان‌طور که هست) کج‌شده
   //    و دوربین پشتِ پاها؛ با دکمه می‌شود به نمای اول‌شخصِ قبلی برگشت ──
-  bool _map3d = true;
+  bool _map3d = false;
   final CameraController _mcam = CameraController();
   final MapBoundsBox _mbounds = MapBoundsBox();
   final ValueNotifier<double> _mtime = ValueNotifier<double>(0);

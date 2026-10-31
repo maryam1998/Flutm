@@ -1645,7 +1645,28 @@ class WalkLayer {
     data.loop = true;
     data.goalIcon = data.icon;
     data.sides.addAll(_sideBranches(g));
+    data.sides.addAll(_otherGoals(s, g));
     return data;
+  }
+
+  /// بقیه‌ی هدف‌های نقشه (جاده‌ی هر کدام + شاخه‌هایشان) تا همه‌چیز نقشه در نمای
+  /// راه‌رفتن هم دیده شود
+  static List<_WalkSide> _otherGoals(MapState s, Goal g) {
+    final out = <_WalkSide>[];
+    for (final o in s.goals) {
+      if (o.id == g.id) continue;
+      final r = roadRoute(s, o);
+      if (r != null && r.length >= 2) {
+        final poly = _RoadPoly.fromPath(r);
+        if (poly != null) {
+          out.add(_WalkSide(
+              o.id, poly, hexColor(o.color ?? '', const Color(0xFFF2B33D)),
+              o.name.isEmpty ? 'هدف' : o.name));
+        }
+      }
+      out.addAll(_sideBranches(o));
+    }
+    return out;
   }
 
   /// همه‌ی شاخه/زیرشاخه‌های هدف (به شکلِ جاده‌ی کوچک) از روی آخرین رسمِ نقشه
@@ -1741,6 +1762,7 @@ class WalkLayer {
     data.startD = math.max(0.0, jd - 150.0);
     data.goalIcon = base.icon;
     data.sides.addAll(_sideBranches(g, skipId: a.id));
+    data.sides.addAll(_otherGoals(s, g));
     data.loop = true;
     final c0 = (a.color != null && a.color!.isNotEmpty)
         ? a.color
