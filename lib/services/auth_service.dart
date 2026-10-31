@@ -38,6 +38,11 @@ class AuthService extends ChangeNotifier {
     return u?.email ?? '';
   }
 
+  static String _msg(Object e) {
+    if (e is AuthException) return e.message;
+    return e.toString();
+  }
+
   Future<void> load() async {
     final c = _client;
     if (c != null) {
@@ -51,6 +56,9 @@ class AuthService extends ChangeNotifier {
           state = AuthStatus.signedOut;
           notifyListeners();
         }
+      }, onError: (Object e) {
+        error = 'ورود با Google کامل نشد: ${_msg(e)}';
+        notifyListeners();
       });
       final s = c.auth.currentSession;
       if (s != null && !s.user.isAnonymous) {
@@ -73,8 +81,8 @@ class AuthService extends ChangeNotifier {
               .firstWhere((d) => d.session != null && !d.session!.user.isAnonymous)
               .timeout(const Duration(seconds: 10));
           return; // listener بالا state را signedIn کرده است
-        } catch (_) {
-          error = 'ورود با Google کامل نشد. دوباره تلاش کن.';
+        } catch (e) {
+          error = 'ورود با Google کامل نشد: ${_msg(e)}';
         }
       }
     }
