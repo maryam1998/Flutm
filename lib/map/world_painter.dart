@@ -1533,7 +1533,7 @@ class WalkData {
 
   /// دورترین جایی که می‌شود رفت (کمی مانده به تابلوی هدف / سرِ شاخه)
   double get maxD => isBranch
-      ? math.max(0.0, camRoad!.length - 45.0)
+      ? math.max(0.0, camRoad!.length - 20.0)
       : (loop
           ? math.max(minD, road.length * 0.94)
           : math.max(0.0, road.length - 110.0));
@@ -1765,16 +1765,23 @@ class WalkLayer {
     final mine = collectWalkMarks(s, g)
         .where((m) => ids.contains(m.actionId) || m.wpos != null)
         .toList();
-    // آن‌هایی که جایشان روی نقشه معلوم است دقیقاً همان‌جا؛ بقیه مثلِ قبل کنارِ مسیر
-    final placed = mine.where((m) => m.wpos != null).toList();
+    // غنچه/گل‌های خودِ این شاخه (و زیرشاخه‌هایش) به ترتیبِ تاریخِ ثبت، از سرِ شاخه
+    // (قدیمی‌ترین) تا تنه‌ی شاخه (تازه‌ترین)، یکی‌درمیان چپ و راست؛ بدونِ جای تصادفی
+    var keep = mine.where((m) => ids.contains(m.actionId)).toList();
+    for (final m in keep) {
+      m.wpos = null;
+    }
+    // ثبت‌های بقیه‌ی شاخه‌ها همان‌جا که روی نقشه‌اند
+    final placed = mine.where((m) => !ids.contains(m.actionId)).toList();
     for (final m in placed) {
+      if (m.wpos == null) {
+        m.sd = -1e6;
+        continue;
+      }
       final pr = cr.project(m.wpos!);
       m.sd = pr.dist < 60 ? pr.d : -1e6;
     }
     final lb = cr.length - from;
-    var keep = mine
-        .where((m) => m.wpos == null && ids.contains(m.actionId))
-        .toList();
     final cap = math.max(1, ((lb - 70) / 26).floor() + 1);
     if (keep.length > cap) keep = keep.sublist(keep.length - cap);
     final lo = from + 28.0;
@@ -1782,15 +1789,10 @@ class WalkLayer {
     final gap = keep.length <= 1
         ? 0.0
         : ((hi - lo) / (keep.length - 1)).clamp(26.0, 90.0).toDouble();
-    // مثلِ نقشه: قدیمی‌ترین ثبت نزدیکِ نوکِ شاخه (جایی که پا شروع می‌کند) و
-    // جدیدترین به سمتِ جاده‌ی اصلی؛ در برگشت همین ترتیب طبیعتاً وارونه دیده می‌شود
     for (var i = 0; i < keep.length; i++) {
       final m = keep[i];
       m.sd = math.max(lo, math.min(hi - gap * i, cr.length - 40.0));
-      m.side = ((m.seed >> 3) & 1) == 0 ? 1.0 : -1.0;
-      if (i > 0 && keep[i - 1].side == m.side && (m.seed & 3) != 0) {
-        m.side = -m.side;
-      }
+      m.side = i.isEven ? 1.0 : -1.0;
     }
     keep = [...placed, ...keep, ..._otherMarks(s, g)];
 
@@ -1975,7 +1977,14 @@ class WalkPainter extends CustomPainter {
     final rv = pB - pA;
     final roadYaw = rv.distance < 0.01 ? 0.0 : math.atan2(rv.dy, rv.dx);
     final fwd = cam.dir >= 0 ? 1.0 : -1.0;
-    final face = cam.dir >= 0 ? roadYaw : roadYaw + math.pi;
+    var face = cam.dir >= 0 ? roadYaw : roadYaw + math.pi;
+    if (bm) {
+      // در نمای شاخه دوربین به نقطه‌ی کمی جلوتر روی مسیر نگاه می‌کند؛ پیچ‌ها نرم
+      // طی می‌شوند و دوربین سرگردان نمی‌چرخد
+      final ahead = cr.pos((dc + (cam.dir >= 0 ? 60.0 : -60.0)).clamp(0.0, Lc));
+      final av = ahead - c0;
+      if (av.distance > 4.0) face = math.atan2(av.dy, av.dx);
+    }
     final bob = cam.walking ? math.sin(cam.phase) * 0.55 : 0.0;
     final sway = cam.walking ? math.cos(cam.phase * 0.5) * 0.8 : 0.0;
     final nr = Offset(-math.sin(roadYaw), math.cos(roadYaw));

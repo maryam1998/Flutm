@@ -462,8 +462,14 @@ class _WalkViewPageState extends State<WalkViewPage>
     final pb = cr.pos(math.min(lc, dc + 16));
     final rv = pb - pa;
     if (rv.distance >= 0.01) _mRoadYaw = math.atan2(rv.dy, rv.dx);
-    final target =
-        _wrap((cam.dir >= 0 ? _mRoadYaw : _mRoadYaw + math.pi) + cam.yaw);
+    var base = cam.dir >= 0 ? _mRoadYaw : _mRoadYaw + math.pi;
+    if (data.isBranch) {
+      // نگاه به نقطه‌ی کمی جلوتر روی مسیر تا پیچ‌ها نرم طی شوند
+      final ahead = cr.pos((dc + (cam.dir >= 0 ? 60.0 : -60.0)).clamp(0.0, lc));
+      final av = ahead - p;
+      if (av.distance > 4.0) base = math.atan2(av.dy, av.dx);
+    }
+    final target = _wrap(base + cam.yaw);
     if (!_mHeadInit) {
       _mHead = target;
       _mHeadInit = true;
