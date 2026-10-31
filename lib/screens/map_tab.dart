@@ -153,6 +153,21 @@ class _MapTabState extends State<MapTab> {
     if (h != null && (h.type == 'walker' || h.type == 'foot')) {
       _tFoot[e.pointer] = h;
       _tSnap ??= _snapFoot(h);
+    } else if (h != null && h.type == 'face' && h.id.isNotEmpty) {
+      // لمس روی چهره/عکسِ پا هم یعنی همان پا (قبلاً فقط بدنه‌ی پا شمرده می‌شد و
+      // کشیدن روی عکس، به‌جای شاخه، جاده‌ی اصلیِ هدف را باز می‌کرد)
+      final host = context.read<MapStore>().state.findHost(h.hostId);
+      final isWalker = host is Goal && h.id == h.hostId;
+      final fh = HitEntry(
+        type: isWalker ? 'walker' : 'foot',
+        id: h.id,
+        hostId: h.hostId,
+        kind: h.kind,
+        center: h.center,
+        radius: h.radius,
+      );
+      _tFoot[e.pointer] = fh;
+      _tSnap ??= _snapFoot(fh);
     }
   }
 

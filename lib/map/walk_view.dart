@@ -309,6 +309,7 @@ class _WalkViewPageState extends State<WalkViewPage>
   bool _dragging = false;
   double _yawVel = 0; // سرعتِ چرخشِ سر بعد از رها کردنِ انگشت (رادیان/ثانیه)
   bool _arrived = false;
+  double _turnFrom = 0, _turnT = 1;
   bool _autoTurn = false; // چرخشِ نرمِ ۱۸۰ درجه‌ی سر هنگامِ برگشت
   double _hold = 0; // مکثِ رفت‌وبرگشت (ثانیه)
   int _speedIdx = 0;
@@ -384,6 +385,8 @@ class _WalkViewPageState extends State<WalkViewPage>
     cam.yaw = _wrap(cam.yaw + math.pi);
     _yawVel = 0;
     _autoTurn = true;
+    _turnFrom = cam.yaw;
+    _turnT = 0;
   }
 
   void _onTick(Duration e) {
@@ -429,8 +432,11 @@ class _WalkViewPageState extends State<WalkViewPage>
       if (_dragging) {
         _autoTurn = false;
       } else {
-        cam.yaw = _wrap(cam.yaw) * math.pow(0.18, dt).toDouble();
-        if (cam.yaw.abs() < 0.01) {
+        // دورِ زدنِ طبیعی: نیم‌دورِ نرم در حدودِ نیم ثانیه (شروع و پایانِ ملایم)
+        _turnT = math.min(1.0, _turnT + dt / 0.5);
+        final k = _turnT * _turnT * (3 - 2 * _turnT);
+        cam.yaw = _turnFrom * (1 - k);
+        if (_turnT >= 1.0) {
           cam.yaw = 0;
           _autoTurn = false;
         }
