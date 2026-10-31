@@ -1768,9 +1768,11 @@ class WalkLayer {
     final gap = keep.length <= 1
         ? 0.0
         : ((hi - lo) / (keep.length - 1)).clamp(26.0, 90.0).toDouble();
+    // مثلِ نقشه: قدیمی‌ترین ثبت نزدیکِ نوکِ شاخه (جایی که پا شروع می‌کند) و
+    // جدیدترین به سمتِ جاده‌ی اصلی؛ در برگشت همین ترتیب طبیعتاً وارونه دیده می‌شود
     for (var i = 0; i < keep.length; i++) {
       final m = keep[i];
-      m.sd = math.min(lo + gap * i, cr.length - 40.0);
+      m.sd = math.max(lo, math.min(hi - gap * i, cr.length - 40.0));
       m.side = ((m.seed >> 3) & 1) == 0 ? 1.0 : -1.0;
       if (i > 0 && keep[i - 1].side == m.side && (m.seed & 3) != 0) {
         m.side = -m.side;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
+import '../models/jalali.dart' show jKey;
 import '../models/map_models.dart';
 import '../screens/add_goal_dialog.dart';
 import '../screens/goals_sheet.dart';
@@ -11,15 +12,19 @@ import '../state/map_store.dart';
 import 'camera.dart';
 import 'draw_utils.dart' show toFa, NodeImageCache;
 import 'hit_registry.dart';
-import 'map_ops.dart' show findActionNode;
+import 'map_ops.dart' show findActionNode, footPosToday;
 import 'map_painter.dart' show MapPainter;
 import 'walk_marks.dart';
 import 'world_painter.dart';
 
-/// جای فعلیِ پای یک شاخه روی مسیرِ دوربین (۰ = سمتِ هدف … ۱ = نوکِ شاخه)؛ پا از
-/// نوکِ شاخه شروع می‌کند، پس اگر جایی ثبت نشده بود از نوک آغاز می‌شود.
-double _branchStartFrac(ActionNode n) =>
-    (1.0 - (n.footPos ?? 0.0)).clamp(0.0, 1.0).toDouble();
+/// نقطه‌ی شروعِ نمای راه‌رفتنِ یک شاخه روی مسیرِ دوربین (۰ = سمتِ هدف … ۱ = نوکِ
+/// شاخه). پای انیمیشنی روی نقشه از نوکِ شاخه شروع به حرکت می‌کند؛ پس همان‌جا
+/// شروع می‌شود، مگر اینکه کاربر «امروز» پا را دستی جابه‌جا کرده باشد (همان‌طور که
+/// نقشه هم فقط موقعیتِ امروز را قبول می‌کند؛ موقعیتِ روزهای قبل نادیده است).
+double _branchStartFrac(ActionNode n) {
+  final today = footPosToday(n, jKey(DateTime.now()));
+  return (1.0 - (today ?? 0.0)).clamp(0.0, 1.0).toDouble();
+}
 
 /// نمای اول‌شخص: کاربر روی جاده‌ی یکی از هدف‌هایش راه می‌رود و دورتادورِ خودش
 /// را (۳۶۰ درجه، با انگشت) می‌بیند؛ انگار خودِ انیمیشنِ پا روی مسیر است.
@@ -340,8 +345,11 @@ class _WalkViewPageState extends State<WalkViewPage>
       cam.d = (f.clamp(0.0, 1.0) * widget.data.length)
           .clamp(_lo, widget.data.maxD)
           .toDouble();
-      // اگر پا سرِ شاخه است، اول به سمتِ هدف برمی‌گردد
-      if (cam.d >= widget.data.maxD - 0.5) cam.dir = -1.0;
+      // پای شاخه روی نقشه از نوک شروع می‌کند و به سمتِ جاده‌ی اصلی می‌رود؛
+      // رفت = نوک ← جاده، برگشت = جاده ← نوک
+      if (widget.data.isBranch || cam.d >= widget.data.maxD - 0.5) {
+        cam.dir = -1.0;
+      }
     } else if (widget.data.startD > 0) {
       cam.d = widget.data.startD
           .clamp(widget.data.minD, widget.data.maxD)
