@@ -16,6 +16,11 @@ import 'map_painter.dart' show MapPainter;
 import 'walk_marks.dart';
 import 'world_painter.dart';
 
+/// جای فعلیِ پای یک شاخه روی مسیرِ دوربین (۰ = سمتِ هدف … ۱ = نوکِ شاخه)؛ پا از
+/// نوکِ شاخه شروع می‌کند، پس اگر جایی ثبت نشده بود از نوک آغاز می‌شود.
+double _branchStartFrac(ActionNode n) =>
+    (1.0 - (n.footPos ?? 0.0)).clamp(0.0, 1.0).toDouble();
+
 /// نمای اول‌شخص: کاربر روی جاده‌ی یکی از هدف‌هایش راه می‌رود و دورتادورِ خودش
 /// را (۳۶۰ درجه، با انگشت) می‌بیند؛ انگار خودِ انیمیشنِ پا روی مسیر است.
 Future<void> openWalkView(BuildContext context, MapState state) async {
@@ -128,8 +133,9 @@ Future<void> openWalkView(BuildContext context, MapState state) async {
     return;
   }
   final WalkData data = data0;
-  final startFrac =
-      branch != null ? null : (g.extra['walkerPos'] as num?)?.toDouble();
+  final startFrac = branch != null
+      ? _branchStartFrac(branch)
+      : (g.extra['walkerPos'] as num?)?.toDouble();
   await Navigator.of(context).push(MaterialPageRoute<void>(
     fullscreenDialog: true,
     builder: (_) => WalkViewPage(data: data, startFrac: startFrac),
@@ -225,9 +231,10 @@ Future<void> openWalkViewAt(
   }
   if (!context.mounted) return;
   final d1 = data;
+  final sf1 = brNode == null ? null : _branchStartFrac(brNode!);
   await Navigator.of(context).push(MaterialPageRoute<void>(
     fullscreenDialog: true,
-    builder: (_) => WalkViewPage(data: d1),
+    builder: (_) => WalkViewPage(data: d1, startFrac: sf1),
   ));
 }
 
@@ -271,9 +278,10 @@ Future<void> openWalkViewForFoot(BuildContext context, MapState state,
     say('مسیرِ این شاخه خیلی کوتاه است.');
     return;
   }
+  final sfb = _branchStartFrac(found.node);
   await Navigator.of(context).push(MaterialPageRoute<void>(
     fullscreenDialog: true,
-    builder: (_) => WalkViewPage(data: data),
+    builder: (_) => WalkViewPage(data: data, startFrac: sfb),
   ));
 }
 
@@ -317,11 +325,8 @@ class _WalkViewPageState extends State<WalkViewPage>
   int _zoomIdx = 1;
   static const _zooms = [0.5, 0.8, 1.25];
 
-  /// پایین‌ترین جایی که دوربین برمی‌گردد: در نمای شاخه همان جایی که رفتنِ اول
-  /// شروع شد (تا «برگشت» دیده شود و تا اولِ مسیرِ هدف نرود)
-  double get _lo => widget.data.isBranch
-      ? math.min(widget.data.startD, widget.data.maxD)
-      : widget.data.minD;
+  /// پایین‌ترین جایی که دوربین برمی‌گردد (اولِ مسیر؛ مثلِ پا که تا آخرِ مسیر می‌رود و برمی‌گردد)
+  double get _lo => widget.data.minD;
 
   @override
   void initState() {
@@ -331,6 +336,8 @@ class _WalkViewPageState extends State<WalkViewPage>
       cam.d = (f.clamp(0.0, 1.0) * widget.data.length)
           .clamp(widget.data.minD, widget.data.maxD)
           .toDouble();
+      // اگر پا سرِ شاخه است، اول به سمتِ هدف برمی‌گردد
+      if (cam.d >= widget.data.maxD - 0.5) cam.dir = -1.0;
     } else if (widget.data.startD > 0) {
       cam.d = widget.data.startD
           .clamp(widget.data.minD, widget.data.maxD)
