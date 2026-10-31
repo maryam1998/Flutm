@@ -13,7 +13,7 @@ import 'camera.dart';
 import 'draw_utils.dart' show toFa, NodeImageCache;
 import 'hit_registry.dart';
 import 'map_ops.dart' show findActionNode, footPosToday;
-import 'map_painter.dart' show MapPainter;
+import 'map_painter.dart' show MapPainter, WalkSync;
 import 'walk_marks.dart';
 import 'world_painter.dart';
 
@@ -367,6 +367,7 @@ class _WalkViewPageState extends State<WalkViewPage>
 
   @override
   void dispose() {
+    WalkSync.pos.clear();
     _ticker.dispose();
     _tick.dispose();
     _mtime.dispose();
@@ -460,6 +461,16 @@ class _WalkViewPageState extends State<WalkViewPage>
     } else {
       final k = 1.0 - math.pow(0.0005, dt).toDouble();
       _mHead = _wrap(_mHead + _wrap(target - _mHead) * k);
+    }
+    // پاهای انیمیشنیِ روی نقشه همان جا و همان جهتِ دوربین راه بروند
+    if (data.isBranch) {
+      final id = data.branchId;
+      // مسیرِ پا روی نقشه از نوکِ شاخه به سمتِ جاده است؛ دوربین برعکس
+      if (id != null && lc > 0) {
+        WalkSync.pos['foot:$id'] = (1.0 - dc / lc, cam.dir > 0);
+      }
+    } else if (data.goalId.isNotEmpty && lc > 0) {
+      WalkSync.pos['walker:${data.goalId}'] = (dc / lc, cam.dir < 0);
     }
     final sc = _zooms[_zoomIdx];
     _mcam.scale = sc;
@@ -686,7 +697,10 @@ class _WalkViewPageState extends State<WalkViewPage>
                         const SizedBox(width: 14),
                         _roundBtn(
                             _map3d ? Icons.directions_walk : Icons.map_outlined,
-                            () => setState(() => _map3d = !_map3d)),
+                            () => setState(() {
+                              _map3d = !_map3d;
+                              if (!_map3d) WalkSync.pos.clear();
+                            })),
                       ],
                     ),
                   ],

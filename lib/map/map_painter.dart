@@ -95,6 +95,14 @@ class _WalkerRt {
 
 final Map<String, _WalkerRt> _walkerRt = {};
 
+/// نمای ۳بعدیِ راه‌رفتن: جا و جهتِ پای انیمیشنی را دوربینِ همان نما تعیین می‌کند
+/// تا پاهای روی نقشه دقیقاً با نمای راه‌رفتن هماهنگ حرکت کنند.
+/// کلید: 'walker:<goalId>' یا 'foot:<actionId>' ← (t روی مسیرِ پا، برگشت؟)
+class WalkSync {
+  WalkSync._();
+  static final Map<String, (double, bool)> pos = {};
+}
+
 /// منحنی عمومی برای قدم‌زن: t بین ۰ و ۱
 abstract class _Curve {
   Offset at(double t);
@@ -2828,7 +2836,15 @@ class MapPainter extends CustomPainter {
     double bodyT;
     bool returning = false;
     double cyc = 0;
-    if (playing) {
+    final syn = WalkSync.pos['$hitType:$hitId'];
+    if (syn != null) {
+      // هماهنگ با دوربینِ نمای راه‌رفتن (بدونِ دست‌زدن به وضعیتِ نقشه‌ی اصلی)
+      playing = true;
+      returning = syn.$2;
+      bodyT = syn.$1.clamp(tMin, tMax).toDouble();
+      final stepNum = ((bodyT - tMin) / range).clamp(0.0, 1.0) * totalSteps;
+      cyc = returning ? cycleLen - stepNum : stepNum;
+    } else if (playing) {
       // کاربر وسط حرکت قدم را جابه‌جا کرده → از همان‌جا ادامه بده (متوقف نمی‌شود)
       if (followManual && manualT != null && manualT != st.seenManual) {
         st.frozenT = manualT.clamp(tMin, tMax).toDouble();

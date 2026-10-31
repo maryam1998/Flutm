@@ -1510,6 +1510,10 @@ class WalkData {
   /// رفت و برگشتِ بی‌پایان (مثلِ انیمیشنِ پا)
   bool loop = false;
 
+  /// شناسه‌ی هدف و (در نمای شاخه) شاخه؛ برای هماهنگیِ پاهای نمای ۳بعدی
+  String goalId = '';
+  String? branchId;
+
   bool get isBranch => camRoad != null;
 
   double get length => (camRoad ?? road).length;
@@ -1652,6 +1656,7 @@ class WalkLayer {
         g.icon.isEmpty ? '🎯' : g.icon, marks);
     // مثلِ قدم‌زنِ نقشه: روی جاده‌ی اصلی رفت و برگشتِ بی‌پایان
     data.loop = true;
+    data.goalId = g.id;
     data.goalIcon = data.icon;
     data.sides.addAll(_sideBranches(g));
     data.sides.addAll(_otherGoals(s, g));
@@ -1792,6 +1797,8 @@ class WalkLayer {
         '🌱',
         keep);
     data.camRoad = cr;
+    data.goalId = g.id;
+    data.branchId = a.id;
     data.branchFrom = from;
     // رفت‌وبرگشت فقط روی خودِ شاخه: از کمی قبل از محلِ اتصال تا سرِ شاخه
     data.startD = math.max(0.0, jd - 30.0);
