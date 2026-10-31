@@ -35,6 +35,8 @@ class AppPrefs {
       });
       // انتقال یک‌باره از localStorage → IndexedDB
       for (final k in sp.getKeys().toList()) {
+        // کلیدهای ورود (Supabase) باید در localStorage بمانند؛ وگرنه code verifier پاک می‌شود
+        if (k.startsWith('supabase') || k.startsWith('sb-')) continue;
         try {
           if (!mem.containsKey(k)) {
             final v = sp.get(k);
