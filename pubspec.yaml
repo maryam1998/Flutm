@@ -27,6 +27,8 @@ dependencies:
 
 dependency_overrides:
   flutter_plugin_android_lifecycle: 2.0.24
+  # record_linux 0.7.x با record_platform_interface 1.6 سازگار نیست (startStream/hasPermission)
+  record_linux: ^1.2.0
 
 flutter:
   uses-material-design: true
