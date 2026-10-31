@@ -1791,7 +1791,8 @@ class WalkLayer {
         keep);
     data.camRoad = cr;
     data.branchFrom = from;
-    data.startD = math.max(0.0, jd - 150.0);
+    // رفت‌وبرگشت فقط روی خودِ شاخه: از کمی قبل از محلِ اتصال تا سرِ شاخه
+    data.startD = math.max(0.0, jd - 30.0);
     data.goalIcon = base.icon;
     data.sides.addAll(_sideBranches(g, skipId: a.id));
     data.sides.addAll(_otherGoals(s, g));

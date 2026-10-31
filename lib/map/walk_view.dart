@@ -325,8 +325,12 @@ class _WalkViewPageState extends State<WalkViewPage>
   int _zoomIdx = 1;
   static const _zooms = [0.5, 0.8, 1.25];
 
-  /// پایین‌ترین جایی که دوربین برمی‌گردد (اولِ مسیر؛ مثلِ پا که تا آخرِ مسیر می‌رود و برمی‌گردد)
-  double get _lo => widget.data.minD;
+  /// پایین‌ترین جایی که دوربین برمی‌گردد: در نمای شاخه همان محلِ اتصالِ شاخه به
+  /// جاده (کمی قبلش)، تا رفت‌وبرگشت فقط روی خودِ شاخه‌ی ثبت‌شده باشد نه روی
+  /// جاده‌ی مستقیمِ اصلی
+  double get _lo => widget.data.isBranch
+      ? math.min(widget.data.startD, widget.data.maxD)
+      : widget.data.minD;
 
   @override
   void initState() {
@@ -334,7 +338,7 @@ class _WalkViewPageState extends State<WalkViewPage>
     final f = widget.startFrac;
     if (f != null) {
       cam.d = (f.clamp(0.0, 1.0) * widget.data.length)
-          .clamp(widget.data.minD, widget.data.maxD)
+          .clamp(_lo, widget.data.maxD)
           .toDouble();
       // اگر پا سرِ شاخه است، اول به سمتِ هدف برمی‌گردد
       if (cam.d >= widget.data.maxD - 0.5) cam.dir = -1.0;
