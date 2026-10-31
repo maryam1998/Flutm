@@ -2,13 +2,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:provider/provider.dart';
 
 import '../models/map_models.dart';
 import '../screens/add_goal_dialog.dart';
 import '../screens/goals_sheet.dart';
-import 'draw_utils.dart' show toFa;
+import '../state/map_store.dart';
+import 'camera.dart';
+import 'draw_utils.dart' show toFa, NodeImageCache;
 import 'hit_registry.dart';
 import 'map_ops.dart' show findActionNode;
+import 'map_painter.dart' show MapPainter;
 import 'walk_marks.dart';
 import 'world_painter.dart';
 
@@ -296,6 +300,29 @@ class _WalkViewPageState extends State<WalkViewPage>
   int _speedIdx = 0;
   static const _speeds = [1.0, 3.0, 8.0];
 
+  // ── نمای «نقشه‌ی ۳بعدی»: همان نقشه‌ی واقعی (همه‌چیز همان‌طور که هست) کج‌شده
+  //    و دوربین پشتِ پاها؛ با دکمه می‌شود به نمای اول‌شخصِ قبلی برگشت ──
+  bool _map3d = true;
+  final CameraController _mcam = CameraController();
+  final MapBoundsBox _mbounds = MapBoundsBox();
+  final ValueNotifier<double> _mtime = ValueNotifier<double>(0);
+  late final HitRegistry _mHits;
+  MapPainter? _mPainter;
+  MapState? _mState;
+  bool _mDark = false;
+  double _mSpan = 2000;
+  double _mHead = 0;
+  bool _mHeadInit = false;
+  double _mRoadYaw = 0;
+  int _zoomIdx = 1;
+  static const _zooms = [0.5, 0.8, 1.25];
+
+  /// پایین‌ترین جایی که دوربین برمی‌گردد: در نمای شاخه همان جایی که رفتنِ اول
+  /// شروع شد (تا «برگشت» دیده شود و تا اولِ مسیرِ هدف نرود)
+  double get _lo => widget.data.isBranch
+      ? math.min(widget.data.startD, widget.data.maxD)
+      : widget.data.minD;
+
   @override
   void initState() {
     super.initState();
@@ -309,6 +336,10 @@ class _WalkViewPageState extends State<WalkViewPage>
           .clamp(widget.data.minD, widget.data.maxD)
           .toDouble();
     }
+    // ثبتِ لمسِ نقشه‌ی ۳بعدی؛ سازنده‌اش `current` را عوض می‌کند و برش می‌گردانیم
+    final prevHits = HitRegistry.current;
+    _mHits = HitRegistry();
+    HitRegistry.current = prevHits;
     _ticker = createTicker(_onTick)..start();
   }
 
@@ -316,6 +347,7 @@ class _WalkViewPageState extends State<WalkViewPage>
   void dispose() {
     _ticker.dispose();
     _tick.dispose();
+    _mtime.dispose();
     super.dispose();
   }
 
@@ -323,7 +355,9 @@ class _WalkViewPageState extends State<WalkViewPage>
     final dt = ((e - _last).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble();
     _last = e;
     cam.t += dt;
+    _mtime.value = e.inMicroseconds / 1e6;
     final sp = _speeds[_speedIdx];
+    final lo = _lo;
     final loop = widget.data.loop;
     if (loop && _hold > 0) {
       // مکثِ کوتاه سرِ شاخه / ابتدای مسیر؛ بعد برگشت
@@ -344,9 +378,10 @@ class _WalkViewPageState extends State<WalkViewPage>
           cam.walking = false;
           if (!_arrived && mounted) setState(() => _arrived = true);
         }
-      } else if (cam.dir < 0 && cam.d <= widget.data.minD) {
-        cam.d = widget.data.minD;
+      } else if (cam.dir < 0 && cam.d <= lo) {
+        cam.d = lo;
         if (loop) {
+          // برگشت تمام شد؛ مکثِ کوتاه و دوباره رفت
           cam.dir = 1.0;
           _hold = 0.8;
         } else {
@@ -361,7 +396,34 @@ class _WalkViewPageState extends State<WalkViewPage>
       _yawVel *= math.pow(0.02, dt).toDouble();
       if (_yawVel.abs() < 0.01) _yawVel = 0;
     }
+    if (_map3d) _syncMap3d(dt);
     _tick.value++;
+  }
+
+  /// دوربینِ نقشه‌ی ۳بعدی را روی جای فعلیِ پاها می‌گذارد و رو به جهتِ حرکت می‌چرخاند
+  void _syncMap3d(double dt) {
+    final data = widget.data;
+    final cr = data.camRoad ?? data.road;
+    final lc = cr.length;
+    final dc = cam.d.clamp(0.0, lc).toDouble();
+    final p = cr.pos(dc);
+    final pa = cr.pos(math.max(0.0, dc - 4));
+    final pb = cr.pos(math.min(lc, dc + 24));
+    final rv = pb - pa;
+    if (rv.distance >= 0.01) _mRoadYaw = math.atan2(rv.dy, rv.dx);
+    final target =
+        _wrap((cam.dir >= 0 ? _mRoadYaw : _mRoadYaw + math.pi) + cam.yaw);
+    if (!_mHeadInit) {
+      _mHead = target;
+      _mHeadInit = true;
+    } else {
+      final k = 1.0 - math.pow(0.0005, dt).toDouble();
+      _mHead = _wrap(_mHead + _wrap(target - _mHead) * k);
+    }
+    final sc = _zooms[_zoomIdx];
+    _mcam.scale = sc;
+    _mcam.x = _mSpan / 2 - p.dx * sc;
+    _mcam.y = _mSpan / 2 - p.dy * sc;
   }
 
   /// زاویه را در بازه‌ی (-π, π] نگه می‌دارد تا چرخشِ پیوسته‌ی ۳۶۰ درجه ممکن باشد
@@ -386,7 +448,7 @@ class _WalkViewPageState extends State<WalkViewPage>
       if (!cam.walking) {
         final maxD = widget.data.maxD;
         if (cam.dir > 0 && cam.d >= maxD - 0.5) cam.dir = -1.0;
-        if (cam.dir < 0 && cam.d <= widget.data.minD + 0.5) cam.dir = 1.0;
+        if (cam.dir < 0 && cam.d <= _lo + 0.5) cam.dir = 1.0;
         _arrived = false;
       }
       cam.walking = !cam.walking;
@@ -425,7 +487,7 @@ class _WalkViewPageState extends State<WalkViewPage>
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final data = widget.data;
-    final minD = data.minD;
+    final minD = _lo;
     final span = math.max(1.0, data.maxD - minD);
     return Scaffold(
       backgroundColor: Colors.black,
@@ -460,10 +522,12 @@ class _WalkViewPageState extends State<WalkViewPage>
                     .toDouble();
               },
               onPanCancel: () => _dragging = false,
-              child: CustomPaint(
-                painter: WalkPainter(data, cam, dark, _tick),
-                size: Size.infinite,
-              ),
+              child: _map3d
+                  ? _buildMap3d(context, dark)
+                  : CustomPaint(
+                      painter: WalkPainter(data, cam, dark, _tick),
+                      size: Size.infinite,
+                    ),
             ),
           ),
           Positioned(
@@ -503,6 +567,12 @@ class _WalkViewPageState extends State<WalkViewPage>
                       ),
                     ),
                   ),
+                  if (_map3d) ...[
+                    const SizedBox(width: 10),
+                    _roundBtn(Icons.zoom_in, () {
+                      setState(() => _zoomIdx = (_zoomIdx + 1) % _zooms.length);
+                    }),
+                  ],
                 ],
               ),
             ),
@@ -533,6 +603,8 @@ class _WalkViewPageState extends State<WalkViewPage>
                               : (data.loop
                                   ? '🎯 نزدیکِ هدف رسیدی؛ برمی‌گردی…'
                                   : '🎯 به آخرِ جاده‌ی هدفت رسیدی');
+                        } else if (cam.dir < 0 && data.loop) {
+                          msg = '↩️ در حال برگشت…';
                         } else if (cam.t < 8) {
                           msg =
                               'انگشتت را به هر سو بکش و ۳۶۰ درجه دورِ خودت را ببین · لمس = ایست/حرکت';
@@ -569,6 +641,10 @@ class _WalkViewPageState extends State<WalkViewPage>
                         }, label: '×${toFa(_speeds[_speedIdx].round())}'),
                         const SizedBox(width: 14),
                         _roundBtn(Icons.explore_outlined, _lookForward),
+                        const SizedBox(width: 14),
+                        _roundBtn(
+                            _map3d ? Icons.directions_walk : Icons.map_outlined,
+                            () => setState(() => _map3d = !_map3d)),
                       ],
                     ),
                   ],
@@ -579,6 +655,112 @@ class _WalkViewPageState extends State<WalkViewPage>
         ],
       ),
     );
+  }
+
+  MapPainter _painterFor(MapState st, bool dark) {
+    if (_mPainter == null || !identical(_mState, st) || _mDark != dark) {
+      _mState = st;
+      _mDark = dark;
+      _mPainter = MapPainter(
+        state: st,
+        cam: _mcam,
+        time: _mtime,
+        images: NodeImageCache.shared,
+        boundsBox: _mbounds,
+        hits: _mHits,
+        isDark: dark,
+      );
+    }
+    return _mPainter!;
+  }
+
+  /// نقشه‌ی واقعی (با همه‌ی چیزهایش) در حالتِ ۳بعدی: نقشه رو به جهتِ حرکت چرخانده
+  /// و کج می‌شود؛ دوربین پشتِ پاهاست و هرچه روی نقشه هست همان‌طور دیده می‌شود.
+  Widget _buildMap3d(BuildContext context, bool dark) {
+    final st = context.watch<MapStore>().state;
+    final painter = _painterFor(st, dark);
+    final bg = dark ? const Color(0xFF10142A) : Colors.white;
+    final skyTop = dark ? const Color(0xFF0B1226) : const Color(0xFF86C1EE);
+    final skyLow = dark ? const Color(0xFF2B3558) : const Color(0xFFEAF4FB);
+    return LayoutBuilder(builder: (context, box) {
+      final w = box.maxWidth, h = box.maxHeight;
+      if (w <= 0 || h <= 0) return const SizedBox.shrink();
+      final lw = w * 1.8, lh = h * 2.0;
+      final up = h * 1.5; // بخشِ بالای نقطه‌ی ایستادن در لایه
+      final anchor = Offset(lw / 2, up);
+      final span = h * 3.4;
+      _mSpan = span;
+      _mcam.view = Size(span, span);
+      _syncMap3d(0);
+      final persp = 0.55 / h;
+      return SizedBox(
+        width: w,
+        height: h,
+        child: ValueListenableBuilder<int>(
+          valueListenable: _tick,
+          builder: (_, __, ___) {
+            final tilt =
+                (0.85 + cam.pitch * 0.5).clamp(0.55, 1.05).toDouble();
+            final proj = up * math.cos(tilt) / (1 + persp * up * math.sin(tilt));
+            final edgeY = h * 0.72 - proj; // لبه‌ی دورِ نقشه روی صفحه
+            final fogH = math.max(1.0, math.min(h, edgeY + h * 0.22));
+            final stop =
+                ((edgeY + h * 0.02) / fogH).clamp(0.05, 0.95).toDouble();
+            final m = Matrix4.identity()
+              ..setEntry(3, 2, persp)
+              ..rotateX(-tilt);
+            return Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                Positioned.fill(child: ColoredBox(color: skyLow)),
+                Positioned(
+                  left: w / 2 - lw / 2,
+                  top: h * 0.72 - up,
+                  width: lw,
+                  height: lh,
+                  child: Transform(
+                    origin: anchor,
+                    transform: m,
+                    child: CustomPaint(
+                      size: Size(lw, lh),
+                      painter: _Map3dPainter(
+                        inner: painter,
+                        head: () => _mHead,
+                        anchor: anchor,
+                        span: span,
+                        bg: bg,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: fogH,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            skyTop,
+                            skyLow,
+                            skyLow.withValues(alpha: 0.0),
+                          ],
+                          stops: [0.0, stop, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    });
   }
 
   /// کارتِ توضیحِ ثبتِ نقشه (وقتی کنارش رد می‌شوی): تاریخ، نام، مدت و یادداشتِ کامل
@@ -658,4 +840,39 @@ class _WalkViewPageState extends State<WalkViewPage>
       ),
     );
   }
+}
+
+/// نقشه‌ی واقعی را (با [MapPainter]) رو به جهتِ حرکت می‌چرخاند؛ کجیِ ۳بعدی را
+/// ویجتِ Transform روی همین لایه می‌اندازد.
+class _Map3dPainter extends CustomPainter {
+  _Map3dPainter({
+    required this.inner,
+    required this.head,
+    required this.anchor,
+    required this.span,
+    required this.bg,
+  });
+
+  final MapPainter inner;
+  final double Function() head;
+  final Offset anchor;
+  final double span;
+  final Color bg;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.save();
+    canvas.clipRect(rect);
+    canvas.drawRect(rect, Paint()..color = bg);
+    // نقطه‌ی ایستادنِ پاها (وسطِ بومِ نقشه) روی [anchor]؛ جهتِ حرکت = بالا
+    canvas.translate(anchor.dx, anchor.dy);
+    canvas.rotate(-math.pi / 2 - head());
+    canvas.translate(-span / 2, -span / 2);
+    inner.paint(canvas, Size(span, span));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _Map3dPainter old) => true;
 }
