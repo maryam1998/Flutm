@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/camera.dart';
+import '../map/day_cycle.dart';
 import '../map/draw_utils.dart' show toFa;
 import '../map/hit_registry.dart';
 import '../map/map_canvas.dart';
@@ -284,18 +285,32 @@ class _MapTabState extends State<MapTab> {
     openWalkViewAt(context, context.read<MapStore>().state, focus, reach);
   }
 
+  /// پالتِ نقشه وقتی آسمانِ خودکار (ساعتِ گوشی) فعال است؛ وگرنه null = تمِ برنامه
+  WebPalette? _skyPal;
+
   @override
   Widget build(BuildContext context) {
+    final bgStore = context.watch<BackgroundStore>();
+    // با تصویر/ویدیو/رنگِ دلخواهِ کاربر، آسمانِ خودکار کنار می‌رود
+    return DayCycleScope(
+      enabled: !bgStore.overridesBackdrop,
+      builder: (ctx, sky) => _buildMap(ctx, sky),
+    );
+  }
+
+  Widget _buildMap(BuildContext context, SkyState? sky) {
     final store = context.watch<MapStore>();
     final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
     final anyOpen = store.anyOpen;
-    final wp = WebPalette.of(context);
+    _skyPal = sky == null ? null : (sky.night ? WebPalette.dark : WebPalette.light);
+    final wp = _skyPal ?? WebPalette.of(context);
     final ink = wp.textMain;
 
     final bgStore = context.watch<BackgroundStore>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark =
+        sky?.night ?? (Theme.of(context).brightness == Brightness.dark);
     // مثل بقیه‌ی تب‌ها: روشن = سفید؛ با تصویر/ویدیو/رنگ دلخواه شفاف
-    final mapBg = (bgStore.overridesBackdrop || isDark)
+    final mapBg = (sky != null || bgStore.overridesBackdrop || isDark)
         ? Colors.transparent
         : Colors.white;
 
@@ -308,6 +323,7 @@ class _MapTabState extends State<MapTab> {
         children: [
           MapCanvas(
             cam: cam,
+            isDark: sky?.night,
             boundsBox: bounds,
             isResizeMode: () => _resizeMode,
             onEditMe: () => showEditSheet(context, const MeTarget()),
@@ -455,9 +471,40 @@ class _MapTabState extends State<MapTab> {
                       const SizedBox(width: 8),
                     ],
                     _circleBtn(
-                      Text(isDark ? '🌙' : '☀️',
-                          style: const TextStyle(fontSize: 14, height: 1)),
-                      () => context.read<ThemeStore>().toggle(),
+                      sky == null
+                          ? Text(isDark ? '🌙' : '☀️',
+                              style: const TextStyle(fontSize: 14, height: 1))
+                          : Tooltip(
+                              message: DayCycle.modeLabel(DayCycle.mode.value),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                alignment: Alignment.center,
+                                children: [
+                                  Text(
+                                      DayCycle.mode.value == 'auto'
+                                          ? sky.emoji
+                                          : (DayCycle.mode.value == 'day'
+                                              ? '☀️'
+                                              : '🌙'),
+                                      style: const TextStyle(
+                                          fontSize: 14, height: 1)),
+                                  if (DayCycle.mode.value == 'auto')
+                                    Positioned(
+                                      right: -5,
+                                      bottom: -4,
+                                      child: Text('A',
+                                          style: TextStyle(
+                                              fontSize: 8,
+                                              height: 1,
+                                              fontWeight: FontWeight.w800,
+                                              color: wp.accent)),
+                                    ),
+                                ],
+                              ),
+                            ),
+                      () => sky == null
+                          ? context.read<ThemeStore>().toggle()
+                          : DayCycle.cycleMode(),
                     ),
                     const SizedBox(width: 8),
                     _circleBtn(
@@ -627,7 +674,7 @@ class _MapTabState extends State<MapTab> {
   }
 
   Widget _circleBtn(Widget child, VoidCallback onTap) {
-    final wp = WebPalette.of(context);
+    final wp = _skyPal ?? WebPalette.of(context);
     return Material(
       color: wp.panelBg,
       shape: CircleBorder(side: BorderSide(color: wp.panelBorder)),

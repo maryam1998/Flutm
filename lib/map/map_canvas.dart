@@ -26,9 +26,13 @@ class MapCanvas extends StatefulWidget {
     this.onFootStats,
     this.onBloomDay,
     this.onEditFootNote,
+    this.isDark,
   });
 
   final CameraController cam;
+
+  /// اگر داده شود (آسمانِ خودکار) به‌جای تمِ برنامه استفاده می‌شود
+  final bool? isDark;
   final MapBoundsBox boundsBox;
   final bool Function() isResizeMode;
   final void Function() onEditMe;
@@ -121,7 +125,8 @@ class _MapCanvasState extends State<MapCanvas>
               images: _images,
               boundsBox: widget.boundsBox,
               hits: _hits,
-              isDark: Theme.of(context).brightness == Brightness.dark,
+              isDark: widget.isDark ??
+                  (Theme.of(context).brightness == Brightness.dark),
             ),
           ),
         ),

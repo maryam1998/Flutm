@@ -1975,20 +1975,28 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  /// جاده‌ی شاخه: شانه‌ی هم‌رنگِ شاخه، آسفالتِ تیره و خط‌چینِ وسط
+  /// جاده‌ی شاخه (مثلِ نمای قدم‌زدن): شانه‌ی روشنِ هم‌رنگِ شاخه، بدنه‌ی هم‌رنگِ شاخه
+  /// (کمی خاکی)، خطِ سفیدِ کنار و خط‌چینِ سفیدِ وسط. رنگ همان رنگِ انتخابیِ کاربر است.
   void _branchRoad(Canvas c, Path path, Color col, double baseW) {
     final w = math.max(5.0, baseW * 1.9);
-    c.drawPath(path, _stroke(col, w, 0.95));
-    final asphalt = Color.lerp(const Color(0xFF3A3F4B), col, 0.18) ??
-        const Color(0xFF3A3F4B);
-    c.drawPath(path, _stroke(asphalt, w * 0.72, 1.0));
+    final dirt = isDark ? const Color(0xFF8A7656) : const Color(0xFFD9B77E);
+    var body = Color.lerp(col, dirt, 0.4) ?? col;
+    final verge = Color.lerp(col, Colors.white, isDark ? 0.45 : 0.6) ?? col;
+    if (isDark) body = Color.lerp(body, Colors.black, 0.18) ?? body;
+    const edge = Color(0xFFFFFFFF);
+    // شانه
+    c.drawPath(path, _stroke(verge, w, 0.95));
+    // بدنه + خطِ سفیدِ کنار (باریک‌تر؛ فقط وقتی جاده به‌اندازه‌ی کافی پهن است)
+    if (w >= 6.5) {
+      c.drawPath(path, _stroke(edge, w * 0.76, 0.7));
+    }
+    c.drawPath(path, _stroke(body, w * (w >= 6.5 ? 0.66 : 0.72), 1.0));
     // دورِ نقشه یا جاده‌ی باریک: فقط جاده‌ی ساده (بدون خط‌چین)
     if (w >= 6.5 && cam.scale >= 0.3) {
       drawDashed(
           c,
           path,
-          _stroke(const Color(0xFFFFFFFF), math.max(0.8, w * 0.07), 0.9,
-              cap: StrokeCap.butt),
+          _stroke(edge, math.max(0.8, w * 0.07), 0.85, cap: StrokeCap.butt),
           [w * 0.55, w * 0.45]);
     }
   }
