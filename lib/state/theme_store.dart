@@ -5,6 +5,11 @@ class ThemeStore extends ChangeNotifier {
   static const _key = 'appTheme';
   static const _scaleKey = 'appTextScale';
 
+  /// یک‌بار: تمِ تاریکِ مانده از نسخه‌های قبل (وقتی دکمه‌ی ماه/خورشید تب هدف‌گذاری
+  /// تمِ کل برنامه را عوض می‌کرد) پاک می‌شود. بعد از آن فقط انتخابِ خودِ کاربر
+  /// (تنظیمات ← ظاهر برنامه) تم را عوض می‌کند؛ ساعت هیچ نقشی ندارد.
+  static const _migKey = 'appThemeUserChoiceV2';
+
   /// حدودِ «اندازه‌ی نوشته‌های برنامه» (۱٫۰ = ۱۴px = پیش‌فرض)
   static const double kTextScaleMin = 11 / 14; // ۱۱px
   static const double kTextScaleMax = 22 / 14; // ۲۲px
@@ -21,7 +26,14 @@ class ThemeStore extends ChangeNotifier {
   Future<void> load() async {
     try {
       final sp = await AppPrefs.getInstance();
-      final v = sp.getString(_key);
+      var v = sp.getString(_key);
+      if (sp.getBool(_migKey) != true) {
+        await sp.setBool(_migKey, true);
+        if (v == 'dark') {
+          v = 'light';
+          await sp.setString(_key, 'light');
+        }
+      }
       _mode = (v == 'dark') ? ThemeMode.dark : ThemeMode.light;
       final sc = sp.getDouble(_scaleKey);
       if (sc != null) {

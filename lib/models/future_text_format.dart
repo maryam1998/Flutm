@@ -1,29 +1,46 @@
 import 'package:flutter/material.dart';
 
-/// یک گزینه‌ی فونت برای متن آینده
+import '../services/note_fonts.dart';
+
+/// یک گزینه‌ی فونت برای متن آینده.
+/// فونت‌ها همان فهرستِ «یادداشت روی نقشه» ([kNoteFonts]) هستند و با اولین
+/// انتخاب دانلود می‌شوند (فونت‌های سیستمی مثل B Nazanin روی گوشی/وب وجود ندارند).
 class FutureFont {
   final String id;
   final String label;
-  final String? family; // null = پیش‌فرض
 
-  const FutureFont({required this.id, required this.label, this.family});
+  const FutureFont({required this.id, required this.label});
+
+  /// null = پیش‌فرض یا هنوز دانلود نشده
+  String? get family => id.isEmpty ? null : NoteFonts.familyOf(id);
 }
 
-const List<FutureFont> kFutureFonts = [
-  FutureFont(id: '',         label: 'پیش‌فرض'),
-  FutureFont(id: 'nazanin',  label: 'بی نازنین',    family: 'B Nazanin'),
-  FutureFont(id: 'titr',     label: 'بی تیتر',       family: 'B Titr'),
-  FutureFont(id: 'nastaliq', label: 'نستعلیق',       family: 'IranNastaliq'),
-  FutureFont(id: 'zar',      label: 'بی زر',          family: 'B Zar'),
-  FutureFont(id: 'arial',    label: 'Arial',          family: 'Arial'),
-  FutureFont(id: 'times',    label: 'Times New Roman',family: 'Times New Roman'),
+final List<FutureFont> kFutureFonts = [
+  const FutureFont(id: '', label: 'پیش‌فرض'),
+  for (final f in kNoteFonts) FutureFont(id: f.id, label: f.label),
 ];
 
+/// شناسه‌های قدیمیِ ذخیره‌شده ← فونت معادل در فهرست جدید
+const Map<String, String> _legacyFontIds = {
+  'nazanin': 'amiri',
+  'titr': 'lalezar',
+  'nastaliq': 'arefruqaa',
+  'zar': 'scheherazade',
+  'arial': 'tajawal',
+  'times': 'amiri',
+};
+
+/// شناسه‌ی معتبر (قدیمی‌ها تبدیل می‌شوند؛ ناشناخته = پیش‌فرض)
+String futureFontId(String id) {
+  final m = _legacyFontIds[id] ?? id;
+  return NoteFonts.byId(m) == null ? '' : m;
+}
+
 String? futureFontFamily(String id) {
-  for (final f in kFutureFonts) {
-    if (f.id == id) return f.family;
-  }
-  return null;
+  final fid = futureFontId(id);
+  if (fid.isEmpty) return null;
+  NoteFonts.ensure(fid); // اگر دانلود نشده، همین حالا شروع می‌شود
+  return NoteFonts.familyOf(fid);
 }
 
 /// فرمت متن آینده — فونت، اندازه، تراز، بولد، ایتالیک
@@ -68,6 +85,7 @@ class FutureTextFormat {
   TextStyle buildStyle({Color? color}) {
     return TextStyle(
       fontFamily: futureFontFamily(font),
+      fontFamilyFallback: const ['Vazirmatn'],
       fontSize: size.toDouble(),
       fontWeight: bold ? FontWeight.w800 : FontWeight.w400,
       fontStyle: italic ? FontStyle.italic : FontStyle.normal,
@@ -81,7 +99,7 @@ class FutureTextFormat {
     final size = (j['size'] as num?)?.toInt() ?? 14;
     final align = j['align'] as String? ?? 'right';
     return FutureTextFormat(
-      font: j['font'] as String? ?? '',
+      font: futureFontId(j['font'] as String? ?? ''),
       size: size.clamp(minSize, maxSize),
       align: ['right', 'center', 'left'].contains(align) ? align : 'right',
       bold: j['bold'] == true,

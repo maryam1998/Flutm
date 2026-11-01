@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/future_text_format.dart';
+import '../services/note_fonts.dart';
 
 const Color kBeliefsGold = Color(0xFFC9A24B);
 const Color kBeliefsInk = Color(0xFF000000);
@@ -9,7 +10,7 @@ const Color kBeliefsBorder = Color(0xFFE7E5DB);
 const Color kBeliefsCream = Color(0xFFF7F6F1);
 const Color kBeliefsCard = Colors.white;
 
-class FormatBar extends StatelessWidget {
+class FormatBar extends StatefulWidget {
   final FutureTextFormat format;
   final ValueChanged<FutureTextFormat> onChange;
 
@@ -18,6 +19,45 @@ class FormatBar extends StatelessWidget {
     required this.format,
     required this.onChange,
   });
+
+  @override
+  State<FormatBar> createState() => _FormatBarState();
+}
+
+class _FormatBarState extends State<FormatBar> {
+  String? _err;
+  bool _busy = false;
+
+  FutureTextFormat get format => widget.format;
+  ValueChanged<FutureTextFormat> get onChange => widget.onChange;
+
+  @override
+  void initState() {
+    super.initState();
+    final f = format.font;
+    if (f.isNotEmpty) NoteFonts.ensure(f).then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  /// فونت را اول دانلود می‌کند؛ فقط اگر آماده شد اعمال می‌شود
+  Future<void> _pickFont(String id) async {
+    setState(() => _err = null);
+    if (id.isEmpty) {
+      onChange(format.copyWith(font: ''));
+      return;
+    }
+    setState(() => _busy = true);
+    final ok = await NoteFonts.ensure(id);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (!ok) {
+        _err = 'دانلود فونت انجام نشد؛ اینترنت را بررسی کن و دوباره بزن.';
+      }
+    });
+    if (ok) onChange(format.copyWith(font: id));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,17 +95,43 @@ class FormatBar extends StatelessWidget {
             items: kFutureFonts
                 .map((f) => DropdownMenuItem(
                       value: f.id,
-                      child: Text(f.label,
-                          style: TextStyle(
-                            fontFamily: f.family,
-                            color: kBeliefsInk,
-                          )),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(f.label,
+                              style: TextStyle(
+                                fontFamily: f.family,
+                                fontFamilyFallback: const ['Vazirmatn'],
+                                color: kBeliefsInk,
+                              )),
+                          if (f.id.isNotEmpty &&
+                              !NoteFonts.loaded.contains(f.id)) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.download_rounded,
+                                size: 14, color: kBeliefsMuted),
+                          ],
+                        ],
+                      ),
                     ))
                 .toList(),
-            onChanged: (v) {
-              if (v != null) onChange(format.copyWith(font: v));
-            },
+            onChanged: _busy
+                ? null
+                : (v) {
+                    if (v != null) _pickFont(v);
+                  },
           ),
+          if (_busy)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+          if (_err != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(_err!,
+                  style: const TextStyle(
+                      fontSize: 11.5, color: Color(0xFFD9534F))),
+            ),
           const SizedBox(height: 8),
 
           // ردیف دوم: اندازه + تراز + بولد + ایتالیک

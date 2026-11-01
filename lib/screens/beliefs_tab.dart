@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../models/future_text_format.dart';
 import '../models/future_version.dart';
+import '../services/note_fonts.dart';
 import '../state/beliefs_store.dart';
 import '../utils/edit_mark.dart';
 import '../widgets/belief_visual_section.dart';
@@ -70,8 +71,19 @@ class _BeliefsTabState extends State<BeliefsTab> {
   final Map<String, TextEditingController> _noteCtrls = {};
   final Map<String, Timer> _noteTimers = {};
 
+  void _onFontLoaded() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    NoteFonts.epoch.addListener(_onFontLoaded);
+  }
+
   @override
   void dispose() {
+    NoteFonts.epoch.removeListener(_onFontLoaded);
     _timer?.cancel();
     for (final t in _noteTimers.values) {
       t.cancel();
@@ -1772,10 +1784,16 @@ class _TextEditorState extends State<_TextEditor> {
           TextSelection.collapsed(offset: c.clamp(0, widget.initial.length));
     }
     _fmt = widget.format;
+    NoteFonts.epoch.addListener(_onFontLoaded);
+  }
+
+  void _onFontLoaded() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    NoteFonts.epoch.removeListener(_onFontLoaded);
     _ctrl.dispose();
     super.dispose();
   }
