@@ -294,6 +294,7 @@ class _MapTabState extends State<MapTab> {
     // با تصویر/ویدیو/رنگِ دلخواهِ کاربر، آسمانِ خودکار کنار می‌رود
     return DayCycleScope(
       enabled: !bgStore.overridesBackdrop,
+      paintGround: false,
       builder: (ctx, sky) => _buildMap(ctx, sky),
     );
   }
@@ -302,15 +303,16 @@ class _MapTabState extends State<MapTab> {
     final store = context.watch<MapStore>();
     final empty = store.state.goals.isEmpty && store.state.rings.isEmpty;
     final anyOpen = store.anyOpen;
-    _skyPal = sky == null ? null : (sky.night ? WebPalette.dark : WebPalette.light);
-    final wp = _skyPal ?? WebPalette.of(context);
+    // رنگ‌ها (روشن/تیره) همیشه از تمِ انتخابیِ کاربر می‌آید؛ ساعت فقط آسمان
+    // (خورشید، ماه، ستاره، غروب و گرگ‌ومیش) را نشان می‌دهد.
+    _skyPal = null;
+    final wp = WebPalette.of(context);
     final ink = wp.textMain;
 
     final bgStore = context.watch<BackgroundStore>();
-    final isDark =
-        sky?.night ?? (Theme.of(context).brightness == Brightness.dark);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // مثل بقیه‌ی تب‌ها: روشن = سفید؛ با تصویر/ویدیو/رنگ دلخواه شفاف
-    final mapBg = (sky != null || bgStore.overridesBackdrop || isDark)
+    final mapBg = (bgStore.overridesBackdrop || isDark)
         ? Colors.transparent
         : Colors.white;
 
@@ -323,7 +325,7 @@ class _MapTabState extends State<MapTab> {
         children: [
           MapCanvas(
             cam: cam,
-            isDark: sky?.night,
+            isDark: isDark,
             boundsBox: bounds,
             isResizeMode: () => _resizeMode,
             onEditMe: () => showEditSheet(context, const MeTarget()),
@@ -381,6 +383,43 @@ class _MapTabState extends State<MapTab> {
               }
             },
           ),
+          // آسمانِ زنده بر پایه‌ی ساعتِ گوشی: غروب/گرگ‌ومیش، ستاره، ماه و خورشید
+          if (sky != null) ...[
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        sky.top.withValues(
+                            alpha: 0.30 *
+                                (1 - ((sky.altDeg + 2).abs() / 10))
+                                    .clamp(0.0, 1.0)
+                                    .toDouble()),
+                        sky.bottom.withValues(alpha: 0.0),
+                      ],
+                      stops: const [0.0, 0.6],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 150,
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: SkyObjectsPainter(sky),
+                  size: Size.infinite,
+                ),
+              ),
+            ),
+          ],
+
           // کشیدنِ دو انگشت از پایین به بالا (مثل کج‌کردنِ نقشه): نما از چشمِ پاها می‌شود.
           // فقط گوش می‌دهد؛ لمس‌های نقشه را نمی‌گیرد.
           Positioned.fill(
@@ -470,41 +509,11 @@ class _MapTabState extends State<MapTab> {
                       ),
                       const SizedBox(width: 8),
                     ],
+                    // تمِ روشن/تیره‌ی کل برنامه (انتخاب با خودِ کاربر)
                     _circleBtn(
-                      sky == null
-                          ? Text(isDark ? '🌙' : '☀️',
-                              style: const TextStyle(fontSize: 14, height: 1))
-                          : Tooltip(
-                              message: DayCycle.modeLabel(DayCycle.mode.value),
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                alignment: Alignment.center,
-                                children: [
-                                  Text(
-                                      DayCycle.mode.value == 'auto'
-                                          ? sky.emoji
-                                          : (DayCycle.mode.value == 'day'
-                                              ? '☀️'
-                                              : '🌙'),
-                                      style: const TextStyle(
-                                          fontSize: 14, height: 1)),
-                                  if (DayCycle.mode.value == 'auto')
-                                    Positioned(
-                                      right: -5,
-                                      bottom: -4,
-                                      child: Text('A',
-                                          style: TextStyle(
-                                              fontSize: 8,
-                                              height: 1,
-                                              fontWeight: FontWeight.w800,
-                                              color: wp.accent)),
-                                    ),
-                                ],
-                              ),
-                            ),
-                      () => sky == null
-                          ? context.read<ThemeStore>().toggle()
-                          : DayCycle.cycleMode(),
+                      Text(isDark ? '🌙' : '☀️',
+                          style: const TextStyle(fontSize: 14, height: 1)),
+                      () => context.read<ThemeStore>().toggle(),
                     ),
                     const SizedBox(width: 8),
                     _circleBtn(

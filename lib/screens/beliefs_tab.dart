@@ -9,6 +9,7 @@ import '../models/future_text_format.dart';
 import '../models/future_version.dart';
 import '../services/note_fonts.dart';
 import '../state/beliefs_store.dart';
+import '../state/emotion_store.dart';
 import '../utils/edit_mark.dart';
 import '../widgets/belief_visual_section.dart';
 import '../widgets/breath_circle.dart';
@@ -942,6 +943,8 @@ Widget _seedStep(BeliefsStore store, Set<String> steps) {
       _actionsRow(store),
       const SizedBox(height: 10),
       _registerButton(store, v),
+      const SizedBox(height: 8),
+      _feelingButton(store),
       const SizedBox(height: 12),
       if (_showArchive) ...[
         _archiveBox(store),
@@ -1068,6 +1071,32 @@ Widget _actionsRow(BeliefsStore store) {
         ),
       ),
     ],
+  );
+}
+
+/// «ثبت حس» برای تمرین خواندن: ویجت حس باز می‌شود و با بستنش، رنگِ حس روی
+/// رشته‌ی عصبیِ امروزِ این تمرین می‌نشیند (همان مسیرِ «ثبت حس» شکرگذاری).
+Widget _feelingButton(BeliefsStore store) {
+  return SizedBox(
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      onPressed: () {
+        if (!store.hasReadToday) {
+          _toast('اول «امروز خوندم» را بزن، بعد حس را ثبت کن 🌱');
+          return;
+        }
+        context.read<EmotionStore>().requestOpen(hold: true);
+      },
+      icon: const Icon(Icons.favorite_outline, size: 16),
+      label: const Text('ثبت حس',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _kEmerald700,
+        side: const BorderSide(color: _kEmerald300),
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
   );
 }
 

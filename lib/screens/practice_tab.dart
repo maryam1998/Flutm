@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/background_store.dart';
+import '../widgets/dark_adapt.dart';
 import '../widgets/web_tab_bars.dart';
 
 import 'beliefs_tab.dart';
@@ -73,7 +74,14 @@ class _PracticeTabState extends State<PracticeTab> {
             // 2 = شکرگذاری
             _lazy(2, () => const GratitudeTab()),
             // 3 = بازنویسی (باورها)
-            _lazy(3, () => const BeliefsTab()),
+            _lazy(
+                3,
+                () => DarkAdapt(
+                      child: ColoredBox(
+                        color: hasBg ? Colors.transparent : Colors.white,
+                        child: const BeliefsTab(),
+                      ),
+                    )),
             // 4 = سیگنال (فعلاً مخفی؛ kShowSignalSubTab)
             if (kShowSignalSubTab) _lazy(4, () => const NeuroSignalTab()),
             // 5 = دوستان هم‌فرکانسی

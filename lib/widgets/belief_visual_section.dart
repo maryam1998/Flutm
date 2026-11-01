@@ -1,4 +1,5 @@
 
+import 'dark_adapt.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -269,7 +270,9 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
         ],
         if (beliefVisualSlides(store).isNotEmpty) ...[
           const SizedBox(height: 16),
-          MediaSlideshow(
+          DarkAdapt(
+            undo: true,
+            child: MediaSlideshow(
             key: const ValueKey('viz-slideshow'),
             listenable: store,
             collect: () => beliefVisualSlides(store),
@@ -287,6 +290,7 @@ class _BeliefVisualSectionState extends State<BeliefVisualSection> {
                     }
                     _openAlbum(store, at);
                   },
+          ),
           ),
         ],
       ],

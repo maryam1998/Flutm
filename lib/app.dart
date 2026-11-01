@@ -20,6 +20,7 @@ import 'state/reminder_store.dart';
 import 'state/theme_store.dart';
 import 'widgets/angels_layer.dart';
 import 'widgets/background_layer.dart';
+import 'widgets/dark_adapt.dart';
 import 'widgets/emotion_widget_layer.dart';
 import 'widgets/motivation_bar.dart';
 import 'widgets/web_tab_bars.dart';
@@ -254,7 +255,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               child: _LazyIndexedStack(
                 index: _index,
                 builders: [
-                  (_) => const ShenakhtTab(),
+                  (_) => const DarkAdapt(child: ShenakhtTab()),
                   (_) => const MapTab(),
                   (_) => const PracticeTab(),
                 ],

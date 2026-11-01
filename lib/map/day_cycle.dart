@@ -64,13 +64,11 @@ class DayCycle {
   static bool _loaded = false;
 
   static Future<void> load() async {
+    // آسمان همیشه طبق ساعتِ گوشی است؛ روشن/تیره بودنِ برنامه را تمِ انتخابیِ
+    // کاربر تعیین می‌کند (نه این‌جا).
     if (_loaded) return;
     _loaded = true;
-    try {
-      final sp = await AppPrefs.getInstance();
-      final v = sp.getString(_prefKey);
-      if (v == 'day' || v == 'night' || v == 'auto') mode.value = v!;
-    } catch (_) {}
+    mode.value = 'auto';
   }
 
   static Future<void> cycleMode() async {
@@ -234,9 +232,17 @@ class DayCycle {
 /// ستاره فقط در نمای ۳بعدی و قدم‌زدن دیده می‌شوند.
 /// هر ۳۰ ثانیه با ساعت به‌روز می‌شود. اگر [enabled] نباشد، [builder] با `sky == null` صدا زده می‌شود.
 class DayCycleScope extends StatefulWidget {
-  const DayCycleScope({super.key, required this.enabled, required this.builder});
+  const DayCycleScope({
+    super.key,
+    required this.enabled,
+    required this.builder,
+    this.paintGround = true,
+  });
 
   final bool enabled;
+
+  /// false = رنگِ زمین را تمِ برنامه تعیین می‌کند و این‌جا زیرِ نقشه رنگ نمی‌ریزد
+  final bool paintGround;
   final Widget Function(BuildContext context, SkyState? sky) builder;
 
   @override
@@ -271,6 +277,7 @@ class _DayCycleScopeState extends State<DayCycleScope> {
   @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.builder(context, null);
+    if (!widget.paintGround) return widget.builder(context, _sky);
     return Stack(
       fit: StackFit.expand,
       children: [
