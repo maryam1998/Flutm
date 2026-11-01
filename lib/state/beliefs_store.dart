@@ -571,6 +571,13 @@ Future<void> _persist() async {
     if (v.readDays.contains(k)) return;
     v.readDays.add(k);
     v.readTimes[k] = DateTime.now().millisecondsSinceEpoch;
+    // «امروز خوندم» خودکار یک رشته در مسیر عصبیِ تمرین می‌سازد (روزی یکی)؛
+    // اگر بعداً حس ثبت شود، همین رشته رنگ حس می‌گیرد
+    final nk = NeuralContainer.todayKey();
+    if (neural.autoDays[nk] != true) {
+      neural.autoDays[nk] = true;
+      neural.addAutoFiber();
+    }
     await _persist();
     notifyListeners();
   }

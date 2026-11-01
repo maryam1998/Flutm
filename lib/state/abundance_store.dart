@@ -7,6 +7,7 @@ import '../services/app_prefs.dart';
 import '../models/abundance_models.dart';
 import '../utils/money_format.dart' show gMoneyUnit;
 import '../models/neural_container.dart';
+import '../models/emotion.dart';
 
 class AbundanceStore extends ChangeNotifier {
   static const _kSettings = 'abundance_settings_v1';
@@ -19,6 +20,7 @@ class AbundanceStore extends ChangeNotifier {
   static const _kJourneyStart = 'abundance_journey_start';
   static const _kJourneyPast = 'abundance_journey_past';
   static const _kNeural = 'abundance_neural';
+  static const _kEmotions = 'abundance_purchase_emotions_v1';
 
   AbundanceSettings settings = AbundanceSettings(startDate: _todayKey());
   BankCard card = BankCard();
@@ -28,6 +30,10 @@ class AbundanceStore extends ChangeNotifier {
 
   /// مسیر عصبی بازی فراوانی — هر خرید (تسویهٔ سبد) دقیقاً یک رشته
   NeuralContainer neural = NeuralContainer();
+
+  /// حسِ هر خرید (شناسه‌ی خرید ← شناسه‌ی احساسات)؛ رنگِ رشته‌ی عصبی و حلقه‌ی
+  /// روزِ تقویمِ بازی فراوانی از اینجا می‌آید
+  final Map<String, List<String>> purchaseEmotions = {};
 
   /// تقویم دوره (مثل شکرگذاری)
   int journeyDays = 28;
@@ -98,6 +104,18 @@ class AbundanceStore extends ChangeNotifier {
               Map<String, dynamic>.from(jsonDecode(nRaw)));
         } catch (_) {}
       }
+      final eRaw = sp.getString(_kEmotions);
+      if (eRaw != null && eRaw.isNotEmpty) {
+        try {
+          final m = jsonDecode(eRaw);
+          if (m is Map) {
+            purchaseEmotions
+              ..clear()
+              ..addAll(m.map((k, v) => MapEntry(k.toString(),
+                  (v as List).map((e) => e.toString()).toList())));
+          }
+        } catch (_) {}
+      }
       final pRaw2 = sp.getString(_kJourneyPast);
       if (pRaw2 != null && pRaw2.isNotEmpty) {
         try {
@@ -135,6 +153,7 @@ class AbundanceStore extends ChangeNotifier {
       await sp.setInt(_kJourneyDays, journeyDays);
       await sp.setString(_kJourneyStart, journeyStart);
       await sp.setString(_kNeural, jsonEncode(neural.toJson()));
+      await sp.setString(_kEmotions, jsonEncode(purchaseEmotions));
       await sp.setString(_kJourneyPast, jsonEncode(pastPeriods));
     } catch (_) {}
   }
@@ -148,6 +167,7 @@ class AbundanceStore extends ChangeNotifier {
   void _syncPurchaseFibers() {
     try {
       final want = <String>{};
+      final emoOf = <String, NeuralFiberEmotion>{};
       for (final p in history) {
         DateTime t;
         try {
@@ -155,7 +175,10 @@ class AbundanceStore extends ChangeNotifier {
         } catch (_) {
           continue;
         }
-        want.add(_fiberKeyFor(p, t.millisecondsSinceEpoch));
+        final fk = _fiberKeyFor(p, t.millisecondsSinceEpoch);
+        want.add(fk);
+        final fe = _felt(purchaseEmotions[p.id]);
+        if (fe != null) emoOf[fk] = fe;
       }
       for (final k in neural.logs.keys.toList()) {
         if (neural.logs[k] != true) continue;
@@ -166,8 +189,50 @@ class AbundanceStore extends ChangeNotifier {
       }
       for (final k in want) {
         neural.logs[k] = true;
+        final fe = emoOf[k];
+        if (fe != null) neural.fiberEmotions[k] = fe;
       }
     } catch (_) {}
+  }
+
+  static NeuralFiberEmotion? _felt(List<String>? ids) {
+    if (ids == null || ids.isEmpty) return null;
+    final valid = ids.where((id) => emotionById(id) != null).toList();
+    final dom = dominantEmotion(valid);
+    if (dom == null) return null;
+    return NeuralFiberEmotion(
+        ids: valid, color: mixedEmotionHex(valid) ?? dom.color, freq: dom.freq);
+  }
+
+  /// حسِ یک خرید را ثبت می‌کند: رشته‌ی عصبیِ همان خرید و حلقه‌ی روزش در تقویم
+  /// هم همان رنگ را می‌گیرند (مثلِ شکرگذاری)
+  Future<void> setPurchaseEmotions(String purchaseId, List<String> ids) async {
+    final valid = ids.where((id) => emotionById(id) != null).toSet().toList();
+    if (valid.isEmpty) {
+      purchaseEmotions.remove(purchaseId);
+    } else {
+      purchaseEmotions[purchaseId] = valid;
+    }
+    notifyListeners();
+    await _persist();
+    notifyListeners();
+  }
+
+  /// احساساتِ همه‌ی خریدهای یک روز (yyyy-MM-dd)
+  Set<String> emotionIdsForDay(String dayKey) {
+    final out = <String>{};
+    for (final p in history) {
+      if (_isoToKey(p.iso) != dayKey) continue;
+      out.addAll(purchaseEmotions[p.id] ?? const <String>[]);
+    }
+    return out;
+  }
+
+  /// رنگِ مخلوطِ حسِ آن روز؛ اگر حسی ثبت نشده null
+  String? emotionHexForDay(String dayKey) {
+    final ids = emotionIdsForDay(dayKey);
+    if (ids.isEmpty) return null;
+    return mixedEmotionHex(ids);
   }
 
   /// روزهایی (yyyy-MM-dd) که حداقل یک خرید ثبت شده

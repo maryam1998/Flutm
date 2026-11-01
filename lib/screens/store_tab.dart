@@ -172,6 +172,8 @@ class _StoreTabState extends State<StoreTab> {
       for (final id in entryIds) {
         ok = await grat.setEntryEmotions(id, ids) || ok;
       }
+      // همان حس روی رشته‌ی عصبی و حلقه‌ی تقویمِ بازی فراوانی هم می‌نشیند
+      await store.setPurchaseEmotions(record.id, ids);
       return ok;
     };
     emo.requestOpen(hold: true);

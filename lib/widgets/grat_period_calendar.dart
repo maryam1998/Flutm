@@ -986,6 +986,9 @@ class GratPeriodGrid extends StatelessWidget {
   final Set<String> doneSet;
   final bool withEmotions;
 
+  /// رنگِ حلقه‌ی هر روز (برای تقویم‌هایی که store شکرگذاری ندارند، مثل فراوانی)
+  final Color? Function(String key)? ringOf;
+
   /// داخل .mini-cal-inner (دوره‌ی قبلی) padding سرتیتر 6/2 است نه 8/3
   final bool inner;
 
@@ -1005,6 +1008,7 @@ class GratPeriodGrid extends StatelessWidget {
     required this.doneSet,
     this.store,
     this.withEmotions = false,
+    this.ringOf,
     this.inner = false,
     this.keyOf,
     this.statusOf,
@@ -1016,6 +1020,8 @@ class GratPeriodGrid extends StatelessWidget {
 
   /// state.practiceEmotions[key].gratitude → مخلوط رنگِ همه‌ی حس‌های آن روز
   Color? _ringFor(String key, bool done) {
+    final ro = ringOf;
+    if (ro != null) return ro(key);
     final st = store;
     if (!withEmotions || st == null) return null;
     Iterable<String> ids = st.dayAfter[key] ?? const <String>[];
@@ -1796,6 +1802,11 @@ class _AbundancePeriodCalendarState extends State<AbundancePeriodCalendar> {
   late final String _id = 'acal${identityHashCode(this)}';
   ScrollPosition? _pos;
 
+  Color? _ring(String key) {
+    final hex = widget.store.emotionHexForDay(key);
+    return hex == null ? null : hexToColor(hex);
+  }
+
   static String _status(String key, bool done, bool today, bool future) {
     var st = future ? 'هنوز نرسیده' : (done ? '✓ خرید ثبت شده' : 'خرید ثبت نشده');
     if (today) st = 'امروز — $st';
@@ -1877,6 +1888,7 @@ class _AbundancePeriodCalendarState extends State<AbundancePeriodCalendar> {
                   start: start,
                   total: total,
                   doneSet: doneSet,
+                  ringOf: _ring,
                   statusOf: _status,
                 ),
                 const SizedBox(height: 12),
@@ -2062,6 +2074,10 @@ class _AbundancePastPeriodState extends State<_AbundancePastPeriod> {
               total: days,
               doneSet: widget.doneSet,
               inner: true,
+              ringOf: (k) {
+                final hex = widget.store.emotionHexForDay(k);
+                return hex == null ? null : hexToColor(hex);
+              },
               statusOf: _AbundancePeriodCalendarState._status,
             ),
           ],

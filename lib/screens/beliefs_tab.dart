@@ -46,6 +46,7 @@ class _BeliefsTabState extends State<BeliefsTab> {
   // ویرایش متن خواسته به‌صورت درجا (بدون باز شدن کادر/پنجره)
   bool _editingFuture = false;
   String _editInitial = '';
+  int? _editCaret; // جای مکان‌نما = همان‌جا که کاربر روی متن زد
   bool _editHadVersion = false;
 
   // آکاردئونِ مراحل: هر مرحله یک کارت جمع‌شونده؛ محتوای هر مرحله اولین بار که
@@ -956,6 +957,7 @@ Widget _futureBox(BeliefsStore store) {
       ),
       child: _TextEditor(
         initial: _editInitial,
+        initialCaret: _editCaret,
         format: store.format,
         onFormatChange: store.setFormat,
         onClose: (result) {
@@ -982,17 +984,34 @@ Widget _futureBox(BeliefsStore store) {
         border: Border.all(color: kBeliefsBorder),
       ),
       child: text.isNotEmpty
-          ? SizedBox(
-              width: double.infinity,
-              child: EditMarkedText(
-                text: text,
-                range: _futureMark,
-                prefix: '«',
-                suffix: '»',
-                style: store.format.buildStyle(color: kBeliefsInk),
-                textAlign: store.format.textAlign,
-              ),
-            )
+          ? LayoutBuilder(builder: (context, box) {
+              final style = store.format.buildStyle(color: kBeliefsInk);
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                // کاربر هرجای متن بزند، ویرایش همان‌جا شروع می‌شود (نه انتهای متن)
+                onTapUp: (d) {
+                  final tp = TextPainter(
+                    text: TextSpan(text: '«$text»', style: style),
+                    textDirection: TextDirection.rtl,
+                    textAlign: store.format.textAlign,
+                  )..layout(maxWidth: box.maxWidth);
+                  final off = tp.getPositionForOffset(d.localPosition).offset;
+                  tp.dispose();
+                  _openEditor(store, caretInTrimmed: off - 1);
+                },
+                child: SizedBox(
+                  width: double.infinity,
+                  child: EditMarkedText(
+                    text: text,
+                    range: _futureMark,
+                    prefix: '«',
+                    suffix: '»',
+                    style: style,
+                    textAlign: store.format.textAlign,
+                  ),
+                ),
+              );
+            })
           : const Column(
               children: [
                 SizedBox(height: 6),
@@ -1534,12 +1553,19 @@ Widget _versionTile(BeliefsStore store, FutureVersion v, int index) {
   }
 
   /// ویرایش درجا: کادر ویرایش جای خودِ متن باز می‌شود (نه پنجره‌ی پایین)
-  void _openEditor(BeliefsStore store) {
+  void _openEditor(BeliefsStore store, {int? caretInTrimmed}) {
     if (_editingFuture) return;
     final cur = store.activeVersion;
     setState(() {
       _editHadVersion = cur != null;
       _editInitial = cur?.text ?? '';
+      if (caretInTrimmed == null) {
+        _editCaret = null;
+      } else {
+        final lead = _editInitial.length - _editInitial.trimLeft().length;
+        _editCaret =
+            (caretInTrimmed + lead).clamp(0, _editInitial.length).toInt();
+      }
       _editingFuture = true;
     });
   }
@@ -1710,6 +1736,9 @@ String _fmtTimer(int seconds) {
 // ═══════════════ ویرایشگر متن ═══════════════
 class _TextEditor extends StatefulWidget {
   final String initial;
+
+  /// جای اولیه‌ی مکان‌نما (اگر null باشد انتهای متن)
+  final int? initialCaret;
   final FutureTextFormat format;
   final ValueChanged<FutureTextFormat> onFormatChange;
 
@@ -1719,6 +1748,7 @@ class _TextEditor extends StatefulWidget {
 
   const _TextEditor({
     required this.initial,
+    this.initialCaret,
     required this.format,
     required this.onFormatChange,
     this.onClose,
@@ -1736,6 +1766,11 @@ class _TextEditorState extends State<_TextEditor> {
   void initState() {
     super.initState();
     _ctrl = TextEditingController(text: widget.initial);
+    final c = widget.initialCaret;
+    if (c != null) {
+      _ctrl.selection =
+          TextSelection.collapsed(offset: c.clamp(0, widget.initial.length));
+    }
     _fmt = widget.format;
   }
 
