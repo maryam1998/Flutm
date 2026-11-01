@@ -14,6 +14,7 @@ import '../theme/vazir_font.dart';
 import '../state/goal_ops.dart';
 import 'camera.dart';
 import 'draw_utils.dart';
+import 'estimate.dart';
 import '../services/note_fonts.dart';
 import 'foot_shape.dart';
 import 'geometry.dart' as geo;
@@ -1618,8 +1619,10 @@ class MapPainter extends CustomPainter {
           : cub.tangent(t),
       r: r,
       id: a.id,
-      minutes: _totalMinutes(a),
-      doneDays: _doneDayCount(a),
+      // تخمینِ زمان: شاخه‌ای که طبقِ تخمین پیش می‌رود پربرگ‌تر و پرگل‌تر است
+      minutes: _totalMinutes(a) +
+          (nodeGreen(a) ?? 0.0) * kEstGreenMinutes * 0.5,
+      doneDays: _doneDayCount(a) + ((nodeGreen(a) ?? 0.0) * 6).round(),
       finished: nodeFinished(a),
       running: running,
       bloom: bp,

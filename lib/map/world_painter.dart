@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/constants.dart' show hexColor;
 import '../models/map_models.dart';
 import 'camera.dart';
+import 'estimate.dart';
 import '../theme/vazir_font.dart';
 import 'geometry.dart' as geo;
 import 'hit_registry.dart';
@@ -37,6 +38,8 @@ double actionTotalMinutes(ActionNode a) {
   final ts = a.timerStart ?? 0;
   if (ts > 0) sec += (DateTime.now().millisecondsSinceEpoch - ts) / 1000.0;
   var m = sec / 60.0;
+  // تخمینِ زمان: شاخه‌ی بدونِ زیرشاخه که طبقِ تخمین پیش می‌رود سرسبزتر می‌شود
+  if (a.children.isEmpty) m += (nodeGreen(a) ?? 0.0) * kEstGreenMinutes;
   for (final k in a.children) {
     m += actionTotalMinutes(k);
   }

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
+import '../map/estimate.dart';
 import '../map/map_ops.dart';
 import '../map/walker_photos.dart';
 import '../models/constants.dart';
+import '../models/jalali.dart' show faDateLong;
 import '../models/map_models.dart';
 import '../state/map_store.dart';
 import '../widgets/goal_path_card.dart';
@@ -161,6 +163,142 @@ class _EditSheetState extends State<EditSheet> {
 
   MapStore get _store => widget.store;
   MapState get _s => _store.state;
+
+  /// واحدِ تخمینِ زمان (۱=روز، ۷=هفته، ۳۰=ماه) برای هر هدف/شاخه
+  final Map<String, int> _estMul = {};
+
+  void _estShow(String id, int days) {
+    final mul = days % 30 == 0 ? 30 : (days % 7 == 0 ? 7 : 1);
+    _estMul[id] = mul;
+    _c('est:$id', '').text = '${days ~/ mul}';
+  }
+
+  /// «فکر می‌کنی چقدر طول می‌کشد؟» → سرسبزی و تاریخِ پایان بر پایه‌ی همین تخمین
+  Widget _estimateCard(
+      String id, Map<String, dynamic> ex, EstInfo? Function() infoFn) {
+    final days = estDaysOf(ex);
+    final mul = _estMul[id] ??
+        (days > 0 && days % 30 == 0 ? 30 : (days > 0 && days % 7 == 0 ? 7 : 1));
+    final info = days > 0 ? infoFn() : null;
+    void apply(int n, int m) {
+      _estMul[id] = m;
+      _edit(() => setEstimate(ex, n * m));
+    }
+
+    const quick = <(String, int)>[
+      ('۱ هفته', 7),
+      ('۲ هفته', 14),
+      ('۱ ماه', 30),
+      ('۳ ماه', 90),
+      ('۶ ماه', 180),
+      ('۱ سال', 365),
+    ];
+    return _card(
+      icon: Icons.eco_outlined,
+      title: 'تخمین زمان و سرسبزی',
+      subtitle: 'فکر می‌کنی چقدر طول می‌کشد؟ نقشه با همین تخمین و کارِ واقعی‌ات سبز می‌شود',
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            for (final q in quick)
+              ChoiceChip(
+                label: Text(q.$1, style: const TextStyle(fontSize: 12)),
+                selected: days == q.$2,
+                onSelected: (_) {
+                  _estShow(id, q.$2);
+                  _edit(() => setEstimate(ex, q.$2));
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _textField(
+          ctlKey: 'est:$id',
+          initial: days > 0 ? '${days ~/ mul}' : '',
+          label: 'یا خودت بنویس (عدد)',
+          keyboard: TextInputType.number,
+          onChanged: (v) {
+            final n = parseFaInt(v);
+            if (n == null || n <= 0) {
+              if (v.trim().isEmpty) _edit(() => setEstimate(ex, 0));
+              return;
+            }
+            apply(n, mul);
+          },
+        ),
+        Wrap(
+          spacing: 6,
+          children: [
+            for (final u in const <(String, int)>[
+              ('روز', 1),
+              ('هفته', 7),
+              ('ماه', 30),
+            ])
+              ChoiceChip(
+                label: Text(u.$1, style: const TextStyle(fontSize: 12)),
+                selected: mul == u.$2,
+                onSelected: (_) {
+                  final n = parseFaInt(_c('est:$id', '').text) ??
+                      (days > 0 ? days ~/ mul : 0);
+                  _estMul[id] = u.$2;
+                  if (n > 0) {
+                    apply(n, u.$2);
+                  } else {
+                    setState(() {});
+                  }
+                },
+              ),
+          ],
+        ),
+        if (info != null) ...[
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: info.progress,
+              minHeight: 8,
+              color: const Color(0xFF3F964C),
+              backgroundColor: const Color(0xFFE4E6EE),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'سرسبزی ${toFa((info.progress * 100).round())}٪ · '
+            '${toFa(info.elapsed.floor())} از ${toFa(info.estDays)} روز گذشته',
+            style: const TextStyle(fontSize: 12, color: _kInk),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            info.progress >= 1.0
+                ? 'تمام شد 🌳'
+                : (info.overdue
+                    ? 'از تخمینت گذشته؛ با سرعتِ واقعی‌ات حدوداً تا ${faDateLong(info.projectedEnd)} تمام می‌شود.'
+                    : 'با سرعتِ فعلی حدوداً تا ${faDateLong(info.projectedEnd)} تمام می‌شود.'),
+            style: const TextStyle(fontSize: 12, color: _kMuted),
+          ),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () => _edit(() => restartEstimate(ex)),
+                child: const Text('شمارش از امروز'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _c('est:$id', '').text = '';
+                  _estMul.remove(id);
+                  _edit(() => setEstimate(ex, 0));
+                },
+                child: const Text('حذف تخمین',
+                    style: TextStyle(color: _kDanger)),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
 
   @override
   void dispose() {
@@ -1151,6 +1289,7 @@ class _EditSheetState extends State<EditSheet> {
           _videoField(g.extra, 'video', 'goal:${g.id}'),
         ],
       ),
+      _estimateCard('g:${g.id}', g.extra, () => goalEstInfo(g)),
       _card(
         icon: Icons.text_fields_rounded,
         title: 'دایره و نوشته‌ی هدف',
@@ -1383,6 +1522,7 @@ class _EditSheetState extends State<EditSheet> {
           _videoField(a.extra, 'video', 'node:${a.id}'),
         ],
       ),
+      _estimateCard('n:${a.id}', a.extra, () => nodeEstInfo(a)),
       _card(
         icon: Icons.palette_rounded,
         title: 'ظاهر اقدام',
