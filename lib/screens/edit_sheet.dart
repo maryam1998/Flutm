@@ -195,8 +195,7 @@ class _EditSheetState extends State<EditSheet> {
     ];
     return _card(
       icon: Icons.eco_outlined,
-      title: 'تخمین زمان و سرسبزی',
-      subtitle: 'فکر می‌کنی چقدر طول می‌کشد؟ نقشه با همین تخمین و کارِ واقعی‌ات سبز می‌شود',
+      title: 'تخمین زمان انجام برای این اقدام',
       children: [
         Wrap(
           spacing: 6,

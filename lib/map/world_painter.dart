@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/constants.dart' show hexColor;
 import '../models/map_models.dart';
 import 'camera.dart';
+import 'day_cycle.dart';
 import 'estimate.dart';
 import '../theme/vazir_font.dart';
 import 'geometry.dart' as geo;
@@ -1841,8 +1842,11 @@ class _WItem {
 }
 
 class WalkPainter extends CustomPainter {
-  WalkPainter(this.data, this.cam, this.dark, Listenable repaint)
+  WalkPainter(this.data, this.cam, this.dark, Listenable repaint, {this.sky})
       : super(repaint: repaint);
+
+  /// آسمانِ ساعتِ گوشی (خورشید، ماه، ستاره)؛ null = رفتارِ قدیم
+  final SkyState? sky;
   final WalkData data;
   final WalkCam cam;
   final bool dark;
@@ -2005,14 +2009,51 @@ class WalkPainter extends CustomPainter {
     final G = _ease(data.gm / _hr(200)); // سبزیِ کلیِ هدف
 
     // ── آسمان ──
-    final skyTop = dark ? const Color(0xFF0B1226) : const Color(0xFF86C1EE);
-    final skyLow = dark ? const Color(0xFF2B3558) : const Color(0xFFEAF4FB);
+    final sk = sky;
+    final skyTop = sk?.top ??
+        (dark ? const Color(0xFF0B1226) : const Color(0xFF86C1EE));
+    final skyLow = sk?.bottom ??
+        (dark ? const Color(0xFF2B3558) : const Color(0xFFEAF4FB));
     canvas.drawRect(
         Rect.fromLTRB(0, 0, w, hor + 2),
         Paint()
           ..shader = ui.Gradient.linear(
               Offset.zero, Offset(0, hor), [skyTop, skyLow]));
-    if (dark) {
+    if (sk != null) {
+      // ستاره‌ها (با چرخشِ دوربین جابه‌جا می‌شوند)
+      if (sk.starA > 0.01) {
+        for (var i = 0; i < 70; i++) {
+          final a = i * 2.399;
+          final x = cx +
+              (((a * 1.7 - yaw + math.pi) % (2 * math.pi)) - math.pi) * focal;
+          final y = (math.sin(i * 12.9898) * 0.5 + 0.5) * hor * 0.85;
+          if (x < 0 || x > w) continue;
+          canvas.drawCircle(
+              Offset(x, y),
+              0.9 + (i % 3) * 0.3,
+              _fill(Colors.white
+                  .withValues(alpha: (0.75 * sk.starA).clamp(0.0, 1.0).toDouble())));
+        }
+      }
+      // خورشید: از شرق (طلوع) تا غرب (غروب) روی کمانِ روز
+      if (sk.sunA > 0.01) {
+        final ang = -0.55 + (sk.dayFrac - 0.5) * 2.4;
+        final sx = cx + (((ang - yaw + math.pi) % (2 * math.pi)) - math.pi) * focal;
+        if (sx > -120 && sx < w + 120) {
+          final up = (math.max(sk.altDeg, 0.0) / 70).clamp(0.0, 1.0).toDouble();
+          SkyArt.sun(canvas, Offset(sx, hor * (0.92 - 0.72 * up)), sk, r: 26);
+        }
+      }
+      // ماه با فازِ واقعی
+      if (sk.moonA > 0.01) {
+        final ang = 2.4 + (sk.nightFrac - 0.5) * 2.4;
+        final mx = cx + (((ang - yaw + math.pi) % (2 * math.pi)) - math.pi) * focal;
+        if (mx > -120 && mx < w + 120) {
+          final up = math.sin(math.pi * sk.nightFrac);
+          SkyArt.moon(canvas, Offset(mx, hor * (0.9 - 0.65 * up)), sk, r: 20);
+        }
+      }
+    } else if (dark) {
       for (var i = 0; i < 40; i++) {
         final a = i * 2.399;
         final x = cx + (((a * 1.7 - yaw + math.pi) % (2 * math.pi)) - math.pi) *

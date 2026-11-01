@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../screens/add_goal_dialog.dart';
 import '../screens/goals_sheet.dart';
 import '../state/map_store.dart';
 import 'camera.dart';
+import 'day_cycle.dart';
 import 'draw_utils.dart' show toFa, NodeImageCache;
 import 'hit_registry.dart';
 import 'map_ops.dart' show findActionNode, footPosToday;
@@ -340,9 +342,19 @@ class _WalkViewPageState extends State<WalkViewPage>
       ? math.min(math.max(0.0, widget.data.startD - 210.0), widget.data.maxD)
       : widget.data.minD;
 
+  // آسمانِ ۳بعدی/قدم‌زدن طبقِ ساعتِ گوشی (هر ۳۰ ثانیه به‌روز)
+  late SkyState _sky = DayCycle.compute(DateTime.now(), DayCycle.mode.value);
+  Timer? _skyTimer;
+
   @override
   void initState() {
     super.initState();
+    _skyTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() =>
+            _sky = DayCycle.compute(DateTime.now(), DayCycle.mode.value));
+      }
+    });
     // وقتی از روی قدمِ یک شاخه (مثلاً A2) وارد می‌شوی، اول همان نقشه‌ی واقعی
     // با همه‌چیزش (غنچه، گل، برگ، تابلو، شاخه‌ها…) کج و پشتِ پاها دیده می‌شود
     // و مسیرِ همان شاخه جلوی توست؛ با دکمه‌ی نقشه می‌شود به نمای اول‌شخص رفت
@@ -371,6 +383,7 @@ class _WalkViewPageState extends State<WalkViewPage>
 
   @override
   void dispose() {
+    _skyTimer?.cancel();
     WalkSync.pos.clear();
     _ticker.dispose();
     _tick.dispose();
@@ -552,7 +565,8 @@ class _WalkViewPageState extends State<WalkViewPage>
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final sky = _sky;
+    final dark = sky.night;
     final data = widget.data;
     final minD = _lo;
     final span = math.max(1.0, data.maxD - minD);
@@ -591,9 +605,9 @@ class _WalkViewPageState extends State<WalkViewPage>
               },
               onPanCancel: () => _dragging = false,
               child: _map3d
-                  ? _buildMap3d(context, dark)
+                  ? _buildMap3d(context, dark, sky)
                   : CustomPaint(
-                      painter: WalkPainter(data, cam, dark, _tick),
+                      painter: WalkPainter(data, cam, dark, _tick, sky: sky),
                       size: Size.infinite,
                     ),
             ),
@@ -747,12 +761,12 @@ class _WalkViewPageState extends State<WalkViewPage>
 
   /// نقشه‌ی واقعی (با همه‌ی چیزهایش) در حالتِ ۳بعدی: نقشه رو به جهتِ حرکت چرخانده
   /// و کج می‌شود؛ دوربین پشتِ پاهاست و هرچه روی نقشه هست همان‌طور دیده می‌شود.
-  Widget _buildMap3d(BuildContext context, bool dark) {
+  Widget _buildMap3d(BuildContext context, bool dark, SkyState sky) {
     final st = context.watch<MapStore>().state;
     final painter = _painterFor(st, dark);
-    final bg = dark ? const Color(0xFF10142A) : Colors.white;
-    final skyTop = dark ? const Color(0xFF0B1226) : const Color(0xFF86C1EE);
-    final skyLow = dark ? const Color(0xFF2B3558) : const Color(0xFFEAF4FB);
+    final bg = sky.ground;
+    final skyTop = sky.top;
+    final skyLow = sky.bottom;
     return LayoutBuilder(builder: (context, box) {
       final w = box.maxWidth, h = box.maxHeight;
       if (w <= 0 || h <= 0) return const SizedBox.shrink();
@@ -823,6 +837,19 @@ class _WalkViewPageState extends State<WalkViewPage>
                           stops: [0.0, stop, 1.0],
                         ),
                       ),
+                    ),
+                  ),
+                ),
+                // خورشید، ماه و ستاره‌ها (فقط بالای افق)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: fogH,
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: SkyObjectsPainter(sky),
+                      size: Size.infinite,
                     ),
                   ),
                 ),

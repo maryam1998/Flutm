@@ -18,6 +18,7 @@ class SkyState {
     required this.nightFrac,
     required this.top,
     required this.bottom,
+    required this.ground,
     required this.starA,
     required this.sunA,
     required this.moonA,
@@ -39,6 +40,9 @@ class SkyState {
   /// جایگاهِ ماه روی کمانِ شب (۰ = غروب، ۱ = طلوع)
   final double nightFrac;
   final Color top, bottom;
+
+  /// رنگِ زمینِ نقشه‌ی دوبعدی (بیابان) در این ساعت؛ آسمان ندارد
+  final Color ground;
   final double starA, sunA, moonA;
 
   /// ۰..۱ (۰ = هلالِ نو، ۰٫۵ = ماهِ کامل)
@@ -110,6 +114,28 @@ class DayCycle {
     [90, 0xFF3F93E2, 0xFFB5DCF6, 0xFFB5DCF6],
   ];
 
+  // رنگِ زمین (بیابانِ نقشه‌ی دوبعدی) بر حسبِ ارتفاعِ خورشید: [deg, color]
+  static const List<List<int>> _gKeys = [
+    [-18, 0xFF0A0C18],
+    [-10, 0xFF12162B],
+    [-4, 0xFF2A2440],
+    [0, 0xFFF3D9B8],
+    [6, 0xFFF8EBD6],
+    [20, 0xFFFFFFFF],
+    [90, 0xFFFFFFFF],
+  ];
+
+  static Color _ground(double altDeg) {
+    final a = altDeg.clamp(-18.0, 90.0).toDouble();
+    var i = 0;
+    while (i < _gKeys.length - 2 && a > _gKeys[i + 1][0]) {
+      i++;
+    }
+    final k0 = _gKeys[i], k1 = _gKeys[i + 1];
+    final t = ((a - k0[0]) / (k1[0] - k0[0])).clamp(0.0, 1.0).toDouble();
+    return Color.lerp(Color(k0[1]), Color(k1[1]), t)!;
+  }
+
   static SkyState _skyFor(double altDeg, bool rising, double dayFrac,
       double nightFrac, double moonPhase) {
     final a = altDeg.clamp(-18.0, 90.0).toDouble();
@@ -123,7 +149,7 @@ class DayCycle {
     final top = Color.lerp(Color(k0[1]), Color(k1[1]), t)!;
     final bottom = Color.lerp(Color(k0[bi]), Color(k1[bi]), t)!;
 
-    final night = altDeg < -3.0;
+    final night = altDeg < -2.0;
     final String emoji, label;
     if (altDeg < -12) {
       emoji = '🌙';
@@ -149,6 +175,7 @@ class DayCycle {
       nightFrac: nightFrac,
       top: top,
       bottom: bottom,
+      ground: _ground(altDeg),
       starA: _smooth(-5, -14, altDeg),
       sunA: _smooth(-4, 1, altDeg),
       moonA: _smooth(3, -7, altDeg),
@@ -202,8 +229,10 @@ class DayCycle {
   }
 }
 
-/// آسمان را پشتِ [builder] می‌کشد و هر ۳۰ ثانیه با ساعتِ گوشی به‌روز می‌کند.
-/// اگر [enabled] نباشد فقط [builder] با `sky == null` صدا زده می‌شود.
+/// «روشناییِ» نقشه‌ی دوبعدی را با ساعتِ گوشی هماهنگ می‌کند (رنگِ زمینِ بیابان؛
+/// صبح و ظهر روشن، غروب گرم، شب تیره). نقشه‌ی دوبعدی آسمان ندارد؛ خورشید، ماه و
+/// ستاره فقط در نمای ۳بعدی و قدم‌زدن دیده می‌شوند.
+/// هر ۳۰ ثانیه با ساعت به‌روز می‌شود. اگر [enabled] نباشد، [builder] با `sky == null` صدا زده می‌شود.
 class DayCycleScope extends StatefulWidget {
   const DayCycleScope({super.key, required this.enabled, required this.builder});
 
@@ -214,17 +243,13 @@ class DayCycleScope extends StatefulWidget {
   State<DayCycleScope> createState() => _DayCycleScopeState();
 }
 
-class _DayCycleScopeState extends State<DayCycleScope>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _anim;
+class _DayCycleScopeState extends State<DayCycleScope> {
   Timer? _timer;
   late SkyState _sky;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(seconds: 40))
-      ..repeat();
     _sky = DayCycle.compute(DateTime.now(), DayCycle.mode.value);
     DayCycle.mode.addListener(_refresh);
     DayCycle.load();
@@ -240,7 +265,6 @@ class _DayCycleScopeState extends State<DayCycleScope>
   void dispose() {
     _timer?.cancel();
     DayCycle.mode.removeListener(_refresh);
-    _anim.dispose();
     super.dispose();
   }
 
@@ -252,11 +276,9 @@ class _DayCycleScopeState extends State<DayCycleScope>
       children: [
         Positioned.fill(
           child: IgnorePointer(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: _SkyPainter(_sky, _anim),
-                size: Size.infinite,
-              ),
+            child: AnimatedContainer(
+              duration: const Duration(seconds: 2),
+              color: _sky.ground,
             ),
           ),
         ),
@@ -266,104 +288,100 @@ class _DayCycleScopeState extends State<DayCycleScope>
   }
 }
 
-class _SkyPainter extends CustomPainter {
-  _SkyPainter(this.s, this.anim) : super(repaint: anim);
-  final SkyState s;
-  final Animation<double> anim;
+/// نقاشیِ خورشید، ماه و ستاره (برای آسمانِ نمای ۳بعدی و قدم‌زدن)
+class SkyArt {
+  SkyArt._();
 
-  static final List<List<double>> _stars = () {
+  static final List<List<double>> stars = () {
     final r = math.Random(1405);
     return List.generate(
-        90, (_) => [r.nextDouble(), r.nextDouble() * 0.9, 0.5 + r.nextDouble() * 1.3, r.nextDouble() * 6.283]);
+        90,
+        (_) => [
+              r.nextDouble(),
+              r.nextDouble() * 0.9,
+              0.6 + r.nextDouble() * 1.2,
+              r.nextDouble() * 6.283
+            ]);
   }();
+
+  static void sun(Canvas canvas, Offset c, SkyState s, {double r = 24}) {
+    if (s.sunA <= 0.01) return;
+    final warmK = (s.altDeg / 25).clamp(0.0, 1.0).toDouble();
+    final col =
+        Color.lerp(const Color(0xFFFF8A3D), const Color(0xFFFFF1B8), warmK)!;
+    canvas.drawCircle(
+        c,
+        r * 3.6,
+        Paint()
+          ..shader = RadialGradient(colors: [
+            col.withValues(alpha: 0.55 * s.sunA),
+            col.withValues(alpha: 0.0),
+          ]).createShader(Rect.fromCircle(center: c, radius: r * 3.6)));
+    canvas.drawCircle(c, r, Paint()..color = col.withValues(alpha: s.sunA));
+  }
+
+  static void moon(Canvas canvas, Offset c, SkyState s, {double r = 20}) {
+    if (s.moonA <= 0.01) return;
+    final a = s.moonA;
+    canvas.drawCircle(
+        c,
+        r * 3.5,
+        Paint()
+          ..shader = RadialGradient(colors: [
+            const Color(0xFFDDE6FF).withValues(alpha: 0.28 * a),
+            const Color(0xFFDDE6FF).withValues(alpha: 0.0),
+          ]).createShader(Rect.fromCircle(center: c, radius: r * 3.5)));
+    canvas.drawCircle(c, r,
+        Paint()..color = const Color(0xFF2A3050).withValues(alpha: 0.55 * a));
+    final ph = s.moonPhase;
+    final k = (1 - math.cos(2 * math.pi * ph)) / 2; // نورانیت ۰..۱
+    final waxing = ph < 0.5;
+    final moonP = Path()..addOval(Rect.fromCircle(center: c, radius: r));
+    final shift = 2 * r * k;
+    final shadow = Path()
+      ..addOval(Rect.fromCircle(
+          center: Offset(c.dx + (waxing ? -shift : shift), c.dy), radius: r));
+    final lit = k > 0.97
+        ? moonP
+        : Path.combine(PathOperation.difference, moonP, shadow);
+    canvas.drawPath(
+        lit, Paint()..color = const Color(0xFFF6F1D8).withValues(alpha: a));
+  }
+
+  /// ستاره‌های ثابتِ صفحه (برای نمای ۳بعدیِ نقشه)
+  static void starField(Canvas canvas, Size size, double alpha) {
+    if (alpha <= 0.01) return;
+    final p = Paint();
+    for (final st in stars) {
+      p.color = Colors.white
+          .withValues(alpha: (alpha * (0.55 + 0.35 * (st[3] % 1.0))).clamp(0.0, 1.0).toDouble());
+      canvas.drawCircle(Offset(st[0] * size.width, st[1] * size.height), st[2], p);
+    }
+  }
+}
+
+/// آسمانِ نمای ۳بعدیِ نقشه: ستاره، خورشید و ماه روی ناحیه‌ی بالای افق
+class SkyObjectsPainter extends CustomPainter {
+  SkyObjectsPainter(this.s);
+  final SkyState s;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
-    canvas.drawRect(
-        Offset.zero & size,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [s.top, s.bottom],
-          ).createShader(Offset.zero & size));
-
-    final t = anim.value * 2 * math.pi;
-
-    // ستاره‌ها
-    if (s.starA > 0.01) {
-      final p = Paint();
-      for (final st in _stars) {
-        final tw = 0.65 + 0.35 * math.sin(t * 3 + st[3]);
-        p.color = Colors.white.withValues(alpha: (s.starA * tw * 0.9).clamp(0.0, 1.0).toDouble());
-        canvas.drawCircle(Offset(st[0] * w, st[1] * h), st[2], p);
-      }
-    }
-
-    // ابرهای نرم (روز و غروب)
-    final cloudA = (0.55 * (1 - s.starA)).clamp(0.0, 1.0).toDouble();
-    if (cloudA > 0.02) {
-      final warm = Color.lerp(Colors.white, const Color(0xFFFFC9A0),
-          s.altDeg < 8 ? 0.6 : 0.0)!;
-      final cp = Paint()..color = warm.withValues(alpha: cloudA);
-      for (var i = 0; i < 4; i++) {
-        final x = ((i * 0.31 + anim.value * (0.4 + i * 0.1)) % 1.3 - 0.15) * w;
-        final y = h * (0.12 + 0.09 * i);
-        final k = 0.9 + 0.25 * (i % 2);
-        canvas.drawOval(
-            Rect.fromCenter(center: Offset(x, y), width: 150 * k, height: 26 * k), cp);
-        canvas.drawOval(
-            Rect.fromCenter(center: Offset(x + 28 * k, y - 10 * k), width: 78 * k, height: 26 * k),
-            cp);
-      }
-    }
-
-    // خورشید
+    SkyArt.starField(canvas, size, s.starA);
     if (s.sunA > 0.01) {
       final x = w * (0.12 + 0.76 * s.dayFrac);
-      final y = h * (0.22 - 0.12 * math.sin(math.pi * s.dayFrac));
-      final warmK = (s.altDeg / 25).clamp(0.0, 1.0).toDouble();
-      final c = Color.lerp(const Color(0xFFFF8A3D), const Color(0xFFFFF1B8), warmK)!;
-      final glow = Paint()
-        ..shader = RadialGradient(colors: [
-          c.withValues(alpha: 0.55 * s.sunA),
-          c.withValues(alpha: 0.0),
-        ]).createShader(Rect.fromCircle(center: Offset(x, y), radius: 90));
-      canvas.drawCircle(Offset(x, y), 90, glow);
-      canvas.drawCircle(Offset(x, y), 24, Paint()..color = c.withValues(alpha: s.sunA));
+      final y = h * (0.78 - 0.5 * math.sin(math.pi * s.dayFrac));
+      SkyArt.sun(canvas, Offset(x, y), s);
     }
-
-    // ماه
     if (s.moonA > 0.01) {
       final x = w * (0.12 + 0.76 * s.nightFrac);
-      final y = h * (0.22 - 0.12 * math.sin(math.pi * s.nightFrac));
-      const r = 20.0;
-      final c = Offset(x, y);
-      final a = s.moonA;
-      canvas.drawCircle(
-          c,
-          70,
-          Paint()
-            ..shader = RadialGradient(colors: [
-              const Color(0xFFDDE6FF).withValues(alpha: 0.28 * a),
-              const Color(0xFFDDE6FF).withValues(alpha: 0.0),
-            ]).createShader(Rect.fromCircle(center: c, radius: 70)));
-      canvas.drawCircle(c, r, Paint()..color = const Color(0xFF2A3050).withValues(alpha: 0.55 * a));
-      final ph = s.moonPhase;
-      final k = (1 - math.cos(2 * math.pi * ph)) / 2; // نورانیت ۰..۱
-      final waxing = ph < 0.5;
-      final moon = Path()..addOval(Rect.fromCircle(center: c, radius: r));
-      final shift = 2 * r * k;
-      final shadow = Path()
-        ..addOval(Rect.fromCircle(
-            center: Offset(c.dx + (waxing ? -shift : shift), c.dy), radius: r));
-      final lit = k > 0.97 ? moon : Path.combine(PathOperation.difference, moon, shadow);
-      canvas.drawPath(lit, Paint()..color = const Color(0xFFF6F1D8).withValues(alpha: a));
+      final y = h * (0.78 - 0.5 * math.sin(math.pi * s.nightFrac));
+      SkyArt.moon(canvas, Offset(x, y), s);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SkyPainter old) => old.s != s;
+  bool shouldRepaint(covariant SkyObjectsPainter old) => old.s != s;
 }
