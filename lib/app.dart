@@ -8,6 +8,8 @@ import 'screens/login_screen.dart';
 import 'screens/map_tab.dart';
 import 'screens/practice_tab.dart';
 import 'screens/shenakht/shenakht_tab.dart';
+import 'models/map_models.dart';
+import 'services/reminder_notify.dart';
 import 'state/abundance_store.dart';
 import 'state/beliefs_store.dart';
 import 'state/gratitude_store.dart';
@@ -207,6 +209,35 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       // ذخیره‌ی فوری (بدون انتظار برای تأخیر ۹۰۰ms) تا با رفرش/بستن چیزی گم نشود
       context.read<MapStore>().flush();
     }
+    if (s == AppLifecycleState.paused || s == AppLifecycleState.hidden) {
+      _notifyRunningTimer();
+    }
+  }
+
+  /// تایمر روشن است و برنامه به پس‌زمینه رفت: اعلانِ «در حال اجراست».
+  /// خودِ تایمر از ساعتِ واقعی حساب می‌شود، پس بیرون بودن از برنامه زمان را کم نمی‌کند.
+  void _notifyRunningTimer() {
+    try {
+      final st = context.read<MapStore>().state;
+      String? name;
+      void walk(List<ActionNode> list) {
+        for (final a in list) {
+          if (name != null) return;
+          if ((a.timerStart ?? 0) > 0) {
+            name = a.text.trim().isEmpty ? 'بدون نام' : a.text.trim();
+            return;
+          }
+          walk(a.children);
+        }
+      }
+
+      for (final g in st.goals) {
+        walk(g.actions);
+      }
+      if (name == null) return;
+      showSystemNotification(
+          'تایمر در حال اجراست ⏱', '«$name» ادامه دارد؛ برگرد و توقف را بزن.');
+    } catch (_) {}
   }
 
   @override

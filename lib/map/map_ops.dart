@@ -347,7 +347,12 @@ bool footWaitingLatest(ActionNode n, String todayJK) {
 bool footClosedToday(ActionNode a, String todayJK) {
   if ((a.timerStart ?? 0) > 0) return false;
   if (nodeFinished(a)) return true;
-  if (footDoneOn(a, todayJK)) return true;
+  // ثبتِ زمان (تایمر یا بازه‌ی ساعت): قدم‌ها دیده می‌مانند و گل/غنچه/برگ می‌رویند
+  final tSecs = a.time[todayJK];
+  final tEntries = a.entries[todayJK];
+  final timed = (tSecs is num && tSecs > 0) ||
+      (tEntries is List && tEntries.isNotEmpty);
+  if (!timed && footDoneOn(a, todayJK)) return true;
   if (footNoteDone(a, todayJK)) return true;
   return footWaitingLatest(a, todayJK);
 }

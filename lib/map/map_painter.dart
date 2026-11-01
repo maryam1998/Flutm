@@ -53,6 +53,7 @@ void paintMapSprig(Canvas canvas, Offset tip, double dir, double r, String id,
 /// گیاهِ تمرکز: توقفِ تایمر → شکفتنِ غنچه/گل (فقط در حافظه‌ی همین اجرا)
 final Map<String, bool> _plantRunSeen = {};
 final Map<String, double> _plantStopAt = {};
+final Map<String, double> _plantMinSeen = {};
 final Map<String, bool> _reachSeen = {};
 final Map<String, double> _reachAt = {};
 
@@ -1638,6 +1639,16 @@ class MapPainter extends CustomPainter {
       _plantStopAt.remove(a.id);
     } else if (_plantRunSeen[a.id] == true) {
       _plantRunSeen[a.id] = false;
+      _plantStopAt[a.id] = _t;
+    }
+    // ثبتِ زمانِ تازه (مدت یا بازه‌ی ساعت) بدونِ تایمر: غنچه‌ها دوباره می‌شکفند
+    final pmNow = _plantMinutes(a, todayK);
+    final pmSeen = _plantMinSeen[a.id];
+    _plantMinSeen[a.id] = pmNow;
+    if (!running &&
+        pmSeen != null &&
+        pmNow - pmSeen > 0.5 &&
+        _plantStopAt[a.id] == null) {
       _plantStopAt[a.id] = _t;
     }
     final t0 = _plantStopAt[a.id];
@@ -3423,7 +3434,7 @@ class MapPainter extends CustomPainter {
     }
 
     // برگ، غنچه و گل روی خودِ تنه‌ی شاخه/زیرشاخه
-    if (scale >= 0.28 && a.extra['trunkFlora'] == true) {
+    if (scale >= 0.28 && a.extra['trunkFlora'] != false) {
       _trunkFlora(canvas, a, geom, cub, scale, depth);
     }
 

@@ -10,6 +10,7 @@ import '../models/map_models.dart';
 import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import '../services/quiet_snack.dart';
+import '../services/reminder_notify.dart';
 
 // رنگ‌های شیت زمان (روشن — هم‌رنگ Goals Sheet)
 const _kCream = Color(0xFFFFFFFF);
@@ -111,6 +112,63 @@ class _TimeSheetState extends State<_TimeSheet> {
     if (mounted) setState(() {});
   }
 
+  /// تایمرِ روشن را کم/زیاد می‌کند (اگر فراموش کرده‌ای خاموشش کنی)
+  void _shiftTimer(int mins) {
+    final n = widget.node;
+    if (!timerRunning(n)) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    var ns = n.timerStart! - mins * 60000;
+    if (ns > now) ns = now; // زمانِ سپری‌شده منفی نمی‌شود
+    n.timerStart = ns;
+    widget.store.changedNow();
+    if (mounted) setState(() {});
+  }
+
+  /// تنظیمِ دقیقِ زمانِ سپری‌شده‌ی تایمر (به دقیقه)
+  Future<void> _setElapsed() async {
+    if (!timerRunning(widget.node)) return;
+    final cur = (_elapsedLive() / 60).round();
+    final ctl = TextEditingController(text: '$cur');
+    final v = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: const Text('زمانِ تایمر (دقیقه)',
+            style: TextStyle(fontSize: 14, color: _kInk)),
+        content: TextField(
+          controller: ctl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: _kInk),
+          decoration: const InputDecoration(hintText: 'مثلاً ۴۵'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('نه', style: TextStyle(color: _kMuted))),
+          FilledButton(
+            onPressed: () {
+              var t = ctl.text.trim();
+              const fa = '۰۱۲۳۴۵۶۷۸۹';
+              const ar = '٠١٢٣٤٥٦٧٨٩';
+              for (var i = 0; i < 10; i++) {
+                t = t.replaceAll(fa[i], '$i').replaceAll(ar[i], '$i');
+              }
+              Navigator.pop(ctx, int.tryParse(t));
+            },
+            child: const Text('تنظیم'),
+          ),
+        ],
+      ),
+    );
+    ctl.dispose();
+    if (v == null || v < 0 || !timerRunning(widget.node)) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    widget.node.timerStart = now - v * 60000;
+    widget.store.changedNow();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _toggle() async {
     if (timerRunning(widget.node)) {
       final startJk =
@@ -119,7 +177,8 @@ class _TimeSheetState extends State<_TimeSheet> {
       if (secs > 0) {
         widget.store.markDoneByTime(widget.host, widget.node, startJk);
       }
-      widget.store.changed();
+      // ذخیره‌ی فوری تا با بستن/رفتن برنامه چیزی گم نشود
+      widget.store.changedNow();
       if (mounted) setState(() {});
       // توقف: کار کلاً تمام شد؟ بله = گل‌ها نمایان می‌شوند، نه = غنچه لابه‌لای برگ‌ها
       if (secs > 0 &&
@@ -150,7 +209,12 @@ class _TimeSheetState extends State<_TimeSheet> {
       return;
     }
     startTimer(widget.node);
-    widget.store.changed();
+    // ذخیره‌ی فوری: تایمر بر پایه‌ی ساعتِ واقعی است و با بیرون رفتن از برنامه هم ادامه دارد
+    widget.store.changedNow();
+    // برای اعلانِ «تایمر در حال اجراست» وقتی برنامه در پس‌زمینه است
+    if (notifySupported() && notifyPermission() == 'default') {
+      requestNotifyPermission();
+    }
     setState(() {});
   }
 
@@ -274,6 +338,29 @@ class _TimeSheetState extends State<_TimeSheet> {
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
                                   ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            // ویرایشِ تایمرِ در حال اجرا: کم/زیاد کردن یا تنظیمِ دقیق
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                for (final d in const [-10, -5, -1, 1, 5, 10])
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    label: Text(
+                                        '${d > 0 ? '+' : '−'}${toFa(d.abs())}',
+                                        style: const TextStyle(fontSize: 12)),
+                                    onPressed: () => _shiftTimer(d),
+                                  ),
+                                ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(Icons.edit, size: 14),
+                                  label: const Text('تنظیم دقیق',
+                                      style: TextStyle(fontSize: 12)),
+                                  onPressed: _setElapsed,
                                 ),
                               ],
                             ),
