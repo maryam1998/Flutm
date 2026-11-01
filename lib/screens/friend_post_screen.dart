@@ -26,21 +26,59 @@ class _FriendPostScreenState extends State<FriendPostScreen> {
     super.dispose();
   }
 
-  void _send(FriendPost p) {
+  bool _sending = false;
+
+  Future<void> _send(FriendPost p) async {
     final t = _ctrl.text.trim();
-    if (t.length < 2) return;
+    if (t.length < 2 || _sending) return;
+    if (!await ensureCanWrite(context)) return;
     final bad = ContentFilter.check(t);
     if (bad != null) {
       setState(() => _error = bad);
       return;
     }
-    store.addAnswer(p, t);
-    _ctrl.clear();
-    setState(() => _error = null);
-    FocusScope.of(context).unfocus();
+    setState(() => _sending = true);
+    final err = await store.addAnswer(p, t);
+    if (!mounted) return;
+    setState(() {
+      _sending = false;
+      _error = err;
+    });
+    if (err == null) {
+      _ctrl.clear();
+      FocusScope.of(context).unfocus();
+    }
   }
 
-  Future<void> _report(VoidCallback onDone) async {
+  Future<void> _deleteMine(FriendPost p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('این پست پاک شود؟'),
+        content: const Text('پاسخ‌های آن هم پاک می‌شوند و برگشت ندارد.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('نه')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('پاک کن')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final err = await store.deletePost(p);
+    if (!mounted) return;
+    if (err != null) {
+      setState(() => _error = err);
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _report(void Function(String reason) onDone) async {
+    if (!await ensureCanWrite(context)) return;
+    if (!mounted) return;
     final pal = GratPalette.of(context);
     const reasons = [
       'توهین یا الفاظ نامناسب',
@@ -48,7 +86,7 @@ class _FriendPostScreenState extends State<FriendPostScreen> {
       'تبلیغ یا لینک',
       'نامرتبط با موضوع',
     ];
-    final ok = await showModalBottomSheet<bool>(
+    final ok = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -73,13 +111,13 @@ class _FriendPostScreenState extends State<FriendPostScreen> {
                 minVerticalPadding: 12,
                 title: Text(r, style: TextStyle(color: pal.ink, fontSize: 13.5)),
                 leading: Icon(Icons.flag_outlined, color: pal.danger),
-                onTap: () => Navigator.pop(ctx, true),
+                onTap: () => Navigator.pop(ctx, r),
               ),
           ],
         ),
       ),
     );
-    if (ok == true) onDone();
+    if (ok != null) onDone(ok);
   }
 
   @override
@@ -108,12 +146,18 @@ class _FriendPostScreenState extends State<FriendPostScreen> {
                 style:
                     const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
             actions: [
-              if (!p.mine)
+              if (p.mine)
+                IconButton(
+                  tooltip: 'پاک کردن پست',
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  onPressed: () => _deleteMine(p),
+                )
+              else
                 IconButton(
                   tooltip: 'گزارش',
                   icon: const Icon(Icons.flag_outlined),
-                  onPressed: () => _report(() {
-                    store.hidePost(p);
+                  onPressed: () => _report((reason) {
+                    store.hidePost(p, reason: reason);
                     Navigator.of(context).pop();
                   }),
                 ),
@@ -174,7 +218,11 @@ class _FriendPostScreenState extends State<FriendPostScreen> {
                                 pal: pal,
                                 count: p.goodCount,
                                 active: p.goodByMe,
-                                onTap: () => store.toggleGood(p),
+                                onTap: () async {
+                                  if (await ensureCanWrite(context)) {
+                                    store.toggleGood(p);
+                                  }
+                                },
                               ),
                             ],
                           ),
@@ -195,7 +243,8 @@ class _FriendPostScreenState extends State<FriendPostScreen> {
                       ),
                       for (final a in answers)
                         _AnswerTile(post: p, answer: a, pal: pal, store: store,
-                            onReport: () => _report(() => store.hideAnswer(a))),
+                            onReport: () => _report(
+                                (reason) => store.hideAnswer(a, reason: reason))),
                     ],
                   ],
                 ),
@@ -274,8 +323,14 @@ class _FriendPostScreenState extends State<FriendPostScreen> {
                         foregroundColor: Colors.white,
                         shape: const CircleBorder(),
                       ),
-                      onPressed: () => _send(p),
-                      child: const Icon(Icons.send_rounded, size: 20),
+                      onPressed: _sending ? null : () => _send(p),
+                      child: _sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.send_rounded, size: 20),
                     ),
                   ),
                 ],
@@ -367,7 +422,11 @@ class _AnswerTile extends StatelessWidget {
                 pal: pal,
                 count: a.goodCount,
                 active: a.goodByMe,
-                onTap: () => store.toggleAnswerGood(a),
+                onTap: () async {
+                  if (await ensureCanWrite(context)) {
+                    store.toggleAnswerGood(a);
+                  }
+                },
               ),
               if (post.mine && !a.mine)
                 InkWell(

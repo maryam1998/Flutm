@@ -1,26 +1,204 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/friends_models.dart';
+import '../services/app_prefs.dart';
+import '../services/auth_service.dart';
+import '../services/supabase_config.dart';
 
 enum FriendSort { newest, unanswered, hot }
 
-/// استورِ «دوستان هم‌فرکانسی».
-/// فعلاً فقط در حافظه (داده‌ی نمایشی)؛ بعد از طراحی بک‌اند با Supabase جایگزین می‌شه.
+/// استورِ «دوستان هم‌فرکانسی» — روی Supabase (جدول‌ها: `supabase/friends.sql`).
+///
+/// خواندن برای همه آزاد است؛ نوشتن/پاسخ/«حس خوبی داد»/گزارش فقط با ورودِ Google.
+/// تغییرها اول روی صفحه اعمال می‌شوند و بعد به سرور می‌روند؛ اگر سرور قبول نکرد
+/// برمی‌گردند و پیام خطا نشان داده می‌شود.
 class FriendsStore extends ChangeNotifier {
-  FriendsStore._() {
-    _seed();
-  }
+  FriendsStore._();
   static final FriendsStore instance = FriendsStore._();
 
-  /// تا وقتی به سرور وصل نشده، برچسب «نمایشی» نشون داده می‌شه
-  static const bool demo = true;
+  static const _kNick = 'friends_nick_v1';
+  static const _select =
+      '*, friend_answers(*, friend_answer_good(user_id)), friend_post_good(user_id)';
 
-  String myName = 'همسفر';
   final List<FriendPost> _posts = [];
-  int _seq = 100;
+  bool loading = false;
+  bool loaded = false;
 
-  String _id() => 'p${_seq++}';
+  /// آخرین خطا (برای نوار هشدار بالای صفحه)؛ با یک بارگذاریِ موفق پاک می‌شود
+  String? error;
 
+  String _nick = '';
+
+  SupabaseClient? get _c {
+    if (!supabaseConfigured) return null;
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? get myId => _c?.auth.currentUser?.id;
+
+  /// فقط کاربرِ واردشده با Google می‌تواند بنویسد (مهمان/ناشناس فقط می‌خواند)
+  bool get canWrite {
+    final u = _c?.auth.currentUser;
+    return u != null && !u.isAnonymous;
+  }
+
+  /// نامِ پیش‌فرض: نامِ مستعارِ قبلی، وگرنه اسمِ کوچکِ حسابِ Google، وگرنه «همسفر»
+  String get myName {
+    if (_nick.isNotEmpty) return _nick;
+    final dn = AuthService.instance.displayName.trim();
+    if (dn.isNotEmpty && !dn.contains('@')) {
+      final first = dn.split(RegExp(r'\s+')).first;
+      return first.length > 20 ? first.substring(0, 20) : first;
+    }
+    return 'همسفر';
+  }
+
+  // ───────── بارگذاری ─────────
+  Future<void> load({bool force = false}) async {
+    if (loading) return;
+    if (loaded && !force) return;
+    final c = _c;
+    if (c == null) {
+      error = 'اتصال به سرور تنظیم نشده.';
+      loaded = true;
+      notifyListeners();
+      return;
+    }
+    loading = true;
+    notifyListeners();
+    try {
+      final p = await AppPrefs.getInstance();
+      _nick = p.getString(_kNick) ?? _nick;
+
+      final rows = await c
+          .from('friend_posts')
+          .select(_select)
+          .order('created_at', ascending: false)
+          .limit(100);
+
+      // چیزهایی که خودم گزارش کرده‌ام برای من پنهان بماند
+      final hiddenPosts = <String>{};
+      final hiddenAnswers = <String>{};
+      if (canWrite) {
+        try {
+          final reps = await c.from('friend_reports').select('post_id, answer_id');
+          for (final r in reps) {
+            final pid = r['post_id'];
+            final aid = r['answer_id'];
+            if (pid != null) hiddenPosts.add(pid.toString());
+            if (aid != null) hiddenAnswers.add(aid.toString());
+          }
+        } catch (_) {}
+      }
+
+      _posts
+        ..clear()
+        ..addAll(rows
+            .map((r) => _postFrom(Map<String, dynamic>.from(r as Map),
+                hiddenPosts, hiddenAnswers))
+            .whereType<FriendPost>());
+      error = null;
+      loaded = true;
+    } catch (e) {
+      error = _msg(e);
+      loaded = true;
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refresh() => load(force: true);
+
+  static String _msg(Object e) {
+    if (e is PostgrestException) {
+      final m = '${e.message} ${e.code ?? ''}'.toLowerCase();
+      if (m.contains('pgrst205') ||
+          m.contains('does not exist') ||
+          m.contains('schema cache') ||
+          m.contains('42p01')) {
+        return 'جدول‌های دوستان هنوز در Supabase ساخته نشده‌اند. فایل supabase/friends.sql را در SQL Editor اجرا کن.';
+      }
+      if (m.contains('row-level security') || m.contains('42501')) {
+        return 'اجازه‌ی این کار را نداری. با حساب Google وارد شو.';
+      }
+      return 'خطای سرور: ${e.message}';
+    }
+    final s = e.toString();
+    if (s.contains('SocketException') ||
+        s.contains('Failed host lookup') ||
+        s.contains('ClientException') ||
+        s.contains('XMLHttpRequest')) {
+      return 'اینترنت وصل نیست یا سرور در دسترس نیست.';
+    }
+    return 'مشکلی پیش آمد. دوباره تلاش کن.';
+  }
+
+  DateTime _time(dynamic v) {
+    try {
+      return DateTime.parse(v.toString()).toLocal();
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
+  FriendPost? _postFrom(Map<String, dynamic> r, Set<String> hiddenPosts,
+      Set<String> hiddenAnswers) {
+    final id = r['id']?.toString();
+    if (id == null || hiddenPosts.contains(id)) return null;
+    final me = myId;
+    final goods = (r['friend_post_good'] as List? ?? const []);
+    final kindName = r['kind']?.toString() ?? 'question';
+    final kind = FriendKind.values.firstWhere((k) => k.name == kindName,
+        orElse: () => FriendKind.question);
+    final answers = <FriendAnswer>[];
+    for (final a in (r['friend_answers'] as List? ?? const [])) {
+      final m = Map<String, dynamic>.from(a as Map);
+      final aid = m['id']?.toString();
+      if (aid == null || hiddenAnswers.contains(aid)) continue;
+      answers.add(_answerFrom(m, me));
+    }
+    answers.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return FriendPost(
+      id: id,
+      kind: kind,
+      title: r['title']?.toString() ?? '',
+      body: r['body']?.toString() ?? '',
+      category: r['category']?.toString() ?? '',
+      author: r['author_name']?.toString() ?? 'همسفر',
+      createdAt: _time(r['created_at']),
+      emotionId: (r['emotion_id'] as String?)?.isEmpty == true
+          ? null
+          : r['emotion_id'] as String?,
+      goodCount: goods.length,
+      goodByMe:
+          me != null && goods.any((g) => (g as Map)['user_id']?.toString() == me),
+      mine: me != null && r['user_id']?.toString() == me,
+      answers: answers,
+    );
+  }
+
+  FriendAnswer _answerFrom(Map<String, dynamic> m, String? me) {
+    final goods = (m['friend_answer_good'] as List? ?? const []);
+    return FriendAnswer(
+      id: m['id'].toString(),
+      author: m['author_name']?.toString() ?? 'همسفر',
+      body: m['body']?.toString() ?? '',
+      createdAt: _time(m['created_at']),
+      goodCount: goods.length,
+      goodByMe:
+          me != null && goods.any((g) => (g as Map)['user_id']?.toString() == me),
+      helpful: m['helpful'] == true,
+      mine: me != null && m['user_id']?.toString() == me,
+    );
+  }
+
+  // ───────── خواندن ─────────
   List<FriendPost> view({FriendKind? kind, FriendSort sort = FriendSort.newest}) {
     var l = _posts.where((p) => !p.hiddenByMe).toList();
     if (kind != null) l = l.where((p) => p.kind == kind).toList();
@@ -45,171 +223,187 @@ class FriendsStore extends ChangeNotifier {
     return null;
   }
 
-  void toggleGood(FriendPost p) {
-    p.goodByMe = !p.goodByMe;
-    p.goodCount += p.goodByMe ? 1 : -1;
+  // ───────── «حس خوبی داد» ─────────
+  Future<void> toggleGood(FriendPost p) async {
+    final c = _c;
+    final me = myId;
+    if (c == null || me == null || !canWrite) return;
+    final was = p.goodByMe;
+    p.goodByMe = !was;
+    p.goodCount += was ? -1 : 1;
     notifyListeners();
+    try {
+      if (was) {
+        await c
+            .from('friend_post_good')
+            .delete()
+            .eq('post_id', p.id)
+            .eq('user_id', me);
+      } else {
+        await c.from('friend_post_good').insert({'post_id': p.id});
+      }
+    } catch (e) {
+      if (!(e is PostgrestException && e.code == '23505')) {
+        p.goodByMe = was;
+        p.goodCount += was ? 1 : -1;
+        error = _msg(e);
+      }
+      notifyListeners();
+    }
   }
 
-  void toggleAnswerGood(FriendAnswer a) {
-    a.goodByMe = !a.goodByMe;
-    a.goodCount += a.goodByMe ? 1 : -1;
+  Future<void> toggleAnswerGood(FriendAnswer a) async {
+    final c = _c;
+    final me = myId;
+    if (c == null || me == null || !canWrite) return;
+    final was = a.goodByMe;
+    a.goodByMe = !was;
+    a.goodCount += was ? -1 : 1;
     notifyListeners();
+    try {
+      if (was) {
+        await c
+            .from('friend_answer_good')
+            .delete()
+            .eq('answer_id', a.id)
+            .eq('user_id', me);
+      } else {
+        await c.from('friend_answer_good').insert({'answer_id': a.id});
+      }
+    } catch (e) {
+      if (!(e is PostgrestException && e.code == '23505')) {
+        a.goodByMe = was;
+        a.goodCount += was ? 1 : -1;
+        error = _msg(e);
+      }
+      notifyListeners();
+    }
   }
 
-  FriendPost addPost({
+  // ───────── نوشتن ─────────
+  /// null = موفق؛ وگرنه پیامِ خطا برای نشان‌دادن به کاربر
+  Future<String?> addPost({
     required FriendKind kind,
     required String title,
     String body = '',
     String category = '',
     String? emotionId,
     required String author,
-  }) {
-    myName = author;
-    final p = FriendPost(
-      id: _id(),
-      kind: kind,
-      title: title,
-      body: body,
-      category: category,
-      author: author,
-      createdAt: DateTime.now(),
-      emotionId: emotionId,
-      mine: true,
-    );
-    _posts.insert(0, p);
-    notifyListeners();
-    return p;
+  }) async {
+    final c = _c;
+    if (c == null) return 'اتصال به سرور تنظیم نشده.';
+    if (!canWrite) return 'برای نوشتن باید با حساب Google وارد شوی.';
+    try {
+      final row = await c
+          .from('friend_posts')
+          .insert({
+            'kind': kind.name,
+            'title': title,
+            'body': body,
+            'category': category,
+            'author_name': author,
+            if (emotionId != null) 'emotion_id': emotionId,
+          })
+          .select()
+          .single();
+      final p = _postFrom(Map<String, dynamic>.from(row), {}, {});
+      if (p != null) _posts.insert(0, p);
+      _nick = author;
+      final prefs = await AppPrefs.getInstance();
+      await prefs.setString(_kNick, author);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
   }
 
-  void addAnswer(FriendPost p, String body) {
-    p.answers.add(FriendAnswer(
-      id: _id(),
-      author: myName,
-      body: body,
-      createdAt: DateTime.now(),
-      mine: true,
-    ));
-    notifyListeners();
+  Future<String?> addAnswer(FriendPost p, String body) async {
+    final c = _c;
+    if (c == null) return 'اتصال به سرور تنظیم نشده.';
+    if (!canWrite) return 'برای پاسخ دادن باید با حساب Google وارد شوی.';
+    try {
+      final row = await c
+          .from('friend_answers')
+          .insert({
+            'post_id': p.id,
+            'author_name': myName,
+            'body': body,
+          })
+          .select()
+          .single();
+      p.answers.add(_answerFrom(Map<String, dynamic>.from(row), myId));
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
   }
 
   /// پرسنده فقط یک پاسخ را «کمکم کرد» می‌کند؛ دوباره زدن برش می‌دارد
-  void markHelpful(FriendPost p, FriendAnswer a) {
+  Future<void> markHelpful(FriendPost p, FriendAnswer a) async {
+    final c = _c;
+    if (c == null || !canWrite) return;
     final was = a.helpful;
+    final before = {for (final x in p.answers) x.id: x.helpful};
     for (final x in p.answers) {
       x.helpful = false;
     }
     a.helpful = !was;
     notifyListeners();
+    try {
+      await c.rpc('friend_mark_helpful', params: {'p_answer': a.id});
+    } catch (e) {
+      for (final x in p.answers) {
+        x.helpful = before[x.id] ?? false;
+      }
+      error = _msg(e);
+      notifyListeners();
+    }
   }
 
-  void hidePost(FriendPost p) {
+  /// پستِ خودم را پاک می‌کنم
+  Future<String?> deletePost(FriendPost p) async {
+    final c = _c;
+    if (c == null || !canWrite) return 'برای این کار باید وارد شوی.';
+    try {
+      await c.from('friend_posts').delete().eq('id', p.id);
+      _posts.removeWhere((x) => x.id == p.id);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
+  }
+
+  // ───────── گزارش ─────────
+  /// گزارش ثبت می‌شود و برای خودِ گزارش‌دهنده بلافاصله پنهان؛ با ۳ گزارش از
+  /// آدم‌های مختلف برای همه پنهان می‌شود.
+  Future<void> hidePost(FriendPost p, {String reason = ''}) async {
     p.hiddenByMe = true;
     notifyListeners();
+    final c = _c;
+    if (c == null || !canWrite) return;
+    try {
+      await c.from('friend_reports').insert({'post_id': p.id, 'reason': reason});
+    } catch (e) {
+      if (!(e is PostgrestException && e.code == '23505')) error = _msg(e);
+      notifyListeners();
+    }
   }
 
-  void hideAnswer(FriendAnswer a) {
+  Future<void> hideAnswer(FriendAnswer a, {String reason = ''}) async {
     a.hidden = true;
     notifyListeners();
-  }
-
-  // ───────── داده‌ی نمایشی ─────────
-  void _seed() {
-    DateTime ago(int minutes) =>
-        DateTime.now().subtract(Duration(minutes: minutes));
-    _posts.addAll([
-      FriendPost(
-        id: 'p1',
-        kind: FriendKind.question,
-        title: 'چرا با وجود تمرین شکرگذاری هنوز حس کمبود دارم؟',
-        body:
-            'یک ماهه هر شب شکرگذاری می‌نویسم ولی وقتی خرج‌هام رو می‌بینم دوباره حس کمبود میاد سراغم. کسی این تجربه رو داشته؟',
-        category: 'حس و فرکانس',
-        author: 'مهتاب',
-        createdAt: ago(18),
-        emotionId: 'lack',
-        goodCount: 6,
-        answers: [
-          FriendAnswer(
-            id: 'a1',
-            author: 'آرمان',
-            body:
-                'برای من وقتی جواب داد که شکرگذاری رو از «چیزهایی که دارم» به «حسی که الان دارم» تغییر دادم؛ فقط لیست‌نویسی کافی نبود.',
-            createdAt: ago(9),
-            goodCount: 4,
-          ),
-          FriendAnswer(
-            id: 'a2',
-            author: 'نسیم',
-            body:
-                'سعی کن بعد از نوشتن، یک دقیقه چشم‌ها رو ببندی و همون حس رو توی بدنت پیدا کنی.',
-            createdAt: ago(5),
-            goodCount: 2,
-          ),
-        ],
-      ),
-      FriendPost(
-        id: 'p2',
-        kind: FriendKind.experience,
-        title: 'سی روز با یک جمله‌ی تاکیدی',
-        body:
-            'هر صبح فقط یک جمله می‌گفتم و حسش رو ثبت می‌کردم. روز ۲۰ام اولین بار حس کردم جمله دیگه برام «تکرار» نیست، باور شده. رشته‌ی عصبی‌ام هم سبز شده بود 😊',
-        category: 'عادت و تمرین',
-        author: 'سارا',
-        createdAt: ago(95),
-        emotionId: 'joy',
-        goodCount: 14,
-        answers: [
-          FriendAnswer(
-            id: 'a3',
-            author: 'همسفر',
-            body: 'چقدر قشنگ! کدوم جمله بود؟',
-            createdAt: ago(60),
-            mine: true,
-          ),
-        ],
-      ),
-      FriendPost(
-        id: 'p3',
-        kind: FriendKind.gratitude,
-        title: 'خدایا شکرت که امروز صبح بوی نون تازه رو حس کردم',
-        category: 'شکرگذاری',
-        author: 'رضا',
-        createdAt: ago(140),
-        emotionId: 'love',
-        goodCount: 9,
-      ),
-      FriendPost(
-        id: 'p4',
-        kind: FriendKind.question,
-        title: 'چطور باور قدیمی «پول درآوردن سخته» رو بازنویسی کنم؟',
-        body: '',
-        category: 'باورها',
-        author: 'همسفر',
-        createdAt: ago(300),
-        goodCount: 3,
-        mine: true,
-        answers: [
-          FriendAnswer(
-            id: 'a4',
-            author: 'پگاه',
-            body:
-                'اول ببین این باور از کجا اومده. وقتی منبعش رو دیدم، جمله‌ی جایگزین طبیعی‌تر شد.',
-            createdAt: ago(250),
-            goodCount: 5,
-          ),
-        ],
-      ),
-      FriendPost(
-        id: 'p5',
-        kind: FriendKind.question,
-        title: 'فرق «خواستن» و «انتظار داشتن» تو قانون جذب چیه؟',
-        body: '',
-        category: 'قانون جذب',
-        author: 'کیان',
-        createdAt: ago(1500),
-        goodCount: 1,
-      ),
-    ]);
+    final c = _c;
+    if (c == null || !canWrite) return;
+    try {
+      await c
+          .from('friend_reports')
+          .insert({'answer_id': a.id, 'reason': reason});
+    } catch (e) {
+      if (!(e is PostgrestException && e.code == '23505')) error = _msg(e);
+      notifyListeners();
+    }
   }
 }

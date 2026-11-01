@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../map/draw_utils.dart' show toFa;
 import '../models/emotion.dart';
 import '../models/friends_models.dart';
+import '../services/auth_service.dart';
 import '../services/content_filter.dart';
 import '../state/friends_store.dart';
 import '../theme/grat_palette.dart';
@@ -23,6 +24,37 @@ IconData friendKindIcon(FriendKind k) {
     case FriendKind.gratitude:
       return Icons.volunteer_activism_outlined;
   }
+}
+
+/// نوشتن/پاسخ/«حس خوبی داد»/گزارش فقط با ورودِ Google؛ مهمان فقط می‌خواند.
+/// true = می‌تواند بنویسد؛ وگرنه پیام ورود نشان داده می‌شود.
+Future<bool> ensureCanWrite(BuildContext context) async {
+  if (FriendsStore.instance.canWrite) return true;
+  final pal = GratPalette.of(context);
+  final go = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: pal.paper,
+      title: Text('برای مشارکت وارد شو',
+          style: TextStyle(
+              fontSize: 15, fontWeight: FontWeight.w800, color: pal.ink)),
+      content: Text(
+          'خواندنِ پست‌ها برای همه آزاد است، ولی برای نوشتن، پاسخ دادن و «حس خوبی داد» باید با حساب Google وارد شوی تا اینجا امن و قابل‌اعتماد بماند.',
+          style: TextStyle(fontSize: 13, height: 1.8, color: pal.inkSoft)),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('بعداً')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: pal.emerald700),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('ورود با Google'),
+        ),
+      ],
+    ),
+  );
+  if (go == true) await AuthService.instance.signInWithGoogle();
+  return false;
 }
 
 /// دکمه‌ی «حس خوبی داد» (به‌جای لایک)
@@ -119,6 +151,24 @@ class _FriendsTabState extends State<FriendsTab> {
   FriendSort _sort = FriendSort.newest;
 
   @override
+  void initState() {
+    super.initState();
+    store.load();
+    // بعد از ورود با Google، دوباره بخوان تا «حس خوبی داد»های خودم معلوم شود
+    AuthService.instance.addListener(_onAuth);
+  }
+
+  @override
+  void dispose() {
+    AuthService.instance.removeListener(_onAuth);
+    super.dispose();
+  }
+
+  void _onAuth() {
+    if (mounted) store.refresh();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final pal = GratPalette.of(context);
     return Scaffold(
@@ -127,7 +177,11 @@ class _FriendsTabState extends State<FriendsTab> {
         heroTag: null,
         backgroundColor: pal.emerald700,
         foregroundColor: Colors.white,
-        onPressed: () => showFriendComposer(context),
+        onPressed: () async {
+          if (await ensureCanWrite(context) && context.mounted) {
+            await showFriendComposer(context);
+          }
+        },
         icon: const Icon(Icons.edit_outlined, size: 20),
         label: const Text('بپرس یا بنویس',
             style: TextStyle(fontWeight: FontWeight.w800)),
@@ -138,16 +192,28 @@ class _FriendsTabState extends State<FriendsTab> {
           animation: store,
           builder: (context, _) {
             final posts = store.view(kind: _kind, sort: _sort);
-            return ListView(
-              padding: const EdgeInsets.only(bottom: 96),
-              children: [
-                _header(pal),
-                _kindChips(pal),
-                _sortChips(pal),
-                const SizedBox(height: 6),
-                if (posts.isEmpty) _empty(pal),
-                for (final p in posts) _PostCard(post: p, pal: pal, store: store),
-              ],
+            return RefreshIndicator(
+              onRefresh: store.refresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 96),
+                children: [
+                  _header(pal),
+                  if (store.error != null) _errorBanner(pal),
+                  _kindChips(pal),
+                  _sortChips(pal),
+                  const SizedBox(height: 6),
+                  if (store.loading && posts.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 60),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (posts.isEmpty && store.error == null)
+                    _empty(pal),
+                  for (final p in posts)
+                    _PostCard(post: p, pal: pal, store: store),
+                ],
+              ),
             );
           },
         ),
@@ -174,21 +240,42 @@ class _FriendsTabState extends State<FriendsTab> {
                 ],
               ),
             ),
-            if (FriendsStore.demo)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: pal.gold500.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text('نمایشی',
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: pal.gold600)),
-              ),
+            IconButton(
+              tooltip: 'تازه‌سازی',
+              onPressed: store.loading ? null : store.refresh,
+              icon: store.loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(Icons.refresh_rounded, color: pal.muted),
+            ),
           ],
+        ),
+      );
+
+  Widget _errorBanner(GratPalette pal) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: pal.danger.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: pal.danger.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline_rounded, size: 18, color: pal.danger),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(store.error!,
+                    style: TextStyle(
+                        fontSize: 12, height: 1.7, color: pal.inkSoft)),
+              ),
+              TextButton(
+                  onPressed: store.refresh, child: const Text('تلاش دوباره')),
+            ],
+          ),
         ),
       );
 
@@ -412,7 +499,11 @@ class _PostCard extends StatelessWidget {
                                   pal: pal,
                                   count: post.goodCount,
                                   active: post.goodByMe,
-                                  onTap: () => store.toggleGood(post),
+                                  onTap: () async {
+                                    if (await ensureCanWrite(context)) {
+                                      store.toggleGood(post);
+                                    }
+                                  },
                                 ),
                               ],
                             ),
@@ -460,6 +551,7 @@ class _ComposerSheetState extends State<_ComposerSheet> {
   late final TextEditingController _name =
       TextEditingController(text: store.myName);
   String? _error;
+  bool _sending = false;
 
   @override
   void dispose() {
@@ -469,7 +561,8 @@ class _ComposerSheetState extends State<_ComposerSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_sending) return;
     final title = _title.text.trim();
     final body = _kind == FriendKind.gratitude ? '' : _body.text.trim();
     final name = _name.text.trim().isEmpty ? 'همسفر' : _name.text.trim();
@@ -488,7 +581,11 @@ class _ComposerSheetState extends State<_ComposerSheet> {
       setState(() => _error = bad);
       return;
     }
-    store.addPost(
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    final err = await store.addPost(
       kind: _kind,
       title: title,
       body: body,
@@ -496,6 +593,14 @@ class _ComposerSheetState extends State<_ComposerSheet> {
       emotionId: _emotion,
       author: name,
     );
+    if (!mounted) return;
+    if (err != null) {
+      setState(() {
+        _sending = false;
+        _error = err;
+      });
+      return;
+    }
     Navigator.pop(context);
   }
 
@@ -682,9 +787,15 @@ class _ComposerSheetState extends State<_ComposerSheet> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  onPressed: _submit,
-                  child: const Text('ارسال',
-                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  onPressed: _sending ? null : _submit,
+                  child: _sending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('ارسال',
+                          style: TextStyle(fontWeight: FontWeight.w800)),
                 ),
               ),
             ],
