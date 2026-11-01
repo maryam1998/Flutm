@@ -14,6 +14,7 @@ import 'state/gratitude_store.dart';
 import 'state/linked_goals.dart';
 import 'state/map_store.dart';
 import 'state/main_tab.dart';
+import 'state/reminder_store.dart';
 import 'state/theme_store.dart';
 import 'widgets/angels_layer.dart';
 import 'widgets/background_layer.dart';
@@ -136,11 +137,16 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int _index = 1;
   late final LinkedGoalsWatcher _linked;
+  late final ReminderStore _rem;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // یادآورِ هدف‌گذاری/تمرین (فاصله‌ها در تنظیمات)
+    _rem = context.read<ReminderStore>()
+      ..onDue = _onReminder
+      ..start();
     // تب‌های وصل‌شده به نقشه (شکرگذاری / بازی فراوانی / بازنویسی)
     _linked = LinkedGoalsWatcher(
       context.read<MapStore>(),
@@ -152,13 +158,48 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _rem
+      ..onDue = null
+      ..stop();
     _linked.detach();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  /// نوارِ یادآور بالای صفحه؛ «برو» کاربر را به تبِ مربوط می‌برد
+  void _onReminder(ReminderKind kind, String message) {
+    final m = kMessengerKey.currentState;
+    if (m == null || !mounted) return;
+    final goals = kind == ReminderKind.goals;
+    final tab = goals ? 1 : 2;
+    m.hideCurrentMaterialBanner();
+    m.showMaterialBanner(MaterialBanner(
+      backgroundColor: const Color(0xFFF1FAF8),
+      leading: Icon(goals ? Icons.flag_outlined : Icons.favorite_border,
+          color: const Color(0xFF178A7C)),
+      content: Text(message,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600, color: Color(0xFF000000))),
+      actions: [
+        TextButton(
+          onPressed: () => m.hideCurrentMaterialBanner(),
+          child: const Text('بعداً'),
+        ),
+        TextButton(
+          onPressed: () {
+            m.hideCurrentMaterialBanner();
+            kMainTabIndex.value = tab;
+            setState(() => _index = tab);
+          },
+          child: Text(goals ? 'برو به هدف‌ها' : 'برو به تمرین'),
+        ),
+      ],
+    ));
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) _rem.showPending();
     if (s == AppLifecycleState.paused ||
         s == AppLifecycleState.inactive ||
         s == AppLifecycleState.hidden ||

@@ -58,6 +58,32 @@ class FriendsStore extends ChangeNotifier {
     return 'همسفر';
   }
 
+  /// نامِ نمایشیِ ذخیره‌شده را (بدون نیاز به باز شدنِ تب دوستان) از حافظه می‌خواند
+  Future<void> loadNick() async {
+    try {
+      final p = await AppPrefs.getInstance();
+      _nick = p.getString(_kNick) ?? _nick;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// تغییرِ نامِ نمایشی در «دوستان» (از تنظیمات). خالی = برگشت به نامِ پیش‌فرض.
+  /// فقط روی پست‌ها و پاسخ‌های بعدی اثر می‌گذارد.
+  Future<void> setNick(String name) async {
+    var n = name.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (n.length > 20) n = n.substring(0, 20);
+    _nick = n;
+    try {
+      final p = await AppPrefs.getInstance();
+      if (n.isEmpty) {
+        await p.remove(_kNick);
+      } else {
+        await p.setString(_kNick, n);
+      }
+    } catch (_) {}
+    notifyListeners();
+  }
+
   // ───────── بارگذاری ─────────
   Future<void> load({bool force = false}) async {
     if (loading) return;

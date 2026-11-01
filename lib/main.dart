@@ -18,6 +18,7 @@ import 'state/emotion_store.dart';
 import 'state/gratitude_store.dart';
 import 'state/map_store.dart';
 import 'state/motivation_store.dart';
+import 'state/reminder_store.dart';
 import 'state/shenakht_store.dart';
 import 'state/theme_store.dart';
 import 'services/quiet_snack.dart';
@@ -74,6 +75,7 @@ Future<void> main() async {
   final abundance = AbundanceStore();
   final angels = AngelsStore();
   final shenakht = ShenakhtStore(StorageService());
+  final reminders = ReminderStore();
 
   // بارگذاری هم‌زمان (قبلاً پشت‌سرهم بود و جمعِ زمان‌ها حساب می‌شد)
   await Future.wait<void>([
@@ -88,6 +90,7 @@ Future<void> main() async {
     abundance.load(),
     angels.load(),
     shenakht.load(),
+    reminders.load(),
   ]);
 
   // ورود (Google / مهمان): اگر Supabase تنظیم شده باشد وصل می‌شود
@@ -132,6 +135,7 @@ Future<void> main() async {
       ChangeNotifierProvider.value(value: abundance),
       ChangeNotifierProvider.value(value: angels),
       ChangeNotifierProvider.value(value: shenakht),
+      ChangeNotifierProvider.value(value: reminders),
     ],
     child: const MaghzApp(),
   ));

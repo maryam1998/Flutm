@@ -11,10 +11,13 @@ import '../models/constants.dart';
 import '../models/map_models.dart';
 import '../services/auth_service.dart';
 import '../services/fast_image.dart';
+import '../services/reminder_notify.dart' show notifySupported;
 import '../state/angels_store.dart';
 import '../state/background_store.dart';
 import '../state/abundance_store.dart';
 import '../state/beliefs_store.dart';
+import '../state/friends_store.dart';
+import '../state/reminder_store.dart';
 import '../state/gratitude_store.dart';
 import '../state/linked_goals.dart';
 import '../state/map_store.dart';
@@ -95,6 +98,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late double _footScale;
   late String _userName;
   late TextEditingController _nameCtrl;
+  // نامِ نمایشی در «دوستان»
+  final _friendNameCtrl = TextEditingController();
+  bool _friendNameTouched = false;
+  bool _friendNameSaved = false;
   final _motInput = TextEditingController();
   final _motEditCtl = TextEditingController();
   String? _motEditId;
@@ -117,11 +124,19 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     _footScale = s.footScale.clamp(kFootScaleMin, kFootScaleMax).toDouble();
     _userName = s.userName;
     _nameCtrl = TextEditingController(text: _userName);
+    _friendNameCtrl.text = FriendsStore.instance.myName;
+    // نامِ ذخیره‌شده ممکن است هنوز از حافظه خوانده نشده باشد (تب دوستان باز نشده)
+    FriendsStore.instance.loadNick().then((_) {
+      if (mounted && !_friendNameTouched) {
+        setState(() => _friendNameCtrl.text = FriendsStore.instance.myName);
+      }
+    });
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _friendNameCtrl.dispose();
     _motInput.dispose();
     _motEditCtl.dispose();
     super.dispose();
@@ -150,6 +165,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     s.trunkStyle = _trunkStyle;
     s.footScale = _footScale;
     s.userName = _nameCtrl.text.trim();
+    if (_friendNameTouched && !_friendNameSaved) {
+      FriendsStore.instance.setNick(_friendNameCtrl.text);
+    }
     store.changedNow();
     context.read<ThemeStore>().setTextScale(_uiScale);
     Navigator.pop(context);
@@ -338,6 +356,8 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                   children: [
                     _mapDisplayCard(),
                     _linkedTabsCard(),
+                    _friendsNameCard(),
+                    _remindersCard(),
                     _backgroundCard(),
                     _foregroundCard(),
                     _motivationCard(),
@@ -785,6 +805,174 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               );
               map.changedNow();
             },
+          ),
+      ],
+    );
+  }
+
+  // ───────────────────────── نامِ «دوستان» ─────────────────────────
+
+  Widget _friendsNameCard() {
+    Future<void> saveNick() async {
+      await FriendsStore.instance.setNick(_friendNameCtrl.text);
+      if (!mounted) return;
+      FocusScope.of(context).unfocus();
+      setState(() {
+        _friendNameCtrl.text = FriendsStore.instance.myName;
+        _friendNameSaved = true;
+      });
+    }
+
+    return _card(
+      icon: Icons.diversity_3_outlined,
+      title: 'نام در دوستان',
+      subtitle: 'این نام کنار پرسش‌ها و پاسخ‌هایت دیده می‌شود',
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _friendNameCtrl,
+                maxLength: 20,
+                scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 200),
+                onChanged: (_) => setState(() {
+                  _friendNameTouched = true;
+                  _friendNameSaved = false;
+                }),
+                onSubmitted: (_) => saveNick(),
+                style: const TextStyle(fontSize: 13, color: _kInk),
+                decoration: _inputDeco('مثلاً: همسفر').copyWith(counterText: ''),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: _kGold,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: saveNick,
+              child: Text(_friendNameSaved ? 'ثبت شد ✓' : 'ثبت',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 12.5)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+            'تا ۲۰ حرف. تغییر نام فقط روی پرسش‌ها و پاسخ‌های بعدی اثر می‌گذارد؛ '
+            'خالی بگذاری، نامِ حساب Google یا «همسفر» استفاده می‌شود.',
+            style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6)),
+      ],
+    );
+  }
+
+  // ───────────────────────── یادآورها ─────────────────────────
+
+  Widget _remindersCard() {
+    return _card(
+      icon: Icons.notifications_active_outlined,
+      title: 'یادآوری',
+      subtitle: 'هر چند دقیقه یک‌بار پیام بدهد',
+      children: [
+        Consumer<ReminderStore>(
+          builder: (_, rem, __) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _switchRow(
+                title: 'یادآوری هدف‌گذاری',
+                subtitle: 'برای برداشتن قدم بعدیِ هدف‌هات',
+                value: rem.goalOn,
+                onChanged: (v) => rem.setGoalOn(v),
+              ),
+              if (rem.goalOn)
+                _intervalChips(rem.goalMin, (m) => rem.setGoalMin(m)),
+              const _Hair(),
+              _switchRow(
+                title: 'یادآوری تمرین',
+                subtitle: 'برای انجام تمرین‌های شکرگذاری و بازنویسی',
+                value: rem.pracOn,
+                onChanged: (v) => rem.setPracOn(v),
+              ),
+              if (rem.pracOn)
+                _intervalChips(rem.pracMin, (m) => rem.setPracMin(m)),
+              if ((rem.goalOn || rem.pracOn) && notifySupported()) ...[
+                const _Hair(),
+                _notifyPermRow(rem),
+              ],
+              const SizedBox(height: 6),
+              const Text(
+                  'یادآور تا وقتی برنامه باز است (حتی پشتِ صفحه‌های دیگر) کار می‌کند؛ '
+                  'اگر برنامه کاملاً بسته شود مرورگر اجازه‌ی یادآوری نمی‌دهد.',
+                  style: TextStyle(fontSize: 11, color: _kMuted, height: 1.6)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _intervalChips(int current, ValueChanged<int> onPick) {
+    String label(int m) {
+      if (m < 60) return '${toFa(m)} دقیقه';
+      if (m % 60 == 0) return '${toFa(m ~/ 60)} ساعت';
+      return '${toFa(m)} دقیقه';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          for (final m in ReminderStore.kIntervals)
+            ChoiceChip(
+              label: Text(label(m),
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: current == m ? _kGold : _kMuted)),
+              selected: current == m,
+              showCheckmark: false,
+              selectedColor: _kGold.withAlpha(30),
+              backgroundColor: _kField,
+              side: BorderSide(color: current == m ? _kGold : _kBorder),
+              onSelected: (_) => onPick(m),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _notifyPermRow(ReminderStore rem) {
+    final granted = rem.perm == 'granted';
+    final denied = rem.perm == 'denied';
+    return Row(
+      children: [
+        Icon(
+            granted
+                ? Icons.notifications_active_rounded
+                : Icons.notifications_off_outlined,
+            size: 18,
+            color: granted ? _kGold : _kMuted),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+              granted
+                  ? 'اعلان بیرون از برنامه فعال است'
+                  : denied
+                      ? 'اعلان در مرورگر بسته شده؛ از تنظیمات سایتِ مرورگر باز کن'
+                      : 'برای اعلان وقتی برنامه پشتِ صفحه‌های دیگر است، اجازه بده',
+              style: const TextStyle(fontSize: 11.5, color: _kMuted)),
+        ),
+        if (!granted && !denied)
+          TextButton(
+            onPressed: () => rem.requestPermission(),
+            child: const Text('اجازه',
+                style: TextStyle(fontSize: 12, color: _kGold)),
           ),
       ],
     );
