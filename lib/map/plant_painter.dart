@@ -261,26 +261,9 @@ void drawFocusPlant(
   // هرچه گیاه بزرگ‌تر باشد، تعدادشان بیشتر است. همه کم‌کم می‌شکفند.
   if (mode != kPlantGrowing) {
     final fl = mode == kPlantFlowers;
-    // نوک ساقه (بینِ دو برگِ نوک)
+    // زمان (تایمر/بازه) فقط برگ می‌دهد؛ غنچه = «امروز کار کردم» (یک غنچه برای هر روز)
+    // و گل = کارِ تمام‌شده. پس روی نوکِ ساقه فقط یک غنچه (یا گل) می‌نشیند.
     place(apex, apexAng, R * (fl ? 0.8 : 0.62), 'top', fl);
-    // نوکِ شاخه‌های فرعی
-    for (final t in tips) {
-      place(t.p, t.a, R * (fl ? 0.66 : 0.52), 'b${t.k}', fl);
-    }
-    // کنارِ برگ‌های ساقه (جای جوانه‌ی جانبی)
-    for (var i = 1; i < 6; i++) {
-      final hi = nodeH(i);
-      if (_sm((bigH - hi) / (1.8 * R)) < 0.9) continue;
-      final side = i.isOdd ? 1.0 : -1.0;
-      place(stemPt(hi + 0.25 * R), side * 0.75, R * (fl ? 0.5 : 0.42), 'a$i', fl);
-    }
-    // روی شاخه‌های فرعی، میانه‌ی شاخه
-    for (final t in tips) {
-      if (t.u < 0.7) continue;
-      final side = t.k.isEven ? -1.0 : 1.0;
-      place(t.p - Offset(side * R * 0.9, -R * 0.2), t.a + side * 0.7,
-          R * (fl ? 0.45 : 0.38), 'm${t.k}', fl);
-    }
   }
   canvas.restore();
 }
@@ -362,13 +345,12 @@ void drawTrunkFlora(
   if (running) return; // وقتی تایمر روشن است فقط رشدِ برگ دیده می‌شود
   final started = m > 0 || doneDays > 0 || finished;
   if (!started) return;
-  final maxN = slots - 1;
-  final nFlower = finished ? maxN : math.min(maxN, doneDays ~/ 3);
-  final nBud = math.min(maxN, 1 + (mm / 18).floor());
-  final n = math.max(nFlower, nBud);
+  // هر روزِ ثبت‌شده یک غنچه؛ وقتی کار تمام شد آخرین غنچه گل می‌شود.
+  // (زمانِ تایمر/بازه فقط برگ می‌دهد، نه غنچه)
+  final n = math.min(14, math.max(doneDays, finished ? 1 : 0));
   for (var j = 0; j < n; j++) {
-    final fl = j < nFlower;
-    final t = 0.2 + j * (0.68 / math.max(1, maxN - 1));
+    final fl = finished && j == n - 1;
+    final t = n == 1 ? 0.5 : 0.2 + j * (0.68 / (n - 1));
     final p = pointAt(math.min(t, 0.92));
     final a = angleAt(math.min(t, 0.92));
     final side = j.isEven ? -1.0 : 1.0; // سمتِ مخالفِ برگِ همان گره

@@ -1622,7 +1622,7 @@ class MapPainter extends CustomPainter {
       // تخمینِ زمان: شاخه‌ای که طبقِ تخمین پیش می‌رود پربرگ‌تر و پرگل‌تر است
       minutes: _totalMinutes(a) +
           (nodeGreen(a) ?? 0.0) * kEstGreenMinutes * 0.5,
-      doneDays: _doneDayCount(a) + ((nodeGreen(a) ?? 0.0) * 6).round(),
+      doneDays: _doneDayCount(a),
       finished: nodeFinished(a),
       running: running,
       bloom: bp,
@@ -2290,9 +2290,22 @@ class MapPainter extends CustomPainter {
       ..sort((x, y) => _jkOrd(x).compareTo(_jkOrd(y)));
     // گل یا برگِ هر روزِ انجام‌شده، بین قدمِ آن روز و قدمِ بعدی (کنارِ مسیر).
     // لمس: شاخه و زیرشاخه‌های جمع‌شده نمایان می‌شوند؛ دوباره بزنی به همین حالت برمی‌گردد.
-    final flowerDays = ghost
-        ? const <String>{}
-        : _flowerDays(a, todayK, pastDayKeys, _doneOn(a, todayK));
+    // گل فقط برای کارِ تمام‌شده است: آخرین غنچه (روزِ تمام شدن) گل می‌شود؛
+    // بقیه‌ی روزها غنچه‌اند. (اگر امروز تمام شده، گلِ امروز روی نوکِ شاخه است)
+    String? finDay;
+    if (!ghost && nodeFinished(a) && pastDayKeys.isNotEmpty) {
+      final fa = a.extra['finishedAt'];
+      final fk = fa is num
+          ? jKey(DateTime.fromMillisecondsSinceEpoch(fa.toInt()))
+          : null;
+      if (fk != null && pastDayKeys.contains(fk)) {
+        finDay = fk;
+      } else if (fk != todayK) {
+        finDay = pastDayKeys.last;
+      }
+    }
+    final flowerDays = <String>{if (finDay != null) finDay};
+    _flowerDaysCache[a.id] = flowerDays;
     void bloomAt(int slot, String dk) {
       final u = (0.03 + slot * stride).clamp(0.0, 0.95).toDouble();
       // غنچه روی خودِ قدمِ همان روز می‌نشیند (قدم‌ها دیده می‌مانند)
@@ -2341,11 +2354,22 @@ class MapPainter extends CustomPainter {
       // تاریخِ همان روز (کوچک، زیرِ غنچه/گل)؛ لمس = تقویمِ همان روز
       if (!isOpen) {
         final dp = dk.split('-');
-        final jm = dp.length == 3 ? int.tryParse(dp[1]) : null;
-        final jd = dp.length == 3 ? int.tryParse(dp[2]) : null;
+        var jm = dp.length == 3 ? int.tryParse(dp[1]) : null;
+        var jd = dp.length == 3 ? int.tryParse(dp[2]) : null;
+        var extraTxt = '';
+        final finAt = a.extra['finishedAt'];
+        if (isFlower && finAt is num) {
+          // گل = لحظه‌ی تمام شدنِ کار: تاریخ و ساعت
+          final ft = DateTime.fromMillisecondsSinceEpoch(finAt.toInt());
+          final fj = toJalaali(ft.year, ft.month, ft.day);
+          jm = fj.jm;
+          jd = fj.jd;
+          String two(int n) => n.toString().padLeft(2, '0');
+          extraTxt = ' ${toFa('${two(ft.hour)}:${two(ft.minute)}')}';
+        }
         if (jm != null && jd != null && jm >= 1 && jm <= 12) {
           final fs2 = _fs() * 0.42;
-          drawText(canvas, '${toFa(jd)} ${kJalaliMonths[jm - 1]}',
+          drawText(canvas, '${toFa(jd)} ${kJalaliMonths[jm - 1]}$extraTxt',
               tip.dx + nv.dx * (sr * 2.3 + fs2 * 0.6),
               tip.dy + nv.dy * (sr * 2.3 + fs2 * 0.6),
               size: fs2,
