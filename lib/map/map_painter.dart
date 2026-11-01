@@ -1975,6 +1975,24 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  /// جاده‌ی شاخه: شانه‌ی هم‌رنگِ شاخه، آسفالتِ تیره و خط‌چینِ وسط
+  void _branchRoad(Canvas c, Path path, Color col, double baseW) {
+    final w = math.max(5.0, baseW * 1.9);
+    c.drawPath(path, _stroke(col, w, 0.95));
+    final asphalt = Color.lerp(const Color(0xFF3A3F4B), col, 0.18) ??
+        const Color(0xFF3A3F4B);
+    c.drawPath(path, _stroke(asphalt, w * 0.72, 1.0));
+    // دورِ نقشه یا جاده‌ی باریک: فقط جاده‌ی ساده (بدون خط‌چین)
+    if (w >= 6.5 && cam.scale >= 0.3) {
+      drawDashed(
+          c,
+          path,
+          _stroke(const Color(0xFFFFFFFF), math.max(0.8, w * 0.07), 0.9,
+              cap: StrokeCap.butt),
+          [w * 0.55, w * 0.45]);
+    }
+  }
+
   void _taperedBezier(
       Canvas c, geo.Cubic cp, Color col, double w0, double w1, double op) {
     const seg = 7;
@@ -3454,11 +3472,17 @@ class MapPainter extends CustomPainter {
       }
       canvas.drawPath(gp, _stroke(color, baseW * 3.2 + 3, 0.15));
     }
-    if (geom.poly != null) {
-      _taperedPoly(canvas, geom.poly!, color, baseW, tipW, 0.92);
+    // شاخه/زیرشاخه = جاده‌ی خط‌کشی‌شده (همان مسیر و شکل؛ گل و برگ کنارش می‌رویند)
+    final roadPath = Path();
+    if (geom.poly != null && geom.poly!.length > 1) {
+      roadPath.moveTo(geom.poly!.first.dx, geom.poly!.first.dy);
+      for (var i = 1; i < geom.poly!.length; i++) {
+        roadPath.lineTo(geom.poly![i].dx, geom.poly![i].dy);
+      }
     } else {
-      _taperedBezier(canvas, cub, color, baseW, tipW, 0.92);
+      roadPath.addPath(_pathOf(cub), Offset.zero);
     }
+    _branchRoad(canvas, roadPath, color, baseW);
 
     // برگ، غنچه و گل روی خودِ تنه‌ی شاخه/زیرشاخه
     if (scale >= 0.28 && a.extra['trunkFlora'] != false) {
