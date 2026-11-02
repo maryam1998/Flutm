@@ -12,6 +12,7 @@ import 'estimate.dart';
 import '../theme/vazir_font.dart';
 import 'geometry.dart' as geo;
 import 'hit_registry.dart';
+import 'plant_painter.dart' show drawRoadBush;
 import 'seeded.dart';
 import 'walk_marks.dart';
 
@@ -1501,6 +1502,8 @@ class WorldLayer {
 //  هر چه کاربر وقتِ بیشتری روی یک شاخه بگذارد، برگ‌های بیشتری روی مسیرش
 //  (از نوکِ شاخه تا تنه‌ی هدف) درمی‌آید؛ تازه‌ترین برگ آهسته بزرگ می‌شود.
 // ═══════════════════════════════════════════════════════════════════════════
+final Map<String, double> _tgOff = {};
+
 void drawTrunkGrowth(
   Canvas c,
   Offset Function(double) at,
@@ -1509,38 +1512,37 @@ void drawTrunkGrowth(
   double minutes,
   double t, {
   double scale = 1.0,
+  // نیمه‌ی پهنای جاده (بوته‌ها کنارِ جاده می‌رویند، نه روی آسفالت)
+  double edge = 0.0,
+  // زومِ نقشه (برای حذفِ بوته‌های ریزِ نامرئی و صرفه‌جویی در باتری)
+  double zoom = 1.0,
 }) {
-  final nf = math.min(26.0, 0.35 * math.pow(minutes, 0.6));
+  // به‌جای برگِ تنها، بوته: تعدادشان آهسته زیاد می‌شود و هر بوته چند «واحد» طول
+  // می‌کشد تا از نهالِ ریز به بوته‌ی کامل برسد.
+  final nf = math.min(10.0, 0.22 * math.pow(minutes, 0.55));
   if (nf < 0.05) return;
-  final n = nf.floor();
-  final frac = nf - n;
-  final off = seeded('tg-$id')();
+  final size = 8.5 * scale;
+  if (size * zoom < 4.0) return;
+  final off = _tgOff[id] ??= seeded('tg-$id')();
   final vv = WorldLayer.view.inflate(40);
-  final count = frac > 0.01 ? n + 1 : n;
+  final count = nf.ceil();
+  final e = (edge > 0 ? edge : 6.0 * scale) + 1.5 * scale;
   for (var i = 0; i < count; i++) {
-    final g = i < n ? 1.0 : frac;
+    final g = _c01((nf - i) / 3.0);
     final u = ((off + (i + 1) * 0.6180339887) % 1.0) * 0.86 + 0.07;
     final p = at(u);
     if (WorldLayer.view != Rect.zero && !vv.contains(p)) continue;
     final side = i.isEven ? 1.0 : -1.0;
-    final a = tangent(u) + math.pi + side * (0.75 + 0.3 * math.sin(i * 1.7)) +
-        math.sin(t * 1.1 + i * 0.9) * 0.08;
-    final len = (7 + 5 * ((i * 37) % 10) / 10) * scale * _ease(g);
-    if (len < 0.5) continue;
-    final gr = _kGreens[i % 4];
-    final dir = Offset(math.cos(a), math.sin(a));
-    final nrm = Offset(-dir.dy, dir.dx);
-    final tip = p + dir * len;
-    final mid = p + dir * (len * 0.5);
-    _path
-      ..reset()
-      ..moveTo(p.dx, p.dy)
-      ..quadraticBezierTo(mid.dx + nrm.dx * len * 0.38,
-          mid.dy + nrm.dy * len * 0.38, tip.dx, tip.dy)
-      ..quadraticBezierTo(mid.dx - nrm.dx * len * 0.38,
-          mid.dy - nrm.dy * len * 0.38, p.dx, p.dy)
-      ..close();
-    c.drawPath(_path, _fill(i.isEven ? gr[0] : gr[1]));
+    final tg = tangent(u);
+    final base = p + Offset(-math.sin(tg), math.cos(tg)) * (side * e);
+    drawRoadBush(
+        c,
+        base,
+        tg + side * (math.pi / 2 - 0.3 + 0.2 * math.sin(i * 1.7)),
+        size * (0.85 + 0.3 * ((i * 37) % 10) / 10),
+        g,
+        i * 131 + (off * 1000).floor(),
+        sway: math.sin(t * 0.9 + i * 1.3) * 0.04);
   }
 }
 

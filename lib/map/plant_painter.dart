@@ -64,6 +64,138 @@ void _leaf(Canvas canvas, double x, double y, double ang, double len,
   canvas.restore();
 }
 
+// ───────────────────────── بوته‌ی کنارِ جاده 🌿 ─────────────────────────
+// برگِ تنها معنا ندارد: هر برگ روی ساقه‌ی یک بوته می‌روید. بوته از یک نهالِ ریز
+// شروع می‌شود و خیلی آهسته بلند و پربرگ می‌شود (جفت‌برگ‌ها، بعد شاخه‌های فرعی).
+// کم‌مصرف: بدون سایه‌انداز/گرادیان/saveLayer؛ همه‌ی برگ‌ها در دو Path جمع و با
+// دو رنگِ تخت کشیده می‌شوند (به‌جای چند drawPath برای هر برگ)، Path/Paint مشترک.
+final Path _bsStem = Path();
+final Path _bsA = Path();
+final Path _bsB = Path();
+final Paint _bsPaint = Paint()..isAntiAlias = true;
+
+const List<List<Color>> _bushLeaf = [
+  [Color(0xFF3F8F45), Color(0xFF6DBE6F)],
+  [Color(0xFF4A9A3F), Color(0xFF8FCB62)],
+  [Color(0xFF2F8F5B), Color(0xFF5FC08A)],
+];
+
+void _bsLeaf(Path p, double x, double y, double a, double len, double wid) {
+  if (len < 0.35) return;
+  final dx = math.cos(a), dy = math.sin(a);
+  final mx = x + dx * len * 0.5, my = y + dy * len * 0.5;
+  p
+    ..moveTo(x, y)
+    ..quadraticBezierTo(mx - dy * wid, my + dx * wid, x + dx * len, y + dy * len)
+    ..quadraticBezierTo(mx + dy * wid, my - dx * wid, x, y);
+}
+
+/// [base] ریشه روی زمین، [dir] جهتِ رشد (رادیان)، [size] ارتفاعِ بوته‌ی کامل،
+/// [g] ۰..۱ پیشرفتِ رشد (۰ = نهالِ ریز، ۱ = بوته‌ی کامل)، [seed] شکلِ ثابت.
+void drawRoadBush(Canvas canvas, Offset base, double dir, double size, double g,
+    int seed, {double sway = 0.0}) {
+  final k = _sm(g);
+  final hgt = size * (0.3 + 0.7 * k);
+  if (hgt < 1.0) return;
+  final si = seed.abs();
+  final gc = _greens[si % 3];
+  final lc = _bushLeaf[si % 3];
+  final r1 = ((si >> 3) % 7) / 7.0 - 0.5;
+  final dx = math.cos(dir), dy = math.sin(dir);
+  final nx = -dy, ny = dx;
+  final bend = (r1 * 0.5 + sway) * hgt;
+  final p0 = base;
+  final c1 = Offset(base.dx + dx * hgt * 0.55 + nx * bend,
+      base.dy + dy * hgt * 0.55 + ny * bend);
+  final p2 = Offset(base.dx + dx * hgt + nx * bend * 0.5,
+      base.dy + dy * hgt + ny * bend * 0.5);
+  Offset pt(double u) {
+    final v = 1 - u;
+    return Offset(v * v * p0.dx + 2 * v * u * c1.dx + u * u * p2.dx,
+        v * v * p0.dy + 2 * v * u * c1.dy + u * u * p2.dy);
+  }
+
+  double an(double u) {
+    final v = 1 - u;
+    return math.atan2(2 * v * (c1.dy - p0.dy) + 2 * u * (p2.dy - c1.dy),
+        2 * v * (c1.dx - p0.dx) + 2 * u * (p2.dx - c1.dx));
+  }
+
+  _bsStem
+    ..reset()
+    ..moveTo(p0.dx, p0.dy)
+    ..quadraticBezierTo(c1.dx, c1.dy, p2.dx, p2.dy);
+  _bsA.reset();
+  _bsB.reset();
+
+  final lk = 0.55 + 0.45 * k;
+  // جفت‌برگ‌های ساقه: ۱ جفت در نهال تا ۴ جفت در بوته‌ی کامل
+  final np = 1 + (3 * k).floor();
+  for (var j = 0; j < np; j++) {
+    final u = 0.38 + 0.17 * j;
+    final q = pt(u);
+    final a = an(u);
+    final len = hgt * (0.40 - 0.04 * j) * lk;
+    final sp = 0.95 - 0.08 * j;
+    _bsLeaf(_bsA, q.dx, q.dy, a + sp, len, len * 0.34);
+    _bsLeaf(_bsB, q.dx, q.dy, a - sp, len, len * 0.34);
+  }
+  // دو برگِ نوکِ ساقه
+  final aa = an(1.0);
+  final al = hgt * 0.38 * lk;
+  _bsLeaf(_bsA, p2.dx, p2.dy, aa + 0.3, al, al * 0.34);
+  _bsLeaf(_bsB, p2.dx, p2.dy, aa - 0.3, al, al * 0.34);
+  // شاخه‌های فرعی: وقتی بوته به‌اندازه‌ی کافی بزرگ شد
+  if (k > 0.45) {
+    final kt = _sm((k - 0.45) / 0.45);
+    final s0 = (si & 1) == 0 ? 1.0 : -1.0;
+    final q = pt(0.3);
+    final a = an(0.3) + s0 * 0.85;
+    final tl = hgt * 0.5 * kt;
+    final tx = q.dx + math.cos(a) * tl, ty = q.dy + math.sin(a) * tl;
+    _bsStem
+      ..moveTo(q.dx, q.dy)
+      ..lineTo(tx, ty);
+    final l2 = hgt * 0.3 * kt;
+    _bsLeaf(_bsA, tx, ty, a + 0.35, l2, l2 * 0.34);
+    _bsLeaf(_bsB, tx, ty, a - 0.35, l2, l2 * 0.34);
+    if (k > 0.7) {
+      final kt2 = _sm((k - 0.7) / 0.3);
+      final q2 = pt(0.5);
+      final a2 = an(0.5) - s0 * 0.85;
+      final tl2 = hgt * 0.42 * kt2;
+      final tx2 = q2.dx + math.cos(a2) * tl2, ty2 = q2.dy + math.sin(a2) * tl2;
+      _bsStem
+        ..moveTo(q2.dx, q2.dy)
+        ..lineTo(tx2, ty2);
+      final l3 = hgt * 0.27 * kt2;
+      _bsLeaf(_bsA, tx2, ty2, a2 + 0.35, l3, l3 * 0.34);
+      _bsLeaf(_bsB, tx2, ty2, a2 - 0.35, l3, l3 * 0.34);
+    }
+  }
+  // سایه‌ی کوچکِ پای بوته (یک بیضیِ تخت)
+  _bsPaint
+    ..style = PaintingStyle.fill
+    ..color = const Color(0x22000000);
+  canvas.drawOval(
+      Rect.fromCenter(
+          center: base, width: hgt * 0.75, height: math.max(1.2, hgt * 0.2)),
+      _bsPaint);
+  _bsPaint
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..strokeWidth = math.max(0.7, size * 0.075 * (0.6 + 0.4 * k))
+    ..color = gc[0];
+  canvas.drawPath(_bsStem, _bsPaint);
+  _bsPaint
+    ..style = PaintingStyle.fill
+    ..color = lc[0];
+  canvas.drawPath(_bsA, _bsPaint);
+  _bsPaint.color = lc[1];
+  canvas.drawPath(_bsB, _bsPaint);
+}
+
 /// [tip] = جای رشد (پایه‌ی گیاه)، [dir] = جهتِ رشد (رادیان، مثل ادامه‌ی شاخه)،
 /// [r] = اندازه‌ی واحد، [minutes] = دقیقه‌های کارِ امروز، [bloom] = ۰..۱ برای
 /// انیمیشنِ شکفتنِ غنچه/گل.
@@ -344,6 +476,13 @@ void drawTrunkFlora(
     final jit = (((h >> (i + 2)) & 3) - 1.5) * 0.06;
     final spread = (edge > 0 ? 1.12 : 0.95) * (0.35 + 0.65 * k) + jit;
     final side = i.isEven ? 1.0 : -1.0;
+    if (edge > 0) {
+      // کنارِ جاده: به‌جای برگِ تنها، یک بوته که خیلی آهسته رشد می‌کند
+      final gk = _sm((mm - base) / (100.0 + 60.0 * i));
+      drawRoadBush(canvas, pc + nrm(a) * (side * (edge + r * 0.2)),
+          a + side * 1.25 + jit * 3, r * 2.1, gk, h + i * 7919);
+      continue;
+    }
     // پایه‌ی برگ: روی خط‌وسطِ تنه (قبل)؛ کنارِ جاده: لبه‌ی همان سمت
     final p = edge > 0 ? pc + nrm(a) * (side * edge) : pc;
     _leaf(canvas, p.dx, p.dy, a + side * spread + math.pi / 2, len,
