@@ -475,28 +475,18 @@ class _MapTabState extends State<MapTab> {
                             child: Image.asset('assets/icon-192.png',
                                 fit: BoxFit.cover),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'نقشه راه',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2,
-                              color: wp.textMain,
-                            ),
-                          ),
                         ],
                       ),
                     ),
                     // آسمانِ کوچکِ زنده (خورشید/ماه با ساعتِ گوشی) وسطِ نوار بالا
                     Expanded(
                       child: sky == null
-                          ? const SizedBox(height: 34)
+                          ? const SizedBox(height: 46)
                           : Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
                               child: SizedBox(
-                                height: 34,
+                                height: 46,
                                 child: IgnorePointer(
                                   child: CustomPaint(
                                     painter: _MiniSkyPainter(sky, wp.textDim),
@@ -529,30 +519,6 @@ class _MapTabState extends State<MapTab> {
 
           // ویدیوی گره‌ها روی نقشه
           const MapVideoOverlay(),
-
-          // عدد زوم — `#zoom-readout`: چپ، بالای نوار ابزار
-          Positioned(
-            left: 12,
-            bottom: 74,
-            child: IgnorePointer(
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: wp.panelBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: wp.panelBorder),
-                ),
-                child: ListenableBuilder(
-                  listenable: cam,
-                  builder: (_, __) => Text(
-                    '${(cam.scale * 100).round()}٪',
-                    style: TextStyle(fontSize: 10.5, color: wp.textDim),
-                  ),
-                ),
-              ),
-            ),
-          ),
 
           if (_resizeMode)
             Positioned(
@@ -843,13 +809,6 @@ class _MiniSkyPainter extends CustomPainter {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
     final base = h * 0.82;
-    canvas.drawLine(
-      Offset(0, base),
-      Offset(w, base),
-      Paint()
-        ..color = line.withValues(alpha: 0.22)
-        ..strokeWidth = 1,
-    );
     if (s.starA > 0.01) {
       final p = Paint()..color = line.withValues(alpha: 0.55 * s.starA);
       for (final st in SkyArt.stars.take(14)) {
@@ -858,8 +817,8 @@ class _MiniSkyPainter extends CustomPainter {
     }
     if (s.sunA > 0.01) {
       final x = w * (0.1 + 0.8 * s.dayFrac);
-      final y = base - (base - 7) * math.sin(math.pi * s.dayFrac);
-      SkyArt.sun(canvas, Offset(x, y), s, r: 6);
+      final y = base - (base - 13) * math.sin(math.pi * s.dayFrac);
+      SkyArt.sun(canvas, Offset(x, y), s, r: 11);
     }
     if (s.moonA > 0.01) {
       final x = w * (0.1 + 0.8 * s.nightFrac);
