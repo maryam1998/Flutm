@@ -383,7 +383,7 @@ class _MapTabState extends State<MapTab> {
               }
             },
           ),
-          // آسمانِ زنده بر پایه‌ی ساعتِ گوشی: غروب/گرگ‌ومیش، ستاره، ماه و خورشید
+          // رنگ‌مایه‌ی ملایمِ آسمان بر پایه‌ی ساعتِ گوشی (سپیده‌دم، غروب و گرگ‌ومیش)
           if (sky != null) ...[
             Positioned.fill(
               child: IgnorePointer(
@@ -403,18 +403,6 @@ class _MapTabState extends State<MapTab> {
                       stops: const [0.0, 0.6],
                     ),
                   ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 150,
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: SkyObjectsPainter(sky),
-                  size: Size.infinite,
                 ),
               ),
             ),
