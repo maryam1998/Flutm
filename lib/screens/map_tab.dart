@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -20,7 +22,6 @@ import '../widgets/backup_section.dart';
 import '../widgets/map_video_overlay.dart';
 import '../widgets/finish_reward.dart';
 import '../widgets/garden_strip.dart';
-import '../widgets/next_step_card.dart';
 import '../widgets/step_reward.dart';
 import 'add_goal_dialog.dart';
 import 'edit_sheet.dart';
@@ -487,27 +488,25 @@ class _MapTabState extends State<MapTab> {
                         ],
                       ),
                     ),
-                    const Spacer(),
-                    // جمع/باز کردن همه — بالای صفحه تا با انگشت اشتباهی لمس نشه
-                    if (store.hasCollapsible) ...[
-                      _circleBtn(
-                        Icon(anyOpen ? Icons.unfold_less : Icons.unfold_more,
-                            size: 17, color: wp.textDim),
-                        () => store.collapseAll(anyOpen),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    // تمِ روشن/تیره‌ی کل برنامه (انتخاب با خودِ کاربر)
-                    _circleBtn(
-                      Text(isDark ? '🌙' : '☀️',
-                          style: const TextStyle(fontSize: 14, height: 1)),
-                      () => context.read<ThemeStore>().toggle(),
+                    // آسمانِ کوچکِ زنده (خورشید/ماه با ساعتِ گوشی) وسطِ نوار بالا
+                    Expanded(
+                      child: sky == null
+                          ? const SizedBox(height: 34)
+                          : Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              child: SizedBox(
+                                height: 34,
+                                child: IgnorePointer(
+                                  child: CustomPaint(
+                                    painter: _MiniSkyPainter(sky, wp.textDim),
+                                    size: Size.infinite,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
-                    const SizedBox(width: 8),
-                    _circleBtn(
-                      Icon(Icons.help_outline, size: 16, color: wp.textDim),
-                      () => showHelpDialog(context),
-                    ),
+                    _quickMenu(store, anyOpen, isDark, wp),
                   ],
                 ),
               ),
@@ -524,23 +523,6 @@ class _MapTabState extends State<MapTab> {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(8, 58, 8, 0),
                 child: GardenStrip(),
-              ),
-            ),
-          ),
-
-          // کارت «قدم بعدیِ امروز» (یک قدم کوچک از بین همه‌ی هدف‌ها)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: ListenableBuilder(
-                listenable: GardenStrip.collapsed,
-                builder: (_, __) => Padding(
-                  padding: EdgeInsets.only(top: 62 + GardenStrip.inset(store)),
-                  child: const NextStepCard(),
-                ),
               ),
             ),
           ),
@@ -670,6 +652,65 @@ class _MapTabState extends State<MapTab> {
     ));
   }
 
+  /// منوی کوچکِ بالا: تم، جمع/باز کردنِ شاخه‌ها و راهنما (به‌جای سه دکمه‌ی جدا)
+  Widget _quickMenu(MapStore store, bool anyOpen, bool isDark, WebPalette wp) {
+    Widget row(IconData icon, String label) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: wp.textDim),
+            const SizedBox(width: 10),
+            Text(label,
+                style: TextStyle(fontSize: 13.5, color: wp.textMain)),
+          ],
+        );
+    return PopupMenuButton<String>(
+      tooltip: 'منو',
+      padding: EdgeInsets.zero,
+      color: wp.panelBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: wp.panelBorder),
+      ),
+      onSelected: (v) {
+        switch (v) {
+          case 'theme':
+            context.read<ThemeStore>().toggle();
+          case 'fold':
+            store.collapseAll(anyOpen);
+          case 'help':
+            showHelpDialog(context);
+        }
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem<String>(
+          value: 'theme',
+          child: row(
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              isDark ? 'تم روشن' : 'تم تیره'),
+        ),
+        if (store.hasCollapsible)
+          PopupMenuItem<String>(
+            value: 'fold',
+            child: row(anyOpen ? Icons.unfold_less : Icons.unfold_more,
+                anyOpen ? 'جمع کردن شاخه‌ها' : 'باز کردن شاخه‌ها'),
+          ),
+        PopupMenuItem<String>(
+          value: 'help',
+          child: row(Icons.help_outline, 'راهنما'),
+        ),
+      ],
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: ShapeDecoration(
+          color: wp.panelBg,
+          shape: CircleBorder(side: BorderSide(color: wp.panelBorder)),
+        ),
+        child: Icon(Icons.more_horiz, size: 18, color: wp.textDim),
+      ),
+    );
+  }
+
   Widget _circleBtn(Widget child, VoidCallback onTap) {
     final wp = _skyPal ?? WebPalette.of(context);
     return Material(
@@ -789,4 +830,45 @@ class _SaveIndicatorState extends State<_SaveIndicator>
       ),
     );
   }
+}
+
+/// آسمانِ کوچکِ نوار بالا: خطِ افق، چند ستاره، و خورشید/ماه روی کمانِ روز و شب
+class _MiniSkyPainter extends CustomPainter {
+  _MiniSkyPainter(this.s, this.line);
+  final SkyState s;
+  final Color line;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    if (w <= 0 || h <= 0) return;
+    final base = h * 0.82;
+    canvas.drawLine(
+      Offset(0, base),
+      Offset(w, base),
+      Paint()
+        ..color = line.withValues(alpha: 0.22)
+        ..strokeWidth = 1,
+    );
+    if (s.starA > 0.01) {
+      final p = Paint()..color = line.withValues(alpha: 0.55 * s.starA);
+      for (final st in SkyArt.stars.take(14)) {
+        canvas.drawCircle(Offset(st[0] * w, st[1] * base * 0.9), 0.9, p);
+      }
+    }
+    if (s.sunA > 0.01) {
+      final x = w * (0.1 + 0.8 * s.dayFrac);
+      final y = base - (base - 7) * math.sin(math.pi * s.dayFrac);
+      SkyArt.sun(canvas, Offset(x, y), s, r: 6);
+    }
+    if (s.moonA > 0.01) {
+      final x = w * (0.1 + 0.8 * s.nightFrac);
+      final y = base - (base - 7) * math.sin(math.pi * s.nightFrac);
+      SkyArt.moon(canvas, Offset(x, y), s, r: 5.5);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniSkyPainter old) =>
+      old.s != s || old.line != line;
 }
