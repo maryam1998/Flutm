@@ -302,6 +302,11 @@ void drawTrunkFlora(
   // نیمه‌ی پهنای جاده: اگر بیشتر از صفر باشد، برگ و غنچه و گل از لبه‌ی جاده
   // (دو طرفِ جاده، دور تا دورِ آن) می‌رویند و روی آسفالت نمی‌افتند
   double edge = 0.0,
+  // هر غنچه/گل = یک روزِ ثبت‌شده: seed همان شناسه‌ی تقویم است (شکلِ یکسان)؛
+  // اگر داده شود جای [doneDays] را می‌گیرد و محدودیتِ تعداد ندارد
+  List<({String seed, bool flower})>? marks,
+  // طولِ جاده (برای چیدنِ غنچه‌ها در ردیف‌های بعدی وقتی کنارِ جاده جا نباشد)
+  double pathLen = 0.0,
 }) {
   if (r < 1.2 || slots < 2) return;
   final m = math.max(0.0, minutes * kPlantTimeScale);
@@ -354,12 +359,37 @@ void drawTrunkFlora(
   }
 
   // غنچه و گل
-  if (running) return; // وقتی تایمر روشن است فقط رشدِ برگ دیده می‌شود
-  final started = m > 0 || doneDays > 0 || finished;
+  if (running && marks == null) return; // وقتی تایمر روشن است فقط رشدِ برگ دیده می‌شود
+  final started = marks != null
+      ? marks.isNotEmpty
+      : (m > 0 || doneDays > 0 || finished);
   if (!started) return;
+  if (marks != null) {
+    // کنارِ جاده: هر ۲۲ پیکسل یک جا؛ وقتی پر شد، ردیفِ بعدی کمی دورتر از جاده
+    final perRow = math.max(4, (pathLen / 22.0).floor());
+    for (var j = 0; j < marks.length; j++) {
+      final mk = marks[j];
+      final row = j ~/ perRow;
+      final col = j % perRow;
+      final t = (0.07 + (col + 0.5 + (row.isOdd ? 0.5 : 0.0)) / (perRow + 0.5) * 0.86)
+          .clamp(0.05, 0.95)
+          .toDouble();
+      final pc = pointAt(t);
+      final a = angleAt(t);
+      final side = (col + row).isEven ? -1.0 : 1.0;
+      final dirA = a + side * 1.15;
+      final rr = r * (mk.flower ? 0.62 : 0.5);
+      final dist = (edge > 0 ? edge : 0.0) + r * 0.35 + row * r * 1.7;
+      final pos = pc + nrm(a) * (side * dist);
+      final pp = (bloom * 1.4 - math.min(j, 6) * 0.12).clamp(0.0, 1.0).toDouble();
+      sprig(canvas, pos, dirA, rr, mk.seed, pp, mk.flower);
+    }
+    return;
+  }
   // هر روزِ ثبت‌شده یک غنچه؛ وقتی کار تمام شد آخرین غنچه گل می‌شود.
   // (زمانِ تایمر/بازه فقط برگ می‌دهد، نه غنچه)
-  final n = math.min(14, math.max(doneDays, finished ? 1 : 0));
+  // فقط برای کارِ واقعاً ثبت‌شده (تایمر، ساعتِ ثبت‌شده یا تیکِ تقویم): هر غنچه = یک روزِ ثبت‌شده
+  final n = math.min(14, doneDays);
   for (var j = 0; j < n; j++) {
     final fl = finished && j == n - 1;
     final t = n == 1 ? 0.5 : 0.2 + j * (0.68 / (n - 1));

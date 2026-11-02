@@ -58,6 +58,61 @@ final Map<String, double> _plantMinSeen = {};
 final Map<String, bool> _reachSeen = {};
 final Map<String, double> _reachAt = {};
 
+/// کلیدِ روزهای انجام‌شده‌ی یک شاخه (تیک، متن، زمان یا ثبتِ ساعت)؛ قدیمی ← تازه
+List<String> actionDoneDays(ActionNode a) {
+  final keys = <String>{...a.logs.keys, ...a.time.keys, ...a.entries.keys};
+  final out = keys.where((k) => footDoneOn(a, k)).toList();
+  out.sort((x, y) =>
+      MapPainter._jalaliDayNum(x).compareTo(MapPainter._jalaliDayNum(y)));
+  return out;
+}
+
+final Map<String, String> _adfSig = {};
+final Map<String, Set<String>> _adfCache = {};
+
+/// روزهایی که غنچه‌شان گل است: در هر دسته‌ی ۳ روزِ پشت‌سرهم یکی (تصادفی ولی ثابت)،
+/// و اگر کار «تمام شد» آخرین روزِ ثبت‌شده. نقشه و تقویم هر دو از همین استفاده می‌کنند.
+Set<String> actionFlowerDays(ActionNode a) {
+  final done = actionDoneDays(a);
+  if (done.isEmpty) return const <String>{};
+  final todayK = todayJK();
+  final fin = nodeFinished(a);
+  final sig = '$todayK|$fin|${done.join(',')}';
+  final c = _adfCache[a.id];
+  if (c != null && _adfSig[a.id] == sig) return c;
+  final set = done.toSet();
+  final out = <String>{};
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final run = <String>[];
+  void flush() {
+    for (var g = 0; g + 3 <= run.length; g += 3) {
+      final grp = run.sublist(g, g + 3).where((k) => k != todayK).toList();
+      if (grp.isEmpty) continue;
+      var hh = 5;
+      for (final u in '${a.id}|fl|${run[g]}'.codeUnits) {
+        hh = (hh * 31 + u) & 0x7fffffff;
+      }
+      out.add(grp[hh % grp.length]);
+    }
+    run.clear();
+  }
+
+  for (var i = 730; i >= 0; i--) {
+    final k = jKey(DateTime(today.year, today.month, today.day - i));
+    if (set.contains(k)) {
+      run.add(k);
+    } else {
+      flush();
+    }
+  }
+  flush();
+  if (fin) out.add(done.last);
+  _adfSig[a.id] = sig;
+  _adfCache[a.id] = out;
+  return out;
+}
+
 /// شفافیتِ قدم‌زنِ (عکس + پاها) بعد از «انجام شد»
 const double _kDoneWalkerFade = 0.42;
 
@@ -1321,9 +1376,15 @@ class MapPainter extends CustomPainter {
     ];
     // flower: غنچه‌ای که بعد از ۳ روزِ پشت‌سرهم گل شده؛ شکل/رنگ تصادفی (ثابت)،
     // و تصادفی با برگ یا بی‌برگ
-    final kind = flower ? 2 + h % 4 : h % 6;
+    final kind = flower ? 2 + h % 6 : h % 6;
     final flowerLeaves = !flower || ((h ~/ 216) % 2 == 0);
-    final pc = petals[(h ~/ 6) % petals.length];
+    // گل: رنگِ تصادفیِ ثابت برای هر id (نه فقط شش رنگِ ثابت)
+    final pc = flower
+        ? HSLColor.fromAHSL(1.0, ((h ~/ 7) % 360).toDouble(),
+                0.55 + ((h ~/ 13) % 30) / 100.0, 0.58 + ((h ~/ 5) % 14) / 100.0)
+            .toColor()
+        : petals[(h ~/ 6) % petals.length];
+    final petalN = 5 + (h ~/ 17) % 3; // ۵ تا ۷ گلبرگ
     final gc = greens[(h ~/ 36) % greens.length];
     final k = Curves.easeOutBack.transform(p.clamp(0.0, 1.0).toDouble());
     if (k <= 0.02) return;
@@ -1532,8 +1593,9 @@ class MapPainter extends CustomPainter {
         leaf(-R * 1.0, 0, R * 1.2, R * 0.46);
         leaf(-R * 1.0, -0.35, R * 0.9, R * 0.36);
         leaf(-R * 1.0, 0.35, R * 0.9, R * 0.36);
-      case 2: // گلِ پنج‌گلبرگ
-        blossom(top, R * 0.95, 5, pc, const Color(0xFFFFC107));
+      case 2: // گلِ پنج تا هفت‌گلبرگ
+        blossom(top, R * (0.85 + ((h ~/ 19) % 5) * 0.06), petalN, pc,
+            const Color(0xFFFFC107));
       case 3: // خوشه‌ی شکوفه
         blossom(top, R * 0.7, 6, Color.lerp(pc, Colors.white, 0.4)!,
             const Color(0xFFE8A33D));
@@ -1547,8 +1609,17 @@ class MapPainter extends CustomPainter {
         bud(Offset(0, -R * 0.55), -0.9, R * 0.8, pc);
         bud(Offset(0, -R * 0.55), 0.9, R * 0.8, pc);
         blossom(top, R * 1.0, 5, pc, const Color(0xFFFFC107), rot: 0.3);
+      case 6: // لاله: سه گلبرگِ ایستاده
+        petal(-0.38, R * 1.05, R * 0.5, pc, top);
+        petal(0.38, R * 1.05, R * 0.5, pc, top);
+        petal(0, R * 1.2, R * 0.55, Color.lerp(pc, Colors.white, 0.25)!, top);
+      case 7: // گلِ دولایه (رز)
+        blossom(top, R * 1.0, 8, pc, const Color(0xFFE8A33D), wid: 0.7);
+        blossom(top, R * 0.6, 6, Color.lerp(pc, Colors.white, 0.4)!,
+            const Color(0xFFFFC107), rot: 0.4);
       default: // بابونه
-        blossom(top, R * 1.05, 9, Colors.white, const Color(0xFFFFB300),
+        blossom(top, R * 1.05, 9 + (h ~/ 23) % 4,
+            (h ~/ 11) % 2 == 0 ? Colors.white : pc, const Color(0xFFFFB300),
             wid: 0.42);
     }
     canvas.restore();
@@ -1618,6 +1689,14 @@ class MapPainter extends CustomPainter {
     } else {
       plen = (cub.p3 - cub.p0).distance * 1.1;
     }
+    // هر روزِ ثبت‌شده یک غنچه (یا گل)؛ همان seedِ تقویم تا شکلشان یکی باشد
+    final todayK = todayJK();
+    final fdays = actionFlowerDays(a);
+    final marks = <({String seed, bool flower})>[
+      for (final k in actionDoneDays(a))
+        if (!(k == todayK && (a.timerStart ?? 0) > 0))
+          (seed: k == todayK ? '${a.id}|bud' : '${a.id}|$k', flower: fdays.contains(k)),
+    ];
     final slotsMin = depth == 0 ? 6 : 4;
     final nSlots = (plen / 44).round().clamp(slotsMin, 12).toInt();
     final running = (a.timerStart ?? 0) > 0;
@@ -1642,6 +1721,8 @@ class MapPainter extends CustomPainter {
       bloom: bp,
       slots: nSlots,
       edge: edge,
+      marks: marks,
+      pathLen: plen,
       sprig: (c, o, d, rr, i, p, fl) =>
           _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl),
     );
@@ -3674,7 +3755,8 @@ class MapPainter extends CustomPainter {
       if (_plantMinutes(a, tk) > 0) {
         // امروز با تایمر/زمان کار شده: گیاهِ رشدکرده با گل‌ها
         _plant(canvas, a, end, dir, 6.4 * sc, tk);
-      } else {
+      } else if (_doneDayCount(a) > 0) {
+        // غنچه/گل فقط وقتی کاری ثبت شده (ساعت، تایمر یا تیکِ تقویم)
         _sprig(canvas, end, dir, sr, a.id, bp);
       }
       _lateHits.add(HitEntry(
@@ -3952,29 +4034,35 @@ class MapPainter extends CustomPainter {
 /// غنچه‌ی کوچکِ یک روزِ انجام‌شده برای خانه‌ی تقویم؛ همان شکل و رنگِ غنچه‌ی نقشه
 /// (seed: امروز '<id>|bud'، روزهای قبل '<id>|<کلید روز>').
 class DayBudIcon extends StatelessWidget {
-  const DayBudIcon({super.key, required this.seed, this.size = 25});
+  const DayBudIcon(
+      {super.key, required this.seed, this.size = 25, this.flower = false});
   final String seed;
   final double size;
+
+  /// روزی که غنچه‌اش گل شده: همان گلِ نقشه
+  final bool flower;
 
   @override
   Widget build(BuildContext context) => SizedBox(
         width: size,
         height: size,
-        child: CustomPaint(painter: _DayBudPainter(seed)),
+        child: CustomPaint(painter: _DayBudPainter(seed, flower)),
       );
 }
 
 class _DayBudPainter extends CustomPainter {
-  _DayBudPainter(this.seed);
+  _DayBudPainter(this.seed, this.flower);
   final String seed;
+  final bool flower;
 
   @override
   void paint(Canvas canvas, Size size) {
     MapPainter._sprig(canvas, Offset(size.width / 2, size.height * 0.92),
-        -math.pi / 2, size.width * 0.2, seed, 1.0,
-        budOnly: true);
+        -math.pi / 2, size.width * (flower ? 0.22 : 0.2), seed, 1.0,
+        budOnly: !flower, flower: flower);
   }
 
   @override
-  bool shouldRepaint(covariant _DayBudPainter old) => old.seed != seed;
+  bool shouldRepaint(covariant _DayBudPainter old) =>
+      old.seed != seed || old.flower != flower;
 }

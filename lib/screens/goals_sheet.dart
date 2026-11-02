@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../map/map_ops.dart';
-import '../map/map_painter.dart' show DayBudIcon;
+import '../map/map_painter.dart' show DayBudIcon, actionFlowerDays;
 import '../models/constants.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
@@ -1588,7 +1588,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
               ),
             // روزِ انجام‌شده: غنچه‌ی همان روز (همان شکل و رنگِ نقشه)
             if (has)
-              DayBudIcon(seed: isToday ? '${n.id}|bud' : '${n.id}|$jk')
+              DayBudIcon(
+                  seed: isToday ? '${n.id}|bud' : '${n.id}|$jk',
+                  flower: actionFlowerDays(n).contains(jk))
             else
               Text(
                 toFa(j.jd),
