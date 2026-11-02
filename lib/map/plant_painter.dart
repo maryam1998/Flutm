@@ -299,6 +299,9 @@ void drawTrunkFlora(
   required double bloom,
   required PlantSprig sprig,
   int slots = 6,
+  // نیمه‌ی پهنای جاده: اگر بیشتر از صفر باشد، برگ و غنچه و گل از لبه‌ی جاده
+  // (دو طرفِ جاده، دور تا دورِ آن) می‌رویند و روی آسفالت نمی‌افتند
+  double edge = 0.0,
 }) {
   if (r < 1.2 || slots < 2) return;
   final m = math.max(0.0, minutes * kPlantTimeScale);
@@ -311,8 +314,13 @@ void drawTrunkFlora(
   final mm = m + dayBoost;
 
   // آستانه‌ی بازشدنِ هر جفت‌برگ (دقیقه)
-  const th = [0.0, 3.0, 10.0, 25.0, 50.0, 90.0, 150.0, 240.0];
-  double t0(int i) => 0.14 + i * (0.74 / (slots - 1));
+  const th = [0.0, 3.0, 10.0, 25.0, 50.0, 90.0, 150.0, 240.0, 340.0, 470.0,
+    630.0, 820.0];
+  // کنارِ جاده: جای برگ‌ها در طولِ جاده پخش می‌شود (هر تعداد که باشد یک‌جا جمع نمی‌شوند)
+  double t0(int i) => edge > 0
+      ? 0.12 + 0.78 * ((i * 0.6180339887 + 0.3) % 1.0)
+      : 0.14 + i * (0.74 / (slots - 1));
+  Offset nrm(double a) => Offset(-math.sin(a), math.cos(a));
 
   for (var i = 0; i < slots; i++) {
     final base = th[math.min(i, th.length - 1)];
@@ -322,21 +330,25 @@ void drawTrunkFlora(
     final k = i == 0
         ? math.max(0.3, _sm(mm / 4))
         : _sm((mm - base) / (8.0 + 4.0 * i));
-    final full = r * (1.25 - 0.07 * i);
+    final full = r * math.max(0.72, 1.25 - 0.07 * i);
     final len = full * k + 0.28 * r * pre * (1 - k);
     if (len < 0.4) continue;
     final t = t0(i);
-    final p = pointAt(t);
+    final pc = pointAt(t);
     final a = angleAt(t);
     final jit = (((h >> (i + 2)) & 3) - 1.5) * 0.06;
-    final spread = 0.95 * (0.35 + 0.65 * k) + jit;
+    final spread = (edge > 0 ? 1.12 : 0.95) * (0.35 + 0.65 * k) + jit;
     final side = i.isEven ? 1.0 : -1.0;
+    // پایه‌ی برگ: روی خط‌وسطِ تنه (قبل)؛ کنارِ جاده: لبه‌ی همان سمت
+    final p = edge > 0 ? pc + nrm(a) * (side * edge) : pc;
     _leaf(canvas, p.dx, p.dy, a + side * spread + math.pi / 2, len,
         len * (0.5 - 0.08 * k), gc);
     // از جفت‌برگِ سوم به بعد، برگِ سمتِ دیگر هم می‌آید (برگ‌های رویِ تنه پرتر می‌شوند)
-    if (i >= 2 && k > 0.15) {
+    // کنارِ جاده از جفت‌برگِ دوم؛ برگِ سمتِ دیگر روی لبه‌ی آن سمت می‌نشیند
+    if (i >= (edge > 0 ? 1 : 2) && k > 0.15) {
       final l2 = len * 0.82;
-      _leaf(canvas, p.dx, p.dy, a - side * spread + math.pi / 2, l2,
+      final p2 = edge > 0 ? pc - nrm(a) * (side * edge) : pc;
+      _leaf(canvas, p2.dx, p2.dy, a - side * spread + math.pi / 2, l2,
           l2 * (0.5 - 0.08 * k), gc);
     }
   }
@@ -354,8 +366,11 @@ void drawTrunkFlora(
     final p = pointAt(math.min(t, 0.92));
     final a = angleAt(math.min(t, 0.92));
     final side = j.isEven ? -1.0 : 1.0; // سمتِ مخالفِ برگِ همان گره
-    final dirA = a + side * 1.05;
-    final out = Offset(math.cos(dirA), math.sin(dirA)) * (r * 0.3);
+    final dirA = a + side * (edge > 0 ? 1.15 : 1.05);
+    // کنارِ جاده: غنچه/گل بیرونِ لبه‌ی جاده می‌نشیند
+    final out = edge > 0
+        ? nrm(a) * (side * (edge + r * 0.35))
+        : Offset(math.cos(dirA), math.sin(dirA)) * (r * 0.3);
     final pp = (bloom * 1.4 - j * 0.12).clamp(0.0, 1.0).toDouble();
     sprig(canvas, p + out, dirA, r * (fl ? 0.62 : 0.5), '$id|t$j', pp, fl);
   }

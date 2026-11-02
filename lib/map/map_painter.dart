@@ -1604,8 +1604,22 @@ class MapPainter extends CustomPainter {
   /// برگ، غنچه و گل روی تنه‌ی شاخه/زیرشاخه (با همان منطقِ زمانیِ گیاهِ تمرکز)
   void _trunkFlora(Canvas canvas, ActionNode a, geo.TwigGeom geom,
       geo.Cubic cub, double scale, int depth) {
-    final r = 5.0 * math.max(0.55, scale);
     final poly = geom.poly;
+    // شاخه جاده است: برگ و غنچه و گل باید لبه‌ی جاده و دورتادورِ آن بنشینند
+    final weight = a.weight == 0 ? 5.0 : a.weight;
+    final roadW = math.max(5.0, math.max(1.0, (1.9 + weight * 1.05) * scale) * 1.9);
+    final edge = roadW * 0.5 + 1.0;
+    final r = math.max(5.0 * math.max(0.55, scale), roadW * 0.42);
+    var plen = 0.0;
+    if (poly != null && poly.length > 1) {
+      for (var i = 1; i < poly.length; i++) {
+        plen += (poly[i] - poly[i - 1]).distance;
+      }
+    } else {
+      plen = (cub.p3 - cub.p0).distance * 1.1;
+    }
+    final slotsMin = depth == 0 ? 6 : 4;
+    final nSlots = (plen / 44).round().clamp(slotsMin, 12).toInt();
     final running = (a.timerStart ?? 0) > 0;
     final t0 = _bloomAt[a.id];
     final bp = t0 == null ? 1.0 : ((_t - t0) / 1.2).clamp(0.0, 1.0).toDouble();
@@ -1626,7 +1640,8 @@ class MapPainter extends CustomPainter {
       finished: nodeFinished(a),
       running: running,
       bloom: bp,
-      slots: depth == 0 ? 6 : 4,
+      slots: nSlots,
+      edge: edge,
       sprig: (c, o, d, rr, i, p, fl) =>
           _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl),
     );
@@ -3491,6 +3506,20 @@ class MapPainter extends CustomPainter {
       roadPath.addPath(_pathOf(cub), Offset.zero);
     }
     _branchRoad(canvas, roadPath, color, baseW);
+
+    // وقتی نقشه پیشرفته شد، گاهی ماشینی از همین جاده‌ی شاخه می‌رود و برمی‌گردد
+    if (cam.scale >= 0.3) {
+      WorldLayer.twigCar(
+          canvas,
+          state,
+          h.id,
+          a.id,
+          (geom.poly != null && geom.poly!.length > 1)
+              ? geom.poly!
+              : [for (var k = 0; k <= 16; k++) cub.at(k / 16)],
+          _t,
+          math.max(5.0, baseW * 1.9));
+    }
 
     // برگ، غنچه و گل روی خودِ تنه‌ی شاخه/زیرشاخه
     if (scale >= 0.28 && a.extra['trunkFlora'] != false) {

@@ -1369,6 +1369,82 @@ class WorldLayer {
     }
   }
 
+  /// ماشینِ مهمان روی جاده‌ی یک شاخه/زیرشاخه (نقشه‌ی پیشرفته).
+  /// هر شاخه برنامه‌ی تصادفی ولی ثابتِ خودش را دارد: گاهی (نه همیشه) ماشینی از
+  /// محلِ اتصال وارد جاده‌ی شاخه می‌شود، تا سرِ شاخه می‌رود، کمی می‌ایستد و برمی‌گردد.
+  /// [pts] مسیرِ شاخه از ابتدا (اتصال) تا نوک است. این تابع از رسمِ خودِ شاخه صدا
+  /// زده می‌شود تا ماشین روی جاده‌ی شاخه دیده شود (نه زیرِ آن).
+  static void twigCar(Canvas canvas, MapState s, String goalId, String aid,
+      List<Offset> pts, double t, double roadW) {
+    if (s.extra['worldOff'] == true || _plan == null || pts.length < 2) return;
+    final gm = _goalMin[goalId];
+    if (gm == null || gm < _hr(250)) return;
+    var h = 17;
+    for (final u in aid.codeUnits) {
+      h = (h * 31 + u) & 0x7fffffff;
+    }
+    double hs(int k) {
+      final v = math.sin(h * 0.001 + k * 12.9898 + _planSeed * 0.0007) *
+          43758.5453;
+      return v - v.floorToDouble();
+    }
+
+    final period = 80.0 + hs(1) * 90.0;
+    final ph = t + hs(2) * period * 7;
+    final cyc = (ph / period).floor();
+    final u = ph / period - cyc;
+    // احتمالِ سفر در هر دور: هرچه نقشه پیشرفته‌تر، بیشتر
+    final pr = 0.14 + 0.26 * _ease((gm - _hr(250)) / _hr(500));
+    if (hs(10 + (cyc % 1000)) > pr) return;
+
+    final cum = <double>[0.0];
+    for (var i = 1; i < pts.length; i++) {
+      cum.add(cum.last + (pts[i] - pts[i - 1]).distance);
+    }
+    final L = cum.last;
+    if (L < 45) return;
+    const pause = 6.0;
+    var spd = 30.0 + hs(3) * 14.0;
+    spd = math.max(spd, 2 * L / (0.85 * period - pause));
+    final out = L / spd;
+    final dur = 2 * out + pause;
+    final e = u * period - 0.08 * period;
+    if (e < 0 || e > dur) return;
+
+    final back = e > out + pause;
+    double d;
+    if (e < out) {
+      d = e * spd;
+    } else if (!back) {
+      d = L;
+    } else {
+      d = L - (e - out - pause) * spd;
+    }
+    d = d.clamp(0.0, L).toDouble();
+    var i = 1;
+    while (i < pts.length - 1 && cum[i] < d) {
+      i++;
+    }
+    final seg = cum[i] - cum[i - 1];
+    final f = seg <= 0 ? 0.0 : ((d - cum[i - 1]) / seg).clamp(0.0, 1.0).toDouble();
+    final v = pts[i] - pts[i - 1];
+    final a = math.atan2(v.dy, v.dx);
+    final nrm = Offset(-math.sin(a), math.cos(a));
+    final lane = roadW * 0.16 * (back ? -1.0 : 1.0);
+    final pos = Offset.lerp(pts[i - 1], pts[i], f)! + nrm * lane;
+    // از محلِ اتصال کوچک پدیدار می‌شود و آخر سفر دوباره کوچک می‌شود
+    final g = math.min(1.0, math.min(e, dur - e) / 1.6);
+    final k = (roadW * 0.52 / 9.0).clamp(0.3, 0.8).toDouble() * _ease(g);
+    if (k < 0.05) return;
+    canvas.save();
+    canvas.translate(pos.dx, pos.dy);
+    canvas.scale(k);
+    final cols = _plan!.carColors;
+    _car(canvas, Offset.zero, back ? a + math.pi : a,
+        cols[(h + cyc).abs() % cols.length]);
+    canvas.restore();
+  }
+
   static void _car(Canvas c, Offset pos, double ang, Color col) {
     c.save();
     c.translate(pos.dx, pos.dy);
