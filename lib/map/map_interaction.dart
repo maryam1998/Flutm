@@ -1003,7 +1003,7 @@ class MapInteraction {
     final pts = _ptrs.values.toList();
     final d = (pts[0] - pts[1]).distance;
     final m = (pts[0] + pts[1]) / 2;
-    final ns = math.max(0.05, math.min(4.0, _pinchScale * (d / _pinchDist)));
+    final ns = math.max(0.05, math.min(20.0, _pinchScale * (d / _pinchDist)));
     final wx = (_pinchMid.dx - _pinchCamX) / _pinchScale;
     final wy = (_pinchMid.dy - _pinchCamY) / _pinchScale;
     cam.setView(m.dx - wx * ns, m.dy - wy * ns, ns);

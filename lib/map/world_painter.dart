@@ -1561,6 +1561,7 @@ class WalkCam {
   double t = 0; // زمان بر حسبِ ثانیه
   double phase = 0; // فازِ قدم‌ها (برای تکانِ دوربین)
   bool walking = true;
+  double zoom = 1.0; // زومِ دو‌انگشتی (ضریبِ فاصله‌ی کانونی؛ ۱ = عادی)
   double dir = 1.0; // ۱ = به سمتِ هدف، ‎-۱ = برگشت به «من»
 }
 
@@ -2046,7 +2047,7 @@ class WalkPainter extends CustomPainter {
     final bm = data.isBranch;
     final cr = data.camRoad ?? road;
     final Lc = cr.length;
-    _focal = w * 0.95;
+    _focal = w * 0.95 * cam.zoom;
     _cx = w / 2;
     final pitch = cam.pitch.clamp(-0.6, 0.6).toDouble();
     _hor = (h * 0.40 + pitch * _focal).clamp(40.0, h * 0.95).toDouble();

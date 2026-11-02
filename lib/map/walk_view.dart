@@ -309,6 +309,7 @@ class _WalkViewPageState extends State<WalkViewPage>
   late final Ticker _ticker;
   Duration _last = Duration.zero;
   bool _dragging = false;
+  double _zoom0 = 1.0; // زومِ شروعِ حرکتِ دو‌انگشتی
   double _yawVel = 0; // سرعتِ چرخشِ سر بعد از رها کردنِ انگشت (رادیان/ثانیه)
   bool _arrived = false;
   double _turnFrom = 0, _turnT = 1;
@@ -500,7 +501,7 @@ class _WalkViewPageState extends State<WalkViewPage>
     } else if (data.goalId.isNotEmpty && lc > 0) {
       WalkSync.pos['walker:${data.goalId}'] = (dc / lc, cam.dir < 0);
     }
-    final sc = _zooms[_zoomIdx];
+    final sc = _zooms[_zoomIdx] * cam.zoom;
     _mcam.scale = sc;
     _mcam.x = _mSpan / 2 - p.dx * sc;
     _mcam.y = _mSpan / 2 - p.dy * sc;
@@ -584,26 +585,34 @@ class _WalkViewPageState extends State<WalkViewPage>
               onTap: _toggle,
               // لمسِ طولانیِ گل/برگ/غنچه: تقویمِ فهرستِ اهدافِ همان کار
               onLongPressStart: (d) => _openMarkCalendar(d.localPosition),
-              onPanStart: (_) {
+              // یک انگشت: چرخش/نگاه؛ دو انگشت (نیشگون): زومِ خیلی زیاد
+              onScaleStart: (_) {
                 _dragging = true;
                 _autoTurn = false;
                 _yawVel = 0;
+                _zoom0 = cam.zoom;
               },
-              onPanUpdate: (d) {
+              onScaleUpdate: (d) {
+                if (d.pointerCount >= 2) {
+                  cam.zoom = (_zoom0 * d.scale).clamp(0.5, 12.0).toDouble();
+                  return;
+                }
+                _zoom0 = cam.zoom;
                 // کشیدن به راست/چپ = چرخش دورِ خود (آزاد، ۳۶۰ درجه)؛
                 // کشیدن بالا/پایین = نگاه به آسمان/زمین
-                cam.yaw = _wrap(cam.yaw - d.delta.dx * 0.005);
-                cam.pitch = (cam.pitch + d.delta.dy * 0.004)
+                cam.yaw = _wrap(cam.yaw - d.focalPointDelta.dx * 0.005);
+                cam.pitch = (cam.pitch + d.focalPointDelta.dy * 0.004)
                     .clamp(-0.6, 0.6)
                     .toDouble();
               },
-              onPanEnd: (d) {
+              onScaleEnd: (d) {
                 _dragging = false;
-                _yawVel = (-d.velocity.pixelsPerSecond.dx * 0.005)
-                    .clamp(-4.0, 4.0)
-                    .toDouble();
+                _yawVel = d.pointerCount >= 1
+                    ? 0
+                    : (-d.velocity.pixelsPerSecond.dx * 0.005)
+                        .clamp(-4.0, 4.0)
+                        .toDouble();
               },
-              onPanCancel: () => _dragging = false,
               child: _map3d
                   ? _buildMap3d(context, dark, sky)
                   : CustomPaint(

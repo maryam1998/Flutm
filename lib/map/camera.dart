@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// دوربین بوم: جابجایی + زوم (بازه‌ی زوم مثل وب: ۵٪ تا ۴۰۰٪)
+/// دوربین بوم: جابجایی + زوم (بازه‌ی زوم: ۵٪ تا ۲۰۰۰٪)
 class CameraController extends ChangeNotifier {
   double x = 0, y = 0, scale = 1;
   Size view = Size.zero;
@@ -23,7 +23,7 @@ class CameraController extends ChangeNotifier {
   void setView(double nx, double ny, double ns) {
     x = nx;
     y = ny;
-    scale = ns.clamp(0.05, 4.0).toDouble();
+    scale = ns.clamp(0.05, 20.0).toDouble();
     notifyListeners();
   }
 
@@ -34,7 +34,7 @@ class CameraController extends ChangeNotifier {
   }
 
   void zoomAt(Offset focal, double factor) {
-    final ns = (scale * factor).clamp(0.05, 4.0).toDouble();
+    final ns = (scale * factor).clamp(0.05, 20.0).toDouble();
     final k = ns / scale;
     x = focal.dx - (focal.dx - x) * k;
     y = focal.dy - (focal.dy - y) * k;
@@ -45,7 +45,7 @@ class CameraController extends ChangeNotifier {
   /// نقطه‌ی p (مختصات نقشه) رو وسط صفحه میاره؛ زوم خیلی کم رو به حداقل ۶۰٪ می‌رسونه
   void centerOn(Offset p, {double? minScale}) {
     if (view.isEmpty) return;
-    final s = math.max(scale, minScale ?? 0.6).clamp(0.05, 4.0).toDouble();
+    final s = math.max(scale, minScale ?? 0.6).clamp(0.05, 20.0).toDouble();
     scale = s;
     x = view.width / 2 - p.dx * s;
     y = view.height / 2 - p.dy * s;
