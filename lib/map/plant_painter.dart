@@ -449,6 +449,8 @@ void drawTrunkFlora(
   final gc = _greens[h % 3];
   final dayBoost = doneDays * 12.0; // هر روزِ ثبت‌شده مثلِ چند دقیقه کار رشد می‌دهد
   final mm = m + dayBoost;
+  // شاخه‌ای که هیچ کاری (دقیقه، روزِ ثبت‌شده یا تمام‌شدن) برایش ثبت نشده: نه بوته، نه علف، نه غنچه
+  if (mm <= 0 && !finished && (marks == null || marks.isEmpty)) return;
 
   // آستانه‌ی بازشدنِ هر جفت‌برگ (دقیقه)
   const th = [0.0, 3.0, 10.0, 25.0, 50.0, 90.0, 150.0, 240.0, 340.0, 470.0,
