@@ -839,6 +839,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   Navigator.pop(context);
                   widget.onShowOnMap(h);
                 }),
+                divider,
+                _action(Icons.delete_outline_rounded, 'حذف',
+                    const Color(0xFFE5484D), () => _confirmDeleteHost(store, h)),
                 // فعلاً مخفی: دکمه‌ی «رسیدم» (کد حفظ شده؛ برای نمایش دوباره کامنت را بردار)
                 // if (h is Goal) ...[
                 //   divider,
@@ -1050,6 +1053,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   if (newIdx > oldIdx) newIdx--;
                   final item = h.actions.removeAt(oldIdx);
                   h.actions.insert(newIdx, item);
+                  resetTwigGeometry(h.actions);
                   store.changed();
                 });
               },
@@ -2075,6 +2079,39 @@ class _GoalsSheetState extends State<GoalsSheet> {
     );
   }
 
+  /// حذفِ کاملِ یک هدف (یا نشانه) از لیست اهداف، با پرسش
+  Future<void> _confirmDeleteHost(MapStore store, MapHost h) async {
+    final name = h is Goal ? h.name : (h is Ring ? h.label : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف'),
+        content: Text(
+          '«${name.isEmpty ? 'بدون نام' : name}» با همه‌ی اقدام‌هایش حذف بشه؟',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('نه')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('حذف')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      _open.remove(h.id);
+      _editing.remove(h.id);
+      _reorderMode.remove(h.id);
+      if (h is Goal) {
+        store.deleteGoal(h.id);
+      } else if (h is Ring) {
+        store.deleteRing(h.id);
+      }
+    });
+  }
+
   Future<void> _confirmDelete(
       MapStore store, MapHost h, ActionNode n) async {
     final ok = await showDialog<bool>(
@@ -2248,6 +2285,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
             if (newIdx > oldIdx) newIdx--;
             final item = kids.removeAt(oldIdx);
             kids.insert(newIdx, item);
+            resetTwigGeometry(kids);
             store.changed();
           });
         },

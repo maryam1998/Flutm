@@ -1487,85 +1487,6 @@ class _EditSheetState extends State<EditSheet> {
           _videoField(a.extra, 'video', 'node:${a.id}'),
         ],
       ),
-      _estimateCard('n:${a.id}', a.extra, () => nodeEstInfo(a)),
-      _card(
-        icon: Icons.palette_rounded,
-        title: 'ظاهر اقدام',
-        children: [
-          const PanelLabel('رنگ'),
-          _swatches(a.color, (c) => a.color = c,
-              onInherit: () => a.color = null),
-          const PanelLabel('شکل خط'),
-          _shapeGrid(a.style, (v) => a.style = v,
-              inherit: true, inheritLabel: 'مثل هدف'),
-          const SizedBox(height: 4),
-          _slider(
-            label: 'ضخامت',
-            value: a.weight.clamp(1.0, 10.0).toDouble(),
-            min: 1,
-            max: 10,
-            divisions: 9,
-            valueText: toFa(a.weight.round()),
-            onChanged: (v) => _edit(() => a.weight = v.roundToDouble()),
-          ),
-          _slider(
-            label: 'اندازه‌ی دایره‌ی روتین',
-            value: ((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0)
-                .clamp(0.3, 8.0)
-                .toDouble(),
-            min: 0.3,
-            max: 8.0,
-            divisions: 77,
-            valueText:
-                '${(((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
-            onChanged: (v) => _edit(() => a.extra['circleScale'] = v),
-          ),
-          _switchTile(
-            title: 'هاله‌ی دور شاخه',
-            subtitle: 'نوار پهن و کم‌رنگ دور خط شاخه',
-            value: a.extra['twigGlow'] != false,
-            onChanged: (v) => _edit(() => a.extra['twigGlow'] = v),
-          ),
-        ],
-      ),
-      _card(
-        icon: Icons.text_fields_rounded,
-        title: 'نوشته‌ی اقدام',
-        collapsible: true,
-        children: [
-          ..._labelStyleControls(
-            defaultSize: _s.fontSize,
-            size: a.labelSize,
-            onSize: (v) => a.labelSize = v,
-            extra: a.extra,
-          ),
-        ],
-      ),
-      _stampCard(a.extra),
-      _switchTile(
-        boxed: true,
-        title: 'این یه کار روتینه',
-        subtitle: 'هر روز تکرار می‌شه، هفته‌ای یه بار نگاه کن',
-        value: a.isRoutine,
-        onChanged: (v) => _edit(() => a.isRoutine = v),
-      ),
-      if (!a.isRoutine)
-        _switchTile(
-          boxed: true,
-          title: 'این کار کاملاً تموم شد',
-          subtitle:
-              'ثبت زمان یا تیکِ روز فقط یعنی «امروز کار کردم»؛ این کلید یعنی کار بسته شد',
-          value: a.extra['finished'] == true,
-          onChanged: (v) => _edit(() {
-            if (v) {
-              a.extra['finished'] = true;
-              a.extra['finishedAt'] = DateTime.now().millisecondsSinceEpoch;
-            } else {
-              a.extra.remove('finished');
-              a.extra.remove('finishedAt');
-            }
-          }),
-        ),
       _card(
         icon: Icons.directions_walk_rounded,
         title: 'قدم روی مسیر 👣',
@@ -1676,6 +1597,85 @@ class _EditSheetState extends State<EditSheet> {
 
         ],
       ),
+      _estimateCard('n:${a.id}', a.extra, () => nodeEstInfo(a)),
+      _card(
+        icon: Icons.palette_rounded,
+        title: 'ظاهر اقدام',
+        children: [
+          const PanelLabel('رنگ'),
+          _swatches(a.color, (c) => a.color = c,
+              onInherit: () => a.color = null),
+          const PanelLabel('شکل خط'),
+          _shapeGrid(a.style, (v) => a.style = v,
+              inherit: true, inheritLabel: 'مثل هدف'),
+          const SizedBox(height: 4),
+          _slider(
+            label: 'ضخامت',
+            value: a.weight.clamp(1.0, 10.0).toDouble(),
+            min: 1,
+            max: 10,
+            divisions: 9,
+            valueText: toFa(a.weight.round()),
+            onChanged: (v) => _edit(() => a.weight = v.roundToDouble()),
+          ),
+          _slider(
+            label: 'اندازه‌ی دایره‌ی روتین',
+            value: ((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0)
+                .clamp(0.3, 8.0)
+                .toDouble(),
+            min: 0.3,
+            max: 8.0,
+            divisions: 77,
+            valueText:
+                '${(((a.extra['circleScale'] as num?)?.toDouble() ?? 1.0) * 100).round()}٪',
+            onChanged: (v) => _edit(() => a.extra['circleScale'] = v),
+          ),
+          _switchTile(
+            title: 'هاله‌ی دور شاخه',
+            subtitle: 'نوار پهن و کم‌رنگ دور خط شاخه',
+            value: a.extra['twigGlow'] != false,
+            onChanged: (v) => _edit(() => a.extra['twigGlow'] = v),
+          ),
+        ],
+      ),
+      _card(
+        icon: Icons.text_fields_rounded,
+        title: 'نوشته‌ی اقدام',
+        collapsible: true,
+        children: [
+          ..._labelStyleControls(
+            defaultSize: _s.fontSize,
+            size: a.labelSize,
+            onSize: (v) => a.labelSize = v,
+            extra: a.extra,
+          ),
+        ],
+      ),
+      _stampCard(a.extra),
+      _switchTile(
+        boxed: true,
+        title: 'این یه کار روتینه',
+        subtitle: 'هر روز تکرار می‌شه، هفته‌ای یه بار نگاه کن',
+        value: a.isRoutine,
+        onChanged: (v) => _edit(() => a.isRoutine = v),
+      ),
+      if (!a.isRoutine)
+        _switchTile(
+          boxed: true,
+          title: 'این کار کاملاً تموم شد',
+          subtitle:
+              'ثبت زمان یا تیکِ روز فقط یعنی «امروز کار کردم»؛ این کلید یعنی کار بسته شد',
+          value: a.extra['finished'] == true,
+          onChanged: (v) => _edit(() {
+            if (v) {
+              a.extra['finished'] = true;
+              a.extra['finishedAt'] = DateTime.now().millisecondsSinceEpoch;
+            } else {
+              a.extra.remove('finished');
+              a.extra.remove('finishedAt');
+            }
+          }),
+        ),
       // زیراقدام‌ها: فقط یک کادرِ «+» (بدون نوشته)
       Padding(
         padding: const EdgeInsets.only(top: 10),
@@ -1819,6 +1819,7 @@ class _EditSheetState extends State<EditSheet> {
         if (oldIndex < 0 || oldIndex >= list.length) return;
         final item = list.removeAt(oldIndex);
         list.insert(newIndex < 0 ? 0 : (newIndex > list.length ? list.length : newIndex), item);
+        resetTwigGeometry(list);
         _store.changed();
         setState(() {});
       },

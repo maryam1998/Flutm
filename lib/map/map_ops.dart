@@ -241,6 +241,22 @@ bool footEffectivePlaying(ActionNode a, String todayJK) {
 double? footPosToday(ActionNode a, String todayJK) =>
     a.extra['footPosDay'] == todayJK ? a.footPos : null;
 
+/// بعد از جابه‌جایی (ترتیب) شاخه‌ها: زاویه/طول/خمیدگیِ ذخیره‌شده‌ی شاخه‌ها و
+/// زیرشاخه‌ها پاک می‌شود تا با جای تازه (سمت و فاصله) دوباره ساخته شوند؛ وگرنه
+/// شاخه با زاویه‌ی جای قبلی کشیده می‌شود و روی بقیه می‌افتد.
+/// شاخه‌های دستی (detached) دست نمی‌خورند.
+void resetTwigGeometry(List<ActionNode> list) {
+  for (final n in list) {
+    if (!n.detached) {
+      n.dir = null;
+      n.len = null;
+      n.bend1 = null;
+      n.bend2 = null;
+    }
+    resetTwigGeometry(n.children);
+  }
+}
+
 /// حالت «ثابت» انیمیشن (هدف/شاخه/زیرشاخه): ثبت روی نقشه دیده می‌شود ولی حرکت ندارد
 bool walkerIsStill(Map<String, dynamic> extra) => extra['walkerMode'] == 'still';
 
