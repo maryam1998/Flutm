@@ -557,6 +557,7 @@ class _TimeSheetState extends State<_TimeSheet> {
                       for (var i = entries.length - 1; i >= 0; i--)
                         _entryTile(entries[i], i),
                     ],
+                    ..._historySection(),
                   ],
                 ),
               ),
@@ -567,14 +568,108 @@ class _TimeSheetState extends State<_TimeSheet> {
     );
   }
 
+  /// تاریخچه‌ی زمان‌ها و یادداشت‌های روزهای دیگرِ همین شاخه (جدیدترین اول)
+  /// تا ببینی هر بار چه کار کرده‌ای؛ فقط خواندنی (ویرایش از خودِ همان روز)
+  List<Widget> _historySection() {
+    final node = widget.node;
+    int keyNum(String k) {
+      final p = k.split('-').map((x) => int.tryParse(x) ?? 0).toList();
+      return p.length == 3 ? p[0] * 10000 + p[1] * 100 + p[2] : 0;
+    }
+
+    final days = node.entries.keys
+        .where((k) => k != widget.jk && nodeEntries(node, k).isNotEmpty)
+        .toList()
+      ..sort((a, b) => keyNum(b).compareTo(keyNum(a)));
+    if (days.isEmpty) return const [];
+    String dayText(String k) {
+      final p = k.split('-');
+      return p.length == 3 ? toFa('${p[0]}/${p[1]}/${p[2]}') : k;
+    }
+
+    final out = <Widget>[
+      const SizedBox(height: 14),
+      const Text('📜 تاریخچه‌ی زمان‌ها و یادداشت‌ها',
+          style: TextStyle(
+              fontWeight: FontWeight.w700, fontSize: 13, color: _kInk)),
+      const SizedBox(height: 6),
+    ];
+    for (final k in days.take(40)) {
+      final list = nodeEntries(node, k);
+      var tot = 0;
+      for (final e in list) {
+        final s = (e['secs'] as num?)?.toInt();
+        tot += (e['kind'] != 'range' && s != null)
+            ? s
+            : ((e['mins'] as num?)?.toInt() ?? 0) * 60;
+      }
+      out.add(Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(dayText(k),
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: _kInk)),
+                const Spacer(),
+                Text(fmtDur(tot),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _kGold)),
+              ],
+            ),
+            for (final e in list) ...[
+              const SizedBox(height: 6),
+              Text(
+                () {
+                  final s = (e['secs'] as num?)?.toInt();
+                  final m = (e['mins'] as num?)?.toInt() ?? 0;
+                  final d = fmtDur(e['kind'] != 'range' && s != null
+                      ? s
+                      : m * 60);
+                  return e['kind'] == 'range'
+                      ? '🕒 ${fmtHM((e['s'] as num?)?.toInt() ?? 0)} تا ${fmtHM((e['e'] as num?)?.toInt() ?? 0)} — $d'
+                      : '⏱ $d';
+                }(),
+                style: const TextStyle(
+                    fontSize: 12, color: _kInk, fontWeight: FontWeight.w600),
+              ),
+              if (((e['note'] as String?) ?? '').trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(((e['note'] as String)).trim(),
+                      style: const TextStyle(
+                          fontSize: 12, color: _kMuted, height: 1.6)),
+                ),
+            ],
+          ],
+        ),
+      ));
+    }
+    return out;
+  }
+
   Widget _entryTile(Map<String, dynamic> e, int idx) {
     final kind = e['kind'] as String?;
     final mins = (e['mins'] as num?)?.toInt() ?? 0;
     final note = e['note'] as String?;
 
+    final secs = (e['secs'] as num?)?.toInt();
+    final dur = fmtDur(kind != 'range' && secs != null ? secs : mins * 60);
     final label = kind == 'range'
-        ? '🕒 ${fmtHM((e['s'] as num?)?.toInt() ?? 0)} تا ${fmtHM((e['e'] as num?)?.toInt() ?? 0)} — ${fmtDur(mins * 60)}'
-        : '⏱ ${fmtDur(mins * 60)}';
+        ? '🕒 ${fmtHM((e['s'] as num?)?.toInt() ?? 0)} تا ${fmtHM((e['e'] as num?)?.toInt() ?? 0)} — $dur'
+        : '⏱ $dur';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),

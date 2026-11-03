@@ -1733,15 +1733,34 @@ class MapPainter extends CustomPainter {
     final todayK = todayJK();
     final fdays = actionFlowerDays(a);
     final doneKeys = actionDoneDays(a);
-    final marks = <({String seed, bool flower})>[
-      for (final k in doneKeys)
-        if (!(k == todayK && (a.timerStart ?? 0) > 0))
-          (seed: k == todayK ? '${a.id}|bud' : '${a.id}|$k', flower: fdays.contains(k)),
+    // غنچه‌ی امروز از لحظه‌ی روشن‌شدنِ تایمر (یا ثبتِ زمان) خیلی آهسته رشد می‌کند؛
+    // با توقف همان‌جا می‌ماند و با تایمرِ بعدی ادامه می‌دهد (تیکِ روز = غنچه‌ی کامل)
+    final todayLog = a.logs[todayK];
+    final todayTicked = todayLog != null && todayLog != false && todayLog != 0;
+    final todayMin = _smoothMin('bd|${a.id}', _plantMinutes(a, todayK));
+    final todayGrow = todayTicked
+        ? 1.0
+        : 0.15 + 0.85 * (1.0 - math.exp(-todayMin / 90.0));
+    final markKeys = <String>[...doneKeys];
+    if ((a.timerStart ?? 0) > 0 && !markKeys.contains(todayK)) {
+      markKeys.add(todayK);
+    }
+    final marks = <({String seed, bool flower, double grow})>[
+      for (final k in markKeys)
+        (
+          seed: k == todayK ? '${a.id}|bud' : '${a.id}|$k',
+          flower: fdays.contains(k),
+          grow: (k == todayK && !fdays.contains(k)) ? todayGrow : 1.0,
+        ),
     ];
     // کارِ تمام‌شده‌ای که هیچ روزی برایش ثبت نشده هم یک گل کنارِ جاده دارد
     if (doneKeys.isEmpty && nodeFinished(a)) {
       final fk = _finishedDayKey(a) ?? todayK;
-      marks.add((seed: fk == todayK ? '${a.id}|bud' : '${a.id}|$fk', flower: true));
+      marks.add((
+        seed: fk == todayK ? '${a.id}|bud' : '${a.id}|$fk',
+        flower: true,
+        grow: 1.0
+      ));
     }
     // محلِ اتصالِ زیرشاخه‌ها (همان فرمولِ _twig): غنچه/گل روی جاده‌ی زیرشاخه نمی‌افتد
     final nk = _visibleActs(a.children).length;
@@ -1766,9 +1785,10 @@ class MapPainter extends CustomPainter {
       // تخمینِ زمان: شاخه‌ای که طبقِ تخمین پیش می‌رود پربرگ‌تر و پرگل‌تر است
       minutes: _smoothMin(
           'tf|${a.id}',
-          _totalMinutes(a) +
-              (nodeGreen(a) ?? 0.0) * kEstGreenMinutes * 0.5 +
-              _doneDayCount(a) * 12.0),
+          kRoadGrowSlow *
+              (_totalMinutes(a) +
+                  (nodeGreen(a) ?? 0.0) * kEstGreenMinutes * 0.5 +
+                  _doneDayCount(a) * 12.0)),
       doneDays: 0, // اثرِ روزهای ثبت‌شده (۱۲ دقیقه برای هر روز) داخلِ minutes است
       finished: nodeFinished(a),
       running: running,
@@ -2476,7 +2496,8 @@ class MapPainter extends CustomPainter {
     hits.routes[a.id] = routePts;
     // رشدِ برگ روی تنه/شاخه/زیرشاخه با وقتی که کاربر می‌گذارد
     if (!ghost) {
-      final gm = _smoothMin('tg|${a.id}', actionTotalMinutes(a));
+      final gm =
+          _smoothMin('tg|${a.id}', kRoadGrowSlow * actionTotalMinutes(a));
       if (gm > 0) {
         final gw = a.weight == 0 ? 5.0 : a.weight;
         final gRoadW = math.max(

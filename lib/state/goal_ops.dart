@@ -241,6 +241,7 @@ int stopTimer(ActionNode n) {
     final e = <String, dynamic>{
       'kind': 'dur',
       'mins': (elapsed / 60).round(),
+      'secs': elapsed,
       'at': DateTime.now().millisecondsSinceEpoch,
     };
     // یادداشتی که حینِ روشن بودنِ تایمر نوشته شده، به همین ورودی (و تقویمِ اهداف) وصل می‌شود

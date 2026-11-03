@@ -16,6 +16,10 @@ import 'package:flutter/material.dart';
 /// برای آزمایش سریع‌تر، این ضریب را بزرگ کن (مثلاً ۶۰ = هر ثانیه یک دقیقه).
 const double kPlantTimeScale = 1.0;
 
+/// سرعتِ رشدِ بوته/برگ/غنچه روی جاده‌ی شاخه‌ها نسبت به دقیقه‌های واقعی
+/// (۰٫۲ = پنج برابر آهسته‌تر)؛ با تایمرِ روشن رشد شروع می‌شود، با توقف می‌ایستد
+const double kRoadGrowSlow = 0.2;
+
 /// مدلِ رسم: ۰ = در حال رشد (فقط برگ و شاخه)، ۱ = غنچه‌ها، ۲ = گل‌ها
 const int kPlantGrowing = 0;
 const int kPlantBuds = 1;
@@ -440,7 +444,7 @@ void drawTrunkFlora(
   double edge = 0.0,
   // هر غنچه/گل = یک روزِ ثبت‌شده: seed همان شناسه‌ی تقویم است (شکلِ یکسان)؛
   // اگر داده شود جای [doneDays] را می‌گیرد و محدودیتِ تعداد ندارد
-  List<({String seed, bool flower})>? marks,
+  List<({String seed, bool flower, double grow})>? marks,
   // طولِ جاده (برای چیدنِ غنچه‌ها در ردیف‌های بعدی وقتی کنارِ جاده جا نباشد)
   double pathLen = 0.0,
   // محلِ اتصالِ زیرشاخه‌ها (t=۰..۱): غنچه/گل‌ها از این نقطه‌ها دور می‌مانند
@@ -550,7 +554,9 @@ void drawTrunkFlora(
       final rr = r * (mk.flower ? 0.62 : 0.5);
       final dist = (edge > 0 ? edge : 0.0) + r * 0.5 + row * r * 1.7;
       final pos = pc + nrm(a) * (side * dist);
-      final pp = (bloom * 1.4 - math.min(j, 6) * 0.12).clamp(0.0, 1.0).toDouble();
+      final pp = math.min(
+          (bloom * 1.4 - math.min(j, 6) * 0.12).clamp(0.0, 1.0).toDouble(),
+          mk.grow);
       sprig(canvas, pos, dirA, rr, mk.seed, pp, mk.flower);
     }
     return;
