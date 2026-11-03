@@ -3,7 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-/// هوای تصادفیِ آسمانِ نقشه: گاهی صاف، گاهی ابری، گاهی بارانی (هر چند دقیقه عوض می‌شود).
+import '../services/real_weather.dart';
+
+/// هوای واقعیِ شهرِ کاربر روی آسمانِ نقشه (صاف، ابری، بارانی، برفی).
+/// اگر هوا هنوز معلوم نباشد (اولین نصب/بدونِ اینترنت) چیزی نشان نمی‌دهد.
 /// لمس را نمی‌گیرد و فقط روی نقشه می‌نشیند.
 class SkyWeatherLayer extends StatefulWidget {
   const SkyWeatherLayer({super.key, required this.night});
@@ -17,54 +20,50 @@ class SkyWeatherLayer extends StatefulWidget {
 
 class _SkyWeatherLayerState extends State<SkyWeatherLayer>
     with SingleTickerProviderStateMixin {
-  final _rnd = math.Random();
   late final Ticker _ticker;
   final _repaint = ValueNotifier<int>(0);
 
-  double _cloud = 0, _rain = 0; // مقدارِ فعلی (۰..۱)
-  double _tCloud = 0, _tRain = 0; // هدف
+  double _cloud = 0, _rain = 0, _snow = 0; // مقدارِ فعلی (۰..۱)
+  double _tCloud = 0, _tRain = 0, _tSnow = 0; // هدف
   double _time = 0;
   Duration _last = Duration.zero;
-  double _nextChange = 0;
 
   @override
   void initState() {
     super.initState();
-    _pick(initial: true);
+    _apply(RealWeather.now.value, initial: true);
+    RealWeather.now.addListener(_onWeather);
+    RealWeather.attach(); // در پس‌زمینه؛ جلوی نمایشِ نقشه را نمی‌گیرد
     _ticker = createTicker(_tick)..start();
   }
 
-  void _pick({bool initial = false}) {
-    final r = _rnd.nextDouble();
-    if (r < 0.45) {
-      _tCloud = 0;
-      _tRain = 0;
-    } else if (r < 0.75) {
-      _tCloud = 0.55 + _rnd.nextDouble() * 0.4;
-      _tRain = 0;
-    } else {
-      _tCloud = 1;
-      _tRain = 0.45 + _rnd.nextDouble() * 0.55;
-    }
+  void _onWeather() => _apply(RealWeather.now.value);
+
+  void _apply(WeatherNow? w, {bool initial = false}) {
+    _tCloud = w?.cloud ?? 0;
+    _tRain = w?.rain ?? 0;
+    _tSnow = w?.snow ?? 0;
     if (initial) {
       _cloud = _tCloud;
       _rain = _tRain;
+      _snow = _tSnow;
     }
-    _nextChange = _time + 60 + _rnd.nextDouble() * 120;
   }
 
   void _tick(Duration d) {
     final dt = ((d - _last).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble();
     _last = d;
     _time += dt;
-    if (_time >= _nextChange) _pick();
     _cloud += (_tCloud - _cloud) * math.min(1.0, dt * 0.35);
     _rain += (_tRain - _rain) * math.min(1.0, dt * 0.5);
+    _snow += (_tSnow - _snow) * math.min(1.0, dt * 0.5);
     _repaint.value++;
   }
 
   @override
   void dispose() {
+    RealWeather.now.removeListener(_onWeather);
+    RealWeather.release();
     _ticker.dispose();
     _repaint.dispose();
     super.dispose();
@@ -118,7 +117,7 @@ class _WeatherPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
-    final cover = st._cloud, rain = st._rain, t = st._time;
+    final cover = st._cloud, rain = st._rain, snow = st._snow, t = st._time;
 
     if (cover > 0.02) {
       final base = night ? const Color(0xFF3A4260) : const Color(0xFFF2F5FA);
@@ -161,6 +160,23 @@ class _WeatherPainter extends CustomPainter {
         final y = top + fall * span;
         final x = (d[0] * w + fall * span * 0.12) % w;
         canvas.drawLine(Offset(x, y), Offset(x - 2.2, y + 13), p);
+      }
+    }
+
+    if (snow > 0.03) {
+      final p = Paint()
+        ..color = (night ? const Color(0xFFE6ECFA) : const Color(0xFFFFFFFF))
+            .withValues(alpha: (0.75 * snow).clamp(0.0, 1.0).toDouble());
+      final n = (_drops.length * snow).round();
+      final top = h * 0.06;
+      final span = h - top;
+      for (var i = 0; i < n; i++) {
+        final d = _drops[i];
+        final fall = ((d[1] + t * 0.14 * d[2]) % 1.0);
+        final y = top + fall * span;
+        final sway = math.sin(t * 0.9 * d[2] + d[1] * 12) * 14;
+        final x = (d[0] * w + sway) % w;
+        canvas.drawCircle(Offset(x, y), 1.2 + d[2] * 1.1, p);
       }
     }
   }
