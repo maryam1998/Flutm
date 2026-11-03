@@ -8,15 +8,28 @@ import 'app_prefs.dart';
 
 /// وضعیتِ هوای همین لحظه (همه ۰..۱).
 class WeatherNow {
-  const WeatherNow({this.cloud = 0, this.rain = 0, this.snow = 0});
+  const WeatherNow({
+    this.cloud = 0,
+    this.rain = 0,
+    this.snow = 0,
+    this.wind = 12,
+    this.windDir = 270,
+  });
   final double cloud, rain, snow;
 
-  Map<String, dynamic> toJson() => {'c': cloud, 'r': rain, 's': snow};
+  /// سرعتِ باد (کیلومتر بر ساعت) و جهتی که باد «از آن» می‌وزد (درجه)؛
+  /// ابرها طبقِ همین‌ها حرکت می‌کنند.
+  final double wind, windDir;
+
+  Map<String, dynamic> toJson() =>
+      {'c': cloud, 'r': rain, 's': snow, 'wk': wind, 'wd': windDir};
 
   static WeatherNow fromJson(Map<String, dynamic> j) => WeatherNow(
         cloud: (j['c'] as num?)?.toDouble() ?? 0,
         rain: (j['r'] as num?)?.toDouble() ?? 0,
         snow: (j['s'] as num?)?.toDouble() ?? 0,
+        wind: (j['wk'] as num?)?.toDouble() ?? 12,
+        windDir: (j['wd'] as num?)?.toDouble() ?? 270,
       );
 }
 
@@ -137,21 +150,24 @@ class RealWeather {
     try {
       final u = Uri.parse('https://api.open-meteo.com/v1/forecast'
           '?latitude=${lat.toStringAsFixed(3)}&longitude=${lon.toStringAsFixed(3)}'
-          '&current=weather_code,cloud_cover');
+          '&current=weather_code,cloud_cover,wind_speed_10m,wind_direction_10m');
       final r = await http.get(u).timeout(_timeout);
       if (r.statusCode != 200) return null;
       final cur = (jsonDecode(r.body) as Map<String, dynamic>)['current'];
       if (cur is! Map) return null;
       final code = (cur['weather_code'] as num?)?.toInt() ?? 0;
       final cover = ((cur['cloud_cover'] as num?)?.toDouble() ?? 0) / 100;
-      return _fromCode(code, cover.clamp(0.0, 1.0).toDouble());
+      final wind = (cur['wind_speed_10m'] as num?)?.toDouble() ?? 12;
+      final dir = (cur['wind_direction_10m'] as num?)?.toDouble() ?? 270;
+      return _fromCode(code, cover.clamp(0.0, 1.0).toDouble(), wind, dir);
     } catch (_) {
       return null;
     }
   }
 
   /// کدهای WMO → ابر/باران/برف
-  static WeatherNow _fromCode(int code, double cover) {
+  static WeatherNow _fromCode(
+      int code, double cover, double wind, double windDir) {
     double rain = 0, snow = 0, cloud = cover;
     switch (code) {
       case 45:
@@ -202,6 +218,7 @@ class RealWeather {
         break;
     }
     if (rain > 0 || snow > 0) cloud = cloud < 0.9 ? 1.0 : cloud;
-    return WeatherNow(cloud: cloud, rain: rain, snow: snow);
+    return WeatherNow(
+        cloud: cloud, rain: rain, snow: snow, wind: wind, windDir: windDir);
   }
 }
