@@ -238,13 +238,32 @@ int stopTimer(ActionNode n) {
     final list = (n.entries[jk] is List)
         ? (n.entries[jk] as List)
         : (n.entries[jk] = <dynamic>[]);
-    list.add({
+    final e = <String, dynamic>{
       'kind': 'dur',
       'mins': (elapsed / 60).round(),
       'at': DateTime.now().millisecondsSinceEpoch,
-    });
+    };
+    // یادداشتی که حینِ روشن بودنِ تایمر نوشته شده، به همین ورودی (و تقویمِ اهداف) وصل می‌شود
+    final tn = n.extra['timerNote'];
+    if (tn is String && tn.trim().isNotEmpty) e['note'] = tn.trim();
+    n.extra.remove('timerNote');
+    list.add(e);
   }
   return elapsed;
+}
+
+/// یادداشتِ یک ورودیِ زمانِ یک روز (خالی = حذفِ یادداشت)
+void setEntryNote(ActionNode n, String jk, int idx, String note) {
+  final raw = n.entries[jk];
+  if (raw is! List || idx < 0 || idx >= raw.length) return;
+  final e = raw[idx];
+  if (e is! Map) return;
+  final t = note.trim();
+  if (t.isEmpty) {
+    e.remove('note');
+  } else {
+    e['note'] = t;
+  }
 }
 
 void addDuration(ActionNode n, String jk, int mins, {String? note}) {

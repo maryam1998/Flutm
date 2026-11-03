@@ -69,10 +69,14 @@ class _TimeSheet extends StatefulWidget {
 
 class _TimeSheetState extends State<_TimeSheet> {
   Timer? _tick;
+  Timer? _noteSave;
+  late final TextEditingController _timerNote;
 
   @override
   void initState() {
     super.initState();
+    final tn = widget.node.extra['timerNote'];
+    _timerNote = TextEditingController(text: tn is String ? tn : '');
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (timerRunning(widget.node) && mounted) setState(() {});
     });
@@ -81,7 +85,34 @@ class _TimeSheetState extends State<_TimeSheet> {
   @override
   void dispose() {
     _tick?.cancel();
+    _noteSave?.cancel();
+    _storeTimerNote(notify: false);
+    _timerNote.dispose();
     super.dispose();
+  }
+
+  /// یادداشتِ تایمرِ در حال اجرا (تا لحظه‌ی توقف نگه داشته می‌شود)
+  void _storeTimerNote({bool notify = true}) {
+    if (!timerRunning(widget.node)) return;
+    final t = _timerNote.text.trim();
+    final cur = widget.node.extra['timerNote'];
+    if (t.isEmpty) {
+      if (cur == null) return;
+      widget.node.extra.remove('timerNote');
+    } else {
+      if (cur == t) return;
+      widget.node.extra['timerNote'] = t;
+    }
+    if (notify) {
+      widget.store.changed();
+    } else {
+      Future.microtask(widget.store.changed);
+    }
+  }
+
+  void _onTimerNoteChanged(String _) {
+    _noteSave?.cancel();
+    _noteSave = Timer(const Duration(milliseconds: 600), _storeTimerNote);
   }
 
   int _elapsedLive() {
@@ -171,9 +202,12 @@ class _TimeSheetState extends State<_TimeSheet> {
 
   Future<void> _toggle() async {
     if (timerRunning(widget.node)) {
+      _noteSave?.cancel();
+      _storeTimerNote(notify: false);
       final startJk =
           jKey(DateTime.fromMillisecondsSinceEpoch(widget.node.timerStart!));
       final secs = stopTimer(widget.node);
+      if (secs > 0) _timerNote.clear();
       if (secs > 0) {
         widget.store.markDoneByTime(widget.host, widget.node, startJk);
       }
@@ -364,6 +398,37 @@ class _TimeSheetState extends State<_TimeSheet> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 10),
+                            // یادداشتِ همین تایمر: با توقف به ورودیِ زمان و تقویمِ اهداف وصل می‌شود
+                            TextField(
+                              controller: _timerNote,
+                              onChanged: _onTimerNoteChanged,
+                              minLines: 1,
+                              maxLines: 4,
+                              textInputAction: TextInputAction.newline,
+                              style: const TextStyle(
+                                  fontSize: 13, color: _kInk),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                hintText: 'یادداشت: توی این زمان چکار می‌کنی؟',
+                                hintStyle: const TextStyle(
+                                    fontSize: 12.5, color: _kMuted),
+                                prefixIcon: const Icon(
+                                    Icons.edit_note_rounded,
+                                    size: 20,
+                                    color: _kMuted),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      const BorderSide(color: _kBorder),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      const BorderSide(color: _kBorder),
+                                ),
+                              ),
+                            ),
                           ],
                         ],
                       ),
@@ -530,13 +595,21 @@ class _TimeSheetState extends State<_TimeSheet> {
                         fontSize: 12.5,
                         color: _kInk,
                         fontWeight: FontWeight.w600)),
-                if (note != null && note.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Text('📝 $note',
-                        style: const TextStyle(
-                            fontSize: 11, color: _kMuted)),
-                  ),
+                // یادداشتِ زیرِ هر ورودی (هم‌زمان در تقویمِ اهداف دیده می‌شود)
+                _EntryNoteField(
+                  key: ValueKey(e['at'] == null
+                      ? '${widget.jk}|i$idx'
+                      : '${widget.jk}|${e['at']}|${e['mins']}'),
+                  initial: note ?? '',
+                  onSave: (t) {
+                    setEntryNote(widget.node, widget.jk, idx, t);
+                    widget.store.changed();
+                  },
+                  onSaveQuiet: (t) {
+                    setEntryNote(widget.node, widget.jk, idx, t);
+                    Future.microtask(widget.store.changed);
+                  },
+                ),
               ],
             ),
           ),
@@ -557,6 +630,87 @@ class _TimeSheetState extends State<_TimeSheet> {
 // ============================================================
 // دیالوگ یکپارچه‌ی ثبت زمان — دو تب
 // ============================================================
+
+/// کادرِ یادداشتِ زیرِ هر ورودیِ زمان (ذخیره‌ی خودکار)
+class _EntryNoteField extends StatefulWidget {
+  const _EntryNoteField({
+    super.key,
+    required this.initial,
+    required this.onSave,
+    required this.onSaveQuiet,
+  });
+
+  final String initial;
+  final void Function(String text) onSave;
+  final void Function(String text) onSaveQuiet;
+
+  @override
+  State<_EntryNoteField> createState() => _EntryNoteFieldState();
+}
+
+class _EntryNoteFieldState extends State<_EntryNoteField> {
+  late final TextEditingController _c =
+      TextEditingController(text: widget.initial);
+  Timer? _t;
+  String _saved = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _saved = widget.initial.trim();
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    final v = _c.text.trim();
+    if (v != _saved) widget.onSaveQuiet(v);
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _flush() {
+    _t?.cancel();
+    final v = _c.text.trim();
+    if (v == _saved) return;
+    _saved = v;
+    widget.onSave(v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: TextField(
+        controller: _c,
+        onChanged: (_) {
+          _t?.cancel();
+          _t = Timer(const Duration(milliseconds: 700), _flush);
+        },
+        onSubmitted: (_) => _flush(),
+        onTapOutside: (_) => _flush(),
+        minLines: 1,
+        maxLines: 4,
+        style: const TextStyle(fontSize: 12, color: _kInk),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: '📝 یادداشت: توی این زمان چکار کردی؟',
+          hintStyle: const TextStyle(fontSize: 11.5, color: _kMuted),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(9),
+            borderSide: const BorderSide(color: _kBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(9),
+            borderSide: const BorderSide(color: _kBorder),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _DurResult {
   _DurResult({required this.mins, required this.note, this.range});

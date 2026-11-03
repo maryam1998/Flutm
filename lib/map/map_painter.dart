@@ -51,6 +51,11 @@ void paintMapSprig(Canvas canvas, Offset tip, double dir, double r, String id,
         {bool budOnly = false, bool flower = false}) =>
     MapPainter._sprig(canvas, tip, dir, r, id, 1.0,
         budOnly: budOnly, flower: flower);
+/// دقیقه‌ی «نمایشی» برای رشدِ برگ‌ها: وقتی زمانی ثبت می‌شود (تایمر، بازه یا مدت)،
+/// برگ‌ها یک‌دفعه نمی‌پرند؛ آهسته و پیوسته به مقدارِ واقعی می‌رسند
+final Map<String, double> _shownMin = {};
+final Map<String, double> _shownAt = {};
+
 /// گیاهِ تمرکز: توقفِ تایمر → شکفتنِ غنچه/گل (فقط در حافظه‌ی همین اجرا)
 final Map<String, bool> _plantRunSeen = {};
 final Map<String, double> _plantStopAt = {};
@@ -67,6 +72,14 @@ List<String> actionDoneDays(ActionNode a) {
   return out;
 }
 
+/// کلیدِ روزی که کار «کاملاً تمام شد» (اگر ثبت شده باشد)
+String? _finishedDayKey(ActionNode a) {
+  final fa = a.extra['finishedAt'];
+  return fa is num
+      ? jKey(DateTime.fromMillisecondsSinceEpoch(fa.toInt()))
+      : null;
+}
+
 final Map<String, String> _adfSig = {};
 final Map<String, Set<String>> _adfCache = {};
 
@@ -74,7 +87,11 @@ final Map<String, Set<String>> _adfCache = {};
 /// و اگر کار «تمام شد» آخرین روزِ ثبت‌شده. نقشه و تقویم هر دو از همین استفاده می‌کنند.
 Set<String> actionFlowerDays(ActionNode a) {
   final done = actionDoneDays(a);
-  if (done.isEmpty) return const <String>{};
+  if (done.isEmpty) {
+    // کارِ «کاملاً تمام شد» بدونِ هیچ ثبتِ روزانه: همان روزِ تمام‌شدن یک گل دارد
+    if (nodeFinished(a)) return <String>{_finishedDayKey(a) ?? todayJK()};
+    return const <String>{};
+  }
   final todayK = todayJK();
   final fin = nodeFinished(a);
   final sig = '$todayK|$fin|${done.join(',')}';
@@ -1651,6 +1668,29 @@ class MapPainter extends CustomPainter {
     return s / 60.0;
   }
 
+  /// نرم‌کردنِ دقیقه‌ها: ثابتِ زمانیِ ۶ ثانیه (حدودِ ۱۴ ثانیه تا نشستنِ کامل).
+  /// بارِ اول (باز شدنِ برنامه) بدونِ انیمیشن است.
+  double _smoothMin(String key, double target) {
+    final cur = _shownMin[key];
+    if (cur == null) {
+      _shownMin[key] = target;
+      _shownAt[key] = _t;
+      return target;
+    }
+    var dt = _t - (_shownAt[key] ?? _t);
+    _shownAt[key] = _t;
+    if (dt <= 0) return cur;
+    if (dt > 0.1) dt = 0.1; // وقفه‌ی طولانی (تب دیگر) = رشدِ تدریجی، نه پرش
+    final d = target - cur;
+    if (d.abs() < 1e-4) {
+      _shownMin[key] = target;
+      return target;
+    }
+    final nv = cur + d * (1 - math.exp(-dt / 6.0));
+    _shownMin[key] = nv;
+    return nv;
+  }
+
   /// مجموعِ همه‌ی دقیقه‌های ثبت‌شده‌ی یک شاخه (همه‌ی روزها + تایمرِ در حال اجرا)
   double _totalMinutes(ActionNode a) {
     var s = 0.0;
@@ -1674,7 +1714,7 @@ class MapPainter extends CustomPainter {
 
   /// برگ، غنچه و گل روی تنه‌ی شاخه/زیرشاخه (با همان منطقِ زمانیِ گیاهِ تمرکز)
   void _trunkFlora(Canvas canvas, ActionNode a, geo.TwigGeom geom,
-      geo.Cubic cub, double scale, int depth) {
+      geo.Cubic cub, double scale, int depth, String hostId) {
     final poly = geom.poly;
     // شاخه جاده است: برگ و غنچه و گل باید لبه‌ی جاده و دورتادورِ آن بنشینند
     final weight = a.weight == 0 ? 5.0 : a.weight;
@@ -1692,11 +1732,17 @@ class MapPainter extends CustomPainter {
     // هر روزِ ثبت‌شده یک غنچه (یا گل)؛ همان seedِ تقویم تا شکلشان یکی باشد
     final todayK = todayJK();
     final fdays = actionFlowerDays(a);
+    final doneKeys = actionDoneDays(a);
     final marks = <({String seed, bool flower})>[
-      for (final k in actionDoneDays(a))
+      for (final k in doneKeys)
         if (!(k == todayK && (a.timerStart ?? 0) > 0))
           (seed: k == todayK ? '${a.id}|bud' : '${a.id}|$k', flower: fdays.contains(k)),
     ];
+    // کارِ تمام‌شده‌ای که هیچ روزی برایش ثبت نشده هم یک گل کنارِ جاده دارد
+    if (doneKeys.isEmpty && nodeFinished(a)) {
+      final fk = _finishedDayKey(a) ?? todayK;
+      marks.add((seed: fk == todayK ? '${a.id}|bud' : '${a.id}|$fk', flower: true));
+    }
     final slotsMin = depth == 0 ? 6 : 4;
     final nSlots = (plen / 44).round().clamp(slotsMin, 12).toInt();
     final running = (a.timerStart ?? 0) > 0;
@@ -1713,9 +1759,12 @@ class MapPainter extends CustomPainter {
       r: r,
       id: a.id,
       // تخمینِ زمان: شاخه‌ای که طبقِ تخمین پیش می‌رود پربرگ‌تر و پرگل‌تر است
-      minutes: _totalMinutes(a) +
-          (nodeGreen(a) ?? 0.0) * kEstGreenMinutes * 0.5,
-      doneDays: _doneDayCount(a),
+      minutes: _smoothMin(
+          'tf|${a.id}',
+          _totalMinutes(a) +
+              (nodeGreen(a) ?? 0.0) * kEstGreenMinutes * 0.5 +
+              _doneDayCount(a) * 12.0),
+      doneDays: 0, // اثرِ روزهای ثبت‌شده (۱۲ دقیقه برای هر روز) داخلِ minutes است
       finished: nodeFinished(a),
       running: running,
       bloom: bp,
@@ -1723,8 +1772,25 @@ class MapPainter extends CustomPainter {
       edge: edge,
       marks: marks,
       pathLen: plen,
-      sprig: (c, o, d, rr, i, p, fl) =>
-          _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl),
+      sprig: (c, o, d, rr, i, p, fl) {
+        _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl);
+        // هر غنچه/گل = یک روزِ تقویم؛ لمسِ طولانی = تقویمِ همان روز
+        final pre = '${a.id}|';
+        final dk = i == '${a.id}|bud'
+            ? todayK
+            : (i.startsWith(pre) ? i.substring(pre.length) : null);
+        if (dk != null && p > 0.05) {
+          _lateHits.add(HitEntry(
+            type: 'pastBloom',
+            id: a.id,
+            hostId: hostId,
+            kind: HitKind.handle,
+            center: o + Offset(math.cos(d), math.sin(d)) * (rr * 1.2),
+            radius: math.max(rr * 1.7, 9.0),
+            voiceKey: dk,
+          ));
+        }
+      },
     );
   }
 
@@ -1759,7 +1825,7 @@ class MapPainter extends CustomPainter {
       dir: ang,
       r: r,
       id: a.id,
-      minutes: _plantMinutes(a, todayK),
+      minutes: _smoothMin('pl|${a.id}', _plantMinutes(a, todayK)),
       mode: running
           ? kPlantGrowing
           : (nodeFinished(a) ? kPlantFlowers : kPlantBuds),
@@ -2238,6 +2304,41 @@ class MapPainter extends CustomPainter {
     return footBasePath().transform(m.storage);
   }
 
+  /// رنگِ تیره‌ی دورگیری: همان رنگ ولی تیره‌تر و غلیظ‌تر
+  static Color _edgeDark(Color c) {
+    final hsl = HSLColor.fromColor(c.withValues(alpha: 1.0));
+    return hsl
+        .withLightness((hsl.lightness * 0.42).clamp(0.08, 0.3).toDouble())
+        .withSaturation((hsl.saturation * 1.05).clamp(0.0, 1.0).toDouble())
+        .toColor()
+        .withValues(alpha: 0.96);
+  }
+
+  /// حلقه‌ی دورِ دایره‌ی قدم‌زن با دورگیریِ دولایه (سفید + تیره)
+  void _walkerRing(Canvas canvas, Offset c, double r, Color col, double w) {
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w + 4.2
+          ..color = const Color(0xE6FFFFFF));
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w + 2.0
+          ..color = _edgeDark(col));
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w
+          ..color = withOp(col, 0.98));
+  }
+
   void _drawFoot(
     Canvas canvas,
     Offset pos,
@@ -2247,11 +2348,34 @@ class MapPainter extends CustomPainter {
     bool outline = false,
     double strokeW = 1.4,
     bool left = false,
+    bool edge = false,
   }) {
     canvas.save();
     canvas.translate(pos.dx, pos.dy);
     canvas.rotate(angle);
     final path = _footPath(size, left: left);
+    if (edge && !outline) {
+      // دورگیریِ دولایه: هاله‌ی سفیدِ بیرونی + خطِ تیره‌ی هم‌رنگِ پا (دیده شدن روی هر زمینه)
+      final ow = (size * 0.075).clamp(1.6, 4.5).toDouble();
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = ow * 2.4
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round
+          ..color = const Color(0xE6FFFFFF),
+      );
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = ow * 1.3
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round
+          ..color = _edgeDark(color),
+      );
+    }
     if (outline) {
       canvas.drawPath(
         path,
@@ -2372,7 +2496,7 @@ class MapPainter extends CustomPainter {
     hits.routes[a.id] = routePts;
     // رشدِ برگ روی تنه/شاخه/زیرشاخه با وقتی که کاربر می‌گذارد
     if (!ghost) {
-      final gm = actionTotalMinutes(a);
+      final gm = _smoothMin('tg|${a.id}', actionTotalMinutes(a));
       if (gm > 0) {
         final gw = a.weight == 0 ? 5.0 : a.weight;
         final gRoadW = math.max(
@@ -3135,14 +3259,16 @@ class MapPainter extends CustomPainter {
           laneOff: laneOff,
           others: _walkerPts,
           mine: mine,
-          pref: pref);
+          pref: pref,
+          edge: true);
       _drawWalkerFoot(canvas, cp, rightT, 1.0, baseSize, withOp(col, 0.92),
           lift: rightLift,
           returning: returning,
           laneOff: laneOff,
           others: _walkerPts,
           mine: mine,
-          pref: pref);
+          pref: pref,
+          edge: true);
       _walkerPts.addAll(mine);
     }
 
@@ -3229,13 +3355,7 @@ class MapPainter extends CustomPainter {
         canvas.clipPath(Path()..addOval(dst));
         canvas.drawImageRect(faceImg, src, dst, Paint()..isAntiAlias = true);
         canvas.restore();
-        canvas.drawCircle(
-            bodyPos,
-            bodyR,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.2
-              ..color = withOp(col, 0.95));
+        _walkerRing(canvas, bodyPos, bodyR, col, 2.4);
         if (hasEmoji) {
           _walkerEmojiCluster(
               canvas, bodyPos, bodyR, emoji, emojiScale, emojiFont);
@@ -3253,15 +3373,23 @@ class MapPainter extends CustomPainter {
           canvas.drawPath(tri, Paint()..color = const Color(0xFFFFFFFF));
         }
       } else {
+        _walkerRing(canvas, bodyPos, bodyR, col, 2.4);
         canvas.drawCircle(
             bodyPos,
-            bodyR,
+            bodyR * 0.42,
             Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.0
-              ..color = withOp(col, 0.92));
+              ..strokeWidth = 2.4
+              ..color = const Color(0xE6FFFFFF));
         canvas.drawCircle(
-            bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.92));
+            bodyPos,
+            bodyR * 0.42,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.2
+              ..color = _edgeDark(col));
+        canvas.drawCircle(
+            bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.98));
         if (!playing) {
           final r = bodyR * 0.32;
           canvas.drawRect(
@@ -3317,6 +3445,7 @@ class MapPainter extends CustomPainter {
     List<Offset>? others,
     List<Offset>? mine,
     double pref = 1.0,
+    bool edge = false,
   }) {
     final pt = cp.at(t);
     final tang = cp.tangent(t);
@@ -3351,7 +3480,10 @@ class MapPainter extends CustomPainter {
     }
     mine?.add(pos);
     _drawFoot(canvas, pos, heading + math.pi / 2, size, color,
-        outline: outline, strokeW: outline ? 1.2 : 1.4, left: side < 0);
+        outline: outline,
+        strokeW: outline ? 1.2 : 1.4,
+        left: side < 0,
+        edge: edge);
   }
 
   // ───────────────────────── جام ─────────────────────────
@@ -3628,7 +3760,7 @@ class MapPainter extends CustomPainter {
 
     // برگ، غنچه و گل روی خودِ تنه‌ی شاخه/زیرشاخه
     if (scale >= 0.28 && a.extra['trunkFlora'] != false) {
-      _trunkFlora(canvas, a, geom, cub, scale, depth);
+      _trunkFlora(canvas, a, geom, cub, scale, depth, h.id);
     }
 
     if (_haloOn(a.extra, false)) {

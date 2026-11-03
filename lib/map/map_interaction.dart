@@ -48,6 +48,7 @@ class _Pending {
     this.isPastFoot = false,
     this.isBloom = false,
     this.isBud = false,
+    this.isDayBloom = false,
     this.noteKey = '',
   });
   final String hostId;
@@ -62,6 +63,7 @@ class _Pending {
   final bool isPastFoot;
   final bool isBloom;
   final bool isBud;
+  final bool isDayBloom;
   final String noteKey;
   final Offset start;
 }
@@ -321,34 +323,19 @@ class MapInteraction {
       store.toggleGoalCollapse(hit.id);
       return;
     }
-    // لمسِ گل/غنچه‌ی بین قدم‌ها: تقویمِ همان روز (اگر تقویم نبود: نمایش/پنهانِ متن)
+    // گل/غنچه‌ی یک روز: لمسِ طولانی = تقویمِ همان روز (تپِ ساده کاری نمی‌کند، کشیدن = جابه‌جایی نقشه)
     if (_ptrs.isEmpty && hit != null && hit.type == 'pastBloom') {
-      HapticFeedback.selectionClick();
-      // تقویمِ قدم با تاریخِ همان غنچه/گل باز می‌شود: چه روزی بوده و چه کاری شده
-      if (onBloomDay != null) {
-        onBloomDay!(hit.hostId, hit.id, hit.voiceKey);
-        return;
-      }
-      if (onFootStats != null) {
-        onFootStats!(hit.hostId, hit.id, hit.voiceKey);
-        return;
-      }
-      final bh = store.state.findHost(hit.hostId);
-      if (bh is MapHost) {
-        final bf = findActionNode(bh.actions, hit.id);
-        if (bf != null) {
-          final cur = bf.node.extra['dayNotesOpen'];
-          final list =
-              cur is List ? cur.whereType<String>().toList() : <String>[];
-          if (!list.remove(hit.voiceKey)) list.add(hit.voiceKey);
-          if (list.isEmpty) {
-            bf.node.extra.remove('dayNotesOpen');
-          } else {
-            bf.node.extra['dayNotesOpen'] = list;
-          }
-          store.changed();
-        }
-      }
+      _ptrs[e.pointer] = pos;
+      _downPtr = pos;
+      _tap = null;
+      _dirty = false;
+      _holdArmed = false;
+      _faceHeld = false;
+      _slopPassed = false;
+      _cancelLongPress();
+      _pending = _Pending(hit.hostId, hit.id, null, false, pos,
+          isDayBloom: true, noteKey: hit.voiceKey);
+      _armCalendarHold(_pending!, hit.voiceKey);
       return;
     }
     if (_ptrs.isEmpty && hit != null && hit.type == 'foldToggle') {
@@ -691,7 +678,7 @@ class MapInteraction {
       return;
     }
 
-    if (p.isPastFoot || p.isBud) {
+    if (p.isPastFoot || p.isBud || p.isDayBloom) {
       _startPan(p.start);
       _tap = null;
       return;
@@ -1109,6 +1096,8 @@ class MapInteraction {
         if (!wasDrag && !held) _toggleBud(p.hostId, p.actionId);
         return;
       }
+      // گل/غنچه‌ی یک روز: تپِ ساده کاری ندارد (لمسِ طولانی تقویم را باز کرده)
+      if (p.isDayBloom) return;
 
       // ─── قدمِ کم‌رنگِ یک روزِ گذشته: تپ = تقویم و تاریخِ همان قدم ───
       if (p.isPastFoot) {

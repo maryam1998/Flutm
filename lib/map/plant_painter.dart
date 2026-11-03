@@ -94,9 +94,11 @@ void _bsLeaf(Path p, double x, double y, double a, double len, double wid) {
 /// [g] ۰..۱ پیشرفتِ رشد (۰ = نهالِ ریز، ۱ = بوته‌ی کامل)، [seed] شکلِ ثابت.
 void drawRoadBush(Canvas canvas, Offset base, double dir, double size, double g,
     int seed, {double sway = 0.0}) {
-  final k = _sm(g);
-  final hgt = size * (0.3 + 0.7 * k);
-  if (hgt < 1.0) return;
+  // رشدِ پیوسته: از «هیچ» شروع می‌شود و ارتفاع و برگ‌ها نرم و آهسته زیاد می‌شوند
+  // (قبلاً ارتفاعِ اولیه ۳۰٪ بود و جفت‌برگ‌ها ناگهان پدیدار می‌شدند)
+  final k = g.clamp(0.0, 1.0).toDouble();
+  final hgt = size * (0.04 + 0.96 * k);
+  if (hgt < 0.5) return;
   final si = seed.abs();
   final gc = _greens[si % 3];
   final lc = _bushLeaf[si % 3];
@@ -130,12 +132,14 @@ void drawRoadBush(Canvas canvas, Offset base, double dir, double size, double g,
 
   final lk = 0.55 + 0.45 * k;
   // جفت‌برگ‌های ساقه: ۱ جفت در نهال تا ۴ جفت در بوته‌ی کامل
-  final np = 1 + (3 * k).floor();
-  for (var j = 0; j < np; j++) {
+  // هر جفت‌برگ جداگانه و پیوسته بزرگ می‌شود (نه ناگهانی)
+  for (var j = 0; j < 4; j++) {
+    final pj = _sm((k - j * 0.2) / 0.3);
+    if (pj < 0.02) continue;
     final u = 0.38 + 0.17 * j;
     final q = pt(u);
     final a = an(u);
-    final len = hgt * (0.40 - 0.04 * j) * lk;
+    final len = hgt * (0.40 - 0.04 * j) * lk * pj;
     final sp = 0.95 - 0.08 * j;
     _bsLeaf(_bsA, q.dx, q.dy, a + sp, len, len * 0.34);
     _bsLeaf(_bsB, q.dx, q.dy, a - sp, len, len * 0.34);
@@ -480,7 +484,9 @@ void drawTrunkFlora(
     final side = i.isEven ? 1.0 : -1.0;
     if (edge > 0) {
       // کنارِ جاده: به‌جای برگِ تنها، یک بوته که خیلی آهسته رشد می‌کند
-      final gk = _sm((mm - base) / (100.0 + 60.0 * i));
+      final gk =
+          mm <= base ? 0.0 : 1.0 - math.exp(-(mm - base) / (12.0 + 6.0 * i));
+      if (gk <= 0.0) continue;
       drawRoadBush(canvas, pc + nrm(a) * (side * (edge + r * 0.2)),
           a + side * 1.25 + jit * 3, r * 2.1, gk, h + i * 7919);
       continue;

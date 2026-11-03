@@ -1528,7 +1528,12 @@ void drawTrunkGrowth(
   final count = nf.ceil();
   final e = (edge > 0 ? edge : 6.0 * scale) + 1.5 * scale;
   for (var i = 0; i < count; i++) {
-    final g = _c01((nf - i) / 3.0);
+    // بوته‌ی i‌ام وقتی می‌روید که nf به i برسد؛ رشدش نمایی و نرم است تا با تایمر
+    // روشن، رویشِ آهسته‌ی برگ‌ها به‌چشم بیاید
+    final start = i == 0 ? 0.0 : math.pow(i / 0.22, 1 / 0.55).toDouble();
+    final age = minutes - start;
+    if (age <= 0) continue;
+    final g = 1.0 - math.exp(-age / (7.0 + 3.0 * i));
     final u = ((off + (i + 1) * 0.6180339887) % 1.0) * 0.86 + 0.07;
     final p = at(u);
     if (WorldLayer.view != Rect.zero && !vv.contains(p)) continue;
