@@ -430,10 +430,10 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
 
-          // هوای تصادفی: گاهی ابری، گاهی بارانی
+          // هوای واقعیِ شهرِ کاربر (ابر، باران، برف)
           if (sky != null)
             Positioned.fill(
-              child: SkyWeatherLayer(night: sky.sunA < 0.5),
+              child: SkyWeatherLayer(night: isDark),
             ),
 
           // کشیدنِ دو انگشت از پایین به بالا (مثل کج‌کردنِ نقشه): نما از چشمِ پاها می‌شود.

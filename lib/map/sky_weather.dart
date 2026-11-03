@@ -11,7 +11,7 @@ import '../services/real_weather.dart';
 class SkyWeatherLayer extends StatefulWidget {
   const SkyWeatherLayer({super.key, required this.night});
 
-  /// شب = ابرِ تیره‌تر، روز = ابرِ روشن‌تر
+  /// نقشه تیره است؟ (رنگِ ابرها طبقِ روشن/تیره‌بودنِ خودِ نقشه، نه ساعت)
   final bool night;
 
   @override
@@ -88,12 +88,20 @@ class _Cloud {
 }
 
 const _clouds = <_Cloud>[
-  _Cloud(0.05, 0.05, 1.0, 0.0040),
-  _Cloud(0.42, 0.11, 1.3, 0.0028),
-  _Cloud(0.75, 0.04, 0.9, 0.0050),
-  _Cloud(0.20, 0.17, 1.1, 0.0034),
-  _Cloud(0.62, 0.20, 1.4, 0.0024),
-  _Cloud(0.92, 0.14, 1.0, 0.0044),
+  _Cloud(0.06, 0.075, 1.00, 0.0016),
+  _Cloud(0.46, 0.135, 0.80, 0.0011),
+  _Cloud(0.80, 0.095, 0.90, 0.0019),
+  _Cloud(0.25, 0.200, 0.70, 0.0013),
+  _Cloud(0.64, 0.235, 0.75, 0.0010),
+];
+
+/// شکلِ ابر: چند دایره‌ی هم‌پوشان + کفِ تقریباً صاف (واحد = u)
+const _puffs = <List<double>>[
+  [-1.35, 0.30, 0.62],
+  [-0.55, -0.05, 0.86],
+  [0.45, -0.30, 1.00],
+  [1.35, 0.02, 0.74],
+  [1.95, 0.34, 0.52],
 ];
 
 class _WeatherPainter extends CustomPainter {
@@ -120,28 +128,42 @@ class _WeatherPainter extends CustomPainter {
     final cover = st._cloud, rain = st._rain, snow = st._snow, t = st._time;
 
     if (cover > 0.02) {
-      final base = night ? const Color(0xFF3A4260) : const Color(0xFFF2F5FA);
-      final shade = night ? const Color(0xFF262C45) : const Color(0xFFB9C3D3);
+      // ابرهای کوچک و نرم، فقط در نوارِ بالای نقشه؛ رنگ از روشن/تیره‌بودنِ خودِ نقشه
+      final dim = (rain * 0.55 + snow * 0.25).clamp(0.0, 0.6).toDouble();
+      final top = Color.lerp(
+          night ? const Color(0xFF8590BC) : const Color(0xFFFFFFFF),
+          night ? const Color(0xFF5A6286) : const Color(0xFFB4BED0),
+          dim)!;
+      final bot = Color.lerp(
+          night ? const Color(0xFF3F4772) : const Color(0xFFC3CDE2),
+          night ? const Color(0xFF2B3252) : const Color(0xFF8D99B2),
+          dim)!;
+      final maxA = night ? 0.50 : 0.78;
       for (var i = 0; i < _clouds.length; i++) {
         final c = _clouds[i];
-        final a = (cover * 1.25 - i * 0.12).clamp(0.0, 1.0).toDouble() *
-            (night ? 0.55 : 0.75);
-        if (a <= 0.01) continue;
-        final x = (((c.x + t * c.v) % 1.5) - 0.25) * w;
-        final y = c.y * h;
-        final u = w * 0.075 * c.s;
-        final blur = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
-        void puff(double dx, double dy, double r, Color col) {
-          canvas.drawCircle(Offset(x + dx * u, y + dy * u), r * u,
-              blur..color = col.withValues(alpha: a));
+        final a = (cover * 1.3 - i * 0.18).clamp(0.0, 1.0).toDouble() * maxA;
+        if (a <= 0.02) continue;
+        final u = w * 0.040 * c.s;
+        final cx = (((c.x + t * c.v) % 1.4) - 0.2) * w;
+        final cy = c.y * h;
+        final bounds = Rect.fromLTWH(cx - 3 * u, cy - 2 * u, 7 * u, 4 * u);
+        canvas.saveLayer(bounds, Paint()..color = Color.fromRGBO(0, 0, 0, a));
+        final fill = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [top, bot],
+          ).createShader(Rect.fromLTWH(cx - 2.2 * u, cy - 1.3 * u, 4.8 * u, 2.3 * u))
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.6);
+        for (final q in _puffs) {
+          canvas.drawCircle(Offset(cx + q[0] * u, cy + q[1] * u), q[2] * u, fill);
         }
-
-        puff(0, 0.25, 0.9, shade);
-        puff(1.3, 0.3, 1.0, shade);
-        puff(-1.2, 0.35, 0.75, shade);
-        puff(0.2, -0.15, 1.0, base);
-        puff(1.2, -0.05, 0.85, base);
-        puff(-0.9, 0.05, 0.7, base);
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(
+                Rect.fromLTRB(cx - 1.9 * u, cy + 0.15 * u, cx + 2.5 * u, cy + 0.95 * u),
+                Radius.circular(0.4 * u)),
+            fill);
+        canvas.restore();
       }
     }
 
