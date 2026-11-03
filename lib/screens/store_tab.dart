@@ -426,6 +426,22 @@ class _StoreTabState extends State<StoreTab> {
             children: [
               Row(
                 children: [
+                  IconButton(
+                    tooltip: p.archived ? 'برگرداندن از آرشیو' : 'آرشیو',
+                    icon: Icon(
+                        p.archived
+                            ? Icons.unarchive_outlined
+                            : Icons.archive_outlined,
+                        size: 20,
+                        color: _kMuted),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints.tightFor(width: 34, height: 34),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => context
+                        .read<AbundanceStore>()
+                        .setPurchaseArchived(p.id, !p.archived),
+                  ),
                   Expanded(
                     child: Text(
                       faStampFromRecord(
@@ -443,22 +459,6 @@ class _StoreTabState extends State<StoreTab> {
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
                         color: _kGold),
-                  ),
-                  IconButton(
-                    tooltip: p.archived ? 'برگرداندن از آرشیو' : 'آرشیو',
-                    icon: Icon(
-                        p.archived
-                            ? Icons.unarchive_outlined
-                            : Icons.archive_outlined,
-                        size: 20,
-                        color: _kMuted),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 34, height: 34),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => context
-                        .read<AbundanceStore>()
-                        .setPurchaseArchived(p.id, !p.archived),
                   ),
                 ],
               ),
