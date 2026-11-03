@@ -96,35 +96,109 @@ class _SkyWeatherLayerState extends State<SkyWeatherLayer>
 }
 
 class _Cloud {
-  const _Cloud(this.x, this.y, this.s, this.d, this.ph, this.puffs);
+  const _Cloud(this.x, this.y, this.s, this.d, this.ph, this.puffs, this.kind,
+      this.ext);
   final double x, y; // جای پایه (کسری از عرض/ارتفاع)
   final double s; // اندازه
   final double d; // عمق: ابرِ دورتر کوچک‌تر، کم‌رنگ‌تر و کندتر
   final double ph; // فازِ «نفس‌کشیدنِ» آرامِ شکل
-  final List<List<double>> puffs; // [x, y, r] به واحدِ u
+  final List<List<double>> puffs; // [x, y, r, کشیدگیِ افقی] به واحدِ u
+  final int kind; // 0 کومه‌ای بلند، 1 پهنِ لایه‌ای، 2 کومه‌ی کوچک، 3 رشته‌ای (سیروس)
+  final double ext; // نیمه‌عرضِ ابر (برای کادرِ رسم)
 }
 
-/// ابرِ کومه‌ای: کفِ تقریباً تخت، بالای گنبدی و برآمدگی‌های ریزِ رویِ آن
-List<List<double>> _makePuffs(math.Random r) {
-  final n = 8 + r.nextInt(4);
-  final out = <List<double>>[];
-  for (var i = 0; i < n; i++) {
-    final t = (i + 0.5) / n;
-    final env = math.pow(math.sin(math.pi * t), 0.7).toDouble();
-    final x = (t - 0.5) * 4.6 + (r.nextDouble() - 0.5) * 0.3;
-    final rad = 0.42 + 0.78 * env * (0.65 + 0.35 * r.nextDouble());
-    final y = 0.35 - rad * 0.8 - r.nextDouble() * 0.06;
-    out.add([x, y, rad]);
+double _cloudExtent(List<List<double>> p) {
+  var e = 1.0;
+  for (final q in p) {
+    e = math.max(e, q[0].abs() + q[2] * (q.length > 3 ? q[3] : 1.0) * 1.15);
   }
-  // برآمدگی‌های ریز روی بزرگ‌ترین‌ها
-  final big = [...out]..sort((a, b) => b[2].compareTo(a[2]));
-  for (var k = 0; k < 3 && k < big.length; k++) {
-    final p = big[k];
-    out.add([
-      p[0] + (r.nextDouble() - 0.5) * 0.5,
-      p[1] - p[2] * 0.62,
-      p[2] * (0.45 + 0.15 * r.nextDouble()),
-    ]);
+  return e;
+}
+
+/// ابرِ طبیعی: چند نوع (کومه‌ای بلند، پهنِ لایه‌ای، کوچک، رشته‌ای) که هر کدام
+/// با پف‌های تصادفیِ متفاوت ساخته می‌شوند تا هیچ دو ابری شبیه هم نباشند.
+/// کف تقریباً تخت، بالا گنبدی و «گل‌کلمی»، و کمی کج به سمتِ باد.
+List<List<double>> _makePuffs(math.Random r, [int kind = 0]) {
+  final out = <List<double>>[];
+  switch (kind) {
+    case 1: // پهن و لایه‌ای
+      final w = 5.0 + r.nextDouble() * 2.2;
+      final n = 16 + r.nextInt(7);
+      for (var i = 0; i < n; i++) {
+        final t = (i + 0.5) / n;
+        final env = math.pow(math.sin(math.pi * t), 0.55).toDouble();
+        final rad = 0.28 + 0.36 * env * (0.55 + 0.45 * r.nextDouble());
+        out.add([
+          (t - 0.5) * w + (r.nextDouble() - 0.5) * 0.35,
+          0.32 - rad * 0.55 - r.nextDouble() * 0.10,
+          rad,
+          1.35 + r.nextDouble() * 0.5,
+        ]);
+      }
+      // یک یا دو برآمدگیِ بالاتر روی ابر
+      for (var k = 0; k < 2; k++) {
+        final p = out[r.nextInt(out.length)];
+        out.add([p[0], p[1] - p[2] * 0.7, p[2] * 0.7, 1.1]);
+      }
+    case 2: // کومه‌ی کوچکِ هوای خوب
+      final n = 4 + r.nextInt(3);
+      final w = 1.8 + r.nextDouble() * 1.0;
+      for (var i = 0; i < n; i++) {
+        final t = (i + 0.5) / n;
+        final env = math.pow(math.sin(math.pi * t), 0.8).toDouble();
+        final rad = 0.34 + 0.55 * env * (0.6 + 0.4 * r.nextDouble());
+        out.add([
+          (t - 0.5) * w + (r.nextDouble() - 0.5) * 0.25,
+          0.34 - rad * 0.8,
+          rad,
+          1.0
+        ]);
+      }
+    case 3: // رشته‌ای و نازک (سیروس)
+      final n = 7 + r.nextInt(3);
+      final w = 5.4 + r.nextDouble() * 1.6;
+      final slope = (r.nextDouble() - 0.5) * 0.6;
+      for (var i = 0; i < n; i++) {
+        final t = (i + 0.5) / n;
+        final rad = 0.16 + 0.12 * math.sin(math.pi * t) * (0.5 + r.nextDouble());
+        out.add([
+          (t - 0.5) * w,
+          0.15 + slope * (t - 0.5) * 2 + (r.nextDouble() - 0.5) * 0.14,
+          rad,
+          2.4 + r.nextDouble() * 1.4,
+        ]);
+      }
+    default: // کومه‌ای بلند با بالای گل‌کلمی
+      final n = 11 + r.nextInt(5);
+      final w = 3.2 + r.nextDouble() * 1.6;
+      final lean = (r.nextDouble() - 0.5) * 0.9;
+      for (var i = 0; i < n; i++) {
+        final t = (i + 0.5) / n;
+        final env = math.pow(math.sin(math.pi * t), 0.85).toDouble();
+        final rad = 0.34 + 0.95 * env * (0.5 + 0.5 * r.nextDouble());
+        final y = 0.35 - rad * 0.85 - r.nextDouble() * 0.05;
+        out.add([
+          (t - 0.5) * w + lean * (-y) * 0.35 + (r.nextDouble() - 0.5) * 0.3,
+          y,
+          rad,
+          1.0
+        ]);
+      }
+      final big = [...out]..sort((a, b) => b[2].compareTo(a[2]));
+      for (var k = 0; k < 4 && k < big.length; k++) {
+        final p = big[k];
+        final cnt = 1 + r.nextInt(2);
+        for (var j = 0; j < cnt; j++) {
+          final ang = -math.pi / 2 + (r.nextDouble() - 0.5) * 1.8;
+          final rr = p[2] * (0.38 + 0.22 * r.nextDouble());
+          out.add([
+            p[0] + math.cos(ang) * p[2] * 0.7,
+            p[1] + math.sin(ang) * p[2] * 0.7,
+            rr,
+            1.0
+          ]);
+        }
+      }
   }
   return out;
 }
@@ -133,21 +207,67 @@ List<List<double>> _makePuffs(math.Random r) {
 final List<_Cloud> _clouds = () {
   final r = math.Random(41);
   const spec = <List<double>>[
-    // x, y, s, d
-    [0.10, 0.040, 1.00, 1.00],
-    [0.58, 0.085, 0.80, 0.80],
-    [0.84, 0.030, 0.90, 0.95],
-    [0.34, 0.125, 0.55, 0.55],
-    [0.70, 0.150, 0.50, 0.50],
-    [0.02, 0.140, 0.60, 0.60],
-    [0.46, 0.012, 0.65, 0.70],
+    // x, y, s, d, نوع
+    [0.10, 0.040, 1.05, 1.00, 0],
+    [0.58, 0.085, 0.80, 0.80, 1],
+    [0.84, 0.030, 0.55, 0.95, 2],
+    [0.34, 0.125, 0.70, 0.55, 1],
+    [0.70, 0.150, 0.50, 0.50, 3],
+    [0.02, 0.140, 0.45, 0.60, 2],
+    [0.46, 0.012, 0.85, 0.70, 0],
   ];
   return [
     for (var i = 0; i < spec.length; i++)
-      _Cloud(spec[i][0], spec[i][1], spec[i][2], spec[i][3],
-          r.nextDouble() * 6.28, _makePuffs(r)),
+      () {
+        final pf = _makePuffs(r, spec[i][4].toInt());
+        return _Cloud(spec[i][0], spec[i][1], spec[i][2], spec[i][3],
+            r.nextDouble() * 6.28, pf, spec[i][4].toInt(), _cloudExtent(pf));
+      }(),
   ];
 }();
+
+/// مجموعه‌ی شکل‌های آماده برای نمای راه‌رفتن و نقشه‌ی دور
+final List<List<List<double>>> _sharedPuffSets = () {
+  final r = math.Random(913);
+  const kinds = [0, 1, 0, 2, 3, 1, 0, 2];
+  return [for (final k in kinds) _makePuffs(r, k)];
+}();
+
+/// کشیدنِ یک ابرِ طبیعی (هر seed شکل و نوعِ متفاوتی دارد) در مرکزِ [c]
+/// u = واحدِ اندازه (عرضِ ابر ≈ ۴ تا ۶ برابرِ u)
+void paintNaturalCloud(Canvas canvas, Offset c, double u, int seed,
+    {required Color body,
+    required Color shade,
+    required Color light,
+    required double alpha}) {
+  if (alpha <= 0.01 || u <= 0) return;
+  final set = _sharedPuffSets[seed.abs() % _sharedPuffSets.length];
+  final ext = _cloudExtent(set);
+  canvas.saveLayer(
+      Rect.fromLTWH(c.dx - (ext + 0.6) * u, c.dy - 2.6 * u,
+          (ext + 0.6) * 2 * u, 4.6 * u),
+      Paint()..color = Color.fromRGBO(0, 0, 0, alpha.clamp(0.0, 1.0)));
+  final shadeP = _puffPaint(shade, 0.85);
+  final bodyP = _puffPaint(body, 0.95);
+  final lightP = _puffPaint(light, 0.8);
+  void pass(Paint pt, double dy, double sx, double sy, double shrink,
+      {double dx = 0, bool topOnly = false}) {
+    for (final q in set) {
+      if (topOnly && q[1] > 0.0) continue;
+      final r = q[2] * u * shrink;
+      canvas.save();
+      canvas.translate(c.dx + q[0] * u + dx * q[2] * u, c.dy + q[1] * u + dy * u);
+      canvas.scale(r * sx * q[3], r * sy);
+      canvas.drawCircle(Offset.zero, 1, pt);
+      canvas.restore();
+    }
+  }
+
+  pass(shadeP, 0.14, 1.12, 0.86, 1.0);
+  pass(bodyP, -0.04, 1.0, 0.82, 0.92);
+  pass(lightP, -0.14, 0.82, 0.66, 0.62, dx: -0.15, topOnly: true);
+  canvas.restore();
+}
 
 /// یک «پف» نرم: مرکز غلیظ و لبه‌ی محو (شعاع ۱؛ با scale بزرگ می‌شود)
 Paint _puffPaint(Color c, double k) => Paint()
@@ -215,7 +335,8 @@ class _WeatherPainter extends CustomPainter {
         final cy = (c.y + math.sin(t * 0.11 + c.ph) * 0.004) * h + u * 0.9;
         final breath = 1 + 0.035 * math.sin(t * 0.23 + c.ph);
         canvas.saveLayer(
-            Rect.fromLTWH(cx - 3.6 * u, cy - 2.4 * u, 7.2 * u, 4.2 * u),
+            Rect.fromLTWH(cx - (c.ext + 0.6) * u, cy - 2.6 * u,
+                (c.ext + 0.6) * 2 * u, 4.6 * u),
             Paint()..color = Color.fromRGBO(0, 0, 0, a));
         void puffs(Paint pt, double dy, double sx, double sy, double shrink,
             {double dx = 0, bool topOnly = false}) {
@@ -225,13 +346,13 @@ class _WeatherPainter extends CustomPainter {
             canvas.save();
             canvas.translate(cx + q[0] * u + dx * q[2] * u,
                 cy + q[1] * u + dy * u);
-            canvas.scale(r * sx, r * sy);
+            canvas.scale(r * sx * q[3], r * sy);
             canvas.drawCircle(Offset.zero, 1, pt);
             canvas.restore();
           }
         }
 
-        puffs(shadePaint, 0.14, 1.12, 0.86, 1.0); // سایه‌ی زیرِ ابر
+        if (c.kind != 3) puffs(shadePaint, 0.14, 1.12, 0.86, 1.0); // سایه‌ی زیرِ ابر
         puffs(bodyPaint, -0.04, 1.0, 0.82, 0.92); // تنه‌ی ابر
         puffs(lightPaint, -0.14, 0.82, 0.66, 0.62,
             dx: -0.15, topOnly: true); // روشناییِ بالا (نور از بالا-چپ)

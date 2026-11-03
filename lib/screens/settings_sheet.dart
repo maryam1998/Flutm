@@ -3,7 +3,9 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide showDialog, showModalBottomSheet;
+import '../widgets/dark_adapt.dart';
+import '../widgets/dark_dialogs.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
@@ -67,7 +69,7 @@ Future<void> showSettingsSheet(BuildContext context) {
               duration: const Duration(milliseconds: 120),
               width: w,
               height: (sz.height - kb).clamp(200.0, sz.height).toDouble(),
-              child: const _SettingsSheet(),
+              child: const DarkAdapt(child: _SettingsSheet()),
             );
           }),
         ),

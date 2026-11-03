@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide showDialog, showModalBottomSheet;
+import '../widgets/dark_adapt.dart';
+import '../widgets/dark_dialogs.dart';
 import 'package:provider/provider.dart';
 
 import '../map/draw_utils.dart' show toFa;
@@ -91,7 +93,7 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
         final sw = mq.size.width * 0.86;
         final w = sw < 300 ? sw : 300.0;
         final kb = mq.viewInsets.bottom;
-        return Align(
+        return DarkAdapt(child: Align(
           alignment: Alignment.centerLeft,
           child: Padding(
             padding: EdgeInsets.only(bottom: kb > 64 ? kb : 64),
@@ -108,7 +110,7 @@ Future<void> showEditSheet(BuildContext context, EditTarget target) {
               ),
             ),
           ),
-        );
+        ));
       },
       transitionBuilder: (ctx, anim, _, child) => SlideTransition(
         position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)

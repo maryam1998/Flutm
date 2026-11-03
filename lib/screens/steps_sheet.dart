@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide showDialog, showModalBottomSheet;
+import '../widgets/dark_dialogs.dart';
 
 import '../map/draw_utils.dart' show toFa;
 import '../map/map_ops.dart';

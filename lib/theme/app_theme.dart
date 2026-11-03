@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/dark_adapt.dart';
 import 'vazir_font.dart';
 
 const kLightBg = Color(0xFFEEF1F8);
@@ -139,5 +140,11 @@ final ThemeData goalsLightTheme = () {
   );
 }();
 
-Widget goalsLightSheet(Widget child) =>
-    Theme(data: goalsLightTheme, child: child);
+/// صفحه‌ی اهداف با رنگ‌های ثابتِ روشن نوشته شده؛ وقتی تمِ برنامه تیره است
+/// مثل بقیه‌ی تب‌ها (DarkAdapt) تیره می‌شود.
+Widget goalsLightSheet(Widget child) => Builder(builder: (ctx) {
+      final t = Theme(data: goalsLightTheme, child: child);
+      return Theme.of(ctx).brightness == Brightness.dark
+          ? DarkAdapt(child: t)
+          : t;
+    });

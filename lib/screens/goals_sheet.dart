@@ -45,7 +45,9 @@ Future<void> showGoalsSheet(
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
-    backgroundColor: kGoalsBg,
+    backgroundColor: Theme.of(context).brightness == Brightness.dark
+        ? Colors.black
+        : kGoalsBg,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
     ),

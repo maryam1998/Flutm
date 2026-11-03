@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide showDialog, showModalBottomSheet;
+import '../widgets/dark_dialogs.dart';
 import 'package:provider/provider.dart';
 
 import '../models/motivation_item.dart';

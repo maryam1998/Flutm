@@ -14,6 +14,7 @@ import 'geometry.dart' as geo;
 import 'hit_registry.dart';
 import 'plant_painter.dart' show drawRoadBush;
 import 'seeded.dart';
+import 'sky_weather.dart' show paintNaturalCloud;
 import 'walk_marks.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1481,18 +1482,20 @@ class WorldLayer {
 
   static void _clouds(Canvas c, double m, double t, bool dark, Rect vv) {
     final n = math.min(6, 2 + (m / 120).floor());
-    final col = dark
-        ? const Color.fromRGBO(255, 255, 255, 0.10)
-        : const Color.fromRGBO(190, 208, 226, 0.32);
     for (var i = 0; i < n; i++) {
       final x = -2100 + ((i * 617 + t * (6 + i * 1.7)) % 4200);
       final y = -420 - i * 140.0;
       if (!vv.contains(Offset(x, y))) continue;
-      c.drawCircle(Offset(x, y), 26, _fill(col));
-      c.drawCircle(Offset(x + 26, y + 6), 20, _fill(col));
-      c.drawCircle(Offset(x - 26, y + 7), 19, _fill(col));
-      c.drawOval(Rect.fromCenter(center: Offset(x, y + 12), width: 92, height: 22),
-          _fill(col));
+      paintNaturalCloud(
+        c,
+        Offset(x, y),
+        22.0 + (i % 3) * 5,
+        i * 3 + 1,
+        body: dark ? const Color(0xFF727994) : const Color(0xFFFFFFFF),
+        shade: dark ? const Color(0xFF454B66) : const Color(0xFFBCC3CF),
+        light: dark ? const Color(0xFFA3A9C2) : const Color(0xFFFFFFFF),
+        alpha: dark ? 0.22 : 0.55,
+      );
     }
   }
 }
@@ -2161,25 +2164,23 @@ class WalkPainter extends CustomPainter {
             _fill(const Color(0xFFFFF1B8)));
       }
     }
-    // ابرها
-    final cloud = dark
-        ? const Color.fromRGBO(255, 255, 255, 0.07)
-        : const Color.fromRGBO(255, 255, 255, 0.75);
+    // ابرها (هر کدام شکل و اندازه‌ی خودش را دارد)
     for (var i = 0; i < 6; i++) {
       final a = i * 1.07 + cam.t * 0.004;
       final x = cx + (((a - yaw + math.pi) % (2 * math.pi)) - math.pi) * focal;
-      if (x < -160 || x > w + 160) continue;
-      final y = hor * (0.16 + 0.11 * (i % 3));
-      final k = 0.8 + 0.2 * (i % 2);
-      canvas.drawOval(
-          Rect.fromCenter(center: Offset(x, y), width: 150 * k, height: 26 * k),
-          _fill(cloud));
-      canvas.drawOval(
-          Rect.fromCenter(
-              center: Offset(x + 26 * k, y - 10 * k),
-              width: 70 * k,
-              height: 24 * k),
-          _fill(cloud));
+      if (x < -200 || x > w + 200) continue;
+      final y = hor * (0.17 + 0.11 * (i % 3));
+      final k = 0.75 + 0.3 * ((i * 5) % 4) / 3;
+      paintNaturalCloud(
+        canvas,
+        Offset(x, y),
+        26 * k,
+        i * 2 + 1,
+        body: dark ? const Color(0xFF727994) : const Color(0xFFFFFFFF),
+        shade: dark ? const Color(0xFF454B66) : const Color(0xFFBCC3CF),
+        light: dark ? const Color(0xFFA3A9C2) : const Color(0xFFFFFFFF),
+        alpha: dark ? 0.28 : 0.85,
+      );
     }
 
     // ── تپه‌ها / تپه‌ماهورِ دور ──
