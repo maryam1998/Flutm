@@ -315,7 +315,7 @@ class SkyArt {
     if (s.sunA <= 0.01) return;
     final warmK = (s.altDeg / 25).clamp(0.0, 1.0).toDouble();
     final col =
-        Color.lerp(const Color(0xFFFF8A3D), const Color(0xFFFFF1B8), warmK)!;
+        Color.lerp(const Color(0xFFFF8A3D), const Color(0xFFFFC21F), warmK)!;
     canvas.drawCircle(
         c,
         r * 3.6,
@@ -340,6 +340,13 @@ class SkyArt {
           ]).createShader(Rect.fromCircle(center: c, radius: r * 3.5)));
     canvas.drawCircle(c, r,
         Paint()..color = const Color(0xFF2A3050).withValues(alpha: 0.55 * a));
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = const Color(0xFF8A93B8).withValues(alpha: 0.45 * a));
     final ph = s.moonPhase;
     final k = (1 - math.cos(2 * math.pi * ph)) / 2; // نورانیت ۰..۱
     final waxing = ph < 0.5;

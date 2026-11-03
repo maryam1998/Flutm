@@ -477,7 +477,9 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             title: 'تم تاریک',
             subtitle: theme.isDark
                 ? 'پس‌زمینه‌ی تیره با متن روشن'
-                : 'پس‌زمینه‌ی روشن',
+                : theme.forcedLight
+                    ? 'همیشه روشن'
+                    : 'خودکار: نقشه طبق ساعتِ گوشی روشن و تاریک می‌شود',
             value: theme.isDark,
             onChanged: (v) => theme.setDark(v),
           ),

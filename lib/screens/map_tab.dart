@@ -307,17 +307,25 @@ class _MapTabState extends State<MapTab> {
     // رنگ‌ها (روشن/تیره) همیشه از تمِ انتخابیِ کاربر می‌آید؛ ساعت فقط آسمان
     // (خورشید، ماه، ستاره، غروب و گرگ‌ومیش) را نشان می‌دهد.
     _skyPal = null;
-    final wp = WebPalette.of(context);
-    final ink = wp.textMain;
-
     final bgStore = context.watch<BackgroundStore>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // مثل بقیه‌ی تب‌ها: روشن = سفید؛ با تصویر/ویدیو/رنگ دلخواه شفاف
-    final mapBg = (bgStore.overridesBackdrop || isDark)
+    final themeStore = context.watch<ThemeStore>();
+    // تیکِ «تم تاریک» خاموش و انتخابِ دستی نیست ← نقشه با ساعتِ گوشی روشن/تیره
+    // می‌شود (روز سفید، طلوع/غروب گرم، شب تیره)؛ در غیر این صورت تمِ کاربر.
+    final auto = sky != null && themeStore.isAuto;
+    final isDark = auto
+        ? sky!.ground.computeLuminance() < 0.4
+        : Theme.of(context).brightness == Brightness.dark;
+    final wp = isDark ? WebPalette.dark : WebPalette.light;
+    final ink = wp.textMain;
+    // روشن = سفید (یا رنگِ زمینِ ساعت در حالتِ خودکار)؛ با تصویر/ویدیو/رنگ دلخواه شفاف
+    final Color mapBg = bgStore.overridesBackdrop
         ? Colors.transparent
-        : Colors.white;
+        : auto
+            ? sky!.ground
+            : (isDark ? Colors.transparent : Colors.white);
 
-    return ColoredBox(
+    return AnimatedContainer(
+      duration: const Duration(seconds: 2),
       color: mapBg,
       child: Scaffold(
       backgroundColor: Colors.transparent,
@@ -408,6 +416,18 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
           ],
+
+          // خورشید، ماه و ستاره‌ها طبقِ ساعتِ گوشی روی نقشه (طلوع، غروب، شب)
+          if (sky != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _MapSkyPainter(
+                      sky, MediaQuery.paddingOf(context).top + 108),
+                  size: Size.infinite,
+                ),
+              ),
+            ),
 
           // کشیدنِ دو انگشت از پایین به بالا (مثل کج‌کردنِ نقشه): نما از چشمِ پاها می‌شود.
           // فقط گوش می‌دهد؛ لمس‌های نقشه را نمی‌گیرد.
@@ -640,7 +660,9 @@ class _MapTabState extends State<MapTab> {
       onSelected: (v) {
         switch (v) {
           case 'theme':
-            context.read<ThemeStore>().toggle();
+            context.read<ThemeStore>().setChoice(isDark ? 'light' : 'dark');
+          case 'auto':
+            context.read<ThemeStore>().setChoice('auto');
           case 'fold':
             store.collapseAll(anyOpen);
           case 'help':
@@ -654,6 +676,12 @@ class _MapTabState extends State<MapTab> {
               isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
               isDark ? 'تم روشن' : 'تم تیره'),
         ),
+        if (!context.read<ThemeStore>().isAuto)
+          PopupMenuItem<String>(
+            value: 'auto',
+            child: row(Icons.brightness_auto_outlined,
+                'خودکار (طبق ساعت گوشی)'),
+          ),
         if (store.hasCollapsible)
           PopupMenuItem<String>(
             value: 'fold',
@@ -830,4 +858,37 @@ class _MiniSkyPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MiniSkyPainter old) =>
       old.s != s || old.line != line;
+}
+
+/// خورشید، ماه و ستاره‌های بزرگِ روی نقشه (طبق ساعتِ گوشی)؛ لمس را نمی‌گیرد
+class _MapSkyPainter extends CustomPainter {
+  _MapSkyPainter(this.s, this.top);
+  final SkyState s;
+
+  /// بالاترین جای خورشید/ماه (زیرِ نوار بالا)
+  final double top;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    if (w <= 0 || h <= 0) return;
+    if (s.starA > 0.01) {
+      SkyArt.starField(canvas, Size(w, h * 0.32), s.starA * 0.85);
+    }
+    final horizon = top + 86;
+    if (s.sunA > 0.01) {
+      final x = w * (0.12 + 0.76 * s.dayFrac);
+      final y = horizon - (horizon - top) * math.sin(math.pi * s.dayFrac);
+      SkyArt.sun(canvas, Offset(x, y), s, r: 20);
+    }
+    if (s.moonA > 0.01) {
+      final x = w * (0.12 + 0.76 * s.nightFrac);
+      final y = horizon - (horizon - top) * math.sin(math.pi * s.nightFrac);
+      SkyArt.moon(canvas, Offset(x, y), s, r: 17);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MapSkyPainter old) =>
+      old.s != s || old.top != top;
 }

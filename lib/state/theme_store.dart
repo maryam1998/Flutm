@@ -14,11 +14,23 @@ class ThemeStore extends ChangeNotifier {
   static const double kTextScaleMin = 11 / 14; // ۱۱px
   static const double kTextScaleMax = 22 / 14; // ۲۲px
 
+  static const _choiceKey = 'appThemeChoiceV3';
+
   ThemeMode _mode = ThemeMode.light;
   double _textScale = 1.0;
 
+  /// 'auto' = کاربر تمی انتخاب نکرده؛ نقشه طبق ساعتِ گوشی روشن/تیره می‌شود
+  /// 'dark' / 'light' = انتخابِ دستیِ کاربر (ساعت نادیده گرفته می‌شود)
+  String _choice = 'auto';
+
   ThemeMode get mode => _mode;
   bool get isDark => _mode == ThemeMode.dark;
+
+  /// تیکِ «تم تاریک» خاموش و انتخابِ دستی در کار نیست ← نقشه با ساعت هماهنگ است
+  bool get isAuto => _choice == 'auto';
+
+  /// انتخابِ دستیِ روشن (نقشه همیشه روشن)
+  bool get forcedLight => _choice == 'light';
 
   /// ضریب اندازه‌ی نوشته‌ی کل برنامه (همه‌ی صفحه‌ها، کادرها و دکمه‌ها)
   double get textScale => _textScale;
@@ -34,7 +46,14 @@ class ThemeStore extends ChangeNotifier {
           await sp.setString(_key, 'light');
         }
       }
-      _mode = (v == 'dark') ? ThemeMode.dark : ThemeMode.light;
+      final ch = sp.getString(_choiceKey);
+      if (ch == 'dark' || ch == 'light' || ch == 'auto') {
+        _choice = ch.toString();
+      } else {
+        // کاربرانِ قبلی: فقط اگر تمِ تاریک را خودشان زده بودند دستی بماند
+        _choice = (v == 'dark') ? 'dark' : 'auto';
+      }
+      _mode = (_choice == 'dark') ? ThemeMode.dark : ThemeMode.light;
       final sc = sp.getDouble(_scaleKey);
       if (sc != null) {
         _textScale = sc.clamp(kTextScaleMin, kTextScaleMax).toDouble();
@@ -45,12 +64,18 @@ class ThemeStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setDark(bool dark) async {
-    _mode = dark ? ThemeMode.dark : ThemeMode.light;
+  /// تیکِ «تم تاریک»: روشن = همیشه تیره؛ خاموش = خودکار (نقشه طبق ساعتِ گوشی)
+  Future<void> setDark(bool dark) => setChoice(dark ? 'dark' : 'auto');
+
+  Future<void> setChoice(String choice) async {
+    if (choice != 'dark' && choice != 'light') choice = 'auto';
+    _choice = choice;
+    _mode = choice == 'dark' ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
     try {
       final sp = await AppPrefs.getInstance();
-      await sp.setString(_key, dark ? 'dark' : 'light');
+      await sp.setString(_choiceKey, choice);
+      await sp.setString(_key, choice == 'dark' ? 'dark' : 'light');
     } catch (_) {}
   }
 
