@@ -697,37 +697,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           },
         ),
         if (_showEmotionWidget) _emotionTabsPicker(),
-        _switchRow(
-          title: 'بعد از انجام، قدم‌ها هم جمع بشن',
-          subtitle: 'پیش‌فرض خاموش: شاخه جمع می‌شود و ردپای قدم‌ها می‌ماند',
-          value: context.read<MapStore>().state.extra['doneFeetCollapse'] ==
-              true,
-          onChanged: (v) {
-            final store = context.read<MapStore>();
-            if (v) {
-              store.state.extra['doneFeetCollapse'] = true;
-            } else {
-              store.state.extra.remove('doneFeetCollapse');
-            }
-            store.changedNow();
-            setState(() {});
-          },
-        ),
-        _switchRow(
-          title: 'کارهای انجام‌شده کم‌رنگ باشند',
-          subtitle: 'پیش‌فرض خاموش: پررنگ با ✓ سبز؛ روشن: نیمه‌محو مثل قبل',
-          value: context.read<MapStore>().state.extra['doneDim'] == true,
-          onChanged: (v) {
-            final store = context.read<MapStore>();
-            if (v) {
-              store.state.extra['doneDim'] = true;
-            } else {
-              store.state.extra.remove('doneDim');
-            }
-            store.changedNow();
-            setState(() {});
-          },
-        ),
       ],
     );
   }
