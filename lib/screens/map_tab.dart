@@ -850,8 +850,8 @@ class _MiniSkyPainter extends CustomPainter {
     }
     if (s.moonA > 0.01) {
       final x = w * (0.1 + 0.8 * s.nightFrac);
-      final y = base - (base - 7) * math.sin(math.pi * s.nightFrac);
-      SkyArt.moon(canvas, Offset(x, y), s, r: 5.5);
+      final y = base - (base - 9.5) * math.sin(math.pi * s.nightFrac);
+      SkyArt.moon(canvas, Offset(x, y), s, r: 7.5, plain: true);
     }
   }
 
@@ -880,11 +880,6 @@ class _MapSkyPainter extends CustomPainter {
       final x = w * (0.12 + 0.76 * s.dayFrac);
       final y = horizon - (horizon - top) * math.sin(math.pi * s.dayFrac);
       SkyArt.sun(canvas, Offset(x, y), s, r: 20);
-    }
-    if (s.moonA > 0.01) {
-      final x = w * (0.12 + 0.76 * s.nightFrac);
-      final y = horizon - (horizon - top) * math.sin(math.pi * s.nightFrac);
-      SkyArt.moon(canvas, Offset(x, y), s, r: 17);
     }
   }
 

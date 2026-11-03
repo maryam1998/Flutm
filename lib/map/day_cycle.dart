@@ -327,9 +327,11 @@ class SkyArt {
     canvas.drawCircle(c, r, Paint()..color = col.withValues(alpha: s.sunA));
   }
 
-  static void moon(Canvas canvas, Offset c, SkyState s, {double r = 20}) {
+  static void moon(Canvas canvas, Offset c, SkyState s,
+      {double r = 20, bool plain = false}) {
     if (s.moonA <= 0.01) return;
     final a = s.moonA;
+    if (!plain) {
     canvas.drawCircle(
         c,
         r * 3.5,
@@ -347,6 +349,7 @@ class SkyArt {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1
           ..color = const Color(0xFF8A93B8).withValues(alpha: 0.45 * a));
+    }
     final ph = s.moonPhase;
     final k = (1 - math.cos(2 * math.pi * ph)) / 2; // نورانیت ۰..۱
     final waxing = ph < 0.5;
@@ -355,7 +358,7 @@ class SkyArt {
     final shadow = Path()
       ..addOval(Rect.fromCircle(
           center: Offset(c.dx + (waxing ? -shift : shift), c.dy), radius: r));
-    final lit = k > 0.97
+    final lit = k > 0.95
         ? moonP
         : Path.combine(PathOperation.difference, moonP, shadow);
     canvas.drawPath(
