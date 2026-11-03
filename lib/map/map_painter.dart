@@ -2304,32 +2304,15 @@ class MapPainter extends CustomPainter {
     return footBasePath().transform(m.storage);
   }
 
-  /// رنگِ تیره‌ی دورگیری: همان رنگ ولی تیره‌تر و غلیظ‌تر
-  static Color _edgeDark(Color c) {
-    final hsl = HSLColor.fromColor(c.withValues(alpha: 1.0));
-    return hsl
-        .withLightness((hsl.lightness * 0.42).clamp(0.08, 0.3).toDouble())
-        .withSaturation((hsl.saturation * 1.05).clamp(0.0, 1.0).toDouble())
-        .toColor()
-        .withValues(alpha: 0.96);
-  }
-
-  /// حلقه‌ی دورِ دایره‌ی قدم‌زن با دورگیریِ دولایه (سفید + تیره)
+  /// حلقه‌ی دورِ دایره‌ی قدم‌زن با دورگیریِ خاکستریِ تیره (بدون هاله‌ی سفید)
   void _walkerRing(Canvas canvas, Offset c, double r, Color col, double w) {
     canvas.drawCircle(
         c,
         r,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = w + 4.2
-          ..color = const Color(0xE6FFFFFF));
-    canvas.drawCircle(
-        c,
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = w + 2.0
-          ..color = _edgeDark(col));
+          ..strokeWidth = w + 2.6
+          ..color = const Color(0xFF2B2B2B));
     canvas.drawCircle(
         c,
         r,
@@ -2355,25 +2338,16 @@ class MapPainter extends CustomPainter {
     canvas.rotate(angle);
     final path = _footPath(size, left: left);
     if (edge && !outline) {
-      // دورگیریِ دولایه: هاله‌ی سفیدِ بیرونی + خطِ تیره‌ی هم‌رنگِ پا (دیده شدن روی هر زمینه)
+      // دورگیریِ خاکستریِ تیره (بدون هاله‌ی سفید)
       final ow = (size * 0.075).clamp(1.6, 4.5).toDouble();
       canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = ow * 2.4
+          ..strokeWidth = ow * 1.6
           ..strokeJoin = StrokeJoin.round
           ..strokeCap = StrokeCap.round
-          ..color = const Color(0xE6FFFFFF),
-      );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = ow * 1.3
-          ..strokeJoin = StrokeJoin.round
-          ..strokeCap = StrokeCap.round
-          ..color = _edgeDark(color),
+          ..color = const Color(0xFF2B2B2B),
       );
     }
     if (outline) {
@@ -3304,22 +3278,6 @@ class MapPainter extends CustomPainter {
     _lastBodyPos = bodyPos;
     _lastBodyR = bodyR;
 
-    if (halo && bloomId == null) {
-      final hs = haloScale.clamp(0.3, 2.5).toDouble();
-      canvas.drawCircle(
-          bodyPos,
-          bodyR * 2.6 * hs,
-          Paint()
-            ..color = withOp(col, 0.20)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14));
-      canvas.drawCircle(
-          bodyPos,
-          bodyR * 1.35 * hs,
-          Paint()
-            ..color = withOp(col, 0.18)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-    }
-
     if (bloomId != null) {
       // زیرِ غنچه: چیزی کشیده نمی‌شود
     } else {
@@ -3379,15 +3337,8 @@ class MapPainter extends CustomPainter {
             bodyR * 0.42,
             Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.4
-              ..color = const Color(0xE6FFFFFF));
-        canvas.drawCircle(
-            bodyPos,
-            bodyR * 0.42,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.2
-              ..color = _edgeDark(col));
+              ..strokeWidth = 1.6
+              ..color = const Color(0xFF2B2B2B));
         canvas.drawCircle(
             bodyPos, bodyR * 0.42, Paint()..color = withOp(col, 0.98));
         if (!playing) {

@@ -1100,7 +1100,6 @@ class _EditSheetState extends State<EditSheet> {
       const SizedBox(height: 8),
       _voiceField(ex, 'walkerVoice', 'walker:${t.hostId}:${t.actionId}'),
       _videoField(ex, 'walkerVideo', 'walker:${t.hostId}:${t.actionId}'),
-      ..._walkerHaloControls(ex),
       const SizedBox(height: 8),
       _sectionLabel('رنگ انیمیشن'),
       _swatches(
@@ -1225,38 +1224,6 @@ class _EditSheetState extends State<EditSheet> {
     );
   }
 
-  /// هاله‌ی دور انیمیشن (پا و دایره‌ی متصل): نمایش و اندازه، جدا برای هر هدف/شاخه/زیرشاخه
-  List<Widget> _walkerHaloControls(Map<String, dynamic> ex) {
-    final on = ex['walkerHalo'] != false;
-    final scale = ((ex['walkerHaloScale'] as num?)?.toDouble() ?? 1.0)
-        .clamp(0.3, 2.5)
-        .toDouble();
-    return [
-      _switchTile(
-        boxed: true,
-        title: 'نمایش هاله‌ی انیمیشن',
-        value: on,
-        onChanged: (v) => _edit(() {
-          if (v) {
-            ex.remove('walkerHalo');
-          } else {
-            ex['walkerHalo'] = false;
-          }
-        }),
-      ),
-      if (on)
-        _slider(
-          label: 'اندازه‌ی هاله‌ی انیمیشن',
-          value: scale,
-          min: 0.3,
-          max: 2.5,
-          divisions: 22,
-          valueText: '${(scale * 100).round()}٪',
-          onChanged: (v) => _edit(() => ex['walkerHaloScale'] = v),
-        ),
-    ];
-  }
-
   // ============================================================
   // هدف
   // ============================================================
@@ -1372,7 +1339,6 @@ class _EditSheetState extends State<EditSheet> {
             ),
             _voiceField(g.extra, 'walkerVoice', 'walker:${g.id}'),
             _videoField(g.extra, 'walkerVideo', 'walker:${g.id}'),
-            ..._walkerHaloControls(g.extra),
           ]),
         ],
       ),
@@ -1605,6 +1571,10 @@ class _EditSheetState extends State<EditSheet> {
         title: 'قدم روی مسیر 👣',
         collapsible: true,
         children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: _walkerModeTile(a.extra),
+      ),
       Container(
         margin: const EdgeInsets.only(top: 6, bottom: 4),
         child: OutlinedButton.icon(
@@ -1658,8 +1628,6 @@ class _EditSheetState extends State<EditSheet> {
       _fontPicker(a.extra, 'walkerFont', title: 'فونت نوشته‌ی انیمیشن'),
       _voiceField(a.extra, 'walkerVoice', 'walker:${a.id}'),
       _videoField(a.extra, 'walkerVideo', 'walker:${a.id}'),
-      ..._walkerHaloControls(a.extra),
-      _walkerModeTile(a.extra),
       _sectionLabel('رنگ قدم'),
       _swatches(
         (a.extra['footColor'] as String?) ?? '',
