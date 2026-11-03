@@ -2585,7 +2585,11 @@ class MapPainter extends CustomPainter {
       final isFlower = flowerDays.contains(dk);
       final sr = (pastSize * 0.42).clamp(4.0, 11.0).toDouble() *
           (isFlower ? 1.3 : 1.0);
-      final tip = pt;
+      // کنارِ جاده (نه روی آسفالت): لبه‌ی جاده + کمی بیرون‌تر
+      final wgtB = a.weight == 0 ? 5.0 : a.weight;
+      final roadWB = math.max(
+          5.0, math.max(1.0, (1.9 + wgtB * 1.05) * (baseSize / 15.0)) * 1.9);
+      final tip = pt + nv * (roadWB * 0.5 + 1.0 + sr * 0.35);
       hits.markPts['${a.id}|$dk'] = tip;
       _sprig(canvas, tip, dir, sr, '${a.id}|$dk', 1.0,
           budOnly: !isFlower, flower: isFlower);
@@ -2790,6 +2794,27 @@ class MapPainter extends CustomPainter {
       curNote = pick == null ? null : notes[pick];
     }
 
+    // ریشه‌ی غنچه/گیاهِ نوک: کنارِ جاده و رو به بیرون، نه روی آسفالتِ جاده
+    ({Offset pos, double ang}) tipSpot() {
+      final tg = route.tangent(0.0);
+      var ang = tg + math.pi; // ادامه‌ی شاخه، رو به بیرون
+      if (math.sin(ang) > 0) ang = -ang; // رو به پایین نباشد
+      final wgt = a.weight == 0 ? 5.0 : a.weight;
+      final sc = baseSize / 15.0;
+      final roadW = math.max(5.0, math.max(1.0, (1.9 + wgt * 1.05) * sc) * 1.9);
+      final sr = 8.5 * math.max(0.8, sc);
+      final n = Offset(-math.sin(tg), math.cos(tg));
+      final dp = n.dx * math.cos(ang) + n.dy * math.sin(ang);
+      final par =
+          (a.id.codeUnits.fold<int>(0, (s, c) => s + c) & 1) == 0 ? 1.0 : -1.0;
+      // سمتی که رشدِ گیاه از جاده دور می‌شود
+      final sd = dp.abs() > 0.25 ? (dp > 0 ? 1.0 : -1.0) : par;
+      final out = Offset(math.cos(tg + math.pi), math.sin(tg + math.pi));
+      final pos =
+          routePts.first + n * (sd * (roadW * 0.5 + 1.0 + sr * 0.35)) + out * (roadW * 0.25);
+      return (pos: pos, ang: ang);
+    }
+
     if (hiddenW) {
       // انیمیشن پنهان است: یادداشت بالای جای قدمِ جدید روی مسیر
       final u = (0.03 + fixed * stride).clamp(0.0, 0.95).toDouble();
@@ -2798,14 +2823,34 @@ class MapPainter extends CustomPainter {
       if (!ghost &&
           !finBud &&
           (_plantMinutes(a, todayK) > 0 || footClosedToday(a, todayK))) {
-        var ang = route.tangent(0.0) + math.pi; // ادامه‌ی شاخه، رو به بیرون
-        if (math.sin(ang) > 0) ang = -ang; // رو به پایین نباشد
+        final spot = tipSpot(); // کنارِ جاده، نه روی آسفالت
         final sr0 = 8.5 * math.max(0.8, baseSize / 15.0);
         if (_plantMinutes(a, todayK) > 0) {
-          _plant(canvas, a, routePts.first, ang, sr0 * 0.75, todayK);
+          _plant(canvas, a, spot.pos, spot.ang, sr0 * 0.75, todayK);
+          // لمسِ طولانیِ همه‌ی گیاه (ساقه تا غنچه) = تقویمِ امروزِ همین کار
+          _lateHits.add(HitEntry(
+            type: 'pastBloom',
+            id: a.id,
+            hostId: hostId,
+            kind: HitKind.handle,
+            center: spot.pos +
+                Offset(math.cos(spot.ang), math.sin(spot.ang)) * (sr0 * 2.6),
+            radius: sr0 * 3.4,
+            voiceKey: todayK,
+          ));
         } else {
-          _sprig(canvas, routePts.first, ang, sr0, '${a.id}|bud', 1.0,
+          _sprig(canvas, spot.pos, spot.ang, sr0, '${a.id}|bud', 1.0,
               budOnly: true);
+          _lateHits.add(HitEntry(
+            type: 'pastBloom',
+            id: a.id,
+            hostId: hostId,
+            kind: HitKind.handle,
+            center: spot.pos +
+                Offset(math.cos(spot.ang), math.sin(spot.ang)) * (sr0 * 1.2),
+            radius: sr0 * 1.7,
+            voiceKey: todayK,
+          ));
         }
       }
       return;
@@ -2890,26 +2935,6 @@ class MapPainter extends CustomPainter {
     // غنچه: همیشه روی نوکِ همین شاخه/زیرشاخه، با اندازه‌ی ثابت (مستقل از عکس/زوم
     // انیمیشن). کارِ کاملاً تمام‌شده خودش گل/برگِ سرِ شاخه را دارد (لمسش = باز/بسته).
     final plantMin = ghost ? 0.0 : _plantMinutes(a, todayK);
-    // ریشه‌ی غنچه/گیاهِ نوک: کنارِ جاده و رو به بیرون، نه روی آسفالتِ جاده
-    ({Offset pos, double ang}) tipSpot() {
-      final tg = route.tangent(0.0);
-      var ang = tg + math.pi; // ادامه‌ی شاخه، رو به بیرون
-      if (math.sin(ang) > 0) ang = -ang; // رو به پایین نباشد
-      final wgt = a.weight == 0 ? 5.0 : a.weight;
-      final sc = baseSize / 15.0;
-      final roadW = math.max(5.0, math.max(1.0, (1.9 + wgt * 1.05) * sc) * 1.9);
-      final sr = 8.5 * math.max(0.8, sc);
-      final n = Offset(-math.sin(tg), math.cos(tg));
-      final dp = n.dx * math.cos(ang) + n.dy * math.sin(ang);
-      final par =
-          (a.id.codeUnits.fold<int>(0, (s, c) => s + c) & 1) == 0 ? 1.0 : -1.0;
-      // سمتی که رشدِ گیاه از جاده دور می‌شود
-      final sd = dp.abs() > 0.25 ? (dp > 0 ? 1.0 : -1.0) : par;
-      final out = Offset(math.cos(tg + math.pi), math.sin(tg + math.pi));
-      final pos =
-          routePts.first + n * (sd * (roadW * 0.5 + 1.0 + sr * 0.35)) + out * (roadW * 0.25);
-      return (pos: pos, ang: ang);
-    }
 
     if (!ghost && !hiddenW && !finBud && (plantMin > 0 || closedToday)) {
       final spot = tipSpot();
@@ -2917,6 +2942,19 @@ class MapPainter extends CustomPainter {
       if (plantMin > 0) {
         // گیاهِ تمرکز: تایمر روشن = رشد؛ بعد از توقف = غنچه‌ها لابه‌لای برگ‌ها
         _plant(canvas, a, spot.pos, spot.ang, sr0 * 0.75, todayK);
+        // لمسِ طولانیِ همه‌ی گیاه (ساقه تا غنچه) = تقویمِ امروزِ همین کار
+        if (!closedToday) {
+          _lateHits.add(HitEntry(
+            type: 'pastBloom',
+            id: a.id,
+            hostId: hostId,
+            kind: HitKind.handle,
+            center: spot.pos +
+                Offset(math.cos(spot.ang), math.sin(spot.ang)) * (sr0 * 2.6),
+            radius: sr0 * 3.4,
+            voiceKey: todayK,
+          ));
+        }
       } else {
         _sprig(canvas, spot.pos, spot.ang, sr0, '${a.id}|bud', 1.0,
             budOnly: true);

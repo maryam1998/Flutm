@@ -1515,30 +1515,52 @@ class _EntryRow extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: pal.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: pal.line),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  alignment: Alignment.center,
-                  child: entry.images.isNotEmpty
-                      ? _imgFromSrc(entry.images.first.src)
-                      : (entry.icon == '✨' ||
-                              (entry.source == 'purchase' &&
-                                  entry.icon.isEmpty))
-                          ? Icon(Icons.payments_rounded,
-                              size: 24, color: pal.gold600)
-                          : (entry.icon.isEmpty || entry.icon == '🙏')
-                          ? Icon(Icons.back_hand_outlined,
-                              size: 22, color: pal.emerald700)
-                          : Text(
-                              entry.icon,
-                              style: const TextStyle(fontSize: 20),
-                            ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: pal.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: pal.line),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      alignment: Alignment.center,
+                      child: entry.images.isNotEmpty
+                          ? _imgFromSrc(entry.images.first.src)
+                          : (entry.icon == '✨' ||
+                                  (entry.source == 'purchase' &&
+                                      entry.icon.isEmpty))
+                              ? Icon(Icons.payments_rounded,
+                                  size: 24, color: pal.gold600)
+                              : (entry.icon.isEmpty || entry.icon == '🙏')
+                              ? Icon(Icons.back_hand_outlined,
+                                  size: 22, color: pal.emerald700)
+                              : Text(
+                                  entry.icon,
+                                  style: const TextStyle(fontSize: 20),
+                                ),
+                    ),
+                    const SizedBox(height: 4),
+                    IconButton(
+                      tooltip: entry.archived ? 'برگرداندن از آرشیو' : 'آرشیو',
+                      icon: Icon(
+                          entry.archived
+                              ? Icons.unarchive_outlined
+                              : Icons.archive_outlined,
+                          size: 20,
+                          color: pal.muted),
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints.tightFor(width: 34, height: 34),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => context
+                          .read<GratitudeStore>()
+                          .setArchived(entry.id, !entry.archived),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1660,22 +1682,6 @@ class _EntryRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                IconButton(
-                  tooltip: entry.archived ? 'برگرداندن از آرشیو' : 'آرشیو',
-                  icon: Icon(
-                      entry.archived
-                          ? Icons.unarchive_outlined
-                          : Icons.archive_outlined,
-                      size: 20,
-                      color: pal.muted),
-                  padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints.tightFor(width: 34, height: 34),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => context
-                      .read<GratitudeStore>()
-                      .setArchived(entry.id, !entry.archived),
-                ),
               ],
             ),
           ),
