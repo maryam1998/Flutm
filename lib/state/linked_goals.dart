@@ -82,6 +82,31 @@ _Src _sourceOf(
   }
 }
 
+/// روزهای انجام‌شده‌ی داخل دوره
+List<DateTime> _periodDays(_Src src) {
+  if (src.start.isEmpty || src.total < 1) return const [];
+  final st = parseLocalKey(src.start);
+  final s0 = DateTime(st.year, st.month, st.day);
+  final e0 = DateTime(st.year, st.month, st.day + src.total);
+  final out = <DateTime>[];
+  for (final k in src.days) {
+    final d = parseLocalKey(k);
+    final dd = DateTime(d.year, d.month, d.day);
+    if (!dd.isBefore(s0) && dd.isBefore(e0)) out.add(dd);
+  }
+  out.sort();
+  return out;
+}
+
+/// همه‌ی روزهای دوره انجام شده؟
+bool _periodComplete(_Src src) =>
+    src.total >= 1 && _periodDays(src).length >= src.total;
+
+DateTime? _lastDoneDay(_Src src) {
+  final l = _periodDays(src);
+  return l.isEmpty ? null : l.last;
+}
+
 ActionNode? _linkedBranch(Goal g, String tab) {
   for (final n in collectNodes(g.actions)) {
     if (n.extra['linkedTab'] == tab) return n;
@@ -137,9 +162,19 @@ void syncLinkedGoals(
       dirty = true;
     }
 
-    // شاخه دیگر خودکار ساخته نمی‌شود؛ کاربر شاخه‌ها را خودش اضافه می‌کند.
-    // اگر شاخه‌ی قدیمیِ وصل‌شده هنوز هست، فقط همان هماهنگ می‌ماند.
-    final a = _linkedBranch(g, t.id);
+    // شاخه‌ی تبِ وصل‌شده یک‌بار خودکار ساخته می‌شود؛ روزهای انجام‌شده‌ی همان تب
+    // رویش غنچه/برگ می‌شود. اگر کاربر بعداً خودش پاکش کرد، دوباره ساخته نمی‌شود.
+    var a = _linkedBranch(g, t.id);
+    if (a == null && g.extra['autoBranch'] != true) {
+      a = newAction(radius: 12)
+        ..text = t.branch
+        ..color = t.color;
+      a.extra['linkedTab'] = t.id;
+      g.actions.add(a);
+      g.collapsed = false;
+      g.extra['autoBranch'] = true;
+      dirty = true;
+    }
     if (a == null) continue;
 
     // شاخه‌های قدیمیِ وصل‌شده هم یک بار کمی بلندتر می‌شوند
@@ -176,6 +211,31 @@ void syncLinkedGoals(
     }
     if (!setEquals(prev, next)) {
       a.extra['syncedDays'] = next.toList()..sort();
+      dirty = true;
+    }
+
+    // دوره که تمام شد و همه‌ی روزهایش انجام شده بود → روی شاخه گل ثبت می‌شود
+    if (_periodComplete(src)) {
+      if (!nodeFinished(a)) {
+        final last = _lastDoneDay(src);
+        final at = last == null
+            ? now
+            : DateTime(last.year, last.month, last.day, 12)
+                .millisecondsSinceEpoch;
+        a.extra['finished'] = true;
+        a.extra['finishedAt'] = at;
+        a.extra['autoFinished'] = true;
+        a.extra['autoFinishedStart'] = src.start;
+        g.lastActivity = now;
+        dirty = true;
+      }
+    } else if (a.extra['autoFinished'] == true &&
+        a.extra['autoFinishedStart'] == src.start) {
+      // روزی از دوره‌ی کامل‌شده برداشته شد → گلِ خودکار هم برداشته می‌شود
+      a.extra.remove('finished');
+      a.extra.remove('finishedAt');
+      a.extra.remove('autoFinished');
+      a.extra.remove('autoFinishedStart');
       dirty = true;
     }
   }
