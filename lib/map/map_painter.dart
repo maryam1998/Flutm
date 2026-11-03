@@ -1743,6 +1743,11 @@ class MapPainter extends CustomPainter {
       final fk = _finishedDayKey(a) ?? todayK;
       marks.add((seed: fk == todayK ? '${a.id}|bud' : '${a.id}|$fk', flower: true));
     }
+    // محلِ اتصالِ زیرشاخه‌ها (همان فرمولِ _twig): غنچه/گل روی جاده‌ی زیرشاخه نمی‌افتد
+    final nk = _visibleActs(a.children).length;
+    final junctions = <double>[
+      for (var i = 0; i < nk; i++) 0.15 + ((nk - i) / (nk + 1)) * 0.8,
+    ];
     final slotsMin = depth == 0 ? 6 : 4;
     final nSlots = (plen / 44).round().clamp(slotsMin, 12).toInt();
     final running = (a.timerStart ?? 0) > 0;
@@ -1772,6 +1777,7 @@ class MapPainter extends CustomPainter {
       edge: edge,
       marks: marks,
       pathLen: plen,
+      avoidT: junctions,
       sprig: (c, o, d, rr, i, p, fl) {
         _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl);
         // هر غنچه/گل = یک روزِ تقویم؛ لمسِ طولانی = تقویمِ همان روز
@@ -2475,10 +2481,22 @@ class MapPainter extends CustomPainter {
         final gw = a.weight == 0 ? 5.0 : a.weight;
         final gRoadW = math.max(
             5.0, math.max(1.0, (1.9 + gw * 1.05) * (baseSize / 15.0)) * 1.9);
+        // فقط روی جاده‌ی خودِ شاخه (ابتدای مسیر از نوک)، نه روی جاده‌ی پدر
+        var ownLen = 0.0;
+        final ownPts = hits.twigs[a.id]?.pts;
+        if (ownPts != null) {
+          for (var k = 1; k < ownPts.length; k++) {
+            ownLen += (ownPts[k] - ownPts[k - 1]).distance;
+          }
+        }
+        final span = ownLen > 1.0
+            ? (ownLen / math.max(route.length, 1.0)).clamp(0.02, 1.0).toDouble()
+            : 1.0;
         drawTrunkGrowth(canvas, route.at, route.tangent, a.id, gm, _t,
             scale: (baseSize / 15.0).clamp(0.7, 2.0).toDouble(),
             edge: gRoadW * 0.5 + 1.0,
-            zoom: cam.scale);
+            zoom: cam.scale,
+            span: span);
       }
     }
     final sizeMul = state.footScale.clamp(kFootScaleMin, kFootScaleMax);

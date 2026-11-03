@@ -443,6 +443,8 @@ void drawTrunkFlora(
   List<({String seed, bool flower})>? marks,
   // طولِ جاده (برای چیدنِ غنچه‌ها در ردیف‌های بعدی وقتی کنارِ جاده جا نباشد)
   double pathLen = 0.0,
+  // محلِ اتصالِ زیرشاخه‌ها (t=۰..۱): غنچه/گل‌ها از این نقطه‌ها دور می‌مانند
+  List<double> avoidT = const [],
 }) {
   if (r < 1.2 || slots < 2) return;
   final m = math.max(0.0, minutes * kPlantTimeScale);
@@ -461,7 +463,7 @@ void drawTrunkFlora(
     630.0, 820.0];
   // کنارِ جاده: جای برگ‌ها در طولِ جاده پخش می‌شود (هر تعداد که باشد یک‌جا جمع نمی‌شوند)
   double t0(int i) => edge > 0
-      ? 0.12 + 0.78 * ((i * 0.6180339887 + 0.3) % 1.0)
+      ? 0.9 - 0.78 * ((i * 0.6180339887 + 0.3) % 1.0)
       : 0.14 + i * (0.74 / (slots - 1));
   Offset nrm(double a) => Offset(-math.sin(a), math.cos(a));
 
@@ -477,6 +479,11 @@ void drawTrunkFlora(
     final len = full * k + 0.28 * r * pre * (1 - k);
     if (len < 0.4) continue;
     final t = t0(i);
+    // بوته روی جاده‌ی زیرشاخه نیفتد
+    if (edge > 0 &&
+        avoidT.any((jt) => (jt - t).abs() * math.max(pathLen, 44.0) < 18.0)) {
+      continue;
+    }
     final pc = pointAt(t);
     final a = angleAt(t);
     final jit = (((h >> (i + 2)) & 3) - 1.5) * 0.06;
@@ -512,13 +519,28 @@ void drawTrunkFlora(
       : (m > 0 || doneDays > 0 || finished);
   if (!started) return;
   if (marks != null) {
-    // کنارِ جاده: هر ۲۲ پیکسل یک جا؛ وقتی پر شد، ردیفِ بعدی کمی دورتر از جاده
-    final perRow = math.max(4, (pathLen / 22.0).floor());
+    // از سرِ شاخه (t≈۱) شروع می‌شود و به سمتِ ابتدا می‌آید؛ هر ۲۲ پیکسل یک جا،
+    // دور از محلِ اتصالِ زیرشاخه‌ها. وقتی پر شد، ردیفِ بعدی کمی دورتر از جاده
+    final plen = math.max(pathLen, 44.0);
+    final step = (22.0 / plen).clamp(0.02, 0.25).toDouble();
+    final cand = <double>[];
+    for (var tt = 0.93; tt >= 0.1; tt -= step) {
+      var ok = true;
+      for (final jt in avoidT) {
+        if ((jt - tt).abs() * plen < 18.0) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) cand.add(tt);
+    }
+    if (cand.isEmpty) cand.add(0.6);
+    final perRow = cand.length;
     for (var j = 0; j < marks.length; j++) {
       final mk = marks[j];
       final row = j ~/ perRow;
       final col = j % perRow;
-      final t = (0.07 + (col + 0.5 + (row.isOdd ? 0.5 : 0.0)) / (perRow + 0.5) * 0.86)
+      final t = (cand[col] - (row.isOdd ? step * 0.5 : 0.0))
           .clamp(0.05, 0.95)
           .toDouble();
       final pc = pointAt(t);
@@ -526,7 +548,7 @@ void drawTrunkFlora(
       final side = (col + row).isEven ? -1.0 : 1.0;
       final dirA = a + side * 1.15;
       final rr = r * (mk.flower ? 0.62 : 0.5);
-      final dist = (edge > 0 ? edge : 0.0) + r * 0.35 + row * r * 1.7;
+      final dist = (edge > 0 ? edge : 0.0) + r * 0.5 + row * r * 1.7;
       final pos = pc + nrm(a) * (side * dist);
       final pp = (bloom * 1.4 - math.min(j, 6) * 0.12).clamp(0.0, 1.0).toDouble();
       sprig(canvas, pos, dirA, rr, mk.seed, pp, mk.flower);

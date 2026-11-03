@@ -1516,6 +1516,9 @@ void drawTrunkGrowth(
   double edge = 0.0,
   // زومِ نقشه (برای حذفِ بوته‌های ریزِ نامرئی و صرفه‌جویی در باتری)
   double zoom = 1.0,
+  // بخشی از ابتدای مسیر (۰..۱) که مالِ خودِ این شاخه است؛ بوته‌ها فقط روی
+  // جاده‌ی خودِ شاخه می‌رویند، نه روی تنه/شاخه‌ی پدر
+  double span = 1.0,
 }) {
   // به‌جای برگِ تنها، بوته: تعدادشان آهسته زیاد می‌شود و هر بوته چند «واحد» طول
   // می‌کشد تا از نهالِ ریز به بوته‌ی کامل برسد.
@@ -1535,10 +1538,11 @@ void drawTrunkGrowth(
     if (age <= 0) continue;
     final g = 1.0 - math.exp(-age / (7.0 + 3.0 * i));
     final u = ((off + (i + 1) * 0.6180339887) % 1.0) * 0.86 + 0.07;
-    final p = at(u);
+    final us = u * span;
+    final p = at(us);
     if (WorldLayer.view != Rect.zero && !vv.contains(p)) continue;
     final side = i.isEven ? 1.0 : -1.0;
-    final tg = tangent(u);
+    final tg = tangent(us);
     final base = p + Offset(-math.sin(tg), math.cos(tg)) * (side * e);
     drawRoadBush(
         c,
