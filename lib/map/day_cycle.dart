@@ -366,13 +366,15 @@ class SkyArt {
   }
 
   /// ستاره‌های ثابتِ صفحه (برای نمای ۳بعدیِ نقشه)
-  static void starField(Canvas canvas, Size size, double alpha) {
+  static void starField(Canvas canvas, Size size, double alpha,
+      {double scale = 1.0}) {
     if (alpha <= 0.01) return;
     final p = Paint();
     for (final st in stars) {
       p.color = Colors.white
           .withValues(alpha: (alpha * (0.55 + 0.35 * (st[3] % 1.0))).clamp(0.0, 1.0).toDouble());
-      canvas.drawCircle(Offset(st[0] * size.width, st[1] * size.height), st[2], p);
+      canvas.drawCircle(
+          Offset(st[0] * size.width, st[1] * size.height), st[2] * scale, p);
     }
   }
 }

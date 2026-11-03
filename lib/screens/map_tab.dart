@@ -11,6 +11,7 @@ import '../map/map_canvas.dart';
 import '../map/map_ops.dart';
 import '../map/today_focus.dart';
 import '../map/walk_view.dart';
+import '../map/sky_weather.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import '../state/background_store.dart';
@@ -427,6 +428,12 @@ class _MapTabState extends State<MapTab> {
                   size: Size.infinite,
                 ),
               ),
+            ),
+
+          // هوای تصادفی: گاهی ابری، گاهی بارانی
+          if (sky != null)
+            Positioned.fill(
+              child: SkyWeatherLayer(night: sky.sunA < 0.5),
             ),
 
           // کشیدنِ دو انگشت از پایین به بالا (مثل کج‌کردنِ نقشه): نما از چشمِ پاها می‌شود.
@@ -873,7 +880,7 @@ class _MapSkyPainter extends CustomPainter {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
     if (s.starA > 0.01) {
-      SkyArt.starField(canvas, Size(w, h * 0.32), s.starA * 0.85);
+      SkyArt.starField(canvas, Size(w, h * 0.17), s.starA * 0.85, scale: 0.6);
     }
     final horizon = top + 86;
     if (s.sunA > 0.01) {
