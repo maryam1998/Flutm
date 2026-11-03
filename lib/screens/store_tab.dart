@@ -38,6 +38,9 @@ class StoreTab extends StatefulWidget {
 }
 
 class _StoreTabState extends State<StoreTab> {
+  /// نمایش بخش «آرشیو» لیست خریدها
+  bool _showArchivedPurchases = false;
+
   final _name = TextEditingController();
   final _price = TextEditingController();
   final _qty = TextEditingController(text: '1');
@@ -294,12 +297,14 @@ class _StoreTabState extends State<StoreTab> {
 
   /// لیست خریدهای ثبت‌شده (بعد از مسیر عصبی)
   List<Widget> _purchasesSection(AbundanceStore store, GratPalette pal) {
-    final list = store.history.reversed.toList();
+    final all = store.history.reversed.toList();
+    final list = all.where((p) => !p.archived).toList();
+    final archived = all.where((p) => p.archived).toList();
     return [
       _sectionLabel(pal, Icons.receipt_long_outlined, 'لیست خریدها (فراوانی)'),
       const SizedBox(height: 8),
-      if (list.isNotEmpty) _evidenceCard(store),
-      if (list.isNotEmpty) const SizedBox(height: 10),
+      if (all.isNotEmpty) _evidenceCard(store),
+      if (all.isNotEmpty) const SizedBox(height: 10),
       if (_purchaseSlides(store).isNotEmpty) ...[
         MediaSlideshow(
           listenable: store,
@@ -320,6 +325,32 @@ class _StoreTabState extends State<StoreTab> {
         )
       else
         ...list.map(_purchaseTile),
+      if (archived.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: _kMuted,
+            side: const BorderSide(color: _kBorder),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: () => setState(
+              () => _showArchivedPurchases = !_showArchivedPurchases),
+          icon: Icon(
+              _showArchivedPurchases
+                  ? Icons.expand_less_rounded
+                  : Icons.archive_outlined,
+              size: 18),
+          label: Text(
+              _showArchivedPurchases
+                  ? 'بستن آرشیو'
+                  : 'آرشیو (${toFaDigits(archived.length.toString())})',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+        ),
+        const SizedBox(height: 8),
+        if (_showArchivedPurchases) ...archived.map(_purchaseTile),
+      ],
     ];
   }
 
@@ -412,6 +443,22 @@ class _StoreTabState extends State<StoreTab> {
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
                         color: _kGold),
+                  ),
+                  IconButton(
+                    tooltip: p.archived ? 'برگرداندن از آرشیو' : 'آرشیو',
+                    icon: Icon(
+                        p.archived
+                            ? Icons.unarchive_outlined
+                            : Icons.archive_outlined,
+                        size: 20,
+                        color: _kMuted),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints.tightFor(width: 34, height: 34),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => context
+                        .read<AbundanceStore>()
+                        .setPurchaseArchived(p.id, !p.archived),
                   ),
                 ],
               ),

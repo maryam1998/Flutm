@@ -453,6 +453,28 @@ class GratitudeStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// آرشیو / برگرداندن از آرشیو (ثبت حذف نمی‌شود؛ فقط از لیست اصلی کنار می‌رود)
+  Future<void> setArchived(String id, bool v) async {
+    final e = byId(id);
+    if (e == null) return;
+    if (v) {
+      e.extra['archived'] = true;
+      e.extra['archivedAt'] = DateTime.now().millisecondsSinceEpoch;
+    } else {
+      e.extra.remove('archived');
+      e.extra.remove('archivedAt');
+    }
+    notifyListeners();
+    await _persist();
+    notifyListeners();
+  }
+
+  List<GratitudeEntry> get activeReversed =>
+      entries.reversed.where((e) => !e.archived).toList();
+
+  List<GratitudeEntry> get archivedReversed =>
+      entries.reversed.where((e) => e.archived).toList();
+
   Future<void> remove(String id) async {
     entries.removeWhere((e) => e.id == id);
     notifyListeners();

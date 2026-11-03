@@ -169,7 +169,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
   int? _emotionQualityToday(GratitudeStore store) => store.emotionQualityToday;
 
   Widget _buildList(GratitudeStore store, GratPalette pal) {
-    final all = store.allReversed;
+    final all = store.activeReversed;
     if (all.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
@@ -206,6 +206,7 @@ class _GratitudeTabState extends State<GratitudeTab> {
               onTap: () => store.showMoreHist(),
             ),
           ),
+        _ArchivedEntries(store: store, pal: pal),
       ],
     );
   }
@@ -1659,6 +1660,22 @@ class _EntryRow extends StatelessWidget {
                       ),
                     ),
                   ),
+                IconButton(
+                  tooltip: entry.archived ? 'برگرداندن از آرشیو' : 'آرشیو',
+                  icon: Icon(
+                      entry.archived
+                          ? Icons.unarchive_outlined
+                          : Icons.archive_outlined,
+                      size: 20,
+                      color: pal.muted),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints.tightFor(width: 34, height: 34),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => context
+                      .read<GratitudeStore>()
+                      .setArchived(entry.id, !entry.archived),
+                ),
               ],
             ),
           ),
@@ -1976,7 +1993,7 @@ class _GratitudeRecentListState extends State<GratitudeRecentList> {
     final pal = GratPalette.of(context);
     final store = context.watch<GratitudeStore>();
     if (!store.loaded) return const SizedBox.shrink();
-    final all = store.allReversed;
+    final all = store.activeReversed;
     final slice = all.take(_limit).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2020,6 +2037,44 @@ class _GratitudeRecentListState extends State<GratitudeRecentList> {
               ),
             ),
         ],
+        _ArchivedEntries(store: store, pal: pal),
+      ],
+    );
+  }
+}
+
+/// بخش «آرشیو» زیر لیست شکرگذاری/خریدها: ثبت‌های آرشیوشده، با دکمه‌ی برگرداندن
+class _ArchivedEntries extends StatefulWidget {
+  final GratitudeStore store;
+  final GratPalette pal;
+  const _ArchivedEntries({required this.store, required this.pal});
+  @override
+  State<_ArchivedEntries> createState() => _ArchivedEntriesState();
+}
+
+class _ArchivedEntriesState extends State<_ArchivedEntries> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = widget.store.archivedReversed;
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          child: _GhostButton(
+            text: _open ? 'بستن آرشیو' : 'آرشیو (${_toFa(list.length)})',
+            pal: widget.pal,
+            onTap: () => setState(() => _open = !_open),
+          ),
+        ),
+        if (_open)
+          ...list.map((g) => _EntryRow(
+                entry: g,
+                pal: widget.pal,
+                onTap: () => _GratitudeTabState._openEditor(context, g),
+              )),
       ],
     );
   }

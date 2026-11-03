@@ -380,6 +380,15 @@ class AbundanceStore extends ChangeNotifier {
     return record;
   }
 
+  /// آرشیو / برگرداندن یک خرید از لیست خریدها
+  void setPurchaseArchived(String id, bool v) {
+    for (final p in history) {
+      if (p.id == id) p.archived = v;
+    }
+    notifyListeners();
+    _persist();
+  }
+
   void updateSettings(
       {required double startAmount, required double step, String? currency}) {
     settings.startAmount = startAmount;

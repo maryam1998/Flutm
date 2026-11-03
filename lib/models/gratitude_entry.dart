@@ -181,6 +181,9 @@ class GratitudeEntry {
         'emotionIds': emotionIds,
       };
 
+  /// آرشیو‌شده: از لیست اصلی کنار می‌رود (ثبت و آمار سر جایشان می‌مانند)
+  bool get archived => extra['archived'] == true;
+
   /// متن با پیشوند «خدایا شکرت که:» مثل gratDisplayText وب
   String displayText() {
     if (source == 'purchase') {

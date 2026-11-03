@@ -179,6 +179,9 @@ class Purchase {
   final List<PurchaseItem> items;
   final double total;
 
+  /// آرشیو‌شده: از لیست خریدها کنار می‌رود (آمار و شواهد سر جایشان می‌ماند)
+  bool archived;
+
   Purchase({
     String? id,
     required this.date,
@@ -189,6 +192,7 @@ class Purchase {
     required this.card,
     required this.items,
     required this.total,
+    this.archived = false,
   }) : id = id ?? _uid('p');
 
   factory Purchase.fromJson(Map<String, dynamic> j) => Purchase(
@@ -204,6 +208,7 @@ class Purchase {
                 .toList() ??
             [],
         total: (j['total'] as num?)?.toDouble() ?? 0,
+        archived: j['archived'] == true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -216,5 +221,6 @@ class Purchase {
         'card': card,
         'items': items.map((e) => e.toJson()).toList(),
         'total': total,
+        if (archived) 'archived': true,
       };
 }
