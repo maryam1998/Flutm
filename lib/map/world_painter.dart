@@ -15,6 +15,7 @@ import 'hit_registry.dart';
 import 'plant_painter.dart' show drawRoadBush;
 import 'seeded.dart';
 import 'sky_weather.dart' show paintNaturalCloud;
+import 'wind.dart' show windSway;
 import 'walk_marks.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1022,7 +1023,7 @@ class WorldLayer {
 
   static void _grass(Canvas c, _El e, double p, double t) {
     final s = e.s * p;
-    final sw = math.sin(t * 1.5 + e.a) * 2 * s;
+    final sw = windSway(t, e.x, e.a) * 2.2 * s;
     final col = _kGreens[e.v % 4][0];
     final pa = _stroke(col, 1.6 * s);
     for (var i = -1; i <= 1; i++) {
@@ -1033,7 +1034,7 @@ class WorldLayer {
 
   static void _flower(Canvas c, _El e, double p, double t) {
     final s = e.s * p;
-    final sw = math.sin(t * 1.3 + e.a) * 1.5 * s;
+    final sw = windSway(t, e.x, e.a) * 1.8 * s;
     final top = Offset(e.x + sw, e.y - 12 * s);
     c.drawLine(Offset(e.x, e.y), top, _stroke(_kGreens[e.v % 4][0], 1.4 * s));
     final col = _kFlower[e.v % _kFlower.length];

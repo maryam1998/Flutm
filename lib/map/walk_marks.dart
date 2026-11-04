@@ -9,6 +9,7 @@ import 'draw_utils.dart' show toFa;
 import 'hit_registry.dart';
 import 'map_painter.dart' show mapFlowerDays, paintMapSprig;
 import 'map_ops.dart' show footDoneOn, nodeFinished;
+import 'wind.dart' show windSway;
 
 /// سبکِ نوشته‌ی تابلوهای نمای راه‌رفتن: همان فونت و فونت‌های پشتیبانِ نوشته‌های
 /// نقشه، تا فارسی، لاتین و ایموجی (و پرچم) همه‌جا دیده شوند و مربعِ خالی نیفتد.
@@ -411,7 +412,7 @@ void drawWalkMark(Canvas c, WalkMark m, double x, double y, double sc,
   c.drawOval(Rect.fromCenter(center: const Offset(0, 1), width: 26, height: 5),
       _f(const Color(0x30000000)));
 
-  final sway = math.sin(t * 1.3 + m.seed * 0.01) * 1.6;
+  final sway = windSway(t, x, m.seed * 0.01) * 1.8;
   final h = m.pending ? 15.0 : (m.flower ? 34.0 : 30.0);
   final stemC = dark ? const Color(0xFF3F9B5B) : const Color(0xFF2E7D32);
   final leafC = dark ? const Color(0xFF5FBF7A) : const Color(0xFF66BB6A);
