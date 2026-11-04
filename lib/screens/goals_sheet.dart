@@ -224,6 +224,8 @@ class _GoalsSheetState extends State<GoalsSheet> {
   final _daysOpen = <String>{};
   final Map<String, GlobalKey> _tileKeys = {};
   final Map<String, String> _focusJk = {};
+  // روزی که با لمسِ طولانیِ گل/غنچه از نقشه آمده (تا با لمسِ روزِ دیگر پاک شود)
+  final Map<String, String> _mapFocusJk = {};
 
   @override
   void initState() {
@@ -1535,6 +1537,7 @@ class _GoalsSheetState extends State<GoalsSheet> {
         final date = DateTime(pi.start.year, pi.start.month, pi.start.day + d);
         if (jKey(date) == fj) {
           _selDay[n.id] = date;
+          _mapFocusJk[n.id] = fj;
           break;
         }
       }
@@ -1587,7 +1590,9 @@ class _GoalsSheetState extends State<GoalsSheet> {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: mainInk, width: 2),
+                      border: Border.all(
+                          color: _mapFocusJk[n.id] == jk ? accent : mainInk,
+                          width: _mapFocusJk[n.id] == jk ? 3 : 2),
                     ),
                   ),
                 ),
@@ -1632,7 +1637,10 @@ class _GoalsSheetState extends State<GoalsSheet> {
           behavior: HitTestBehavior.opaque,
           // لمس: روز انتخاب می‌شه و تیکش عوض می‌شه؛ کادر ساعت‌های همان روز زیر تقویم باز می‌شه
           onTap: () {
-            setState(() => _selDay[n.id] = date);
+            setState(() {
+              _selDay[n.id] = date;
+              _mapFocusJk.remove(n.id);
+            });
             store.toggleLog(h, n, jk);
           },
           child: c,
@@ -1651,6 +1659,24 @@ class _GoalsSheetState extends State<GoalsSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // آمده از نقشه: روزِ همان گل/غنچه را صریح بگو
+          if (_mapFocusJk[n.id] == selJk) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accent, width: 1.5),
+              ),
+              child: Text(
+                '📍 این گل/غنچه مالِ روزِ $selLabel است${footDoneOn(n, selJk) ? ' · انجام شده ✓' : ''}',
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: _kInk),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Wrap(spacing: 4, runSpacing: 4, children: cells),
           const SizedBox(height: 12),
           Wrap(

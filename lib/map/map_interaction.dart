@@ -300,6 +300,32 @@ class MapInteraction {
     }
   }
 
+  /// روزِ گلِ سرِ شاخه: روزِ «تمام شد»؛ وگرنه آخرین روزِ ثبت‌شده (برای باز شدنِ تقویم روی همان روز)
+  String? _bloomDayKey(String hostId, String actionId) {
+    final h = store.state.findHost(hostId);
+    if (h is! MapHost) return null;
+    final n = findActionNode(h.actions, actionId)?.node;
+    if (n == null) return null;
+    final fa = n.extra['finishedAt'];
+    if (fa is num) {
+      return jKey(DateTime.fromMillisecondsSinceEpoch(fa.toInt()));
+    }
+    int ord(String k) {
+      final p = k.split('-');
+      if (p.length != 3) return -1;
+      final y = int.tryParse(p[0]), m = int.tryParse(p[1]), d = int.tryParse(p[2]);
+      if (y == null || m == null || d == null) return -1;
+      return y * 10000 + m * 100 + d;
+    }
+
+    String? best;
+    for (final k in <String>{...n.logs.keys, ...n.time.keys, ...n.entries.keys}) {
+      if (!footDoneOn(n, k)) continue;
+      if (best == null || ord(k) > ord(best)) best = k;
+    }
+    return best;
+  }
+
   /// لمسِ طولانیِ گل/برگ/غنچه: تقویمِ فهرستِ اهدافِ همان کار
   void _armCalendarHold(_Pending pp, String? jk) {
     _lp = Timer(const Duration(milliseconds: 450), () {
@@ -444,7 +470,7 @@ class MapInteraction {
     if (hit.type == 'bloomToggle') {
       _pending = _Pending(hit.hostId, hit.id, null, false, pos, isBloom: true);
       _slopPassed = false;
-      _armCalendarHold(_pending!, null);
+      _armCalendarHold(_pending!, _bloomDayKey(hit.hostId, hit.id));
       return;
     }
 
