@@ -686,8 +686,7 @@ class _MapTabState extends State<MapTab> {
         if (!context.read<ThemeStore>().isAuto)
           PopupMenuItem<String>(
             value: 'auto',
-            child: row(Icons.brightness_auto_outlined,
-                'خودکار (طبق ساعت گوشی)'),
+            child: row(Icons.brightness_auto_outlined, 'تم پیش‌فرض'),
           ),
         if (store.hasCollapsible)
           PopupMenuItem<String>(
@@ -772,12 +771,9 @@ class _MapTabState extends State<MapTab> {
             child: Text(_resizeMode
                 ? 'خاموش کردن حالت تغییر اندازه'
                 : 'حالت تغییر اندازه')),
-        const PopupMenuItem(
-            value: 'backup', child: Text('بکاپ و بازیابی (کل برنامه)')),
       ],
     ).then((v) {
       if (v == 'resize') setState(() => _resizeMode = !_resizeMode);
-      if (v == 'backup' && mounted) showFullBackupSheet(context);
     });
   }
 }
