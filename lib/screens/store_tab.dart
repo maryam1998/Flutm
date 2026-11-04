@@ -443,13 +443,32 @@ class _StoreTabState extends State<StoreTab> {
                         .setPurchaseArchived(p.id, !p.archived),
                   ),
                   Expanded(
-                    child: Text(
-                      faStampFromRecord(
-                          iso: p.iso, date: p.date, day: p.day, time: p.time),
-                      style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: _kInk),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // اقلامِ خرید پررنگ (مثل متنِ شکرگذاری)؛ تاریخ زیرش
+                        ...p.items.map((it) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                '${it.name} ×${toFaDigits(it.qty.toString())}',
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.5,
+                                    color: _kInk),
+                              ),
+                            )),
+                        const SizedBox(height: 3),
+                        Text(
+                          faStampFromRecord(
+                              iso: p.iso,
+                              date: p.date,
+                              day: p.day,
+                              time: p.time),
+                          style: const TextStyle(
+                              fontSize: 11.5, color: _kMuted),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -462,14 +481,6 @@ class _StoreTabState extends State<StoreTab> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              ...p.items.map((it) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      '• ${it.name} ×${toFaDigits(it.qty.toString())}',
-                      style: const TextStyle(fontSize: 11.5, color: _kInk),
-                    ),
-                  )),
             ],
           ),
         ),

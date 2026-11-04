@@ -2583,7 +2583,7 @@ class MapPainter extends CustomPainter {
       final dir = tg + side * math.pi / 2;
       final nv = Offset(math.cos(dir), math.sin(dir));
       final isFlower = flowerDays.contains(dk);
-      final sr = (pastSize * 0.42).clamp(4.0, 11.0).toDouble() *
+      final sr = (pastSize * 0.5).clamp(4.8, 13.0).toDouble() *
           (isFlower ? 1.3 : 1.0);
       // کنارِ جاده (نه روی آسفالت): لبه‌ی جاده + کمی بیرون‌تر
       final wgtB = a.weight == 0 ? 5.0 : a.weight;
@@ -2620,7 +2620,7 @@ class MapPainter extends CustomPainter {
         }
       }
       // تاریخِ همان روز (کوچک، زیرِ غنچه/گل)؛ لمس = تقویمِ همان روز
-      if (!isOpen) {
+      if (!isOpen && (_showDateOf(a.extra) || _showTimeOf(a.extra))) {
         final dp = dk.split('-');
         var jm = dp.length == 3 ? int.tryParse(dp[1]) : null;
         var jd = dp.length == 3 ? int.tryParse(dp[2]) : null;
@@ -2633,11 +2633,17 @@ class MapPainter extends CustomPainter {
           jm = fj.jm;
           jd = fj.jd;
           String two(int n) => n.toString().padLeft(2, '0');
-          extraTxt = ' ${toFa('${two(ft.hour)}:${two(ft.minute)}')}';
+          if (_showTimeOf(a.extra)) {
+            extraTxt = ' ${toFa('${two(ft.hour)}:${two(ft.minute)}')}';
+          }
         }
-        if (jm != null && jd != null && jm >= 1 && jm <= 12) {
+        final dateTxt = (jm != null && jd != null && jm >= 1 && jm <= 12)
+            ? '${toFa(jd)} ${kJalaliMonths[jm - 1]}'
+            : '';
+        final lbl = '${_showDateOf(a.extra) ? dateTxt : ''}$extraTxt'.trim();
+        if (lbl.isNotEmpty) {
           final fs2 = _fs() * 0.42;
-          drawText(canvas, '${toFa(jd)} ${kJalaliMonths[jm - 1]}$extraTxt',
+          drawText(canvas, lbl,
               tip.dx + nv.dx * (sr * 2.3 + fs2 * 0.6),
               tip.dy + nv.dy * (sr * 2.3 + fs2 * 0.6),
               size: fs2,
