@@ -886,36 +886,11 @@ class _MapSkyPainter extends CustomPainter {
     final t = SkyClock.time.value;
     if (s.starA > 0.01) {
       // ستاره‌های چشمک‌زن + شهابِ گاه‌به‌گاه
-      SkyArt.starField(canvas, Size(w, h * 0.17), s.starA * 0.85,
-          scale: 0.6, t: t);
+      // آسمانِ گسترده‌تر: ستاره‌ها تا حدودِ یک‌سومِ بالای صفحه پخش می‌شوند
+      SkyArt.starField(canvas, Size(w, h * 0.34), s.starA * 0.85,
+          scale: 0.7, t: t);
     }
-    _motes(canvas, size, t);
     // خورشیدِ بزرگ حذف شد؛ خورشید/ماه فقط در آسمانِ کوچکِ نوار بالاست
-  }
-
-  /// ذرات زنده روی نقشه: شب کرم‌های شب‌تاب، روز گردهٔ نورانیِ شناور
-  void _motes(Canvas canvas, Size size, double t) {
-    final night = s.starA > 0.15;
-    final day = s.sunA > 0.15;
-    if (!night && !day) return;
-    final amt = night ? s.starA : s.sunA;
-    final n = night ? 16 : 10;
-    final p = Paint();
-    for (var i = 0; i < n; i++) {
-      final sd = i * 12.9898;
-      final bx = (math.sin(sd) * 0.5 + 0.5) * size.width;
-      final by = (math.sin(sd * 1.7 + 3) * 0.5 + 0.5) * size.height;
-      final sp = 0.25 + (i % 4) * 0.08;
-      final x = bx + math.sin(t * sp + sd) * 26 + math.sin(t * 0.13 + i) * 14;
-      final y = by + math.cos(t * sp * 0.8 + sd * 2) * 20 - (t * 2 * (i % 3)) % 40;
-      final pulse = 0.5 + 0.5 * math.sin(t * (0.9 + (i % 5) * 0.3) + sd);
-      final col = night ? const Color(0xFFFFE9A0) : const Color(0xFFFFF4C8);
-      final a = ((night ? 0.5 : 0.28) * amt * pulse).clamp(0.0, 1.0).toDouble();
-      p.color = col.withValues(alpha: a * 0.28);
-      canvas.drawCircle(Offset(x, y), night ? 6.0 : 4.0, p);
-      p.color = col.withValues(alpha: a);
-      canvas.drawCircle(Offset(x, y), night ? 1.6 : 1.2, p);
-    }
   }
 
   @override
