@@ -2119,11 +2119,15 @@ class WalkPainter extends CustomPainter {
               (((a * 1.7 - yaw + math.pi) % (2 * math.pi)) - math.pi) * focal;
           final y = (math.sin(i * 12.9898) * 0.5 + 0.5) * hor * 0.85;
           if (x < 0 || x > w) continue;
+          // بعضی ستاره‌ها چشمک می‌زنند
+          final tw = i % 3 == 0
+              ? 0.2 + 0.8 * (0.5 + 0.5 * math.sin(cam.t * (1.5 + (i % 5) * 0.4) + i))
+              : 1.0;
           canvas.drawCircle(
               Offset(x, y),
-              0.9 + (i % 3) * 0.3,
-              _fill(Colors.white
-                  .withValues(alpha: (0.75 * sk.starA).clamp(0.0, 1.0).toDouble())));
+              (0.9 + (i % 3) * 0.3) * (0.85 + 0.3 * tw),
+              _fill(Colors.white.withValues(
+                  alpha: (0.75 * sk.starA * tw).clamp(0.0, 1.0).toDouble())));
         }
       }
       // خورشید: از شرق (طلوع) تا غرب (غروب) روی کمانِ روز

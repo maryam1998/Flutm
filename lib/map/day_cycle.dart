@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'dart:ui' show Path, PathOperation;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show Ticker;
 
 import '../services/app_prefs.dart';
 
@@ -231,6 +233,29 @@ class DayCycle {
 /// صبح و ظهر روشن، غروب گرم، شب تیره). نقشه‌ی دوبعدی آسمان ندارد؛ خورشید، ماه و
 /// ستاره فقط در نمای ۳بعدی و قدم‌زدن دیده می‌شوند.
 /// هر ۳۰ ثانیه با ساعت به‌روز می‌شود. اگر [enabled] نباشد، [builder] با `sky == null` صدا زده می‌شود.
+/// ساعتِ مشترکِ انیمیشنِ آسمان (چشمکِ ستاره‌ها، شهاب، کرم‌های شب‌تاب).
+/// فقط وقتی DayCycleScope روی صفحه است تیک می‌زند.
+class SkyClock {
+  SkyClock._();
+  static final ValueNotifier<double> time = ValueNotifier<double>(0);
+  static Ticker? _tk;
+  static int _refs = 0;
+
+  static void acquire() {
+    _refs++;
+    if (_tk != null) return;
+    _tk = Ticker((d) => time.value = d.inMicroseconds / 1e6)..start();
+  }
+
+  static void release() {
+    if (_refs > 0) _refs--;
+    if (_refs == 0) {
+      _tk?.dispose();
+      _tk = null;
+    }
+  }
+}
+
 class DayCycleScope extends StatefulWidget {
   const DayCycleScope({
     super.key,
@@ -256,6 +281,7 @@ class _DayCycleScopeState extends State<DayCycleScope> {
   @override
   void initState() {
     super.initState();
+    SkyClock.acquire();
     _sky = DayCycle.compute(DateTime.now(), DayCycle.mode.value);
     DayCycle.mode.addListener(_refresh);
     DayCycle.load();
@@ -269,6 +295,7 @@ class _DayCycleScopeState extends State<DayCycleScope> {
 
   @override
   void dispose() {
+    SkyClock.release();
     _timer?.cancel();
     DayCycle.mode.removeListener(_refresh);
     super.dispose();
@@ -365,30 +392,92 @@ class SkyArt {
         lit, Paint()..color = const Color(0xFFF6F1D8).withValues(alpha: a));
   }
 
-  /// ستاره‌های ثابتِ صفحه (برای نمای ۳بعدیِ نقشه)
+  /// ستاره‌های صفحه (برای نمای ۳بعدیِ نقشه).
+  /// اگر [t] (ثانیه) داده شود بعضی ستاره‌ها چشمک می‌زنند و گاهی شهاب می‌گذرد.
   static void starField(Canvas canvas, Size size, double alpha,
-      {double scale = 1.0}) {
+      {double scale = 1.0, double? t}) {
     if (alpha <= 0.01) return;
     final p = Paint();
-    for (final st in stars) {
-      p.color = Colors.white
-          .withValues(alpha: (alpha * (0.55 + 0.35 * (st[3] % 1.0))).clamp(0.0, 1.0).toDouble());
-      canvas.drawCircle(
-          Offset(st[0] * size.width, st[1] * size.height), st[2] * scale, p);
+    for (var i = 0; i < stars.length; i++) {
+      final st = stars[i];
+      var a = alpha * (0.55 + 0.35 * (st[3] % 1.0));
+      var rad = st[2] * scale;
+      final c = Offset(st[0] * size.width, st[1] * size.height);
+      if (t != null) {
+        if (i % 3 == 0) {
+          // ستاره‌ی چشمک‌زن
+          final k = 0.5 + 0.5 * math.sin(t * (1.4 + (i % 5) * 0.37) + st[3]);
+          a *= 0.15 + 0.85 * k;
+          rad *= 0.8 + 0.45 * k;
+          if (st[2] > 1.2 && k > 0.6) {
+            final len = rad * 3.2 * k;
+            final sp = Paint()
+              ..strokeWidth = 0.8
+              ..strokeCap = StrokeCap.round
+              ..color = Colors.white
+                  .withValues(alpha: (a * 0.8).clamp(0.0, 1.0).toDouble());
+            canvas.drawLine(c.translate(-len, 0), c.translate(len, 0), sp);
+            canvas.drawLine(c.translate(0, -len), c.translate(0, len), sp);
+          }
+        } else {
+          // لرزشِ بسیار ملایم
+          a *= 0.88 + 0.12 * math.sin(t * 0.9 + st[3] * 3);
+        }
+      }
+      p.color = Colors.white.withValues(alpha: a.clamp(0.0, 1.0).toDouble());
+      canvas.drawCircle(c, rad, p);
     }
+    if (t != null) _shootingStar(canvas, size, alpha, t);
+  }
+
+  /// شهابِ گاه‌به‌گاه (هر ~۹ ثانیه یک‌بار، کمتر از ۱ ثانیه)
+  static void _shootingStar(Canvas canvas, Size size, double alpha, double t) {
+    const period = 9.0, dur = 0.9;
+    final n = (t / period).floor();
+    final lt = t - n * period;
+    if (lt > dur) return;
+    final r = math.Random(n * 7919 + 13);
+    final k = lt / dur;
+    final start = Offset(size.width * (0.2 + 0.7 * r.nextDouble()),
+        size.height * (0.05 + 0.4 * r.nextDouble()));
+    final dir = Offset(-0.8 - 0.3 * r.nextDouble(), 0.45 + 0.2 * r.nextDouble());
+    final len = size.width * 0.22;
+    final head = start + dir * (len * k * 1.6);
+    final tail = head - dir * (len * 0.35);
+    final fade = math.sin(math.pi * k).clamp(0.0, 1.0).toDouble();
+    canvas.drawLine(
+        tail,
+        head,
+        Paint()
+          ..strokeWidth = 1.6
+          ..strokeCap = StrokeCap.round
+          ..shader = _trail(tail, head, alpha * fade));
+    canvas.drawCircle(head, 1.6,
+        Paint()..color = Colors.white.withValues(alpha: alpha * fade));
+  }
+
+  static Shader _trail(Offset a, Offset b, double alpha) {
+    return ui.Gradient.linear(a, b, [
+      Colors.white.withValues(alpha: 0.0),
+      Colors.white.withValues(alpha: alpha.clamp(0.0, 1.0).toDouble()),
+    ]);
   }
 }
 
 /// آسمانِ نمای ۳بعدیِ نقشه: ستاره، خورشید و ماه روی ناحیه‌ی بالای افق
 class SkyObjectsPainter extends CustomPainter {
-  SkyObjectsPainter(this.s);
+  SkyObjectsPainter(this.s, {Listenable? repaint, this.clock})
+      : super(repaint: repaint);
   final SkyState s;
+
+  /// زمانِ انیمیشن (ثانیه)؛ null = ستاره‌ها ثابت
+  final double Function()? clock;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
-    SkyArt.starField(canvas, size, s.starA);
+    SkyArt.starField(canvas, size, s.starA, t: clock?.call());
     if (s.sunA > 0.01) {
       final x = w * (0.12 + 0.76 * s.dayFrac);
       final y = h * (0.78 - 0.5 * math.sin(math.pi * s.dayFrac));

@@ -857,7 +857,8 @@ class _WalkViewPageState extends State<WalkViewPage>
                   height: fogH,
                   child: IgnorePointer(
                     child: CustomPaint(
-                      painter: SkyObjectsPainter(sky),
+                      painter: SkyObjectsPainter(sky,
+                          repaint: _tick, clock: () => cam.t),
                       size: Size.infinite,
                     ),
                   ),

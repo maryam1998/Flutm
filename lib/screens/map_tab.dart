@@ -831,7 +831,7 @@ class _SaveIndicatorState extends State<_SaveIndicator>
 
 /// آسمانِ کوچکِ نوار بالا: خطِ افق، چند ستاره، و خورشید/ماه روی کمانِ روز و شب
 class _MiniSkyPainter extends CustomPainter {
-  _MiniSkyPainter(this.s, this.line);
+  _MiniSkyPainter(this.s, this.line) : super(repaint: SkyClock.time);
   final SkyState s;
   final Color line;
 
@@ -841,9 +841,17 @@ class _MiniSkyPainter extends CustomPainter {
     if (w <= 0 || h <= 0) return;
     final base = h * 0.82;
     if (s.starA > 0.01) {
-      final p = Paint()..color = line.withValues(alpha: 0.55 * s.starA);
+      final t = SkyClock.time.value;
+      final p = Paint();
+      var i = 0;
       for (final st in SkyArt.stars.take(14)) {
-        canvas.drawCircle(Offset(st[0] * w, st[1] * base * 0.9), 0.9, p);
+        // بعضی ستاره‌های نوار بالا چشمک می‌زنند
+        final k = i % 2 == 0
+            ? 0.25 + 0.75 * (0.5 + 0.5 * math.sin(t * (1.6 + i * 0.21) + st[3]))
+            : 1.0;
+        p.color = line.withValues(alpha: (0.55 * s.starA * k).clamp(0.0, 1.0).toDouble());
+        canvas.drawCircle(Offset(st[0] * w, st[1] * base * 0.9), 0.9 + 0.3 * k, p);
+        i++;
       }
     }
     if (s.sunA > 0.01) {
@@ -865,7 +873,7 @@ class _MiniSkyPainter extends CustomPainter {
 
 /// خورشید، ماه و ستاره‌های بزرگِ روی نقشه (طبق ساعتِ گوشی)؛ لمس را نمی‌گیرد
 class _MapSkyPainter extends CustomPainter {
-  _MapSkyPainter(this.s, this.top);
+  _MapSkyPainter(this.s, this.top) : super(repaint: SkyClock.time);
   final SkyState s;
 
   /// بالاترین جای خورشید/ماه (زیرِ نوار بالا)
@@ -875,10 +883,39 @@ class _MapSkyPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
+    final t = SkyClock.time.value;
     if (s.starA > 0.01) {
-      SkyArt.starField(canvas, Size(w, h * 0.17), s.starA * 0.85, scale: 0.6);
+      // ستاره‌های چشمک‌زن + شهابِ گاه‌به‌گاه
+      SkyArt.starField(canvas, Size(w, h * 0.17), s.starA * 0.85,
+          scale: 0.6, t: t);
     }
+    _motes(canvas, size, t);
     // خورشیدِ بزرگ حذف شد؛ خورشید/ماه فقط در آسمانِ کوچکِ نوار بالاست
+  }
+
+  /// ذرات زنده روی نقشه: شب کرم‌های شب‌تاب، روز گردهٔ نورانیِ شناور
+  void _motes(Canvas canvas, Size size, double t) {
+    final night = s.starA > 0.15;
+    final day = s.sunA > 0.15;
+    if (!night && !day) return;
+    final amt = night ? s.starA : s.sunA;
+    final n = night ? 16 : 10;
+    final p = Paint();
+    for (var i = 0; i < n; i++) {
+      final sd = i * 12.9898;
+      final bx = (math.sin(sd) * 0.5 + 0.5) * size.width;
+      final by = (math.sin(sd * 1.7 + 3) * 0.5 + 0.5) * size.height;
+      final sp = 0.25 + (i % 4) * 0.08;
+      final x = bx + math.sin(t * sp + sd) * 26 + math.sin(t * 0.13 + i) * 14;
+      final y = by + math.cos(t * sp * 0.8 + sd * 2) * 20 - (t * 2 * (i % 3)) % 40;
+      final pulse = 0.5 + 0.5 * math.sin(t * (0.9 + (i % 5) * 0.3) + sd);
+      final col = night ? const Color(0xFFFFE9A0) : const Color(0xFFFFF4C8);
+      final a = ((night ? 0.5 : 0.28) * amt * pulse).clamp(0.0, 1.0).toDouble();
+      p.color = col.withValues(alpha: a * 0.28);
+      canvas.drawCircle(Offset(x, y), night ? 6.0 : 4.0, p);
+      p.color = col.withValues(alpha: a);
+      canvas.drawCircle(Offset(x, y), night ? 1.6 : 1.2, p);
+    }
   }
 
   @override

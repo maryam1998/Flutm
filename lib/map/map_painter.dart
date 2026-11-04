@@ -1216,6 +1216,10 @@ class MapPainter extends CustomPainter {
     _nodeIcon(canvas, c, r0, g.images, g.icon, col, g.iconScale, tc);
     final r = r0 * g.iconScale;
     _goalProgressRing(canvas, g, c, math.max(r, r0), col);
+    // ستاره‌های ریزِ چشمک‌زن دورِ هدف (نقشه‌ی زنده)
+    if (!g.reached && cam.scale >= 0.3) {
+      _goalTwinkle(canvas, g, c, math.max(r, r0), col);
+    }
     _addCircleBounds(c, r);
     hits.add(HitEntry(
         type: 'goal',
@@ -1284,6 +1288,27 @@ class MapPainter extends CustomPainter {
     } else {
       _reachSeen[g.id] = false;
       _reachAt.remove(g.id);
+    }
+  }
+
+  /// سه جرقه‌ی ستاره‌ای که آرام دورِ هدف می‌چرخند و چشمک می‌زنند
+  void _goalTwinkle(Canvas canvas, Goal g, Offset c, double r, Color col) {
+    final sd = (g.id.hashCode % 628) / 100.0;
+    final tint = Color.lerp(col, Colors.white, 0.65) ?? Colors.white;
+    for (var i = 0; i < 3; i++) {
+      final ang = sd + i * 2.094 + _t * 0.12;
+      final d = r * (1.6 + 0.12 * math.sin(_t * 0.7 + i + sd));
+      final pos = c + Offset(math.cos(ang), math.sin(ang)) * d;
+      final k = 0.5 + 0.5 * math.sin(_t * (1.7 + i * 0.5) + sd * 3 + i * 2);
+      if (k < 0.12) continue;
+      final len = 2.5 + 4.0 * k;
+      final pt = Paint()
+        ..strokeWidth = 1.1
+        ..strokeCap = StrokeCap.round
+        ..color = withOp(tint, 0.9 * k);
+      canvas.drawLine(pos.translate(-len, 0), pos.translate(len, 0), pt);
+      canvas.drawLine(pos.translate(0, -len), pos.translate(0, len), pt);
+      canvas.drawCircle(pos, 1.1 + 0.8 * k, Paint()..color = withOp(Colors.white, 0.9 * k));
     }
   }
 
