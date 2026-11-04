@@ -23,6 +23,7 @@ import 'map_ops.dart';
 import 'plant_painter.dart';
 import 'today_focus.dart';
 import 'user_state.dart';
+import 'wind.dart' show windSway;
 import 'walker_photos.dart';
 import 'world_painter.dart';
 import '../widgets/emoji_stack.dart' show isTextIcon;
@@ -50,7 +51,7 @@ Set<String>? mapFlowerDays(String actionId) => _flowerDaysCache[actionId];
 void paintMapSprig(Canvas canvas, Offset tip, double dir, double r, String id,
         {bool budOnly = false, bool flower = false}) =>
     MapPainter._sprig(canvas, tip, dir, r, id, 1.0,
-        budOnly: budOnly, flower: flower);
+        budOnly: budOnly, flower: flower, wind: false);
 /// دقیقه‌ی «نمایشی» برای رشدِ برگ‌ها: وقتی زمانی ثبت می‌شود (تایمر، بازه یا مدت)،
 /// برگ‌ها یک‌دفعه نمی‌پرند؛ آهسته و پیوسته به مقدارِ واقعی می‌رسند
 final Map<String, double> _shownMin = {};
@@ -415,6 +416,7 @@ class MapPainter extends CustomPainter {
     _walkerPts.clear();
     hits.clear();
     _lateHits.clear();
+    _windT = _t;
     canvas.save();
     canvas.translate(cam.x, cam.y);
     canvas.scale(cam.scale);
@@ -1393,12 +1395,14 @@ class MapPainter extends CustomPainter {
     }
   }
 
+  static double? _windT; // زمانِ بادِ فریمِ جاری (فقط هنگامِ رسمِ نقشه)
+
   /// شاخه‌ی گل و برگ سرِ شاخه‌ی تمام‌شده (جهتش ادامه‌ی شاخه است).
   /// ترکیبِ برگ و گل: بعضی فقط برگ، بعضی برگ + گل (پنج‌گلبرگ، خوشه، غنچه، بابونه).
   /// نوع و رنگ از روی id ثابت است. p: ۰ → ۱ انیمیشنِ شکفتن
   static void _sprig(Canvas canvas, Offset tip, double dir, double r, String id,
       double p,
-      {bool budOnly = false, bool flower = false}) {
+      {bool budOnly = false, bool flower = false, bool wind = true}) {
     var h = 7;
     for (final u in id.codeUnits) {
       h = (h * 31 + u) & 0x7fffffff;
@@ -1433,7 +1437,12 @@ class MapPainter extends CustomPainter {
 
     canvas.save();
     canvas.translate(tip.dx, tip.dy);
-    canvas.rotate(dir + math.pi / 2); // «بالا» (-y) = ادامه‌ی شاخه
+    // نسیم: غنچه/گل کمی حولِ پایه‌اش خم می‌شود (هر کدام چرخه‌ی ساکن/متحرکِ خودش را دارد)
+    final wt = _windT;
+    final dirW = (wind && wt != null)
+        ? dir + windSway(wt, tip.dx, (h % 6283) / 1000.0) * 0.14
+        : dir;
+    canvas.rotate(dirW + math.pi / 2); // «بالا» (-y) = ادامه‌ی شاخه
     canvas.scale(k);
     final R = r;
 
@@ -1683,7 +1692,8 @@ class MapPainter extends CustomPainter {
   static void sprigAt(Canvas canvas, Offset tip, double dir, double r,
           String id, double p,
           {bool budOnly = false, bool flower = false}) =>
-      _sprig(canvas, tip, dir, r, id, p, budOnly: budOnly, flower: flower);
+      _sprig(canvas, tip, dir, r, id, p,
+          budOnly: budOnly, flower: flower, wind: false);
 
   /// دقیقه‌های کارِ امروزِ یک شاخه (ثبت‌شده + تایمرِ در حال اجرا)
   double _plantMinutes(ActionNode a, String todayK) {
@@ -1823,6 +1833,7 @@ class MapPainter extends CustomPainter {
       marks: marks,
       pathLen: plen,
       avoidT: junctions,
+      windT: _t,
       sprig: (c, o, d, rr, i, p, fl) {
         _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl);
         // هر غنچه/گل = یک روزِ تقویم؛ لمسِ طولانی = تقویمِ همان روز
@@ -1881,6 +1892,7 @@ class MapPainter extends CustomPainter {
           ? kPlantGrowing
           : (nodeFinished(a) ? kPlantFlowers : kPlantBuds),
       bloom: bp,
+      windT: _t,
       sprig: (c, o, d, rr, i, p, fl) =>
           _sprig(c, o, d, rr, i, p, budOnly: !fl, flower: fl),
     );
@@ -4274,7 +4286,7 @@ class _DayBudPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     MapPainter._sprig(canvas, Offset(size.width / 2, size.height * 0.92),
         -math.pi / 2, size.width * (flower ? 0.22 : 0.2), seed, 1.0,
-        budOnly: !flower, flower: flower);
+        budOnly: !flower, flower: flower, wind: false);
   }
 
   @override

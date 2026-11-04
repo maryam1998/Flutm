@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'wind.dart' show windSway;
+
 /// گیاهِ تمرکز 🌱: با گذشتِ دقیقه‌های کارِ امروز روی نوکِ شاخه کم‌کم رشد می‌کند.
 ///
 /// زمان‌بندی (بر پایه‌ی چرخه‌های تمرکز: ۲۵ دقیقه پومودورو، ۹۰ دقیقه چرخه‌ی اولترادین):
@@ -217,6 +219,8 @@ void drawFocusPlant(
   required int mode,
   required double bloom,
   required PlantSprig sprig,
+  // زمانِ باد (ثانیه)؛ null = بدونِ تکان
+  double? windT,
 }) {
   final m = math.max(0.0, minutes * kPlantTimeScale);
   var h = 7;
@@ -232,6 +236,10 @@ void drawFocusPlant(
   canvas.save();
   canvas.translate(tip.dx, tip.dy);
   canvas.rotate(dir + math.pi / 2);
+  // نسیم: کلِ گیاه کمی حولِ ریشه‌اش خم می‌شود
+  if (windT != null) {
+    canvas.rotate(windSway(windT, tip.dx, (h % 628) / 100.0) * 0.07);
+  }
 
   final bigH = R *
       (0.35 +
@@ -449,6 +457,8 @@ void drawTrunkFlora(
   double pathLen = 0.0,
   // محلِ اتصالِ زیرشاخه‌ها (t=۰..۱): غنچه/گل‌ها از این نقطه‌ها دور می‌مانند
   List<double> avoidT = const [],
+  // زمانِ باد (ثانیه)؛ null = بدونِ تکان
+  double? windT,
 }) {
   if (r < 1.2 || slots < 2) return;
   final m = math.max(0.0, minutes * kPlantTimeScale);
@@ -498,20 +508,31 @@ void drawTrunkFlora(
       final gk =
           mm <= base ? 0.0 : 1.0 - math.exp(-(mm - base) / (12.0 + 6.0 * i));
       if (gk <= 0.0) continue;
-      drawRoadBush(canvas, pc + nrm(a) * (side * (edge + r * 0.2)),
-          a + side * 1.25 + jit * 3, r * 2.1, gk, h + i * 7919);
+      final bushDir = a + side * 1.25 + jit * 3;
+      final bushBase = pc + nrm(a) * (side * (edge + r * 0.2));
+      // نسیم: همه‌ی بوته‌ها در یک جهتِ دنیا خم می‌شوند (نه نسبت به جهتِ رشدشان)
+      final bushSway = windT == null
+          ? 0.0
+          : windSway(windT, bushBase.dx, (h % 628) / 100.0 + i * 1.7) *
+              0.2 *
+              (math.sin(bushDir) <= 0 ? 1.0 : -1.0);
+      drawRoadBush(canvas, bushBase, bushDir, r * 2.1, gk, h + i * 7919,
+          sway: bushSway);
       continue;
     }
     // پایه‌ی برگ: روی خط‌وسطِ تنه (قبل)؛ کنارِ جاده: لبه‌ی همان سمت
     final p = edge > 0 ? pc + nrm(a) * (side * edge) : pc;
-    _leaf(canvas, p.dx, p.dy, a + side * spread + math.pi / 2, len,
+    final lw = windT == null
+        ? 0.0
+        : windSway(windT, pc.dx, (h % 628) / 100.0 + i * 1.3) * 0.12;
+    _leaf(canvas, p.dx, p.dy, a + side * spread + math.pi / 2 + lw, len,
         len * (0.5 - 0.08 * k), gc);
     // از جفت‌برگِ سوم به بعد، برگِ سمتِ دیگر هم می‌آید (برگ‌های رویِ تنه پرتر می‌شوند)
     // کنارِ جاده از جفت‌برگِ دوم؛ برگِ سمتِ دیگر روی لبه‌ی آن سمت می‌نشیند
     if (i >= (edge > 0 ? 1 : 2) && k > 0.15) {
       final l2 = len * 0.82;
       final p2 = edge > 0 ? pc - nrm(a) * (side * edge) : pc;
-      _leaf(canvas, p2.dx, p2.dy, a - side * spread + math.pi / 2, l2,
+      _leaf(canvas, p2.dx, p2.dy, a - side * spread + math.pi / 2 + lw, l2,
           l2 * (0.5 - 0.08 * k), gc);
     }
   }

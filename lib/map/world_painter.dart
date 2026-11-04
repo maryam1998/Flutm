@@ -1555,7 +1555,7 @@ void drawTrunkGrowth(
         size * (0.85 + 0.3 * ((i * 37) % 10) / 10),
         g,
         i * 131 + (off * 1000).floor(),
-        sway: math.sin(t * 0.9 + i * 1.3) * 0.04);
+        sway: windSway(t, base.dx, i * 1.3 + off * 6.0) * 0.2);
   }
 }
 
