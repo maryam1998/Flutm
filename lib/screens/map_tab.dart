@@ -882,12 +882,7 @@ class _MapSkyPainter extends CustomPainter {
     if (s.starA > 0.01) {
       SkyArt.starField(canvas, Size(w, h * 0.17), s.starA * 0.85, scale: 0.6);
     }
-    final horizon = top + 86;
-    if (s.sunA > 0.01) {
-      final x = w * (0.12 + 0.76 * s.dayFrac);
-      final y = horizon - (horizon - top) * math.sin(math.pi * s.dayFrac);
-      SkyArt.sun(canvas, Offset(x, y), s, r: 20);
-    }
+    // خورشیدِ بزرگ حذف شد؛ خورشید/ماه فقط در آسمانِ کوچکِ نوار بالاست
   }
 
   @override
