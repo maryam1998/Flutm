@@ -398,15 +398,16 @@ class SkyArt {
       {double scale = 1.0, double? t}) {
     if (alpha <= 0.01) return;
     final p = Paint();
+    final tw = t == null ? null : t * 0.4; // چشمکِ آهسته
     for (var i = 0; i < stars.length; i++) {
       final st = stars[i];
       var a = alpha * (0.55 + 0.35 * (st[3] % 1.0));
       var rad = st[2] * scale;
       final c = Offset(st[0] * size.width, st[1] * size.height);
-      if (t != null) {
+      if (tw != null) {
         if (i % 3 == 0) {
           // ستاره‌ی چشمک‌زن
-          final k = 0.5 + 0.5 * math.sin(t * (1.4 + (i % 5) * 0.37) + st[3]);
+          final k = 0.5 + 0.5 * math.sin(tw * (1.4 + (i % 5) * 0.37) + st[3]);
           a *= 0.15 + 0.85 * k;
           rad *= 0.8 + 0.45 * k;
           if (st[2] > 1.2 && k > 0.6) {
@@ -421,7 +422,7 @@ class SkyArt {
           }
         } else {
           // لرزشِ بسیار ملایم
-          a *= 0.88 + 0.12 * math.sin(t * 0.9 + st[3] * 3);
+          a *= 0.88 + 0.12 * math.sin(tw * 0.9 + st[3] * 3);
         }
       }
       p.color = Colors.white.withValues(alpha: a.clamp(0.0, 1.0).toDouble());
@@ -430,9 +431,9 @@ class SkyArt {
     if (t != null) _shootingStar(canvas, size, alpha, t);
   }
 
-  /// شهابِ گاه‌به‌گاه (هر ~۹ ثانیه یک‌بار، کمتر از ۱ ثانیه)
+  /// شهابِ بسیار گاه‌به‌گاه (هر ~۶۰ ثانیه یک‌بار، آرام و حدودِ ۲ ثانیه)
   static void _shootingStar(Canvas canvas, Size size, double alpha, double t) {
-    const period = 9.0, dur = 0.9;
+    const period = 60.0, dur = 2.0;
     final n = (t / period).floor();
     final lt = t - n * period;
     if (lt > dur) return;

@@ -69,7 +69,7 @@ class _SkyWeatherLayerState extends State<SkyWeatherLayer>
     _rain += (_tRain - _rain) * math.min(1.0, dt * 0.5);
     _snow += (_tSnow - _snow) * math.min(1.0, dt * 0.5);
     _wind += (_tWind - _wind) * math.min(1.0, dt * 0.2);
-    _drift += _wind * dt;
+    _drift += _wind * dt * 0.35; // حرکتِ ابرها آهسته‌تر
     _repaint.value++;
   }
 

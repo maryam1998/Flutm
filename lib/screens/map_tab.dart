@@ -899,8 +899,8 @@ class _MapSkyPainter extends CustomPainter {
     final t = SkyClock.time.value;
     if (s.starA > 0.01) {
       // ستاره‌های چشمک‌زن + شهابِ گاه‌به‌گاه
-      // آسمانِ گسترده‌تر: ستاره‌ها تا حدودِ یک‌سومِ بالای صفحه پخش می‌شوند
-      SkyArt.starField(canvas, Size(w, h * 0.34), s.starA * 0.85,
+      // ستاره‌ها فقط در نوارِ بالایِ آسمان (حدودِ یک‌هفتمِ صفحه)
+      SkyArt.starField(canvas, Size(w, h * 0.14), s.starA * 0.85,
           scale: 0.7, t: t);
     }
     // خورشیدِ بزرگ حذف شد؛ خورشید/ماه فقط در آسمانِ کوچکِ نوار بالاست

@@ -2123,7 +2123,11 @@ class MapPainter extends CustomPainter {
     }
 
     if (trunkOnly) {
-      // جمع‌شده: مسیر شاخه‌ها (خطِ بسیار کم‌رنگ) و ردپای قدم‌ها می‌ماند
+      // جمع‌کردنِ دستیِ هدف: هیچ ردی (خط/ردپا) از شاخه‌ها نمی‌ماند
+      final userCollapsed = h.collapsed ||
+          (h is Ring && (_goalOf(h)?.collapsed ?? false));
+      if (userCollapsed) return;
+      // هدفِ رسیده‌شده: مسیر شاخه‌ها (خطِ بسیار کم‌رنگ) و ردپای قدم‌ها می‌ماند
       if (state.extra['doneFeetCollapse'] != true) {
         final ga = _visibleActs(h.actions);
         for (var i = 0; i < ga.length; i++) {
@@ -2154,18 +2158,22 @@ class MapPainter extends CustomPainter {
   /// جمع‌شده یک نقطه‌ی کوچک با فلشِ پایین می‌ماند و لمسش دوباره باز می‌کند.
   void _branchHideBtn(
       Canvas canvas, Offset end, Color color, ActionNode a, String hostId,
-      {required bool collapsed, double dx = 0, double dy = 0}) {
+      {required bool collapsed,
+      double dx = 0,
+      double dy = 0,
+      double r = 6.5}) {
     final c = end + Offset(dx, dy);
+    final k = r / 6.5;
     canvas.drawCircle(
-        c, 6.5, Paint()..color = withOp(color, collapsed ? 0.30 : 0.14));
-    canvas.drawCircle(c, 6.5, _stroke(color, 1.0, collapsed ? 0.8 : 0.4));
+        c, r, Paint()..color = withOp(color, collapsed ? 0.30 : 0.14));
+    canvas.drawCircle(c, r, _stroke(color, 1.0, collapsed ? 0.8 : 0.4));
     final up = collapsed ? 1.0 : -1.0;
     canvas.drawPath(
         Path()
-          ..moveTo(c.dx - 2.8, c.dy - up * 1.3)
-          ..lineTo(c.dx, c.dy + up * 1.3)
-          ..lineTo(c.dx + 2.8, c.dy - up * 1.3),
-        _stroke(color, 1.4, collapsed ? 0.95 : 0.55));
+          ..moveTo(c.dx - 2.8 * k, c.dy - up * 1.3 * k)
+          ..lineTo(c.dx, c.dy + up * 1.3 * k)
+          ..lineTo(c.dx + 2.8 * k, c.dy - up * 1.3 * k),
+        _stroke(color, 1.4 * k.clamp(0.6, 1.0), collapsed ? 0.95 : 0.55));
     _lateHits.add(HitEntry(
         type: 'branchHide',
         id: a.id,
@@ -3822,19 +3830,8 @@ class MapPainter extends CustomPainter {
     // شاخه‌ای که کاربر موقتاً جمعش کرده: فقط خطِ کم‌رنگ + نقطه‌ی کوچک با فلش (لمس = باز شدن)
     if (a.extra['mapHidden'] == true) {
       closeFade();
-      canvas.drawLine(geom.originPt, end, _stroke(color, 1.1, 0.22));
-      _branchHideBtn(canvas, end, color, a, h.id, collapsed: true);
-      final nm = a.text.trim();
-      if (nm.isNotEmpty) {
-        drawText(canvas, nm.length > 14 ? '${nm.substring(0, 14)}…' : nm,
-            end.dx + (side > 0 ? 14 : -14), end.dy,
-            size: 10.5,
-            color: withOp(atc, 0.6),
-            weight: FontWeight.w400,
-            align: side > 0 ? LabelAlign.left : LabelAlign.right,
-            outline: 2,
-            vCenter: true);
-      }
+      // بدونِ خط و بدونِ اسم؛ فقط یک نقطه‌ی ریز برای بازکردنِ دوباره
+      _branchHideBtn(canvas, end, color, a, h.id, collapsed: true, r: 4.0);
       return;
     }
 
