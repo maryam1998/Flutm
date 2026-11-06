@@ -26,6 +26,8 @@ import '../state/map_store.dart';
 import '../state/main_tab.dart';
 import '../state/theme_store.dart';
 import '../widgets/web_color_picker.dart';
+import '../widgets/map_calendar_strip.dart' show kMapCalendarKey;
+import '../widgets/map_visibility_sheet.dart' show showMapVisibilitySheet;
 import '../widgets/backup_section.dart';
 import '../models/motivation_item.dart';
 import '../state/motivation_store.dart';
@@ -699,6 +701,45 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           },
         ),
         if (_showEmotionWidget) _emotionTabsPicker(),
+        const _Hair(),
+        _switchRow(
+          title: 'تقویم نواری',
+          subtitle:
+              'نوار روزها سمتِ راستِ نقشه؛ لمسِ هر روز، کارهای انجام‌شده‌ی همان روز را نشان می‌دهد',
+          value: context.read<MapStore>().state.extra[kMapCalendarKey] == true,
+          onChanged: (v) {
+            final store = context.read<MapStore>();
+            setState(() {
+              if (v) {
+                store.state.extra[kMapCalendarKey] = true;
+              } else {
+                store.state.extra.remove(kMapCalendarKey);
+              }
+            });
+            store.changedNow();
+          },
+        ),
+        const _Hair(),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.visibility_outlined, color: _kGold),
+          title: const Text('نمایش شاخه‌ها',
+              style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: _kInk)),
+          subtitle: const Text(
+              'انتخابِ جاده، شاخه، زیرشاخه و مدل‌هایی که روی نقشه دیده شوند',
+              style: TextStyle(fontSize: 11.5, color: _kMuted)),
+          trailing: const Icon(Icons.chevron_left, color: _kMuted),
+          onTap: () {
+            // پنجره‌ی تنظیمات بسته می‌شود تا نقشه‌ی پشتش دیده شود
+            final host = Navigator.of(context, rootNavigator: true).context;
+            Navigator.pop(context);
+            showMapVisibilitySheet(host);
+          },
+        ),
       ],
     );
   }

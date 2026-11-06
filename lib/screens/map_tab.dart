@@ -20,7 +20,9 @@ import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
 import '../widgets/backup_section.dart';
+import '../widgets/map_calendar_strip.dart';
 import '../widgets/map_video_overlay.dart';
+import '../widgets/map_visibility_sheet.dart';
 import '../widgets/finish_reward.dart';
 import '../widgets/garden_strip.dart';
 import '../widgets/step_reward.dart';
@@ -547,6 +549,18 @@ class _MapTabState extends State<MapTab> {
           // ویدیوی گره‌ها روی نقشه
           const MapVideoOverlay(),
 
+          // تقویمِ نواریِ سمتِ راست (از تنظیمات روشن می‌شود)
+          if (store.state.extra[kMapCalendarKey] == true)
+            Positioned(
+              right: 6,
+              top: MediaQuery.paddingOf(context).top + 70,
+              bottom: 82,
+              child: MapCalendarStrip(
+                onOpenDay: (hostId, actionId, jk) =>
+                    _openGoals(hostId: hostId, actionId: actionId, jk: jk),
+              ),
+            ),
+
           if (_resizeMode)
             Positioned(
               left: 10,
@@ -672,6 +686,8 @@ class _MapTabState extends State<MapTab> {
             context.read<ThemeStore>().setChoice('auto');
           case 'fold':
             store.collapseAll(anyOpen);
+          case 'vis':
+            showMapVisibilitySheet(context);
           case 'help':
             showHelpDialog(context);
         }
@@ -694,6 +710,10 @@ class _MapTabState extends State<MapTab> {
             child: row(anyOpen ? Icons.unfold_less : Icons.unfold_more,
                 anyOpen ? 'جمع کردن شاخه‌ها' : 'باز کردن شاخه‌ها'),
           ),
+        PopupMenuItem<String>(
+          value: 'vis',
+          child: row(Icons.visibility_outlined, 'نمایش شاخه‌ها'),
+        ),
         PopupMenuItem<String>(
           value: 'help',
           child: row(Icons.help_outline, 'راهنما'),

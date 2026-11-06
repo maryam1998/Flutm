@@ -412,6 +412,7 @@ class MapPainter extends CustomPainter {
     // (نوشته‌ی مشکی ← دورِ سفید)؛ فقط `.feeling-label` (نشانه‌ها) همیشه #0a0c18 است.
     textCache.setOutline(
         isDark ? const Color(0xFF0A0C18) : const Color(0xFFF4F6FB));
+    _loadMapFilters();
     _pts.clear();
     _walkerPts.clear();
     hits.clear();
@@ -519,6 +520,41 @@ class MapPainter extends CustomPainter {
   }
 
   bool _isHidden(Goal g) => g.extra['hidden'] == true;
+
+  // ───────── فیلتر نمایشِ شاخه‌ها (تنظیم‌شده از «نمایش شاخه‌ها») ─────────
+  int _fLevel = 0; // ۰ = همه‌ی سطح‌ها؛ ۱ = فقط شاخه‌ها؛ ۲ = شاخه + زیرشاخه…
+  bool _fNoRoutine = false,
+      _fNoNormal = false,
+      _fNoDone = false,
+      _fNoFlora = false,
+      _fNoFeet = false;
+
+  void _loadMapFilters() {
+    final e = state.extra;
+    final lv = e['mapMaxLevel'];
+    _fLevel = lv is num ? lv.toInt() : 0;
+    final t = e['mapHideTypes'];
+    final ts = t is List ? t : const [];
+    _fNoRoutine = ts.contains('routine');
+    _fNoNormal = ts.contains('normal');
+    _fNoDone = ts.contains('done');
+    _fNoFlora = ts.contains('flora');
+    _fNoFeet = ts.contains('feet');
+  }
+
+  /// این شاخه (و زیرشاخه‌هایش) طبقِ فیلتر نباید کشیده شود؟
+  /// جایگاهِ بقیه‌ی شاخه‌ها عوض نمی‌شود؛ فقط همین یکی کشیده نمی‌شود.
+  bool _filteredOut(ActionNode n) {
+    if (n.extra['mapHidden'] == true) return true;
+    final fin = nodeFinished(n);
+    if (_fNoRoutine && n.isRoutine) return true;
+    if (_fNoDone && fin) return true;
+    if (_fNoNormal && !n.isRoutine && !fin) return true;
+    return false;
+  }
+
+  /// زیرشاخه‌های شاخه‌ای که در سطحِ [depth] است، بیشتر از سقفِ سطح هستند؟
+  bool _levelCut(int depth) => _fLevel > 0 && depth + 1 >= _fLevel;
 
   /// اجرای [draw] با شفافیتِ [op] (۱ = بدون تغییر)
   void _fade(Canvas canvas, double op, void Function() draw) {
@@ -2034,7 +2070,7 @@ class MapPainter extends CustomPainter {
     _pts..add(cp.p0)..add(cp.p3);
 
     if (h is Goal) {
-      if (!h.collapsed) {
+      if (!h.collapsed && h.extra['roadHidden'] != true) {
         _walker(canvas, h, cp, col);
       }
       _goalTrophy(canvas, h, col);
@@ -2097,6 +2133,7 @@ class MapPainter extends CustomPainter {
       if (state.extra['doneFeetCollapse'] != true) {
         final ga = _visibleActs(h.actions);
         for (var i = 0; i < ga.length; i++) {
+          if (_filteredOut(ga[i])) continue;
           final t = math.min(0.9, 0.15 + i * 0.09);
           final og = originOf(i, t);
           _twigGhost(canvas, h, col, og.o, og.d, ga[i],
@@ -2109,6 +2146,7 @@ class MapPainter extends CustomPainter {
     }
     final acts = _visibleActs(h.actions);
     for (var i = 0; i < acts.length; i++) {
+      if (_filteredOut(acts[i])) continue;
       final t = math.min(0.9, 0.15 + i * 0.09);
       final og = originOf(i, t);
       _twig(canvas, h, col, og.o, og.d, acts[i],
@@ -3711,7 +3749,9 @@ class MapPainter extends CustomPainter {
     // زیرشاخه‌هایش انجام شده باشند، زیرشاخه‌ها هم جمع می‌شوند (فقط برای امروز).
     final tk = todayJK();
     final doneNow = nodeFinished(a);
-    final visKids = _visibleActs(a.children);
+    // سقفِ سطحِ نمایش (تنظیمِ «نمایش شاخه‌ها»): بیشتر از آن، شاخه برگ حساب می‌شود
+    final visKids =
+        _levelCut(depth) ? const <ActionNode>[] : _visibleActs(a.children);
     // همه‌ی زیرشاخه‌ها «کاملاً تمام» شده‌اند؟ (ثبتِ زمان/تیکِ روزانه حساب نمی‌شود)
     final allKidsDone =
         visKids.isNotEmpty && visKids.every((k) => _subtreeDone(k, tk));
@@ -3805,7 +3845,7 @@ class MapPainter extends CustomPainter {
     }
 
     // برگ، غنچه و گل روی خودِ تنه‌ی شاخه/زیرشاخه
-    if (scale >= 0.28 && a.extra['trunkFlora'] != false) {
+    if (scale >= 0.28 && a.extra['trunkFlora'] != false && !_fNoFlora) {
       _trunkFlora(canvas, a, geom, cub, scale, depth, h.id);
     }
 
@@ -3828,16 +3868,21 @@ class MapPainter extends CustomPainter {
       hits.twigs[a.id] = TwigGeom(List<Offset>.of(own), color, a.text.trim());
       own.addAll(route);
       closeFade();
-      _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id);
+      if (!_fNoFeet) {
+        _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id);
+      }
       openFade();
     }
 
-    final kids = foldKids ? const <ActionNode>[] : visKids;
+    final kids = (foldKids || _levelCut(depth))
+        ? const <ActionNode>[]
+        : visKids;
     if (kids.isNotEmpty) {
       canvas.drawCircle(end, math.max(2.0, 2.6 * scale) * cs,
           _stroke(color, 1.2, 0.55));
       closeFade(); // زیرشاخه‌ها با شفافیتِ خودشان کشیده می‌شوند
       for (var i = 0; i < kids.length; i++) {
+        if (_filteredOut(kids[i])) continue;
         // اولین زیرشاخه‌ی لیست سرِ شاخه (نوک) است؛ بعدی‌ها به‌ترتیب به ابتدای شاخه نزدیک می‌شوند
         // کل طول شاخه استفاده می‌شود تا زیرشاخه‌ها یک‌جا جمع نشوند
         final tt = 0.15 + ((kids.length - i) / (kids.length + 1)) * 0.8;
@@ -4159,7 +4204,9 @@ class MapPainter extends CustomPainter {
   void _ghostKids(Canvas canvas, MapHost h, Color hostColor, ActionNode a,
       geo.TwigGeom geom, geo.Cubic cub, List<ActionNode> kids,
       List<Offset>? route, int trunkLane, double scale, Color tc, int depth) {
+    if (_levelCut(depth)) return;
     for (var i = 0; i < kids.length; i++) {
+      if (_filteredOut(kids[i])) continue;
       final tt = 0.15 + ((kids.length - i) / (kids.length + 1)) * 0.8;
       Offset co;
       double cd;
@@ -4183,13 +4230,15 @@ class MapPainter extends CustomPainter {
       }
       _twigGhost(canvas, h, hostColor, co, cd, kids[i], i.isEven ? 1 : -1,
           scale * 0.72, tc,
-          route: route == null ? null : childRoute, trunkLane: trunkLane);
+          route: route == null ? null : childRoute,
+          trunkLane: trunkLane,
+          depth: depth + 1);
     }
   }
 
   void _twigGhost(Canvas canvas, MapHost h, Color hostColor, Offset originPt,
       double originDir, ActionNode a, int side, double scale, Color tc,
-      {List<Offset>? route, int trunkLane = 0}) {
+      {List<Offset>? route, int trunkLane = 0, int depth = 0}) {
     final color = (a.color != null && a.color!.isNotEmpty)
         ? hexColor(a.color, hostColor)
         : hostColor;
@@ -4222,13 +4271,15 @@ class MapPainter extends CustomPainter {
       }
       hits.twigs[a.id] = TwigGeom(List<Offset>.of(own), color, a.text.trim());
       own.addAll(route);
-      _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id,
-          ghost: true);
+      if (!_fNoFeet) {
+        _branchWalker(canvas, own, trunkLane, a, color, 15.0 * scale, h.id,
+            ghost: true);
+      }
     }
     final kids = _visibleActs(a.children);
     if (kids.isNotEmpty) {
       _ghostKids(canvas, h, hostColor, a, geom, cub, kids, route, trunkLane,
-          scale, tc, 0);
+          scale, tc, depth);
     }
   }
 }
