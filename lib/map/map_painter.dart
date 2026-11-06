@@ -530,22 +530,18 @@ class MapPainter extends CustomPainter {
       _fNoFeet = false;
 
   void _loadMapFilters() {
-    final e = state.extra;
-    final lv = e['mapMaxLevel'];
-    _fLevel = lv is num ? lv.toInt() : 0;
-    final t = e['mapHideTypes'];
-    final ts = t is List ? t : const [];
-    _fNoRoutine = ts.contains('routine');
-    _fNoNormal = ts.contains('normal');
-    _fNoDone = ts.contains('done');
-    _fNoFlora = ts.contains('flora');
-    _fNoFeet = ts.contains('feet');
+    // پنجره‌ی «نمایش شاخه‌ها» حذف شد؛ فیلترهای قدیمیِ ذخیره‌شده دیگر اعمال نمی‌شوند
+    _fLevel = 0;
+    _fNoRoutine = false;
+    _fNoNormal = false;
+    _fNoDone = false;
+    _fNoFlora = false;
+    _fNoFeet = false;
   }
 
   /// این شاخه (و زیرشاخه‌هایش) طبقِ فیلتر نباید کشیده شود؟
   /// جایگاهِ بقیه‌ی شاخه‌ها عوض نمی‌شود؛ فقط همین یکی کشیده نمی‌شود.
   bool _filteredOut(ActionNode n) {
-    if (n.extra['mapHidden'] == true) return true;
     final fin = nodeFinished(n);
     if (_fNoRoutine && n.isRoutine) return true;
     if (_fNoDone && fin) return true;
@@ -2068,7 +2064,7 @@ class MapPainter extends CustomPainter {
     _pts..add(cp.p0)..add(cp.p3);
 
     if (h is Goal) {
-      if (!h.collapsed && h.extra['roadHidden'] != true) {
+      if (!h.collapsed) {
         _walker(canvas, h, cp, col);
       }
       _goalTrophy(canvas, h, col);
@@ -2152,6 +2148,31 @@ class MapPainter extends CustomPainter {
           route: og.route,
           trunkLane: (i % 3) - 1);
     }
+  }
+
+  /// فلشِ کوچک و کم‌رنگِ هر شاخه/زیرشاخه: لمس = جمع‌شدنِ همان شاخه (و زیرشاخه‌هایش) از نقشه؛
+  /// جمع‌شده یک نقطه‌ی کوچک با فلشِ پایین می‌ماند و لمسش دوباره باز می‌کند.
+  void _branchHideBtn(
+      Canvas canvas, Offset end, Color color, ActionNode a, String hostId,
+      {required bool collapsed, double dx = 0, double dy = 0}) {
+    final c = end + Offset(dx, dy);
+    canvas.drawCircle(
+        c, 6.5, Paint()..color = withOp(color, collapsed ? 0.30 : 0.14));
+    canvas.drawCircle(c, 6.5, _stroke(color, 1.0, collapsed ? 0.8 : 0.4));
+    final up = collapsed ? 1.0 : -1.0;
+    canvas.drawPath(
+        Path()
+          ..moveTo(c.dx - 2.8, c.dy - up * 1.3)
+          ..lineTo(c.dx, c.dy + up * 1.3)
+          ..lineTo(c.dx + 2.8, c.dy - up * 1.3),
+        _stroke(color, 1.4, collapsed ? 0.95 : 0.55));
+    _lateHits.add(HitEntry(
+        type: 'branchHide',
+        id: a.id,
+        hostId: hostId,
+        kind: HitKind.handle,
+        center: c,
+        radius: 12));
   }
 
   Paint _stroke(Color col, double w, double op,
@@ -3798,6 +3819,25 @@ class MapPainter extends CustomPainter {
         center: end,
         radius: math.max(15.0, 18 * scale)));
 
+    // شاخه‌ای که کاربر موقتاً جمعش کرده: فقط خطِ کم‌رنگ + نقطه‌ی کوچک با فلش (لمس = باز شدن)
+    if (a.extra['mapHidden'] == true) {
+      closeFade();
+      canvas.drawLine(geom.originPt, end, _stroke(color, 1.1, 0.22));
+      _branchHideBtn(canvas, end, color, a, h.id, collapsed: true);
+      final nm = a.text.trim();
+      if (nm.isNotEmpty) {
+        drawText(canvas, nm.length > 14 ? '${nm.substring(0, 14)}…' : nm,
+            end.dx + (side > 0 ? 14 : -14), end.dy,
+            size: 10.5,
+            color: withOp(atc, 0.6),
+            weight: FontWeight.w400,
+            align: side > 0 ? LabelAlign.left : LabelAlign.right,
+            outline: 2,
+            vCenter: true);
+      }
+      return;
+    }
+
     final baseW = math.max(1.0, (1.9 + weight * 1.05) * scale);
     final tipW = math.max(0.7, baseW * 0.38);
     final cub = geo.Cubic(geom.originPt, geom.c1, geom.c2, end);
@@ -4133,6 +4173,8 @@ class MapPainter extends CustomPainter {
     _voiceBtn(canvas, end + Offset(side > 0 ? -22 : 22, -14), 'action', a.id,
         a.extra, 'voice',
         dir: side > 0 ? -1 : 1, r: 10);
+    _branchHideBtn(canvas, end, color, a, h.id,
+        collapsed: false, dx: side > 0 ? -22.0 : 22.0, dy: 14.0);
     _videoBtn(
         canvas,
         end +

@@ -364,6 +364,23 @@ class MapInteraction {
       _armCalendarHold(_pending!, hit.voiceKey);
       return;
     }
+    // فلشِ کنارِ هر شاخه/زیرشاخه: جمع/باز کردنِ همان شاخه روی نقشه
+    if (_ptrs.isEmpty && hit != null && hit.type == 'branchHide') {
+      HapticFeedback.selectionClick();
+      final bh = store.state.findHost(hit.hostId);
+      if (bh is MapHost) {
+        final bf = findActionNode(bh.actions, hit.id);
+        if (bf != null) {
+          if (bf.node.extra['mapHidden'] == true) {
+            bf.node.extra.remove('mapHidden');
+          } else {
+            bf.node.extra['mapHidden'] = true;
+          }
+          store.changed();
+        }
+      }
+      return;
+    }
     if (_ptrs.isEmpty && hit != null && hit.type == 'foldToggle') {
       HapticFeedback.selectionClick();
       store.toggleActionFold(hit.id);

@@ -793,8 +793,6 @@ class WorldLayer {
     final frs = <_Fr>[];
     for (var gi = 0; gi < s.goals.length; gi++) {
       final g = s.goals[gi];
-      // جاده‌ی اصلیِ این هدف طبقِ «نمایش شاخه‌ها» مخفی شده است
-      if (g.extra['roadHidden'] == true) continue;
       final gm = _goalMin[g.id] ?? 0.0;
       final gp = _gPlans.putIfAbsent(g.id, () => _genGoalPlan(g.id, seed));
       final cp = geo.trunkControlPoints(g, s.me);
