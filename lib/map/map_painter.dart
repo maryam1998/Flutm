@@ -1787,10 +1787,8 @@ class MapPainter extends CustomPainter {
     final todayGrow = todayTicked
         ? 1.0
         : 0.15 + 0.85 * (1.0 - math.exp(-todayMin / 90.0));
+    // غنچه فقط برای روزِ واقعاً ثبت‌شده؛ تایمرِ روشن تا وقتی زمانی ثبت نشده غنچه نمی‌سازد
     final markKeys = <String>[...doneKeys];
-    if ((a.timerStart ?? 0) > 0 && !markKeys.contains(todayK)) {
-      markKeys.add(todayK);
-    }
     final marks = <({String seed, bool flower, double grow})>[
       for (final k in markKeys)
         (

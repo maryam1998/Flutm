@@ -1122,8 +1122,14 @@ class MapInteraction {
         if (!wasDrag && !held) _toggleBud(p.hostId, p.actionId);
         return;
       }
-      // گل/غنچه‌ی یک روز: تپِ ساده کاری ندارد (لمسِ طولانی تقویم را باز کرده)
-      if (p.isDayBloom) return;
+      // گل/غنچه‌ی یک روز: تپِ ساده = تقویمِ همان روز (لمسِ طولانی هم همین را زودتر باز می‌کند)
+      if (p.isDayBloom) {
+        if (!wasDrag) {
+          onBloomDay?.call(
+              p.hostId, p.actionId, p.noteKey.isEmpty ? null : p.noteKey);
+        }
+        return;
+      }
 
       // ─── قدمِ کم‌رنگِ یک روزِ گذشته: تپ = تقویم و تاریخِ همان قدم ───
       if (p.isPastFoot) {
