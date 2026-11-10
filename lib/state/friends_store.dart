@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -85,8 +87,13 @@ class FriendsStore extends ChangeNotifier {
   }
 
   // ───────── بارگذاری ─────────
+  bool _again = false;
+
   Future<void> load({bool force = false}) async {
-    if (loading) return;
+    if (loading) {
+      if (force) _again = true;
+      return;
+    }
     if (loaded && !force) return;
     final c = _c;
     if (c == null) {
@@ -101,11 +108,18 @@ class FriendsStore extends ChangeNotifier {
       final p = await AppPrefs.getInstance();
       _nick = p.getString(_kNick) ?? _nick;
 
-      final rows = await c
-          .from('friend_posts')
-          .select(_select)
-          .order('created_at', ascending: false)
-          .limit(100);
+      List<dynamic> rows;
+      try {
+        rows = await c
+            .from('friend_posts')
+            .select(_select)
+            .order('created_at', ascending: false)
+            .limit(100);
+      } catch (_) {
+        // اگر خواندنِ یکجای پست+پاسخ+«حس خوبی» جواب نداد، جدا‌جدا بخوان
+        // تا حداقل خودِ پست‌ها دیده شوند.
+        rows = await _loadSplit(c);
+      }
 
       // چیزهایی که خودم گزارش کرده‌ام برای من پنهان بماند
       final hiddenPosts = <String>{};
@@ -136,10 +150,110 @@ class FriendsStore extends ChangeNotifier {
     } finally {
       loading = false;
       notifyListeners();
+      if (_again) {
+        _again = false;
+        unawaited(load(force: true));
+      }
     }
   }
 
   Future<void> refresh() => load(force: true);
+
+  Future<List<dynamic>> _loadSplit(SupabaseClient c) async {
+    final posts = await c
+        .from('friend_posts')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(100);
+    final out = <Map<String, dynamic>>[
+      for (final r in posts) Map<String, dynamic>.from(r as Map)
+    ];
+    try {
+      final ans = await c.from('friend_answers').select();
+      final ansGood = <String, List<dynamic>>{};
+      try {
+        final ag = await c.from('friend_answer_good').select();
+        for (final g in ag) {
+          final m = Map<String, dynamic>.from(g as Map);
+          ansGood.putIfAbsent(m['answer_id'].toString(), () => []).add(m);
+        }
+      } catch (_) {}
+      for (final a in ans) {
+        final m = Map<String, dynamic>.from(a as Map);
+        m['friend_answer_good'] = ansGood[m['id'].toString()] ?? [];
+        for (final r in out) {
+          if (r['id'].toString() == m['post_id'].toString()) {
+            (r['friend_answers'] ??= <dynamic>[]).add(m);
+          }
+        }
+      }
+    } catch (_) {}
+    try {
+      final pg = await c.from('friend_post_good').select();
+      for (final g in pg) {
+        final m = Map<String, dynamic>.from(g as Map);
+        for (final r in out) {
+          if (r['id'].toString() == m['post_id'].toString()) {
+            (r['friend_post_good'] ??= <dynamic>[]).add(m);
+          }
+        }
+      }
+    } catch (_) {}
+    return out;
+  }
+
+  // ───────── اشتراکِ شکرگذاری از تب شکرگذاری ─────────
+  static const _kSharedGrat = 'friends_shared_grat_v1';
+
+  /// شکرگذاریِ «اشتراک‌گذاری با بقیه» را به‌صورت پستِ «شکرگذاری» در تب دوستان
+  /// می‌گذارد. null = موفق (یا قبلاً گذاشته شده)؛ وگرنه پیامِ خطا.
+  Future<String?> shareGratitude({
+    required String entryKey,
+    required String text,
+    String? emotionId,
+  }) async {
+    final c = _c;
+    if (c == null) return 'اتصال به سرور تنظیم نشده.';
+    if (!canWrite) {
+      return 'برای دیده‌شدن در تب دوستان باید با حساب Google وارد شوی.';
+    }
+    var t = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (t.length < 6) {
+      return 'برای اشتراک در دوستان، شکرگذاری باید متنِ کامل‌تری داشته باشد.';
+    }
+    try {
+      final p = await AppPrefs.getInstance();
+      final done = (p.getString(_kSharedGrat) ?? '')
+          .split(',')
+          .where((e) => e.isNotEmpty)
+          .toSet();
+      if (done.contains(entryKey)) return null;
+
+      var title = t;
+      var body = '';
+      if (t.length > 140) {
+        title = '${t.substring(0, 137)}…';
+        body = t.substring(137);
+        if (body.length > 1200) body = body.substring(0, 1200);
+      }
+      await c.from('friend_posts').insert({
+        'kind': FriendKind.gratitude.name,
+        'title': title,
+        'body': body,
+        'category': '',
+        'author_name': myName,
+        if (emotionId != null && emotionId.isNotEmpty) 'emotion_id': emotionId,
+      });
+      done.add(entryKey);
+      await p.setString(_kSharedGrat, done.join(','));
+      // لیست را تازه کن تا همین الان در تب دوستان دیده شود
+      loaded = false;
+      unawaited(load(force: true));
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
+  }
 
   static String _msg(Object e) {
     if (e is PostgrestException) {

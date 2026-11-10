@@ -398,12 +398,20 @@ class SkyArt {
       {double scale = 1.0, double? t}) {
     if (alpha <= 0.01) return;
     final p = Paint();
-    final tw = t == null ? null : t * 0.4; // چشمکِ آهسته
+    final tw = t == null ? null : t * 0.9; // چشمکِ محسوس ولی نرم
     for (var i = 0; i < stars.length; i++) {
       final st = stars[i];
       var a = alpha * (0.55 + 0.35 * (st[3] % 1.0));
       var rad = st[2] * scale;
-      final c = Offset(st[0] * size.width, st[1] * size.height);
+      var fx = st[0];
+      if (t != null) {
+        // چرخشِ آرامِ آسمان: ستاره‌های درشت‌تر (نزدیک‌تر) کمی سریع‌تر می‌روند
+        // (~۲ تا ۳ دقیقه برای عبور از عرضِ صفحه)؛ لبه‌ها محو می‌شوند تا پرش دیده نشود
+        fx = (st[0] + t * 0.0065 * (0.7 + st[2] * 0.35)) % 1.0;
+        final edge = math.min(fx, 1.0 - fx);
+        if (edge < 0.04) a *= edge / 0.04;
+      }
+      final c = Offset(fx * size.width, st[1] * size.height);
       if (tw != null) {
         if (i % 3 == 0) {
           // ستاره‌ی چشمک‌زن

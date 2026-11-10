@@ -12,6 +12,7 @@ import '../models/jalali.dart' as jal;
 import '../services/data_url_cache.dart';
 import '../state/emotion_store.dart';
 import '../state/background_store.dart';
+import '../state/friends_store.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
 import '../widgets/audio_clip_view.dart';
@@ -225,7 +226,10 @@ class _GratitudeTabState extends State<GratitudeTab> {
     final emotions = context.read<EmotionStore>();
 
     // 🔑 ثبت خودکار رشته‌ی عصبی (با رنگ حسِ انتخاب‌شده روی ادمک؛ بعدش ادمک ریست می‌شه)
-    await store.add(
+    final emoForShare = (emotions.hasSelection && emotions.selectedIds.isNotEmpty)
+        ? emotions.selectedIds.first
+        : null;
+    final added = await store.add(
       text: text,
       images: List.of(_pendingImages),
       audios: List.of(_pendingAudios),
@@ -235,6 +239,11 @@ class _GratitudeTabState extends State<GratitudeTab> {
     );
 
     final wasShared = _pendingShare;
+    if (wasShared) {
+      final err = await FriendsStore.instance.shareGratitude(
+          entryKey: added.id, text: text, emotionId: emoForShare);
+      if (err != null && context.mounted) _toast(context, err);
+    }
     setState(() {
       _textCtrl.clear();
       _pendingImages.clear();
@@ -656,6 +665,18 @@ class _GratitudeTabState extends State<GratitudeTab> {
                                   videos: videos,
                                   shared: share,
                                 );
+                            if (share && editCtrl.text.trim().isNotEmpty) {
+                              final err = await FriendsStore.instance
+                                  .shareGratitude(
+                                      entryKey: g.id,
+                                      text: editCtrl.text,
+                                      emotionId: g.emotionIds.isNotEmpty
+                                          ? g.emotionIds.first
+                                          : null);
+                              if (err != null && context.mounted) {
+                                _toast(context, err);
+                              }
+                            }
                             // حسِ انتخاب‌شده روی ویجت هم همین‌جا ثبت می‌شود
                             // (لازم نیست ویجت بسته شود)
                             // (اگه همه‌ی تیک‌ها برداشته شده باشن، حسِ ثبت حذف می‌شه)
@@ -1892,7 +1913,10 @@ class _GratitudeQuickAddState extends State<GratitudeQuickAdd> {
     final wasShared = _share;
     setState(() => _saving = true);
     try {
-      await store.add(
+      final emoForShare = (emotions.hasSelection && emotions.selectedIds.isNotEmpty)
+          ? emotions.selectedIds.first
+          : null;
+      final added = await store.add(
         text: text,
         images: List.of(_images),
         audios: List.of(_audios),
@@ -1900,6 +1924,11 @@ class _GratitudeQuickAddState extends State<GratitudeQuickAdd> {
         shared: _share,
         emotions: emotions,
       );
+      if (wasShared) {
+        final err = await FriendsStore.instance.shareGratitude(
+            entryKey: added.id, text: text, emotionId: emoForShare);
+        if (err != null && mounted) _GratitudeTabState._toast(context, err);
+      }
       if (!mounted) return;
       setState(() {
         _textCtrl.clear();

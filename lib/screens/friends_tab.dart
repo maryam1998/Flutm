@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../map/draw_utils.dart' show toFa;
@@ -149,17 +151,23 @@ class _FriendsTabState extends State<FriendsTab> {
   final store = FriendsStore.instance;
   FriendKind? _kind;
   FriendSort _sort = FriendSort.newest;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     store.load();
+    // پست‌های تازه‌ی بقیه بدون نیاز به کشیدن صفحه دیده شوند
+    _poll = Timer.periodic(const Duration(seconds: 40), (_) {
+      if (mounted && !store.loading) store.refresh();
+    });
     // بعد از ورود با Google، دوباره بخوان تا «حس خوبی داد»های خودم معلوم شود
     AuthService.instance.addListener(_onAuth);
   }
 
   @override
   void dispose() {
+    _poll?.cancel();
     AuthService.instance.removeListener(_onAuth);
     super.dispose();
   }

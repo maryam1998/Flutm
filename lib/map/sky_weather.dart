@@ -69,7 +69,7 @@ class _SkyWeatherLayerState extends State<SkyWeatherLayer>
     _rain += (_tRain - _rain) * math.min(1.0, dt * 0.5);
     _snow += (_tSnow - _snow) * math.min(1.0, dt * 0.5);
     _wind += (_tWind - _wind) * math.min(1.0, dt * 0.2);
-    _drift += _wind * dt * 0.35; // حرکتِ ابرها آهسته‌تر
+    _drift += _wind * dt * 1.6; // حرکتِ ابرها: محسوس ولی آرام (~۳۰ تا ۱۵۰ ثانیه برای عبور از صفحه)
     _repaint.value++;
   }
 
@@ -332,8 +332,8 @@ class _WeatherPainter extends CustomPainter {
         // حرکتِ آرامِ ابر با بادِ واقعی؛ هر ابر کمی سریع‌تر/کندتر (عمق)
         final span = 1.7; // عرضِ صفحه + حاشیه‌ی دو طرف
         final cx = (((c.x + st._drift * (0.5 + c.d)) % span) - 0.35) * w;
-        final cy = (c.y + math.sin(t * 0.11 + c.ph) * 0.004) * h + u * 0.9;
-        final breath = 1 + 0.035 * math.sin(t * 0.23 + c.ph);
+        final cy = (c.y + math.sin(t * 0.2 + c.ph) * 0.006) * h + u * 0.9;
+        final breath = 1 + 0.045 * math.sin(t * 0.35 + c.ph);
         canvas.saveLayer(
             Rect.fromLTWH(cx - (c.ext + 0.6) * u, cy - 2.6 * u,
                 (c.ext + 0.6) * 2 * u, 4.6 * u),
