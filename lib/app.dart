@@ -23,6 +23,7 @@ import 'widgets/background_layer.dart';
 import 'widgets/dark_adapt.dart';
 import 'widgets/emotion_widget_layer.dart';
 import 'widgets/motivation_bar.dart';
+import 'widgets/paywall.dart';
 import 'widgets/web_tab_bars.dart';
 
 /// برای نمایش پیام (SnackBar) از بیرون از درخت ویجت‌ها
@@ -255,8 +256,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               child: _LazyIndexedStack(
                 index: _index,
                 builders: [
-                  (_) => const DarkAdapt(child: ShenakhtTab()),
-                  (_) => const MapTab(),
+                  (_) => const PremiumGate(
+                        title: 'شناخت',
+                        child: DarkAdapt(child: ShenakhtTab()),
+                      ),
+                  (_) => const PremiumGate(title: 'هدف گذاری', child: MapTab()),
                   (_) => const PracticeTab(),
                 ],
               ),

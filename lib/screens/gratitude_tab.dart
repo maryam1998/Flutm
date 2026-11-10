@@ -13,6 +13,8 @@ import '../services/data_url_cache.dart';
 import '../state/emotion_store.dart';
 import '../state/background_store.dart';
 import '../state/friends_store.dart';
+import '../services/premium_service.dart';
+import '../widgets/paywall.dart';
 import '../state/gratitude_store.dart';
 import '../theme/grat_palette.dart';
 import '../widgets/audio_clip_view.dart';
@@ -224,6 +226,13 @@ class _GratitudeTabState extends State<GratitudeTab> {
     }
     final store = context.read<GratitudeStore>();
     final emotions = context.read<EmotionStore>();
+    if (!await premiumAllowOrPaywall(context,
+        used: store.entries.where((e) => e.source == 'manual').length,
+        limit: kFreeGratitudeLimit,
+        what: 'شکرگذاری')) {
+      return;
+    }
+    if (!context.mounted) return;
 
     // 🔑 ثبت خودکار رشته‌ی عصبی (با رنگ حسِ انتخاب‌شده روی ادمک؛ بعدش ادمک ریست می‌شه)
     final emoForShare = (emotions.hasSelection && emotions.selectedIds.isNotEmpty)
@@ -1911,6 +1920,13 @@ class _GratitudeQuickAddState extends State<GratitudeQuickAdd> {
     final store = context.read<GratitudeStore>();
     final emotions = context.read<EmotionStore>();
     final wasShared = _share;
+    if (!await premiumAllowOrPaywall(context,
+        used: store.entries.where((e) => e.source == 'manual').length,
+        limit: kFreeGratitudeLimit,
+        what: 'شکرگذاری')) {
+      return;
+    }
+    if (!mounted) return;
     setState(() => _saving = true);
     try {
       final emoForShare = (emotions.hasSelection && emotions.selectedIds.isNotEmpty)

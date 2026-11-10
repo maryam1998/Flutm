@@ -1,3 +1,5 @@
+import '../services/premium_service.dart';
+import '../widgets/paywall.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -131,6 +133,14 @@ class _StoreTabState extends State<StoreTab> {
       );
       return;
     }
+
+    if (!await premiumAllowOrPaywall(context,
+        used: store.history.length,
+        limit: kFreeAbundanceLimit,
+        what: 'بازی فراوانی')) {
+      return;
+    }
+    if (!mounted) return;
 
     // نمایش درگاه پرداخت
     final ok = await showDialog<bool>(

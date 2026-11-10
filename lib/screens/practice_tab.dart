@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../state/background_store.dart';
 import '../widgets/dark_adapt.dart';
+import '../widgets/paywall.dart';
 import '../widgets/web_tab_bars.dart';
 
 import 'beliefs_tab.dart';
@@ -85,7 +86,10 @@ class _PracticeTabState extends State<PracticeTab> {
             // 4 = سیگنال (فعلاً مخفی؛ kShowSignalSubTab)
             if (kShowSignalSubTab) _lazy(4, () => const NeuroSignalTab()),
             // 5 = دوستان هم‌فرکانسی
-            _lazy(5, () => const FriendsTab()),
+            _lazy(
+                5,
+                () => const PremiumGate(
+                    title: 'دوستان هم‌فرکانسی', child: FriendsTab())),
           ],
         ),
         bottomNavigationBar: WebSubTabBar(
