@@ -431,12 +431,6 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
 
-          // هوای واقعیِ شهرِ کاربر (ابر، باران، برف)
-          if (sky != null)
-            Positioned.fill(
-              child: SkyWeatherLayer(night: isDark),
-            ),
-
           // کشیدنِ دو انگشت از پایین به بالا (مثل کج‌کردنِ نقشه): نما از چشمِ پاها می‌شود.
           // فقط گوش می‌دهد؛ لمس‌های نقشه را نمی‌گیرد.
           Positioned.fill(
@@ -479,10 +473,9 @@ class _MapTabState extends State<MapTab> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: Row(
                   children: [
-                    // برند (لمس = منوی بکاپ و حالت تغییر اندازه)
+                    // برند
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () => _showTopMenu(store),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -530,6 +523,13 @@ class _MapTabState extends State<MapTab> {
               ),
             ),
           ),
+
+          // هوای واقعیِ شهرِ کاربر (ابر، باران، برف) — بالای نوار بالا تا ابرها
+          // واقعاً از جلوی خورشید/ماه رد شوند (لمس را نمی‌گیرد)
+          if (sky != null)
+            Positioned.fill(
+              child: SkyWeatherLayer(night: isDark),
+            ),
 
           // باغچه: هدف‌های رسیده‌شده‌ای که به‌صورت درخت کاشته شده‌اند
           const Positioned(
@@ -771,23 +771,6 @@ class _MapTabState extends State<MapTab> {
         ),
       ),
     );
-  }
-
-  void _showTopMenu(MapStore store) {
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-          MediaQuery.sizeOf(context).width - 220, 90, 16, 0),
-      items: [
-        PopupMenuItem(
-            value: 'resize',
-            child: Text(_resizeMode
-                ? 'خاموش کردن حالت تغییر اندازه'
-                : 'حالت تغییر اندازه')),
-      ],
-    ).then((v) {
-      if (v == 'resize') setState(() => _resizeMode = !_resizeMode);
-    });
   }
 }
 
