@@ -20,7 +20,7 @@ jobs:
       - name: Create android folder if missing
         run: |
           if [ ! -d "android" ]; then
-            flutter create --platforms=android --project-name=maghz --no-pub .
+            flutter create --platforms=android --project-name=mana --no-pub .
           fi
 
       - name: Add RECORD_AUDIO permission
@@ -45,12 +45,47 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release --split-per-abi
+      # امضای نسخه‌ی نهایی: ۴ تا Secret در GitHub (Settings ← Secrets and variables ← Actions)
+      #   ANDROID_KEYSTORE_BASE64 · ANDROID_KEYSTORE_PASSWORD · ANDROID_KEY_ALIAS · ANDROID_KEY_PASSWORD
+      # اگه Secret نباشه، بیلد با کلید debug انجام می‌شه (فقط برای تست؛ برای فروشگاه نه).
+      - name: Prepare release signing
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > android/app/upload-keystore.jks
+            {
+              echo "storePassword=$KS_PASS"
+              echo "keyPassword=$KEY_PASS"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "storeFile=upload-keystore.jks"
+            } > android/key.properties
+            echo "Release signing: ON"
+          else
+            echo "::warning::Secrets امضا تنظیم نشده؛ APK با کلید debug ساخته می‌شود (برای فروشگاه معتبر نیست)."
+          fi
+
+      # شماره‌ی نسخه (versionCode) با هر اجرا خودکار بالا می‌رود (فروشگاه‌ها لازم دارند)
+      # APK یکپارچه → بازار و مایکت  |  AAB → گوگل‌پلی
+      - name: Build APK (Bazaar / Myket)
+        run: flutter build apk --release --build-number=${{ github.run_number }}
+
+      - name: Build AAB (Google Play)
+        run: flutter build appbundle --release --build-number=${{ github.run_number }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: maghz-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          name: mana-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: mana-aab
+          path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
