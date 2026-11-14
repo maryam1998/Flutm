@@ -153,7 +153,7 @@ class _BackupSectionState extends State<BackupSection> {
     final json = await FullBackup.build(includeMedia: media);
     final ok = await StorageService().exportBackup(json,
         prefix: prefix ??
-            (media ? 'Same Frequency' : 'Same Frequency - lite'));
+            (media ? 'Mana' : 'Mana - lite'));
     if (ok) {
       await FullBackup.markBackedUp();
       await _loadLast();
@@ -232,7 +232,7 @@ class _BackupSectionState extends State<BackupSection> {
     try {
       if (safety) {
         final saved =
-            await _doExport(media: true, prefix: 'Same Frequency - before restore');
+            await _doExport(media: true, prefix: 'Mana - before restore');
         if (!saved) {
           _say('بازیابی لغو شد (بکاپ ایمنی ذخیره نشد)', ok: false);
           return;
@@ -267,7 +267,7 @@ class _BackupSectionState extends State<BackupSection> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
           backgroundColor: Colors.white,
-          title: const Text('بازیابی از بکاپ Same Frequency',
+          title: const Text('بازیابی از بکاپ Mana',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -513,7 +513,7 @@ Future<void> showFullBackupSheet(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('بکاپ و بازیابی Same Frequency',
+            Text('بکاپ و بازیابی Mana',
                 style: TextStyle(
                     fontSize: 16, fontWeight: FontWeight.w800, color: _kInk)),
             SizedBox(height: 4),

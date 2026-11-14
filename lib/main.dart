@@ -137,6 +137,6 @@ Future<void> main() async {
       ChangeNotifierProvider.value(value: shenakht),
       ChangeNotifierProvider.value(value: reminders),
     ],
-    child: const MaghzApp(),
+    child: const ManaApp(),
   ));
 }

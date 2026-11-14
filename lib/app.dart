@@ -30,8 +30,8 @@ import 'widgets/web_tab_bars.dart';
 final GlobalKey<ScaffoldMessengerState> kMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
-class MaghzApp extends StatelessWidget {
-  const MaghzApp({super.key});
+class ManaApp extends StatelessWidget {
+  const ManaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +39,7 @@ class MaghzApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: kRootNavKey,
       scaffoldMessengerKey: kMessengerKey,
-      title: 'نقشه راه',
+      title: 'Mana',
       debugShowCheckedModeBanner: false,
       locale: const Locale('fa'),
       supportedLocales: const [Locale('fa'), Locale('en')],
@@ -247,7 +247,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     return BackgroundLayer(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Column(
+        // هدر زیر نوار وضعیت (ساعت/باتری) نره: همیشه فاصله‌ی امن بالا
+        body: SafeArea(
+          bottom: false,
+          child: Column(
           children: [
             const MotivationBar(),
             Expanded(
@@ -266,6 +269,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
             ),
           ],
+        ),
         ),
         bottomNavigationBar: WebMainTabBar(
           index: _index,

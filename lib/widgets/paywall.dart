@@ -53,6 +53,7 @@ Future<bool> premiumAllowOrPaywall(
   required int limit,
   required String what,
 }) async {
+  if (!kPaidPlansEnabled) return true;
   final svc = PremiumService.instance;
   await svc.init();
   if (svc.isPremium || used < limit) return true;

@@ -7,6 +7,11 @@ import 'app_prefs.dart';
 import 'auth_service.dart';
 import 'supabase_config.dart';
 
+/// ─── اشتراک پولی ───
+/// فعلاً اپ کاملاً رایگان است: همه‌ی بخش‌ها و بدون سقف باز هستند.
+/// برای برگرداندنِ اشتراکِ پولی در آینده فقط این را true کن.
+const bool kPaidPlansEnabled = false;
+
 /// ─── تنظیمِ اشتراک (اینجا را ویرایش کن) ───
 /// قیمتی که در صفحه‌ی اشتراک نشان داده می‌شود
 const String kPremiumPriceText = 'ماهانه ۱۴۹٬۰۰۰ تومان';
@@ -34,7 +39,9 @@ class PremiumService extends ChangeNotifier {
   bool _inited = false;
   bool loading = false;
 
-  bool get isPremium => _expires != null && _expires!.isAfter(DateTime.now());
+  bool get isPremium =>
+      !kPaidPlansEnabled ||
+      (_expires != null && _expires!.isAfter(DateTime.now()));
   DateTime? get expires => _expires;
 
   SupabaseClient? get _c {
@@ -54,6 +61,7 @@ class PremiumService extends ChangeNotifier {
   bool get signedIn => _uid != null;
 
   Future<void> init() async {
+    if (!kPaidPlansEnabled) return; // رایگان: نیازی به سرور نیست
     if (_inited) return;
     _inited = true;
     AuthService.instance.addListener(() => refresh());
