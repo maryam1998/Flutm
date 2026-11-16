@@ -29,6 +29,8 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
   int? _seenTick;
   bool _glass = false;
   Offset _btnPos = Offset.zero;
+  // حاشیه‌های امنِ صفحه (نوار وضعیت بالا، نوار ناوبری پایین)
+  EdgeInsets _pad = EdgeInsets.zero;
   Offset? _panelPos;
   double _panelW = 250;
 
@@ -81,7 +83,9 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     _prefs.load().then((s) {
       if (!mounted) return;
       setState(() {
-        _btnPos = Offset(s.left, s.top);
+        // مقدار پیش‌فرض (-۱) یا گوشه‌ی بالا-چپ (زیر نوار وضعیت؛ باگِ قبلی) = جای ذخیره‌شده نیست
+        final unset = s.left < 0 || s.top < 0 || (s.left <= 8 && s.top <= 8);
+        _btnPos = unset ? Offset.zero : Offset(s.left, s.top);
         _panelPos = (s.panelLeft != null && s.panelTop != null)
             ? Offset(s.panelLeft!, s.panelTop!)
             : null;
@@ -105,17 +109,19 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
   }
 
   Offset _clampBtn(Offset p, Size screen) {
+    final minY = _edge + _pad.top;
     final maxX = screen.width - kEmotionBtnSize - _edge;
-    final maxY = screen.height - kEmotionBtnSize - _edge;
+    final maxY = screen.height - kEmotionBtnSize - _edge - _pad.bottom;
     return Offset(
       p.dx.clamp(_edge, maxX),
-      p.dy.clamp(_edge, maxY),
+      p.dy.clamp(minY, maxY < minY ? minY : maxY),
     );
   }
 
+  // پیش‌فرض: گوشه‌ی پایین-راست، درست بالای نوار ابزارِ نقشه
   Offset _defaultBtnPos(Size screen) => Offset(
         screen.width - kEmotionBtnSize - 16,
-        screen.height - kEmotionBtnSize - 100,
+        screen.height - _pad.bottom - 134 - kEmotionBtnSize,
       );
 
   Rect _computePanelRect(Offset btn, Size screen) {
@@ -193,6 +199,7 @@ class _EmotionWidgetLayerState extends State<EmotionWidgetLayer>
     }
 
     final screen = MediaQuery.of(context).size;
+    _pad = MediaQuery.of(context).viewPadding;
     final store = context.watch<EmotionStore>();
     if (_seenTick == null) {
       _seenTick = store.openTick;

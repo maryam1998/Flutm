@@ -39,7 +39,7 @@ class ManaApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: kRootNavKey,
       scaffoldMessengerKey: kMessengerKey,
-      title: 'Mana',
+      title: 'PHANES',
       debugShowCheckedModeBanner: false,
       locale: const Locale('fa'),
       supportedLocales: const [Locale('fa'), Locale('en')],

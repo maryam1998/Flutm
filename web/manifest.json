@@ -1,11 +1,11 @@
 {
-  "name": "Mana",
-  "short_name": "Mana",
+  "name": "PHANES",
+  "short_name": "PHANES",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#EEF1F8",
-  "description": "Mana",
+  "description": "PHANES",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [
