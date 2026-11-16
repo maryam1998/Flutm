@@ -19,6 +19,7 @@ import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import '../state/theme_store.dart';
 import '../theme/web_palette.dart';
+import '../widgets/ambient_sound_button.dart';
 import '../widgets/backup_section.dart';
 import '../widgets/map_calendar_strip.dart';
 import '../widgets/map_video_overlay.dart';
@@ -473,31 +474,10 @@ class _MapTabState extends State<MapTab> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: Row(
                   children: [
-                    // برند
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(9),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color.fromRGBO(0, 0, 0, 0.25),
-                                  blurRadius: 12,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Image.asset('assets/icon-192.png',
-                                fit: BoxFit.cover),
-                          ),
-                        ],
-                      ),
+                    // آیکونِ کوچکِ قطع/وصلِ صدای طبیعت (به‌جای لوگو)
+                    AmbientSoundButton(
+                      night: sky != null ? sky.night : isDark,
+                      color: wp.textDim.withValues(alpha: 0.5),
                     ),
                     // آسمانِ کوچکِ زنده (خورشید/ماه با ساعتِ گوشی) وسطِ نوار بالا
                     Expanded(
