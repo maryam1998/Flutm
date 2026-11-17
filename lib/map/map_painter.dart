@@ -2046,6 +2046,127 @@ class MapPainter extends CustomPainter {
 
   // ───────────────────────── تنه ─────────────────────────
 
+  // ───────── پل و تونل روی جاده‌ی طولانی ─────────
+  /// کمترین طولِ جاده (واحدِ نقشه) که برایش پل/تونل گذاشته می‌شود
+  static const double _kAdventureMinLen = 420.0;
+
+  /// روی جاده‌ی طولانیِ هدف، نیمه‌راه یک پلِ چوبی یا یک تونلِ کوچک می‌گذارد؛
+  /// بعد از قدم‌زن کشیده می‌شود، پس آدمک از زیرش رد می‌شود. جاده‌ی خیلی طولانی
+  /// هر دو را دارد (یکی در ۳۴٪ و دیگری در ۶۸٪).
+  void _roadAdventure(Canvas canvas, Goal g) {
+    if (cam.scale < 0.12) return;
+    final pts = WalkLayer.roadRoute(state, g);
+    if (pts == null || pts.length < 2) return;
+    final curve = _RouteCurve(pts);
+    if (curve.length < _kAdventureMinLen) return;
+    var h = 0;
+    for (final u in g.id.codeUnits) {
+      h = (h * 31 + u) & 0x7fffffff;
+    }
+    final kind = h % 2; // ۰ = پل، ۱ = تونل
+    final spots = curve.length >= 1100
+        ? <(double, int)>[(0.34, kind), (0.68, 1 - kind)]
+        : <(double, int)>[(0.5, kind)];
+    for (final sp in spots) {
+      final c = curve.at(sp.$1);
+      final a0 = curve.at((sp.$1 - 0.012).clamp(0.0, 1.0));
+      final a1 = curve.at((sp.$1 + 0.012).clamp(0.0, 1.0));
+      final d = a1 - a0;
+      if (d.distance < 0.01) continue;
+      canvas.save();
+      canvas.translate(c.dx, c.dy);
+      canvas.rotate(math.atan2(d.dy, d.dx));
+      if (sp.$2 == 0) {
+        _drawBridge(canvas);
+      } else {
+        _drawTunnel(canvas);
+      }
+      canvas.restore();
+    }
+  }
+
+  /// پلِ چوبی (نگاه از بالا): محورِ x = جهتِ جاده، محورِ y = عرضِ جاده
+  void _drawBridge(Canvas canvas) {
+    const half = 34.0, hw = 19.0;
+    final wood = isDark ? const Color(0xFF8A5E36) : const Color(0xFFB07A45);
+    final woodDark = isDark ? const Color(0xFF5E3D20) : const Color(0xFF7A4E27);
+    // سایه
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            const Rect.fromLTRB(-half - 2, -hw + 2, half + 2, hw + 5),
+            const Radius.circular(4)),
+        Paint()..color = const Color(0x33000000));
+    // تخته‌ها (بین تخته‌ها کمی از جاده پیداست)
+    var i = 0;
+    for (var x = -half; x < half - 0.1; x += 6.8) {
+      canvas.drawRect(
+          Rect.fromLTRB(x, -hw, x + 5.2, hw),
+          Paint()
+            ..color = Color.lerp(wood, woodDark, (i % 3) * 0.16) ?? wood);
+      i++;
+    }
+    // نرده‌های دو طرف و تیرک‌ها
+    for (final sgn in const [-1.0, 1.0]) {
+      final y = sgn * (hw - 1.5);
+      canvas.drawLine(Offset(-half - 2, y), Offset(half + 2, y),
+          _stroke(woodDark, 3.4, 1.0, cap: StrokeCap.butt));
+      for (var x = -half; x <= half + 0.1; x += half / 2) {
+        canvas.drawCircle(Offset(x, y), 3.0, Paint()..color = woodDark);
+        canvas.drawCircle(Offset(x, y - 0.6), 1.3,
+            Paint()..color = Color.lerp(wood, Colors.white, 0.25) ?? wood);
+      }
+    }
+  }
+
+  /// تونلِ کوچک (نگاه از بالا): تپه‌ی سرسبز روی جاده با دو دهانه‌ی سنگی
+  void _drawTunnel(Canvas canvas) {
+    const half = 36.0, hw = 25.0;
+    final grass = isDark ? const Color(0xFF3F6B34) : const Color(0xFF5FA24B);
+    final grassLight =
+        isDark ? const Color(0xFF4F8042) : const Color(0xFF7DBB63);
+    final stone = isDark ? const Color(0xFF7C828B) : const Color(0xFF9AA0A8);
+    const dark = Color(0xFF23252E);
+    // سایه
+    canvas.drawOval(const Rect.fromLTRB(-half - 3, -hw + 3, half + 3, hw + 7),
+        Paint()..color = const Color(0x33000000));
+    // دهانه‌ی تاریک دو سر (قوسِ سنگی)
+    for (final sgn in const [-1.0, 1.0]) {
+      final x = sgn * (half - 3);
+      final r = Rect.fromCenter(center: Offset(x, 0), width: 14, height: 30);
+      canvas.drawOval(r, Paint()..color = dark);
+      canvas.drawOval(
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.2
+            ..color = stone);
+    }
+    // بدنه‌ی تپه
+    final hill = RRect.fromRectAndRadius(
+        const Rect.fromLTRB(-half + 7, -hw, half - 7, hw),
+        const Radius.circular(18));
+    canvas.drawRRect(hill, Paint()..color = grass);
+    canvas.drawOval(const Rect.fromLTRB(-half + 14, -hw + 4, half - 18, 2),
+        Paint()..color = grassLight.withValues(alpha: 0.7));
+    canvas.drawRRect(
+        hill,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = Colors.black.withValues(alpha: 0.18));
+    // چند سنگ و بوته‌ی ریز روی تپه
+    for (final b in const [
+      Offset(-12, -10),
+      Offset(8, 9),
+      Offset(14, -7),
+      Offset(-6, 11)
+    ]) {
+      canvas.drawCircle(b, 2.6, Paint()..color = stone);
+    }
+    canvas.drawCircle(const Offset(-2, -3), 3.2,
+        Paint()..color = Color.lerp(grass, Colors.black, 0.25) ?? grass);
+  }
+
   void _branches(Canvas canvas, MapHost h, Color tc,
       {required bool trunkOnly}) {
     final cp = geo.trunkControlPoints(h, state.me);
@@ -2068,6 +2189,8 @@ class MapPainter extends CustomPainter {
         _walker(canvas, h, cp, col);
       }
       _goalTrophy(canvas, h, col);
+      // پل چوبی / تونلِ کوچک روی جاده‌های طولانی (آدمک از زیرش رد می‌شود)
+      _roadAdventure(canvas, h);
     }
 
     // شاخه‌های هدف کنارِ جاده شروع می‌شوند (نه روی آن): نقاطِ دو سمتِ جاده
