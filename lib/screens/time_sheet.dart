@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide showDialog, showModalBottomSheet;
 import '../widgets/dark_dialogs.dart';
@@ -12,6 +13,7 @@ import '../state/goal_ops.dart';
 import '../state/map_store.dart';
 import '../services/quiet_snack.dart';
 import '../services/reminder_notify.dart';
+import '../widgets/timer_growth.dart';
 
 // رنگ‌های شیت زمان (روشن — هم‌رنگ Goals Sheet)
 const _kCream = Color(0xFFFFFFFF);
@@ -72,6 +74,10 @@ class _TimeSheetState extends State<_TimeSheet> {
   Timer? _tick;
   Timer? _noteSave;
   late final TextEditingController _timerNote;
+  // رویش: بعد از توقفِ تایمر، گیاهِ کامل با جرقه و پروانه نشان داده می‌شود
+  Timer? _bloomT;
+  int? _bloomKind;
+  int _bloomSecs = 0;
 
   @override
   void initState() {
@@ -87,6 +93,7 @@ class _TimeSheetState extends State<_TimeSheet> {
   void dispose() {
     _tick?.cancel();
     _noteSave?.cancel();
+    _bloomT?.cancel();
     _storeTimerNote(notify: false);
     _timerNote.dispose();
     super.dispose();
@@ -114,6 +121,12 @@ class _TimeSheetState extends State<_TimeSheet> {
   void _onTimerNoteChanged(String _) {
     _noteSave?.cancel();
     _noteSave = Timer(const Duration(milliseconds: 600), _storeTimerNote);
+  }
+
+  /// نوعِ گیاهِ این تایمر (۰ تا ۳)؛ با شروعِ تایمر تصادفی انتخاب و ذخیره می‌شود
+  int _growthKind() {
+    final v = widget.node.extra['timerKind'];
+    return v is num ? v.toInt() % kGrowthKinds : 0;
   }
 
   int _elapsedLive() {
@@ -207,7 +220,9 @@ class _TimeSheetState extends State<_TimeSheet> {
       _storeTimerNote(notify: false);
       final startJk =
           jKey(DateTime.fromMillisecondsSinceEpoch(widget.node.timerStart!));
+      final kindNow = _growthKind();
       final secs = stopTimer(widget.node);
+      widget.node.extra.remove('timerKind');
       if (secs > 0) _timerNote.clear();
       if (secs > 0) {
         widget.store.markDoneByTime(widget.host, widget.node, startJk);
@@ -215,11 +230,24 @@ class _TimeSheetState extends State<_TimeSheet> {
       // ذخیره‌ی فوری تا با بستن/رفتن برنامه چیزی گم نشود
       widget.store.changedNow();
       if (mounted) setState(() {});
+      if (secs > 0 && mounted) {
+        _bloomT?.cancel();
+        setState(() {
+          _bloomKind = kindNow;
+          _bloomSecs = secs;
+        });
+        _bloomT = Timer(const Duration(seconds: 9), () {
+          if (mounted) setState(() => _bloomKind = null);
+        });
+      }
       // توقف: کار کلاً تمام شد؟ بله = گل‌ها نمایان می‌شوند، نه = غنچه لابه‌لای برگ‌ها
       if (secs > 0 &&
           mounted &&
           !widget.node.isRoutine &&
           !nodeFinished(widget.node)) {
+        // چند لحظه به شکوفایی فرصت بده تا دیده شود
+        await Future<void>.delayed(const Duration(milliseconds: 2600));
+        if (!mounted) return;
         final done = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -244,6 +272,9 @@ class _TimeSheetState extends State<_TimeSheet> {
       return;
     }
     startTimer(widget.node);
+    widget.node.extra['timerKind'] = math.Random().nextInt(kGrowthKinds);
+    _bloomT?.cancel();
+    _bloomKind = null;
     // ذخیره‌ی فوری: تایمر بر پایه‌ی ساعتِ واقعی است و با بیرون رفتن از برنامه هم ادامه دارد
     widget.store.changedNow();
     // برای اعلانِ «تایمر در حال اجراست» وقتی برنامه در پس‌زمینه است
@@ -377,6 +408,13 @@ class _TimeSheetState extends State<_TimeSheet> {
                               ],
                             ),
                             const SizedBox(height: 8),
+                            Center(
+                              child: TimerGrowthView(
+                                kind: _growthKind(),
+                                startMs: widget.node.timerStart,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             // ویرایشِ تایمرِ در حال اجرا: کم/زیاد کردن یا تنظیمِ دقیق
                             Wrap(
                               spacing: 6,
@@ -429,6 +467,15 @@ class _TimeSheetState extends State<_TimeSheet> {
                                       const BorderSide(color: _kBorder),
                                 ),
                               ),
+                            ),
+                          ],
+                          if (!live && _bloomKind != null) ...[
+                            const SizedBox(height: 8),
+                            TimerGrowthView(
+                              key: ValueKey('bloom$_bloomSecs$_bloomKind'),
+                              kind: _bloomKind!,
+                              bloom: true,
+                              endSecs: _bloomSecs,
                             ),
                           ],
                         ],
