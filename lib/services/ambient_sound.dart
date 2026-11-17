@@ -27,6 +27,7 @@ class AmbientSound {
   static const double _kCricket = 0.24;
   static const double _kGust = 0.30;
   static const double _kBird = 0.26;
+  static const double _kCrow = 0.22;
 
   /// true = کاربر صدا را قطع کرده
   final ValueNotifier<bool> muted = ValueNotifier<bool>(false);
@@ -35,6 +36,7 @@ class AmbientSound {
   final _Loop _cricket = _Loop('ambient/crickets.wav');
   AudioPlayer? _fx;
   AudioPlayer? _bird;
+  AudioPlayer? _crow;
 
   final math.Random _rng = math.Random();
   Timer? _timer;
@@ -44,6 +46,11 @@ class AmbientSound {
   bool _ducked = false;
   bool _night = false;
   double _green = 0;
+  bool _dawn = false;
+  double _windCur = 0;
+  double _windTarget = 0;
+  DateTime _windSegEnd = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime? _crowAt;
   bool _gestureArmed = false;
   DateTime _t0 = DateTime.now();
   DateTime? _gustAt;
@@ -62,9 +69,10 @@ class AmbientSound {
   }
 
   /// [night]: آسمان شب است؟  [green]: سبزیِ دنیا از ۰ (بیابان) تا ۱ (جنگل)
-  void update({required bool night, required double green}) {
+  void update({required bool night, required double green, bool dawn = false}) {
     _night = night;
     _green = green;
+    _dawn = dawn;
   }
 
   /// تب نقشه دیده می‌شود و برنامه جلوی صفحه است؟
@@ -105,7 +113,10 @@ class AmbientSound {
     _running = true;
     _t0 = DateTime.now();
     _cricket.vol = 0;
+    _windCur = 0;
     final now = DateTime.now();
+    _pickWindSeg(now);
+    _crowAt = now.add(Duration(seconds: 12 + _rng.nextInt(30)));
     _gustAt = now.add(Duration(seconds: 14 + _rng.nextInt(22)));
     _birdAt = now.add(Duration(seconds: 6 + _rng.nextInt(10)));
     _armGesture();
@@ -129,6 +140,20 @@ class AmbientSound {
     try {
       _bird?.stop();
     } catch (_) {}
+    try {
+      _crow?.stop();
+    } catch (_) {}
+  }
+
+  // نسیم گاهی هست و گاهی نیست: بین «آرام» و «وزش» با مدت و شدتِ تصادفی
+  void _pickWindSeg(DateTime now) {
+    if (_rng.nextDouble() < 0.45) {
+      _windTarget = _kWind * 0.03 * _rng.nextDouble();
+      _windSegEnd = now.add(Duration(seconds: 15 + _rng.nextInt(50)));
+    } else {
+      _windTarget = _kWind * (0.35 + 0.65 * _rng.nextDouble());
+      _windSegEnd = now.add(Duration(seconds: 12 + _rng.nextInt(45)));
+    }
   }
 
   // مرورگرها قبل از اولین لمسِ کاربر اجازه‌ی پخش نمی‌دهند؛ با اولین لمس دوباره تلاش می‌کنیم
@@ -178,7 +203,9 @@ class AmbientSound {
             0.10 * math.sin(t * tau / 47 + 2.1))
         .clamp(0.0, 1.0)
         .toDouble();
-    final windV = _kWind * (0.5 + 0.5 * w) * fade;
+    if (now.isAfter(_windSegEnd)) _pickWindSeg(now);
+    _windCur += (_windTarget - _windCur) * 0.04;
+    final windV = _windCur * (0.55 + 0.45 * w) * fade;
     _wind.tryPlay();
     _wind.setVol(windV);
 
@@ -203,7 +230,20 @@ class AmbientSound {
       final again = _rng.nextDouble() < 0.15;
       _gustAt = now.add(again
           ? Duration(seconds: 6 + _rng.nextInt(5))
-          : Duration(seconds: 28 + _rng.nextInt(55)));
+          : Duration(seconds: 35 + _rng.nextInt(80)));
+    }
+
+    // کلاغ: فقط دم‌دمای صبح، کم و تصادفی (گاهی یکی جوابش را می‌دهد)
+    final c = _crowAt;
+    if (c != null && now.isAfter(c)) {
+      if (_dawn) {
+        _playCrow();
+        _crowAt = now.add(_rng.nextDouble() < 0.3
+            ? Duration(seconds: 3 + _rng.nextInt(4))
+            : Duration(seconds: 50 + _rng.nextInt(130)));
+      } else {
+        _crowAt = now.add(Duration(seconds: 25 + _rng.nextInt(30)));
+      }
     }
 
     final b = _birdAt;
@@ -242,6 +282,15 @@ class AmbientSound {
       final i = 1 + _rng.nextInt(3);
       final v = _kGust * (0.55 + 0.45 * _rng.nextDouble());
       await p.play(AssetSource('ambient/gust$i.wav'), volume: v);
+    } catch (_) {}
+  }
+
+  Future<void> _playCrow() async {
+    try {
+      final p = _crow ??= await _mk();
+      final i = 1 + _rng.nextInt(3);
+      final v = _kCrow * (0.6 + 0.4 * _rng.nextDouble());
+      await p.play(AssetSource('ambient/crow$i.wav'), volume: v);
     } catch (_) {}
   }
 

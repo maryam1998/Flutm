@@ -477,6 +477,10 @@ class _MapTabState extends State<MapTab> {
                     // آیکونِ کوچکِ قطع/وصلِ صدای طبیعت (به‌جای لوگو)
                     AmbientSoundButton(
                       night: sky != null ? sky.night : isDark,
+                      dawn: sky != null &&
+                          sky.rising &&
+                          sky.altDeg > -12 &&
+                          sky.altDeg < 10,
                       color: wp.textDim.withValues(alpha: 0.5),
                     ),
                     // آسمانِ کوچکِ زنده (خورشید/ماه با ساعتِ گوشی) وسطِ نوار بالا

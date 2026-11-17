@@ -105,7 +105,7 @@ class StorageService {
     return out;
   }
 
-  Future<bool> exportBackup(String json, {String prefix = 'PHANES - map'}) async {
+  Future<bool> exportBackup(String json, {String prefix = 'Phanes - map'}) async {
     final bytes = utf8.encode(json);
     final name =
         '$prefix-${DateTime.now().toIso8601String().substring(0, 10)}.json';
@@ -116,7 +116,7 @@ class StorageService {
       return true;
     }
     final path = await FilePicker.platform.saveFile(
-      dialogTitle: 'ذخیره‌ی بکاپ PHANES',
+      dialogTitle: 'ذخیره‌ی بکاپ Phanes',
       fileName: name,
       type: FileType.custom,
       allowedExtensions: ['json'],

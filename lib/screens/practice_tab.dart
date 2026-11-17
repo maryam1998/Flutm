@@ -65,7 +65,9 @@ class _PracticeTabState extends State<PracticeTab> {
       color: paper,
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: IndexedStack(
+        body: Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: IndexedStack(
           index: _visible.indexOf(_sub),
           children: [
             // 0 = خانه
@@ -91,6 +93,7 @@ class _PracticeTabState extends State<PracticeTab> {
                 () => const PremiumGate(
                     title: 'دوستان هم‌فرکانسی', child: FriendsTab())),
           ],
+        ),
         ),
         bottomNavigationBar: WebSubTabBar(
           index: _visible.indexOf(_sub),

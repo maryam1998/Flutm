@@ -17,10 +17,14 @@ class AmbientSoundButton extends StatefulWidget {
     super.key,
     required this.night,
     required this.color,
+    this.dawn = false,
   });
 
   /// آسمانِ نقشه شب است؟ (جیرجیرک)
   final bool night;
+
+  /// دم‌دمای صبح است؟ (کلاغ)
+  final bool dawn;
 
   /// رنگِ آیکون (کم‌رنگ، هماهنگ با پالتِ نقشه)
   final Color color;
@@ -81,7 +85,7 @@ class _AmbientSoundButtonState extends State<AmbientSoundButton>
       }
     } catch (_) {}
     final s = AmbientSound.instance;
-    s.update(night: widget.night, green: green);
+    s.update(night: widget.night, green: green, dawn: widget.dawn);
     s.setDucked(MapVoicePlayer.instance.playing.value.isNotEmpty);
     s.setActive(kMainTabIndex.value == 1 && _fg);
   }

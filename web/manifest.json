@@ -1,11 +1,11 @@
 {
-  "name": "PHANES",
-  "short_name": "PHANES",
+  "name": "Phanes",
+  "short_name": "Phanes",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#EEF1F8",
-  "description": "PHANES",
+  "description": "Phanes",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [
