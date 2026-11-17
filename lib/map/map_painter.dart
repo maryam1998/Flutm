@@ -3193,6 +3193,10 @@ class MapPainter extends CustomPainter {
     if (!nodeFinished(a) || (a.timerStart ?? 0) > 0) {
       _timeBtn(canvas, a, hostId, _lastBodyPos, _lastBodyR);
     }
+    // ساعت شنیِ کوچک: نمادِ سرمایه‌گذاریِ کاربر روی زمان (تایمر روشن یا زمانِ امروز ثبت شده)
+    if (_plantMinutes(a, todayK) > 0) {
+      _hourglass(canvas, a, _lastBodyPos, _lastBodyR);
+    }
     // مُهرِ «انجام شد» + پالسِ عصبی تا هدف
     // «امروز کار کردم» (ثبتِ زمان/تیکِ روز): فقط یک حلقه‌ی نازکِ کهربایی، بدون کم‌رنگ شدن
     if (!fin && footDoneOn(a, todayK)) {
@@ -3327,6 +3331,104 @@ class MapPainter extends CustomPainter {
             ..strokeWidth = 3.2 * (1 - pg) + 0.5
             ..color = withOp(const Color(0xFFFFC94D), 0.85 * (1 - pg)));
     }
+  }
+
+  /// ساعت شنیِ کوچک کنار قدمِ اقدام (روی مسیر): نمادِ سرمایه‌گذاری روی زمان.
+  /// شن‌ها آرام می‌ریزند؛ در پایانِ هر دور ساعت نرم برمی‌گردد و دوباره می‌ریزد.
+  /// تایمر روشن = کمی سریع‌تر و پررنگ‌تر؛ فقط زمانِ ثبت‌شده = آهسته‌تر.
+  void _hourglass(Canvas canvas, ActionNode a, Offset body, double bodyR) {
+    final live = (a.timerStart ?? 0) > 0;
+    final d = math.max(bodyR * 1.3, 20.0) + 12;
+    // روبه‌روی دکمه‌ی ⏱ (که پایین‌چپ است): پایین‌راستِ قدم
+    final c = body + Offset(d * 0.7071, d * 0.7071);
+    final period = live ? 7.0 : 14.0;
+    final seed = (a.id.hashCode & 0xFF) / 255.0 * period;
+    final p = ((_t + seed) / period) % 1.0;
+    const fallEnd = 0.86;
+    final q = (p / fallEnd).clamp(0.0, 1.0).toDouble(); // پیشرفتِ ریزش
+    final flipP = ((p - fallEnd) / (1.0 - fallEnd)).clamp(0.0, 1.0).toDouble();
+    final flipE = flipP * flipP * (3 - 2 * flipP);
+    final falling = p < fallEnd && q > 0.0 && q < 1.0;
+
+    const w = 4.6;
+    const h = 7.2;
+    const neck = 0.7;
+    const sand = Color(0xFFE8A33D);
+    const frame = Color(0xFF8A5A1E);
+    final op = live ? 1.0 : 0.82;
+
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.rotate(math.pi * flipE);
+
+    // پس‌زمینه‌ی روشن تا روی نقشه خوانا باشد
+    canvas.drawCircle(Offset.zero, h + 3.2,
+        Paint()..color = withOp(const Color(0xFFFFFFFF), 0.88 * op));
+
+    final glass = Path()
+      ..moveTo(-w, -h)
+      ..lineTo(w, -h)
+      ..lineTo(neck, 0)
+      ..lineTo(w, h)
+      ..lineTo(-w, h)
+      ..lineTo(-neck, 0)
+      ..close();
+    canvas.drawPath(glass, Paint()..color = withOp(const Color(0xFFBFE3F2), 0.35 * op));
+
+    // شن‌ها (داخلِ شیشه)
+    canvas.save();
+    canvas.clipPath(glass);
+    final sandPaint = Paint()..color = withOp(sand, 0.95 * op);
+    final topFill = (flipP > 0 ? 0.0 : 1.0 - q);
+    final botFill = (flipP > 0 ? 1.0 : q);
+    if (topFill > 0.001) {
+      canvas.drawRect(Rect.fromLTRB(-w, -h * topFill, w, 0), sandPaint);
+    }
+    if (botFill > 0.001) {
+      // پایین کمی تپه‌ای (مثلثیِ نرم) نه صاف
+      final top = h - h * botFill;
+      final mound = Path()
+        ..moveTo(-w, h)
+        ..lineTo(-w, top + 1.6)
+        ..quadraticBezierTo(0, top - 0.6, w, top + 1.6)
+        ..lineTo(w, h)
+        ..close();
+      canvas.drawPath(mound, sandPaint);
+    }
+    // رشته‌ی باریکِ شنِ در حالِ ریزش + چند دانه‌ی متحرک
+    if (falling) {
+      final endY = h - h * q;
+      canvas.drawLine(
+          const Offset(0, 0),
+          Offset(0, endY),
+          Paint()
+            ..color = withOp(sand, 0.95 * op)
+            ..strokeWidth = 0.9
+            ..strokeCap = StrokeCap.round);
+      for (var k = 0; k < 3; k++) {
+        final gp = ((_t * 1.6) + k / 3.0) % 1.0;
+        final gy = endY * gp;
+        canvas.drawCircle(Offset(0.0, gy), 0.6, Paint()..color = withOp(sand, 0.9 * op));
+      }
+    }
+    canvas.restore();
+
+    // قابِ ساعت
+    final line = Paint()
+      ..color = withOp(frame, 0.95 * op)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(glass, line);
+    final cap = Paint()
+      ..color = withOp(frame, op)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(const Offset(-w - 1.2, -h), const Offset(w + 1.2, -h), cap);
+    canvas.drawLine(const Offset(-w - 1.2, h), const Offset(w + 1.2, h), cap);
+    canvas.restore();
   }
 
   /// دکمه‌ی کوچک ⏱ کنار قدم: باز کردن تایمر و ثبت زمانِ امروز
