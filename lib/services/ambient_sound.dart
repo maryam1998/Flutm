@@ -217,9 +217,14 @@ class AmbientSound {
     _wind.setVol(windV);
 
     // جیرجیرک: شب نرم وارد می‌شود، روز نرم خارج
+    // از ساعت ۴ صبح تا ظهر (و دم‌دمِ سپیده) جیرجیرک نیست؛ صبح جای سکوت است
+    final morning = now.hour >= 4 && now.hour < 12;
+    final cricketOk = _night && !_dawn && !morning;
     final cTarget =
-        _night ? _kCricket * (0.88 + 0.12 * math.sin(t * tau / 9)) : 0.0;
-    _cricket.vol += (cTarget - _cricket.vol) * 0.035;
+        cricketOk ? _kCricket * (0.88 + 0.12 * math.sin(t * tau / 9)) : 0.0;
+    // ورود نسبتاً سریع، خروج خیلی آرام (حدود ۲ دقیقه تا کاملاً خاموش)
+    final cRate = cTarget > _cricket.vol ? 0.03 : 0.008;
+    _cricket.vol += (cTarget - _cricket.vol) * cRate;
     if (_cricket.vol > 0.004) {
       _cricket.tryPlay();
       _cricket.setVol(_cricket.vol);
