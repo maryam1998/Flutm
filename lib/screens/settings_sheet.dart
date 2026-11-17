@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../map/draw_utils.dart' show toFa;
 import '../models/constants.dart';
 import '../models/map_models.dart';
+import '../services/ambient_sound.dart';
 import '../services/auth_service.dart';
 import '../services/fast_image.dart';
 import '../services/reminder_notify.dart' show notifySupported;
@@ -700,6 +701,17 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           },
         ),
         if (_showEmotionWidget) _emotionTabsPicker(),
+        const _Hair(),
+        ValueListenableBuilder<bool>(
+          valueListenable: AmbientSound.instance.keepPlaying,
+          builder: (_, keep, __) => _switchRow(
+            title: 'ادامه‌ی صدای نقشه در بقیه‌ی تب‌ها و پس‌زمینه',
+            subtitle:
+                'روشن: صدای طبیعتِ نقشه در تب‌های دیگر و وقتی برنامه را می‌بندی/می‌روی بیرون هم پخش می‌شود؛ خاموش: فقط داخل تب هدف‌گذاری',
+            value: keep,
+            onChanged: (v) => AmbientSound.instance.setKeepPlaying(v),
+          ),
+        ),
         const _Hair(),
         _switchRow(
           title: 'تقویم نواری',

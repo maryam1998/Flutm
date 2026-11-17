@@ -21,6 +21,7 @@ class AmbientSound {
   static final AmbientSound instance = AmbientSound._();
 
   static const String _prefKey = 'ambientMuted';
+  static const String _keepKey = 'ambientKeepPlaying';
 
   // بلندیِ پایه‌ی هر صدا (۰..۱)؛ برای کم/زیاد کردن فقط همین‌ها را عوض کن
   static const double _kWind = 0.20;
@@ -31,6 +32,10 @@ class AmbientSound {
 
   /// true = کاربر صدا را قطع کرده
   final ValueNotifier<bool> muted = ValueNotifier<bool>(false);
+
+  /// true = صدای نقشه در بقیه‌ی تب‌ها و وقتی برنامه در پس‌زمینه است هم ادامه دارد
+  /// (تنظیمات ← نمایش روی نقشه). پیش‌فرض: روشن
+  final ValueNotifier<bool> keepPlaying = ValueNotifier<bool>(true);
 
   final _Loop _wind = _Loop('ambient/wind.wav');
   final _Loop _cricket = _Loop('ambient/crickets.wav');
@@ -65,6 +70,7 @@ class AmbientSound {
     try {
       final p = await AppPrefs.getInstance();
       muted.value = p.getBool(_prefKey) ?? false;
+      keepPlaying.value = p.getBool(_keepKey) ?? true;
     } catch (_) {}
     _reconcile();
   }
@@ -95,6 +101,14 @@ class AmbientSound {
     if (_ducked == v) return;
     _ducked = v;
     _reconcile();
+  }
+
+  Future<void> setKeepPlaying(bool v) async {
+    keepPlaying.value = v;
+    try {
+      final p = await AppPrefs.getInstance();
+      await p.setBool(_keepKey, v);
+    } catch (_) {}
   }
 
   Future<void> toggleMute() async {

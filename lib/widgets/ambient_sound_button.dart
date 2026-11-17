@@ -43,6 +43,7 @@ class _AmbientSoundButtonState extends State<AmbientSoundButton>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     kMainTabIndex.addListener(_sync);
+    AmbientSound.instance.keepPlaying.addListener(_sync);
     MapVoicePlayer.instance.playing.addListener(_sync);
     AmbientSound.instance.init().then((_) => _sync());
     _t = Timer.periodic(const Duration(seconds: 3), (_) => _sync());
@@ -66,6 +67,7 @@ class _AmbientSoundButtonState extends State<AmbientSoundButton>
     _t?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     kMainTabIndex.removeListener(_sync);
+    AmbientSound.instance.keepPlaying.removeListener(_sync);
     MapVoicePlayer.instance.playing.removeListener(_sync);
     AmbientSound.instance.setActive(false);
     super.dispose();
@@ -87,7 +89,8 @@ class _AmbientSoundButtonState extends State<AmbientSoundButton>
     final s = AmbientSound.instance;
     s.update(night: widget.night, green: green, dawn: widget.dawn);
     s.setDucked(MapVoicePlayer.instance.playing.value.isNotEmpty);
-    s.setActive(kMainTabIndex.value == 1 && _fg);
+    // اگر «ادامه در بقیه‌ی تب‌ها و پس‌زمینه» روشن باشد، تب و حالتِ برنامه مهم نیست
+    s.setActive(s.keepPlaying.value || (kMainTabIndex.value == 1 && _fg));
   }
 
   @override
