@@ -77,7 +77,7 @@ const List<List<Color>> _kGreens = [
 // ───────────────────────── مدلِ دنیا ─────────────────────────
 // انواع: ۰ چمن ۱ گل ۲ بوته ۳ درخت ۴ کاج ۵ برکه ۶ سنگ ۷ قارچ ۸ کاه ۹ نرده
 // ۱۰ چراغ ۱۱ آسیاب ۱۲ مزرعه ۲۰ خانه ۲۱ خانه‌ی دوطبقه ۲۲ برج ۲۳ انبار
-// ۳۰ بالن ۳۱ رنگین‌کمان ۳۲ بشقاب‌پرنده
+// ۳۰ بالن ۳۱ رنگین‌کمان ۳۲ هواپیما
 //
 // اصلِ کار: دنیا از یک بیابانِ خشک شروع می‌شود. برای هر هدف، کنارِ تنه‌ی «من ← هدف»
 // (همان مسیری که کاربر با انگشت می‌سازد) یک جاده ساخته می‌شود؛ طولِ جاده با
@@ -121,7 +121,7 @@ class _GPlan {
 
 class _Plan {
   final List<_El> skyFlat = []; // رنگین‌کمان
-  final List<_El> skyTall = []; // بالن، بشقاب‌پرنده (مختصات نسبت به «من»)
+  final List<_El> skyTall = []; // بالن، هواپیما (مختصات نسبت به «من»)
   List<Color> houseColors = [], roofColors = [], carColors = [];
 }
 
@@ -1002,7 +1002,7 @@ class WorldLayer {
       }
     }
 
-    // ── سورپرایزها: بالن و بشقاب‌پرنده ──
+    // ── سورپرایزها: بالن و هواپیما ──
     for (final e in pl.skyTall) {
       if (tot < e.at) continue;
       final p = _ease((tot - e.at) / _hr(8));
@@ -1010,7 +1010,7 @@ class WorldLayer {
       if (e.k == 30) {
         _balloon(canvas, el, p, t);
       } else {
-        _ufo(canvas, el, p, t);
+        _plane(canvas, el, p, t);
       }
     }
 
@@ -1345,31 +1345,37 @@ class WorldLayer {
         _fill(const Color(0xFF8B5A2B)));
   }
 
-  static void _ufo(Canvas c, _El e, double p, double t) {
+  /// هواپیمای دور با ردِ سفیدِ پشتش؛ آهسته از چپ به راست می‌گذرد و دوباره از اول می‌آید
+  static void _plane(Canvas c, _El e, double p, double t) {
     final s = e.s * p;
-    final ce = Offset(e.x + math.sin(t * 0.2 + e.a) * 120,
-        e.y - 170 + math.sin(t * 0.7) * 6);
+    const span = 1400.0;
+    final dx = ((t * 16 + e.a * 220) % span) - span / 2;
+    final ce = Offset(e.x + dx, e.y - 190 + math.sin(t * 0.3 + e.a) * 3);
+    // رد سفیدِ پشتِ هواپیما؛ هرچه دورتر، کم‌رنگ‌تر و باریک‌تر
+    for (var i = 0; i < 6; i++) {
+      final a0 = 0.34 - i * 0.05;
+      c.drawLine(
+          ce + Offset(-(10 + i * 26) * s, 0),
+          ce + Offset(-(10 + (i + 1) * 26) * s, 0),
+          _stroke(Color.fromRGBO(255, 255, 255, a0 * p), (2.4 - i * 0.25) * s,
+              cap: StrokeCap.round));
+    }
+    c.drawOval(Rect.fromCenter(center: ce, width: 30 * s, height: 5 * s),
+        _fill(const Color(0xFFF1F5F9)));
     _path
       ..reset()
-      ..moveTo(ce.dx - 8 * s, ce.dy + 4 * s)
-      ..lineTo(ce.dx - 26 * s, ce.dy + 70 * s)
-      ..lineTo(ce.dx + 26 * s, ce.dy + 70 * s)
-      ..lineTo(ce.dx + 8 * s, ce.dy + 4 * s)
+      ..moveTo(ce.dx - 12 * s, ce.dy - 1 * s)
+      ..lineTo(ce.dx - 17 * s, ce.dy - 8 * s)
+      ..lineTo(ce.dx - 8 * s, ce.dy - 1 * s)
       ..close();
-    c.drawPath(_path, _fill(const Color(0x14B8F2FF)));
-    c.drawOval(
-        Rect.fromCenter(
-            center: ce + Offset(0, -5 * s), width: 18 * s, height: 14 * s),
-        _fill(const Color(0xAA9AE6FF)));
-    c.drawOval(Rect.fromCenter(center: ce, width: 44 * s, height: 13 * s),
-        _fill(const Color(0xFF94A3B8)));
-    for (var i = -1; i <= 1; i++) {
-      final on = ((t * 3).floor() + i) % 2 == 0;
-      c.drawCircle(
-          ce + Offset(i * 12 * s, 1 * s),
-          1.7 * s,
-          _fill(on ? const Color(0xFFFFE066) : const Color(0xFFE5484D)));
-    }
+    c.drawPath(_path, _fill(const Color(0xFFCBD5E1)));
+    _path
+      ..reset()
+      ..moveTo(ce.dx - 2 * s, ce.dy)
+      ..lineTo(ce.dx - 9 * s, ce.dy + 7 * s)
+      ..lineTo(ce.dx + 3 * s, ce.dy)
+      ..close();
+    c.drawPath(_path, _fill(const Color(0xFFCBD5E1)));
   }
 
   /// ماشینِ مهمان روی جاده‌ی یک شاخه/زیرشاخه (نقشه‌ی پیشرفته).
