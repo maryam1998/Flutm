@@ -274,8 +274,13 @@ class _EditSheetState extends State<EditSheet> {
           Text(
             info.progress >= 1.0
                 ? 'تمام شد 🌳'
-                : (info.overdue
-                    ? 'از تخمینت گذشته؛ با سرعتِ واقعی‌ات حدوداً تا ${faDateLong(info.projectedEnd)} تمام می‌شود.'
+                : ((info.overdue ||
+                        (info.elapsed >= 1 &&
+                            info.progress <
+                                (info.elapsed / info.estDays).clamp(0.0, 1.0) *
+                                    0.5))
+                    // به‌جای هشدارِ «عقب افتادی»: پیامِ آرامش‌بخش و تشویقی
+                    ? 'قدم‌های کوچک هم تو را به هدف می‌رسانند. بیا امروز قدم بعدی را برداریم 🌱\nبا سرعتِ فعلی‌ات حدوداً تا ${faDateLong(info.projectedEnd)} می‌رسی.'
                     : 'با سرعتِ فعلی حدوداً تا ${faDateLong(info.projectedEnd)} تمام می‌شود.'),
             style: const TextStyle(fontSize: 12, color: _kMuted),
           ),
