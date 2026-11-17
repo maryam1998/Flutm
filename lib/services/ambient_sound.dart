@@ -47,6 +47,7 @@ class AmbientSound {
   bool _night = false;
   double _green = 0;
   bool _dawn = false;
+  bool _crowMorning = false;
   double _windCur = 0;
   double _windTarget = 0;
   DateTime _windSegEnd = DateTime.fromMillisecondsSinceEpoch(0);
@@ -72,6 +73,13 @@ class AmbientSound {
   void update({required bool night, required double green, bool dawn = false}) {
     _night = night;
     _green = green;
+    if (dawn && !_dawn) {
+      // شروعِ دم‌دمِ صبح: بعضی صبح‌ها کلاغ هست و بعضی صبح‌ها نیست (حدود نیمی از صبح‌ها)
+      _crowMorning = _rng.nextDouble() < 0.5;
+      _crowAt = DateTime.now().add(Duration(seconds: 25 + _rng.nextInt(120)));
+    } else if (!dawn) {
+      _crowMorning = false;
+    }
     _dawn = dawn;
   }
 
@@ -116,7 +124,6 @@ class AmbientSound {
     _windCur = 0;
     final now = DateTime.now();
     _pickWindSeg(now);
-    _crowAt = now.add(Duration(seconds: 12 + _rng.nextInt(30)));
     _gustAt = now.add(Duration(seconds: 14 + _rng.nextInt(22)));
     _birdAt = now.add(Duration(seconds: 6 + _rng.nextInt(10)));
     _armGesture();
@@ -236,13 +243,14 @@ class AmbientSound {
     // کلاغ: فقط دم‌دمای صبح، کم و تصادفی (گاهی یکی جوابش را می‌دهد)
     final c = _crowAt;
     if (c != null && now.isAfter(c)) {
-      if (_dawn) {
+      if (_dawn && _crowMorning) {
         _playCrow();
-        _crowAt = now.add(_rng.nextDouble() < 0.3
+        // کم: بینِ دو بار ۴ تا ۱۲ دقیقه؛ گاهی هم کلاغِ دیگری جوابش را می‌دهد
+        _crowAt = now.add(_rng.nextDouble() < 0.2
             ? Duration(seconds: 3 + _rng.nextInt(4))
-            : Duration(seconds: 50 + _rng.nextInt(130)));
+            : Duration(seconds: 240 + _rng.nextInt(480)));
       } else {
-        _crowAt = now.add(Duration(seconds: 25 + _rng.nextInt(30)));
+        _crowAt = now.add(const Duration(seconds: 60));
       }
     }
 
