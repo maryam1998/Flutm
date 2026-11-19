@@ -15,7 +15,7 @@ plugins {
 }
 
 android {
-    namespace = "app.mana.android"
+    namespace = "app.phanes.android"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -25,7 +25,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "app.mana.android"
+        applicationId = "app.phanes.android"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
