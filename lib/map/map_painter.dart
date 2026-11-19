@@ -13,6 +13,7 @@ import '../services/map_voice_player.dart';
 import '../theme/vazir_font.dart';
 import '../state/goal_ops.dart';
 import 'camera.dart';
+import 'clay_sprites.dart';
 import 'draw_utils.dart';
 import 'estimate.dart';
 import '../services/note_fonts.dart';
@@ -1441,6 +1442,14 @@ class MapPainter extends CustomPainter {
     final gc = greens[(h ~/ 36) % greens.length];
     final k = Curves.easeOutBack.transform(p.clamp(0.0, 1.0).toDouble());
     if (k <= 0.02) return;
+
+    // تصاویرِ سه‌بعدیِ خمیری: جوانه (در حال انجام) / لاله، آفتابگردان، قارچ (تکمیل‌شده)
+    ClaySprites.ensure();
+    if (ClaySprites.ready) {
+      ClaySprites.sprig(canvas, tip, dir, r, h, p,
+          budOnly: budOnly, windT: wind ? _windT : null);
+      return;
+    }
 
     canvas.save();
     canvas.translate(tip.dx, tip.dy);

@@ -38,6 +38,7 @@ flutter:
     - assets/icon-192.png
     - assets/coin.wav
     - assets/ambient/
+    - assets/plants/
   fonts:
     - family: Vazirmatn
       fonts:
