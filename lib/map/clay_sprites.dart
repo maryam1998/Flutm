@@ -41,6 +41,7 @@ class ClaySprites {
     'tree',
     'sprout2',
     'sprout3',
+    'rose',
   ];
 
   // استخرِ تصادفی (ثابت برای هر شناسه). تکرارِ یک نام = شانسِ بیشتر.
@@ -51,9 +52,10 @@ class ClaySprites {
     'mushroom',
     'grass_flower',
     'bush_flower',
+    'rose',
   ];
   // غنچه/در حال انجام: انواعِ جوانه
-  static const List<String> _budPool = ['sprout', 'sprout2', 'sprout3'];
+  static const List<String> _budPool = ['sprout', 'sprout2', 'sprout3', 'rose'];
   // پوشش‌گیاهیِ کنارِ جاده: چمن، جوانه، بوته، درختچه
   static const List<String> _groundPool = [
     'bush',
@@ -66,6 +68,10 @@ class ClaySprites {
     'tree',
     'grass',
     'sprout3',
+    'tulip',
+    'sunflower',
+    'mushroom',
+    'rose',
   ];
   static List<String> _flowerAvail = const ['tulip'];
   static List<String> _budAvail = const ['sprout'];
@@ -79,6 +85,10 @@ class ClaySprites {
     'sprout': 0.9,
     'sprout2': 0.7,
     'sprout3': 0.76,
+    'tulip': 0.8,
+    'sunflower': 0.8,
+    'mushroom': 0.65,
+    'rose': 0.75,
   };
   // ارتفاعِ نسبیِ هر نوع در جایگاهِ «گل» (ضرب در شعاع)
   static const Map<String, double> _flowerH = {
@@ -87,12 +97,14 @@ class ClaySprites {
     'mushroom': 2.5,
     'grass_flower': 2.3,
     'bush_flower': 2.5,
+    'rose': 3.0,
   };
   // ارتفاعِ نسبیِ هر جوانه (ضرب در شعاع)؛ جوانه‌های پهن کمی کوتاه‌تر
   static const Map<String, double> _budH = {
     'sprout': 2.3,
     'sprout2': 1.8,
     'sprout3': 2.0,
+    'rose': 2.4,
   };
   // کوتاه و پهن‌ها نباید کج شوند
   static const Set<String> _squat = {'mushroom', 'grass_flower', 'bush_flower'};
