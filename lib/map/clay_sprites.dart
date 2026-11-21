@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data' show Float64List;
 import 'dart:ui' as ui;
 
 import 'package:flutter/animation.dart' show Curves;
@@ -32,6 +33,72 @@ class ClaySprites {
   /// گل‌ها/قارچ‌هایی که برای «تکمیل‌شده» تصادفی انتخاب می‌شوند
   static const List<String> flowerKeys = ['tulip', 'sunflower', 'mushroom'];
 
+  /// تصاویرِ تازه (اختیاری): اگر فایلی نبود فقط همان نوع کنار گذاشته می‌شود
+  static const List<String> _extraKeys = [
+    'grass',
+    'grass_flower',
+    'bush_flower',
+    'tree',
+    'sprout2',
+    'sprout3',
+  ];
+
+  // استخرِ تصادفی (ثابت برای هر شناسه). تکرارِ یک نام = شانسِ بیشتر.
+  // گلِ تکمیل‌شده: لاله، آفتابگردان، قارچ، چمنِ گل‌دار، بوته‌ی گل‌دار
+  static const List<String> _flowerPool = [
+    'tulip',
+    'sunflower',
+    'mushroom',
+    'grass_flower',
+    'bush_flower',
+  ];
+  // غنچه/در حال انجام: انواعِ جوانه
+  static const List<String> _budPool = ['sprout', 'sprout2', 'sprout3'];
+  // پوشش‌گیاهیِ کنارِ جاده: چمن، جوانه، بوته، درختچه
+  static const List<String> _groundPool = [
+    'bush',
+    'grass',
+    'tree',
+    'sprout',
+    'grass',
+    'bush',
+    'sprout2',
+    'tree',
+    'grass',
+    'sprout3',
+  ];
+  static List<String> _flowerAvail = const ['tulip'];
+  static List<String> _budAvail = const ['sprout'];
+  static List<String> _groundAvail = const ['bush'];
+
+  // ارتفاعِ نسبیِ هر نوع در جایگاهِ «بوته» (نسبت به ارتفاعِ بوته‌ی پایه)
+  static const Map<String, double> _groundMul = {
+    'bush': 1.0,
+    'grass': 0.78,
+    'tree': 1.05,
+    'sprout': 0.9,
+    'sprout2': 0.7,
+    'sprout3': 0.76,
+  };
+  // ارتفاعِ نسبیِ هر نوع در جایگاهِ «گل» (ضرب در شعاع)
+  static const Map<String, double> _flowerH = {
+    'tulip': 3.1,
+    'sunflower': 3.1,
+    'mushroom': 2.5,
+    'grass_flower': 2.3,
+    'bush_flower': 2.5,
+  };
+  // ارتفاعِ نسبیِ هر جوانه (ضرب در شعاع)؛ جوانه‌های پهن کمی کوتاه‌تر
+  static const Map<String, double> _budH = {
+    'sprout': 2.3,
+    'sprout2': 1.8,
+    'sprout3': 2.0,
+  };
+  // کوتاه و پهن‌ها نباید کج شوند
+  static const Set<String> _squat = {'mushroom', 'grass_flower', 'bush_flower'};
+
+  static String _pick(List<String> pool, int h) => pool[h.abs() % pool.length];
+
   static final Map<String, ui.Image> _imgs = {};
   static Future<void>? _loading;
   static bool ready = false;
@@ -54,7 +121,108 @@ class ClaySprites {
         // فایلی نبود: همان رسمِ برداریِ قبلی می‌ماند
       }
     }
+    for (final k in _extraKeys) {
+      try {
+        final data = await rootBundle.load('assets/plants/$k.png');
+        final codec = await ui.instantiateImageCodec(
+            data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+        final f = await codec.getNextFrame();
+        _imgs[k] = f.image;
+      } catch (_) {
+        // این نوع نبود: از استخر کنار گذاشته می‌شود
+      }
+    }
+    List<String> avail(List<String> pool, String fallback) {
+      final l = [
+        for (final k in pool)
+          if (_imgs.containsKey(k)) k
+      ];
+      return l.isEmpty ? [fallback] : l;
+    }
+
+    _flowerAvail = avail(_flowerPool, 'tulip');
+    _budAvail = avail(_budPool, 'sprout');
+    _groundAvail = avail(_groundPool, 'bush');
     ready = _keys.every(_imgs.containsKey);
+  }
+
+  // ───────────────────── جلوگیری از روی‌هم‌افتادن ─────────────────────
+  // نقشه در هر فریم یک‌بار از [beginFrame] تا [endFrame] می‌کشد؛ هر گیاه جای
+  // خودش (در مختصاتِ صفحه) را «رزرو» می‌کند. بوته‌های تزئینی (soft) اگر جایشان
+  // پر باشد کشیده نمی‌شوند؛ گل/غنچه‌ی روزها (hard) همیشه کشیده می‌شوند، ولی اگر
+  // روی چیزی بیفتند کمی کنار می‌روند. ردپا و بقیه‌ی اجزای نقشه دست‌نخورده‌اند.
+  static bool _frameOn = false;
+  static final List<ui.Rect> _occ = <ui.Rect>[];
+
+  static void beginFrame() {
+    _occ.clear();
+    _frameOn = true;
+  }
+
+  static void endFrame() {
+    _frameOn = false;
+    _occ.clear();
+  }
+
+  /// جابه‌جاییِ لازم (مختصاتِ محلی) یا null = این گیاه کشیده نشود.
+  /// [h] ارتفاعِ کاملِ گیاه (نه ارتفاعِ فعلیِ انیمیشن؛ تا تصمیم‌ها پایدار بماند)،
+  /// [aspect] = پهنا/ارتفاع.
+  static ui.Offset? _claim(
+      ui.Canvas canvas, ui.Offset base, double h, double aspect,
+      {required bool hard}) {
+    if (!_frameOn) return ui.Offset.zero;
+    final Float64List m = canvas.getTransform();
+    final s = math.sqrt(m[0] * m[0] + m[1] * m[1]);
+    if (s * h < 3.0) return ui.Offset.zero; // ریزِ نامرئی
+    final clip = canvas.getDestinationClipBounds().inflate(120);
+    ui.Rect rectAt(ui.Offset b) {
+      final dx = m[0] * b.dx + m[4] * b.dy + m[12];
+      final dy = m[1] * b.dx + m[5] * b.dy + m[13];
+      final hh = h * s, ww = hh * aspect;
+      return ui.Rect.fromLTWH(dx - ww * 0.36, dy - hh * 0.88, ww * 0.72, hh * 0.8);
+    }
+
+    bool free(ui.Rect r) {
+      for (final o in _occ) {
+        if (o.overlaps(r)) return false;
+      }
+      return true;
+    }
+
+    final r = rectAt(base);
+    if (!r.overlaps(clip)) return ui.Offset.zero; // بیرونِ صفحه
+    if (free(r)) {
+      _occ.add(r);
+      return ui.Offset.zero;
+    }
+    if (!hard) return null;
+    final w = h * aspect;
+    final cands = <ui.Offset>[
+      ui.Offset(-0.6 * w, 0),
+      ui.Offset(0.6 * w, 0),
+      ui.Offset(0, 0.4 * h),
+      ui.Offset(0, -0.4 * h),
+      ui.Offset(-1.1 * w, 0),
+      ui.Offset(1.1 * w, 0),
+      ui.Offset(-0.6 * w, 0.4 * h),
+      ui.Offset(0.6 * w, 0.4 * h),
+      ui.Offset(-0.6 * w, -0.4 * h),
+      ui.Offset(0.6 * w, -0.4 * h),
+    ];
+    for (final d in cands) {
+      final rr = rectAt(base + d);
+      if (free(rr)) {
+        _occ.add(rr);
+        return d;
+      }
+    }
+    _occ.add(r);
+    return ui.Offset.zero;
+  }
+
+  static double _aspect(String key) {
+    final i = _imgs[key];
+    return i == null ? 1.0 : i.width / i.height;
   }
 
   static double _sm(double x) {
@@ -122,17 +290,21 @@ class ClaySprites {
       {required bool budOnly, double? windT}) {
     final k = Curves.easeOutBack.transform(p.clamp(0.0, 1.0).toDouble());
     if (k <= 0.02) return;
-    final String key = budOnly ? 'sprout' : flowerKeys[(h ~/ 7) % flowerKeys.length];
+    final String key = budOnly
+        ? _pick(_budAvail, h ~/ 3)
+        : _pick(_flowerAvail, h ~/ 7);
     final size = (0.92 + ((h ~/ 11) % 5) * 0.04);
-    final base = r *
-        size *
-        (budOnly ? 2.3 : (key == 'mushroom' ? 2.5 : 3.1));
+    final base = r * size * (budOnly ? (_budH[key] ?? 2.3) : (_flowerH[key] ?? 3.1));
+    // جای گیاه را (با اندازه‌ی کاملش) رزرو کن؛ اگر رویِ چیزی افتاد کمی کنار می‌رود
+    final shift = _claim(canvas, tip, base, _aspect(key), hard: true) ??
+        ui.Offset.zero;
+    tip = tip + shift;
     // کجیِ کم به سمتِ جهتِ رشد + نسیم؛ همیشه رو به بالا می‌ماند (گلِ خوابیده نمی‌شود)
     var lean = math.cos(dir) * 0.16;
     if (windT != null) {
       lean += windSway(windT, tip.dx, (h % 6283) / 1000.0) * 0.12;
     }
-    if (key == 'mushroom') lean *= 0.35;
+    if (_squat.contains(key)) lean *= 0.35;
     final flip = ((h >> 5) & 1) == 1;
     draw(canvas, key, tip, base * k,
         lean: lean,
@@ -148,10 +320,16 @@ class ClaySprites {
   static void bush(ui.Canvas canvas, ui.Offset base, double size, double g,
       int seed, double sway) {
     final k = g.clamp(0.0, 1.0).toDouble();
-    final height = size * 1.35 * (0.12 + 0.88 * _sm(k));
+    // نوعِ پوشش‌گیاهی (چمن/جوانه/بوته/درختچه): تصادفی ولی ثابت برای هر seed
+    final mix = (seed.abs() % 100003) * 7919;
+    final key = _pick(_groundAvail, mix >> 5);
+    final full = size * 1.35 * (_groundMul[key] ?? 1.0);
+    // جایِ کاملِ بوته رزرو می‌شود؛ اگر پر بود، این بوته‌ی تزئینی کشیده نمی‌شود
+    if (_claim(canvas, base, full, _aspect(key), hard: false) == null) return;
+    final height = full * (0.12 + 0.88 * _sm(k));
     if (height < 1.2) return;
-    draw(canvas, 'bush', base, height,
-        lean: sway * 0.3,
+    draw(canvas, key, base, height,
+        lean: _squat.contains(key) ? 0.0 : sway * 0.3,
         flip: (seed.abs() >> 4).isOdd,
         alpha: math.min(1.0, 0.25 + k * 3.0),
         shadowW: 0.55);
@@ -161,14 +339,22 @@ class ClaySprites {
   static void growingSprout(ui.Canvas canvas, ui.Offset tip, double r,
       int h, double minutes, double? windT) {
     final m = math.max(0.0, minutes);
+    final key = _pick(_budAvail, h ~/ 3);
+    final mul = key == 'sprout' ? 1.0 : (_budH[key] ?? 2.3) / 2.3;
     final height = r *
         (1.5 + 1.6 * _sm(m / 15) + 1.2 * _sm((m - 15) / 60)) *
-        (0.94 + ((h ~/ 11) % 4) * 0.03);
+        (0.94 + ((h ~/ 11) % 4) * 0.03) *
+        mul;
+    // جای کاملِ جوانه (ارتفاعِ نهاییِ ۴٫۴ r) رزرو می‌شود تا تصمیم‌ها پایدار بماند
+    final shift =
+        _claim(canvas, tip, r * 4.4 * mul, _aspect(key), hard: true) ??
+            ui.Offset.zero;
+    tip = tip + shift;
     var lean = 0.0;
     if (windT != null) {
       lean = windSway(windT, tip.dx, (h % 628) / 100.0) * 0.10;
     }
-    draw(canvas, 'sprout', tip, height,
+    draw(canvas, key, tip, height,
         lean: lean, flip: ((h >> 5) & 1) == 1, shadowW: 0.45);
   }
 

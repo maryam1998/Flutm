@@ -409,6 +409,16 @@ class MapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // رزروِ جای گیاه‌ها در هر فریم (جلوگیری از روی‌هم‌افتادنِ بوته/گل/غنچه)
+    ClaySprites.beginFrame();
+    try {
+      _paintMap(canvas, size);
+    } finally {
+      ClaySprites.endFrame();
+    }
+  }
+
+  void _paintMap(Canvas canvas, Size size) {
     // Maghz: `.node-label` و `.branch-label` در تم روشن stroke:#f4f6fb دارند
     // (نوشته‌ی مشکی ← دورِ سفید)؛ فقط `.feeling-label` (نشانه‌ها) همیشه #0a0c18 است.
     textCache.setOutline(

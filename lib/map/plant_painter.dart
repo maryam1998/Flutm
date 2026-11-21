@@ -500,6 +500,16 @@ void drawTrunkFlora(
       : 0.14 + i * (0.74 / (slots - 1));
   Offset nrm(double a) => Offset(-math.sin(a), math.cos(a));
 
+  // بوته‌های کنارِ جاده بعد از غنچه/گل‌ها کشیده می‌شوند تا جای غنچه‌ها را نگیرند
+  // و اگر روی چیزی افتادند کشیده نشوند (جلوگیری از روی‌هم‌افتادن)
+  final deferredBushes = <void Function()>[];
+  void flushBushes() {
+    for (final f in deferredBushes) {
+      f();
+    }
+    deferredBushes.clear();
+  }
+
   for (var i = 0; i < slots; i++) {
     final base = th[math.min(i, th.length - 1)];
     // دو جوانه‌ی اول از لحظه‌ی ثبت هستند؛ بقیه کمی قبل از باز شدن پدیدار می‌شوند
@@ -535,8 +545,10 @@ void drawTrunkFlora(
           : windSway(windT, bushBase.dx, (h % 628) / 100.0 + i * 1.7) *
               0.2 *
               (math.sin(bushDir) <= 0 ? 1.0 : -1.0);
-      drawRoadBush(canvas, bushBase, bushDir, r * 2.1, gk, h + i * 7919,
-          sway: bushSway);
+      final bushSeed = h + i * 7919;
+      deferredBushes.add(() => drawRoadBush(
+          canvas, bushBase, bushDir, r * 2.1, gk, bushSeed,
+          sway: bushSway));
       continue;
     }
     // پایه‌ی برگ: روی خط‌وسطِ تنه (قبل)؛ کنارِ جاده: لبه‌ی همان سمت
@@ -557,11 +569,17 @@ void drawTrunkFlora(
   }
 
   // غنچه و گل
-  if (running && marks == null) return; // وقتی تایمر روشن است فقط رشدِ برگ دیده می‌شود
+  if (running && marks == null) {
+    flushBushes();
+    return; // وقتی تایمر روشن است فقط رشدِ برگ دیده می‌شود
+  }
   final started = marks != null
       ? marks.isNotEmpty
       : (m > 0 || doneDays > 0 || finished);
-  if (!started) return;
+  if (!started) {
+    flushBushes();
+    return;
+  }
   if (marks != null) {
     // از سرِ شاخه (t≈۱) شروع می‌شود و به سمتِ ابتدا می‌آید؛ هر ۲۲ پیکسل یک جا،
     // دور از محلِ اتصالِ زیرشاخه‌ها. وقتی پر شد، ردیفِ بعدی کمی دورتر از جاده
@@ -599,6 +617,7 @@ void drawTrunkFlora(
           mk.grow);
       sprig(canvas, pos, dirA, rr, mk.seed, pp, mk.flower);
     }
+    flushBushes();
     return;
   }
   // هر روزِ ثبت‌شده یک غنچه؛ وقتی کار تمام شد آخرین غنچه گل می‌شود.
@@ -619,4 +638,5 @@ void drawTrunkFlora(
     final pp = (bloom * 1.4 - j * 0.12).clamp(0.0, 1.0).toDouble();
     sprig(canvas, p + out, dirA, r * (fl ? 0.62 : 0.5), '$id|t$j', pp, fl);
   }
+  flushBushes();
 }
