@@ -4,12 +4,16 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../map/map_ops.dart';
+import '../map/spirits.dart';
 import '../models/map_models.dart';
 import '../services/persist_engine.dart';
 import '../services/storage.dart';
 
 class MapStore extends ChangeNotifier {
-  MapStore(this._storage);
+  MapStore(this._storage) {
+    // موجِ شکرگزاری و هیولاهای ذهن به همین نقشه وصل می‌شوند
+    MapSpirits.bind(() => state, changed, (m) => toast?.call(m));
+  }
   final StorageService _storage;
 
   MapState state = MapState();

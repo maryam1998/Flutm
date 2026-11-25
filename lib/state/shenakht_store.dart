@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../data/shenakht/schemas.dart';
 import '../data/shenakht/ysq_questions.dart';
 import '../models/shenakht/checkin.dart';
+import '../map/spirits.dart';
 import '../models/shenakht/progress_entry.dart';
 import '../services/storage.dart';
 
@@ -143,6 +144,8 @@ class ShenakhtStore extends ChangeNotifier {
       notes: notes,
       createdAt: DateTime.now(),
     ));
+    // انجامِ یک تمرین/مأموریت = دوست‌شدن با یک هیولای ذهن روی نقشه
+    if (exerciseId != null || missionDone) MapSpirits.onSelfKnowledge();
   }
 
   List<ProgressEntry> entriesForSchema(String? schemaId) {

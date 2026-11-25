@@ -22,6 +22,7 @@ import 'geometry.dart' as geo;
 import 'hit_registry.dart';
 import 'map_ops.dart';
 import 'plant_painter.dart';
+import 'spirits.dart';
 import 'today_focus.dart';
 import 'user_state.dart';
 import 'wind.dart' show windSway;
@@ -434,6 +435,18 @@ class MapPainter extends CustomPainter {
     canvas.scale(cam.scale);
     // دنیای در حال رشد (زمین سرسبز، جاده، خانه، ماشین…) زیرِ همه‌ی نقشه
     WorldLayer.paint(canvas, state, cam, size, _t, isDark);
+    // موجِ شکرگزاری + درخت/چشمه‌هایی که با شکرگزاری زنده می‌شوند (زیرِ جاده‌ها)
+    final spSc = cam.scale <= 0 ? 1.0 : cam.scale;
+    if (state.extra['worldOff'] != true) {
+      MapSpirits.paintLife(
+          canvas,
+          state,
+          Rect.fromLTWH(-cam.x / spSc, -cam.y / spSc, size.width / spSc,
+              size.height / spSc),
+          spSc,
+          _t,
+          isDark);
+    }
     final tc = _textColor;
 
     // حالت «فقط امروز»: هدفِ قدم بعدی پررنگ، بقیه کم‌رنگ (هر گروه یک لایه)
@@ -494,6 +507,8 @@ class MapPainter extends CustomPainter {
       }
       if (dimPass) canvas.restore();
     }
+    // هیولاهای دوست‌داشتنیِ مانع‌های ذهنی روی جاده‌ی شاخه‌ها
+    MapSpirits.paintMonsters(canvas, state, hits.twigs, _t, isDark, spSc);
     _drawMe(canvas, tc);
     for (final dimPass in passes) {
       if (dimPass) canvas.saveLayer(null, dimPaint);

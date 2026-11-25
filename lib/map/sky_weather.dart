@@ -322,6 +322,40 @@ class _WeatherPainter extends CustomPainter {
       final bodyPaint = _puffPaint(body, 0.95);
       final lightPaint = _puffPaint(light, 0.8);
       final maxA = night ? 0.42 : 0.82;
+
+      // سایه‌ی ابرها روی زمینِ نقشه: فقط یک لکه‌ی خیلی نرم و کم‌رنگ که با خودِ ابر
+      // (و با همان بادِ واقعی) می‌لغزد؛ عمداً تیره نیست تا نقشه زشت نشود.
+      final shadowBase =
+          night ? const Color(0xFF05070F) : const Color(0xFF1C2638);
+      final shadowK = (night ? 0.07 : 0.10) * (1 + dim * 0.5);
+      final shadowPaint = _puffPaint(shadowBase, 1.0);
+      for (var i = 0; i < _clouds.length; i++) {
+        final c = _clouds[i];
+        final a = (cover * 1.3 - i * 0.15).clamp(0.0, 1.0).toDouble() *
+            (0.55 + 0.45 * c.d);
+        if (a <= 0.02) continue;
+        final u = w * 0.058 * c.s * 1.1;
+        const span = 1.7;
+        final spd = (0.3 + 1.1 * ((c.ph * 3.7) % 1.0)) * (0.6 + 0.4 * c.d);
+        // کمی کج‌تر از ابر (نورِ بالا-چپ) و پایین‌تر روی زمین
+        final cx = (((c.x + st._drift * spd) % span) - 0.35) * w + u * 1.6;
+        final cy = h * (0.36 + c.y * 3.0);
+        canvas.saveLayer(
+            Rect.fromLTWH(cx - (c.ext + 1.0) * u, cy - 1.8 * u,
+                (c.ext + 1.0) * 2 * u, 3.6 * u),
+            Paint()
+              ..color = Color.fromRGBO(
+                  0, 0, 0, (a * shadowK).clamp(0.0, 0.2).toDouble()));
+        for (final q in c.puffs) {
+          final r = q[2] * u;
+          canvas.save();
+          canvas.translate(cx + q[0] * u, cy + q[1] * u * 0.45);
+          canvas.scale(r * q[3] * 1.25, r * 0.5);
+          canvas.drawCircle(Offset.zero, 1, shadowPaint);
+          canvas.restore();
+        }
+        canvas.restore();
+      }
       for (var i = 0; i < _clouds.length; i++) {
         final c = _clouds[i];
         final a = (cover * 1.3 - i * 0.15).clamp(0.0, 1.0).toDouble() *

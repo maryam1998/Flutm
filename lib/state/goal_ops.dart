@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../map/draw_utils.dart' show toFa;
 import '../map/map_ops.dart';
+import '../map/spirits.dart';
 import '../models/jalali.dart';
 import '../models/map_models.dart';
 import 'map_store.dart';
@@ -249,6 +250,8 @@ int stopTimer(ActionNode n) {
     if (tn is String && tn.trim().isNotEmpty) e['note'] = tn.trim();
     n.extra.remove('timerNote');
     list.add(e);
+    // تمام‌کردنِ تایمر = دوست‌شدن با هیولای ذهنِ همین شاخه (یا یکی دیگر)
+    MapSpirits.onTimerDone(n.id, elapsed);
   }
   return elapsed;
 }

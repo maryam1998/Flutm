@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../map/draw_utils.dart' show toFa;
 import '../map/estimate.dart';
 import '../map/map_ops.dart';
+import '../map/spirits.dart';
 import '../map/walker_photos.dart';
 import '../models/constants.dart';
 import '../models/jalali.dart' show faDateLong;
@@ -1659,6 +1660,20 @@ class _EditSheetState extends State<EditSheet> {
         ],
       ),
       _stampCard(a.extra),
+      _card(
+        icon: Icons.pets_rounded,
+        title: 'مانعِ ذهنی (هیولای دوست‌داشتنی)',
+        collapsible: true,
+        children: [
+          MonsterPicker(
+            extra: a.extra,
+            onEdit: _edit,
+            ink: _kInk,
+            muted: _kMuted,
+            accent: _kGold,
+          ),
+        ],
+      ),
       _switchTile(
         boxed: true,
         title: 'این یه کار روتینه',

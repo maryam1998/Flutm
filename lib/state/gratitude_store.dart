@@ -6,6 +6,7 @@ import '../services/persist_engine.dart';
 import '../models/emotion.dart';
 import '../models/gratitude_entry.dart';
 import '../models/neural_container.dart';
+import '../map/spirits.dart';
 import 'emotion_store.dart';
 
 class GratitudeStore extends ChangeNotifier {
@@ -416,6 +417,8 @@ class GratitudeStore extends ChangeNotifier {
     // اگه روی ادمک حسی انتخاب شده بود، همراه ثبت ذخیره شده و ادمک ریست می‌شه.
     if (emoIds.isNotEmpty) emotions?.clear();
 
+    // انرژیِ شکرگزاری روی نقشه‌ی هدف‌گذاری موج می‌شود (فقط ثبتِ دستیِ متن‌دار)
+    if (source == 'manual' && text.trim().isNotEmpty) MapSpirits.onGratitude();
     notifyListeners(); // اول نشون بده؛ ذخیره‌ی سنگین بعدش
     await _persist();
     notifyListeners();
