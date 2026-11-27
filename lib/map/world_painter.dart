@@ -431,23 +431,24 @@ double _rampMin(int k) {
 
 double _offFor(int k, double s, double Function() R) {
   switch (k) {
+    // فاصله از جاده تا خیلی دورتر هم ادامه دارد تا کلِ بیابان سرسبز شود
     case 0:
     case 1:
-      return 24 + R() * 120;
+      return 24 + R() * 320;
     case 2:
-      return 34 + R() * 90;
+      return 34 + R() * 260;
     case 6:
     case 7:
-      return 30 + R() * 110;
+      return 30 + R() * 300;
     case 3:
     case 4:
-      return 50 + R() * 110;
+      return 50 + R() * 330;
     case 8:
-      return 50 + R() * 60;
+      return 50 + R() * 160;
     case 9:
       return 56 + R() * 8;
     case 11:
-      return 85 + R() * 60;
+      return 85 + R() * 200;
     case 20:
     case 21:
     case 22:
@@ -456,7 +457,7 @@ double _offFor(int k, double s, double Function() R) {
       return 72 + R() * 25;
     case 5:
     case 12:
-      return 30 + _kindRadius(k) * s * 0.95 + R() * 25;
+      return 30 + _kindRadius(k) * s * 0.95 + R() * 230;
     default:
       return 50 + R() * 50;
   }
@@ -511,12 +512,12 @@ _GPlan _genGoalPlan(String gid, int seed) {
   while (sd < 4200) {
     final side = R() < 0.5 ? -1.0 : 1.0;
     pl.blobs.add(_Blob(
-        sd, side * (10 + R() * 70), 55 + R() * 55, _hr(3 + R() * 30), false));
-    if (R() < 0.55) {
-      pl.blobs.add(_Blob(sd + R() * 30, -side * (10 + R() * 60),
-          34 + R() * 36, _hr(70 + R() * 230), true));
+        sd, side * (10 + R() * 230), 70 + R() * 80, _hr(3 + R() * 30), false));
+    if (R() < 0.7) {
+      pl.blobs.add(_Blob(sd + R() * 30, -side * (10 + R() * 200),
+          50 + R() * 50, _hr(70 + R() * 230), true));
     }
-    sd += 48 + R() * 34;
+    sd += 40 + R() * 26;
   }
 
   // گیاه، خانه، برکه…
@@ -798,7 +799,7 @@ class WorldLayer {
       final cp = geo.trunkControlPoints(g, s.me);
       final road = _RoadPoly.build(cp, gp.side * 30.0, gp);
       if (road == null) continue;
-      if (!vv.overlaps(road.bounds.inflate(260))) continue;
+      if (!vv.overlaps(road.bounds.inflate(560))) continue;
       // جاده همان لحظه‌ی ثبتِ هدف کامل و آسفالت‌شده است
       final rl = road.length;
       final paved = road.length;
@@ -818,7 +819,7 @@ class WorldLayer {
     final meR = 70 + 170 * _ease(tot / _hr(500));
     if (meK > 0.02) gc.addAll([me.dx, me.dy, meR * 0.8]);
     for (final f in frs) {
-      final rg = 50 + 130 * _ease(f.gm / _hr(120));
+      final rg = 90 + 280 * _ease(f.gm / _hr(120));
       for (var d = 0.0; d < f.rl; d += 80) {
         final q = f.road.pos(d);
         gc.addAll([q.dx, q.dy, rg]);
