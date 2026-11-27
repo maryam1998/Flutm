@@ -153,7 +153,7 @@ void syncLinkedGoals(
         x: spot.dx,
         y: spot.dy,
         createdAt: now,
-        extra: {'linkedTab': t.id, 'showWalker': false},
+        extra: {'linkedTab': t.id},
       );
       map.state.goals.add(g);
       final p = ensurePeriod(g, map);

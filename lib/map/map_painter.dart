@@ -2567,6 +2567,12 @@ class MapPainter extends CustomPainter {
           ..color = withOp(col, 0.98));
   }
 
+  /// رنگِ پا وقتی کاربر رنگِ دلخواه نگذاشته: پا هم‌رنگِ جاده بود و دیده نمی‌شد؛
+  /// شب روشن (کرم‌مایل)، روز تیره می‌شود تا روی جاده کاملاً معلوم باشد.
+  Color _footContrast(Color c) => isDark
+      ? (Color.lerp(c, const Color(0xFFFFF6DC), 0.82) ?? c)
+      : (Color.lerp(c, const Color(0xFF111111), 0.6) ?? c);
+
   void _drawFoot(
     Canvas canvas,
     Offset pos,
@@ -2620,7 +2626,7 @@ class MapPainter extends CustomPainter {
     final fcHex = g.extra['footColor'];
     final col = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, col0)
-        : col0;
+        : _footContrast(col0);
     final playing =
         !walkerIsStill(g.extra) && (g.extra['walkerPlaying'] as bool? ?? true);
     final speed =
@@ -2700,7 +2706,7 @@ class MapPainter extends CustomPainter {
     final fcHex = a.extra['footColor'];
     final color = (fcHex is String && fcHex.isNotEmpty)
         ? hexColor(fcHex, color0)
-        : color0;
+        : _footContrast(color0);
     final todayK = jKey(DateTime.now());
     final doneToday = footDoneToday(a, todayK);
     // کار انجام شد / منتظر جواب / کاملاً تمام شد → کلِ انیمیشن (عکس، ایموجی،

@@ -181,8 +181,7 @@ ActionNode newAction({double radius = 12}) => ActionNode(
       extra: {
         'createdAt': DateTime.now().millisecondsSinceEpoch,
         'radius': radius,
-        // انیمیشنِ حرکت به‌صورت پیش‌فرض خاموش است؛ کاربر خودش روشن می‌کند
-        'showWalker': false,
+        // انیمیشنِ پاها به‌صورت پیش‌فرض «متحرک» است (بدون کلیدِ showWalker/walkerMode)
       },
     );
 

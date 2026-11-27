@@ -153,8 +153,8 @@ class MapStore extends ChangeNotifier {
       x: spot.dx,
       y: spot.dy,
       createdAt: DateTime.now().millisecondsSinceEpoch,
-      // انیمیشنِ روی خطِ هدفِ تازه به‌صورت پیش‌فرض خاموش است (از ویرایش روشن می‌شود)
-      extra: {'showWalker': false},
+      // انیمیشنِ پاها روی هدفِ تازه به‌صورت پیش‌فرض «متحرک» است
+      extra: <String, dynamic>{},
     );
     state.goals.add(g);
     changedNow();
