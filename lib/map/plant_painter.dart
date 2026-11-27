@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'clay_sprites.dart';
 import 'wind.dart' show windSway;
 
 /// گیاهِ تمرکز 🌱: با گذشتِ دقیقه‌های کارِ امروز روی نوکِ شاخه کم‌کم رشد می‌کند.
@@ -104,12 +103,6 @@ void drawRoadBush(Canvas canvas, Offset base, double dir, double size, double g,
   // رشدِ پیوسته: از «هیچ» شروع می‌شود و ارتفاع و برگ‌ها نرم و آهسته زیاد می‌شوند
   // (قبلاً ارتفاعِ اولیه ۳۰٪ بود و جفت‌برگ‌ها ناگهان پدیدار می‌شدند)
   final k = g.clamp(0.0, 1.0).toDouble();
-  // بوته‌ی خمیری (سه‌بعدی)؛ اگر تصاویر نبودند همان بوته‌ی برداریِ زیر
-  ClaySprites.ensure();
-  if (ClaySprites.ready) {
-    ClaySprites.bush(canvas, base, size, k, seed, sway);
-    return;
-  }
   final hgt = size * (0.04 + 0.96 * k);
   if (hgt < 0.5) return;
   final si = seed.abs();
@@ -233,18 +226,6 @@ void drawFocusPlant(
   var h = 7;
   for (final u in id.codeUnits) {
     h = (h * 31 + u) & 0x7fffffff;
-  }
-  // تصاویرِ سه‌بعدیِ خمیری: تا وقتی کار ناتمام است جوانه‌ای که با دقیقه‌ها بزرگ می‌شود،
-  // و با تکمیل، گل/قارچِ کامل (با انیمیشنِ شکفتن و درخشش)
-  ClaySprites.ensure();
-  if (ClaySprites.ready) {
-    if (mode == kPlantFlowers) {
-      sprig(canvas, tip, dir, r * 0.8, '$id|top',
-          (bloom * 1.4).clamp(0.0, 1.0).toDouble(), true);
-    } else {
-      ClaySprites.growingSprout(canvas, tip, r, h, m, windT);
-    }
-    return;
   }
   final gc = _greens[h % 3];
   final R = r;
